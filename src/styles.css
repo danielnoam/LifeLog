@@ -4419,6 +4419,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .board-width-dot { width: 18px; border-radius: var(--r-pill); background: currentColor; }
 .board-width.on { background: var(--accent-soft); color: var(--accent); }
 .board-delete { color: var(--danger); font-size: var(--fs-lg); }
+.board-clip { color: var(--text-dim); }
 .board-fill::before {
   content: ""; width: 18px; height: 18px; border-radius: var(--r-xs); border: 2px solid currentColor; box-sizing: border-box;
   background: repeating-linear-gradient(-45deg, currentColor 0 1.5px, transparent 1.5px 5px);

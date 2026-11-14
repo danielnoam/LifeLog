@@ -918,6 +918,7 @@
     $("#boardUndo").disabled = !undoStack.length;
     $("#boardRedo").disabled = !redoStack.length;
     $("#boardDelete").hidden = !selection.size;
+    syncClipButtons();
   }
   function redrawAfterMerge() {
     const fresh = findBoard(editing.id);
@@ -941,11 +942,12 @@
     if (op && op.kind === "box") {
       overlay.appendChild(svgEl("rect", { ...norm(op.x0, op.y0, op.x1 - op.x0, op.y1 - op.y0), class: "board-box" }));
     }
-    const busy = op && (op.kind === "box" || (op.kind === "move" && op.moved));
-    if (tool !== "select" || !els.length || busy) return;
+    const boxing = op && op.kind === "box", moving = op && op.kind === "move" && op.moved;
+    if (tool !== "select" || !els.length || boxing) return;
     const B = boundsOf(els), pad = 8 / view.k, hs = 5 / view.k;
     const x1 = B.x - pad, y1 = B.y - pad, x2 = B.x + B.w + pad, y2 = B.y + B.h + pad;
     if (els.length > 1) overlay.appendChild(svgEl("rect", { x: x1, y: y1, width: x2 - x1, height: y2 - y1, class: "board-sel board-sel-group" }));
+    if (moving) return;
     // A corner handle sits `pad` outside the selection, but scales it by its
     // own corners — so the drawing's edge follows the finger exactly.
     const bx1 = B.x, by1 = B.y, bx2 = B.x + B.w, by2 = B.y + B.h;
@@ -1004,6 +1006,16 @@
     changed(editing); redraw();
   }
 
+  // The ids of what a drag box fully contains.
+  function boxHits(o) {
+    const r = norm(o.x0, o.y0, o.x1 - o.x0, o.y1 - o.y0);
+    if (!(r.w > 2 || r.h > 2)) return [];
+    return editing.elements.filter((e) => {
+      const b = bbox(e);
+      return b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h;
+    }).map((e) => e.id);
+  }
+
   function onPointerDown(ev) {
     if (!editing || (ev.button && ev.button !== 1)) return;
     commitText();
@@ -1041,7 +1053,7 @@
         op = { kind: "move", x0: x, y0: y, orig: editing.elements.filter((e) => selection.has(e.id)).map((e) => ({ ...e })), moved: false, tapped: hit };
       } else {
         if (!ev.shiftKey) selection = new Set();
-        op = { kind: "box", x0: x, y0: y, x1: x, y1: y };
+        op = { kind: "box", x0: x, y0: y, x1: x, y1: y, base: new Set(selection) };
       }
       redraw();
       return;
@@ -1114,6 +1126,8 @@
       redraw();
     } else if (op.kind === "box") {
       op.x1 = x; op.y1 = y;
+      // What the box covers lights up as it grows, not only on release.
+      selection = new Set([...op.base, ...boxHits(op)]);
       drawSelection();
     } else if (op.kind === "shape") {
       const e = op.e;
@@ -1151,13 +1165,7 @@
         else lastTap = { id: done.tapped.id, at: now };
       }
     } else if (done.kind === "box") {
-      const r = norm(done.x0, done.y0, done.x1 - done.x0, done.y1 - done.y0);
-      if (r.w > 2 || r.h > 2) {
-        for (const e of editing.elements) {
-          const b = bbox(e);
-          if (b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h) selection.add(e.id);
-        }
-      }
+      selection = new Set([...done.base, ...boxHits(done)]);
       redraw();
     } else if (done.kind === "shape") {
       liveLayer.innerHTML = "";
@@ -1283,10 +1291,82 @@
     syncToolbar();
     changed(editing); redraw();
   }
+  // ---------- copy, cut, paste ----------
+  // Items travel as JSON text on the system clipboard, so they cross boards
+  // and the web and desktop apps; `clip` is the in-app copy for when the
+  // clipboard is blocked.
+  const CLIP_MARK = "board-elements";
+  let clip = null, pasteCount = 0;
+  const selectedJson = () => JSON.stringify({ lifelog: CLIP_MARK, v: 1, elements: editing.elements.filter((e) => selection.has(e.id)) });
+  function parseClip(text) {
+    try {
+      const o = JSON.parse(text);
+      return o && o.lifelog === CLIP_MARK && Array.isArray(o.elements) ? o.elements : null;
+    } catch (e) { return null; }
+  }
+  function boardKeys() {
+    const a = document.activeElement;
+    return editing && !$("#boardEditor").hidden && a !== textInput && a !== $("#boardName");
+  }
+  function onCopy(ev) {
+    if (!boardKeys() || !selection.size) return;
+    clip = selectedJson(); pasteCount = 0;
+    ev.clipboardData.setData("text/plain", clip);
+    ev.preventDefault();
+    syncClipButtons();
+  }
+  function onCut(ev) {
+    if (!boardKeys() || !selection.size) return;
+    onCopy(ev);
+    deleteSelection();
+  }
+  async function copyNow() {
+    if (!editing || !selection.size) return;
+    clip = selectedJson(); pasteCount = 0;
+    try { await navigator.clipboard.writeText(clip); } catch (e) { /* the in-app copy still works */ }
+    syncClipButtons();
+    toast("Copied");
+  }
+  async function pasteNow() {
+    let list = null;
+    try { list = parseClip(await navigator.clipboard.readText()); } catch (e) { /* blocked: use the in-app copy */ }
+    if (!list && clip) list = parseClip(clip);
+    pasteElements(list);
+  }
+  function pasteElements(list) {
+    if (!editing) return;
+    const clean = list ? B_sanitize(list) : [];
+    if (!clean.length) { toast("Nothing to paste"); return; }
+    commitText();
+    const box = boundsOf(clean), r = svg.getBoundingClientRect();
+    const [vx1, vy1] = toWorld(0, 0), [vx2, vy2] = toWorld(r.width, r.height);
+    const visible = box.x < vx2 && box.x + box.w > vx1 && box.y < vy2 && box.y + box.h > vy1;
+    let dx, dy;
+    if (visible) dx = dy = (pasteCount + 1) * 16;
+    else { dx = Math.round((vx1 + vx2) / 2 - (box.x + box.w / 2)); dy = Math.round((vy1 + vy2) / 2 - (box.y + box.h / 2)); }
+    const added = clean.map((e) => ({ ...moved(e, dx, dy), id: uid() }));
+    remember();
+    editing.elements.push(...added);
+    pasteCount++;
+    tool = "select";
+    selection = new Set(added.map((e) => e.id));
+    syncToolbar();
+    changed(editing); redraw();
+  }
+  const B_sanitize = (list) => sanitizeBoard({ id: "x", elements: list.filter((e) => e && typeof e === "object") }).elements;
+  function syncClipButtons() {
+    const c = $("#boardCopy"), p = $("#boardPaste");
+    if (c) c.hidden = !selection.size;
+    if (p) p.hidden = !clip;
+  }
+
   function onPaste(ev) {
     if (!editing || $("#boardEditor").hidden) return;
     const a = document.activeElement;
     if (a === textInput || a === $("#boardName")) return;
+    const text = ev.clipboardData && ev.clipboardData.getData ? ev.clipboardData.getData("text/plain") : "";
+    const list = text ? parseClip(text) : null;
+    if (list) { ev.preventDefault(); pasteElements(list); return; }
     const files = [...((ev.clipboardData && ev.clipboardData.items) || [])].filter((i) => i.kind === "file" && /^image\//.test(i.type)).map((i) => i.getAsFile()).filter(Boolean);
     if (!files.length) return;
     ev.preventDefault();
@@ -1496,6 +1576,10 @@
       addPictures([...ev.dataTransfer.files], pointerWorld(ev));
     });
     document.addEventListener("paste", onPaste);
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    $("#boardCopy").onclick = copyNow;
+    $("#boardPaste").onclick = pasteNow;
     textInput.addEventListener("input", placeTextInput);
     textInput.addEventListener("blur", () => commitText());
     textInput.addEventListener("keydown", (e) => {
@@ -1552,6 +1636,6 @@
     ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn,
     // pure helpers (test/boards.test.js)
-    simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
+    parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };
 })();

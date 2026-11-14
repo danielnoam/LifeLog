@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.313.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.314.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -2729,6 +2729,8 @@
     <textarea id="boardTextInput" class="board-text-input" hidden rows="1" aria-label="Text"></textarea>
     <div class="board-bar">
       <div class="board-style" id="boardStyle">
+        <button type="button" class="board-delete board-clip" id="boardCopy" hidden aria-label="Copy selected" title="Copy (Ctrl+C)"><span data-ico="copy"></span></button>
+        <button type="button" class="board-delete board-clip" id="boardPaste" hidden aria-label="Paste" title="Paste (Ctrl+V)"><span data-ico="clipboard-paste"></span></button>
         <button type="button" class="board-delete" id="boardDelete" hidden aria-label="Delete selected" title="Delete selected (Del)"><span data-ico="trash"></span></button>
         <button type="button" class="board-fill" id="boardFill" aria-pressed="false" aria-label="Fill shapes" title="Fill rectangles and ellipses"></button>
       </div>
@@ -2736,49 +2738,49 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.313.0"></script>
-  <script defer src="src/headless.js?v=0.313.0"></script>
-  <script defer src="src/platform.js?v=0.313.0"></script>
-  <script defer src="src/desktop.js?v=0.313.0"></script>
-  <script defer src="src/dates.js?v=0.313.0"></script>
-  <script defer src="src/datefield.js?v=0.313.0"></script>
-  <script defer src="src/keys.js?v=0.313.0"></script>
-  <script defer src="src/testbuilds.js?v=0.313.0"></script>
-  <script defer src="src/icons.js?v=0.313.0"></script>
-  <script defer src="src/select.js?v=0.313.0"></script>
-  <script defer src="src/jobs.js?v=0.313.0"></script>
-  <script defer src="src/reconcile.js?v=0.313.0"></script>
-  <script defer src="src/qr.js?v=0.313.0"></script>
-  <script defer src="src/media.js?v=0.313.0"></script>
-  <script defer src="src/merge.js?v=0.313.0"></script>
-  <script defer src="src/storage.js?v=0.313.0"></script>
-  <script defer src="src/finance.js?v=0.313.0"></script>
-  <script defer src="src/settings.js?v=0.313.0"></script>
-  <script defer src="src/wheel.js?v=0.313.0"></script>
-  <script defer src="src/backlog.js?v=0.313.0"></script>
-  <script defer src="src/journal.js?v=0.313.0"></script>
-  <script defer src="src/markdown.js?v=0.313.0"></script>
-  <script defer src="src/images.js?v=0.313.0"></script>
-  <script defer src="src/notes.js?v=0.313.0"></script>
-  <script defer src="src/docimport.js?v=0.313.0"></script>
-  <script defer src="src/io.js?v=0.313.0"></script>
-  <script defer src="src/sync.js?v=0.313.0"></script>
-  <script defer src="src/habits.js?v=0.313.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.313.0"></script>
-  <script defer src="src/boards.js?v=0.313.0"></script>
-  <script defer src="src/travel.js?v=0.313.0"></script>
-  <script defer src="src/invest.js?v=0.313.0"></script>
-  <script defer src="src/waypage.js?v=0.313.0"></script>
-  <script defer src="src/home.js?v=0.313.0"></script>
-  <script defer src="src/recap.js?v=0.313.0"></script>
-  <script defer src="src/reminders.js?v=0.313.0"></script>
-  <script defer src="src/alerts.js?v=0.313.0"></script>
-  <script defer src="src/widgets.js?v=0.313.0"></script>
-  <script defer src="src/share.js?v=0.313.0"></script>
-  <script defer src="src/search.js?v=0.313.0"></script>
-  <script defer src="src/letterboxd.js?v=0.313.0"></script>
-  <script defer src="src/stremio.js?v=0.313.0"></script>
-  <script defer src="src/payments.js?v=0.313.0"></script>
-  <script defer src="src/app.js?v=0.313.0"></script>
+  <script defer src="src/errlog.js?v=0.314.0"></script>
+  <script defer src="src/headless.js?v=0.314.0"></script>
+  <script defer src="src/platform.js?v=0.314.0"></script>
+  <script defer src="src/desktop.js?v=0.314.0"></script>
+  <script defer src="src/dates.js?v=0.314.0"></script>
+  <script defer src="src/datefield.js?v=0.314.0"></script>
+  <script defer src="src/keys.js?v=0.314.0"></script>
+  <script defer src="src/testbuilds.js?v=0.314.0"></script>
+  <script defer src="src/icons.js?v=0.314.0"></script>
+  <script defer src="src/select.js?v=0.314.0"></script>
+  <script defer src="src/jobs.js?v=0.314.0"></script>
+  <script defer src="src/reconcile.js?v=0.314.0"></script>
+  <script defer src="src/qr.js?v=0.314.0"></script>
+  <script defer src="src/media.js?v=0.314.0"></script>
+  <script defer src="src/merge.js?v=0.314.0"></script>
+  <script defer src="src/storage.js?v=0.314.0"></script>
+  <script defer src="src/finance.js?v=0.314.0"></script>
+  <script defer src="src/settings.js?v=0.314.0"></script>
+  <script defer src="src/wheel.js?v=0.314.0"></script>
+  <script defer src="src/backlog.js?v=0.314.0"></script>
+  <script defer src="src/journal.js?v=0.314.0"></script>
+  <script defer src="src/markdown.js?v=0.314.0"></script>
+  <script defer src="src/images.js?v=0.314.0"></script>
+  <script defer src="src/notes.js?v=0.314.0"></script>
+  <script defer src="src/docimport.js?v=0.314.0"></script>
+  <script defer src="src/io.js?v=0.314.0"></script>
+  <script defer src="src/sync.js?v=0.314.0"></script>
+  <script defer src="src/habits.js?v=0.314.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.314.0"></script>
+  <script defer src="src/boards.js?v=0.314.0"></script>
+  <script defer src="src/travel.js?v=0.314.0"></script>
+  <script defer src="src/invest.js?v=0.314.0"></script>
+  <script defer src="src/waypage.js?v=0.314.0"></script>
+  <script defer src="src/home.js?v=0.314.0"></script>
+  <script defer src="src/recap.js?v=0.314.0"></script>
+  <script defer src="src/reminders.js?v=0.314.0"></script>
+  <script defer src="src/alerts.js?v=0.314.0"></script>
+  <script defer src="src/widgets.js?v=0.314.0"></script>
+  <script defer src="src/share.js?v=0.314.0"></script>
+  <script defer src="src/search.js?v=0.314.0"></script>
+  <script defer src="src/letterboxd.js?v=0.314.0"></script>
+  <script defer src="src/stremio.js?v=0.314.0"></script>
+  <script defer src="src/payments.js?v=0.314.0"></script>
+  <script defer src="src/app.js?v=0.314.0"></script>
 </body>
 </html>
