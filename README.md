@@ -61,7 +61,7 @@ day, where it went and your latest expenses; and an Investments card with what
 you hold, the gain since you bought and each ticker's month and day. On a computer you arrange it
 in floors: drag a section by its heading into a floor to share its width
 (a full floor moves its last section down), or between floors to start a
-new one. A phone shows the floors one under the other. View hides
+new one, and right-click an empty spot to add a hidden section there. A phone shows the floors one under the other. View hides
 sections, moves them with arrows and resets the layout, per device, and
 Settings → Tabs turns Home off.
 

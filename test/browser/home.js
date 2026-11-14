@@ -152,6 +152,28 @@ const SEED = {
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
   check("Reset layout brings back the default floors and every section", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]]), await floorsNow());
 
+  // ---- right-click an empty spot to add a hidden section there ----
+  await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
+  await page.click('#homeSectionRows [aria-label="Show Investments"]'); await page.waitForTimeout(200);
+  await page.click('#homeSectionRows [aria-label="Show Pinned notes"]'); await page.waitForTimeout(200);
+  await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
+  const ctxItems = () => page.$$eval(".ctx-menu:not([hidden]) > *", (n) => n.map((x) => x.textContent.trim()));
+  let last = await page.evaluate(() => { const f = [...document.querySelectorAll(".home-floor")].at(-1).getBoundingClientRect(); window.scrollTo(0, 0); return { x: f.left + 300, y: f.bottom + 30 + window.scrollY }; });
+  await page.evaluate((y) => window.scrollTo(0, Math.max(0, y - 500)), last.y); await page.waitForTimeout(500);
+  let sy = await page.evaluate(() => window.scrollY);
+  await page.mouse.click(last.x, last.y - sy, { button: "right" }); await page.waitForTimeout(200);
+  check("right-clicking below the floors offers the hidden sections", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Pinned notes", "Investments"]), await ctxItems());
+  await page.click('.ctx-menu button:has-text("Investments")'); await page.waitForTimeout(300);
+  check("and picking one puts it on a new floor there", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["ledger"], ["invest"]]), await floorsNow());
+  await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500);
+  const gap = await page.evaluate(() => { const f = document.querySelectorAll(".home-floor"); return { x: 300, y: (f[0].getBoundingClientRect().bottom + f[1].getBoundingClientRect().top) / 2 }; });
+  await page.mouse.click(gap.x, gap.y, { button: "right" }); await page.waitForTimeout(200);
+  await page.click('.ctx-menu button:has-text("Pinned notes")'); await page.waitForTimeout(300);
+  check("right-clicking between floors adds it on a floor of its own between them", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["pinned"], ["upcoming", "scratchpad"], ["ledger"], ["invest"]]), await floorsNow());
+  await page.mouse.click(gap.x, 120, { button: "right" }); await page.waitForTimeout(200);
+  check("with nothing hidden, the menu says so", JSON.stringify(await ctxItems()) === JSON.stringify(["Every section is on Home"]), await ctxItems());
+  await page.keyboard.press("Escape");
+
   // ---- the scratchpad as a board ----
   const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
   await page.click('.home-pad-mode .seg-btn[data-mode="board"]'); await page.waitForTimeout(500);

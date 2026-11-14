@@ -703,7 +703,9 @@
     page.appendChild(head);
     const layout = floors();
     if (!layout.length) {
-      page.appendChild(el("p", "home-empty", "Every section is hidden. Turn some back on from the View button."));
+      page.appendChild(el("p", "home-empty", "Every section is hidden. Turn some back on from the View button, or right-click here."));
+      if (!isMobileLayout()) page.classList.add("can-arrange");
+      page.addEventListener("contextmenu", emptyMenu);
       root.appendChild(page);
       return;
     }
@@ -718,6 +720,7 @@
     layFloors(page, layout, built);
     if (!isMobileLayout()) page.classList.add("can-arrange");
     page.addEventListener("pointerdown", pressHead);
+    page.addEventListener("contextmenu", emptyMenu);
     root.appendChild(page);
   }
 
@@ -912,6 +915,53 @@
     if (d.ghost) d.ghost.remove();
     document.documentElement.classList.remove("home-dragging");
     if (d.built) Object.values(d.built).forEach((s) => s.classList.remove("is-slot", "is-pushed"));
+  }
+
+  // ---------- right-click on an empty spot: add a hidden section there ----------
+  // Beside or under a section in a floor, it joins that floor at that spot
+  // (a full floor pushes its last one down, as a drop does); between floors
+  // or below the last, it gets a floor of its own there. A section's own
+  // area keeps its own menu (or the browser's).
+  function emptyMenu(ev) {
+    const CM = window.LifeLogContextMenu;
+    if (!CM || isMobileLayout() || drag) return;
+    if (ev.target.closest(".home-sec, input, textarea, a[href], [contenteditable='true']")) return;
+    const page = ev.currentTarget;
+    const place = placeAt(page, ev.clientX, ev.clientY);
+    const off = SECTION_IDS.filter((id) => (state.visual.homeHidden || []).includes(id));
+    ev.preventDefault();
+    const items = off.length
+      ? [{ head: "Add to Home" }].concat(off.map((id) => {
+        const [, label, icon] = SECTIONS.find(([s]) => s === id);
+        return { icon, label, run: () => addSectionAt(page, id, place) };
+      }))
+      : [{ head: "Every section is on Home" }];
+    CM.open(ev.clientX, ev.clientY, items);
+  }
+
+  function placeAt(page, x, y) {
+    const rows = [...page.querySelectorAll(".home-floor")];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect();
+      if (y < r.top) return { floor: i, newFloor: true };
+      if (y < r.bottom) {
+        const at = [...rows[i].children].filter((s) => {
+          const b = s.getBoundingClientRect();
+          return y >= b.bottom || (y >= b.top && x > b.left + b.width / 2);
+        }).length;
+        return { floor: i, at };
+      }
+    }
+    return { floor: rows.length, newFloor: true };
+  }
+
+  function addSectionAt(page, id, place) {
+    const layout = floors();
+    state.visual.homeHidden = (state.visual.homeHidden || []).filter((x) => x !== id);
+    const { floors: next, pushed } = placeSection(layout, id, place, perFloor(page.clientWidth));
+    saveFloors(next);
+    render();
+    if (pushed) toast(sectionLabel(pushed) + " moved down — that floor was full");
   }
 
   const sectionLabel = (id) => (SECTIONS.find(([s]) => s === id) || [, id])[1];

@@ -5027,6 +5027,7 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
   display: grid; gap: var(--space-24); align-items: start;
   grid-template-columns: repeat(auto-fill, minmax(max(min(380px, 100%), calc((100% - (var(--n) - 1) * var(--space-24)) / var(--n))), 1fr));
 }
+.home.can-arrange { min-height: 70vh; }
 .home-floor.is-shared .home-pins { grid-template-columns: minmax(0, 1fr); }
 @media (hover: hover) {
   .home.can-arrange .home-sec-head { cursor: grab; }
