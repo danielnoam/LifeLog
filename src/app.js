@@ -2604,21 +2604,23 @@
       strip.appendChild(cell);
       said.push(label + " " + window.LifeLogMedia.gameHours(hltb[k]));
     }
-    strip.setAttribute("aria-label", "How Long to Beat: " + said.join(", ") + (hltb.url ? ". Opens How Long to Beat" : ""));
+    const site = hltb.from === "igdb" ? "IGDB" : "How Long to Beat";
+    strip.setAttribute("aria-label", site + ": " + said.join(", ") + (hltb.url ? ". Opens " + site : ""));
     return strip;
   }
   // A sheet's game info sits in its hidden #fGameInfo / #bGameInfo as
-  // { id, hltb, reviews }, tied to the Steam App ID it was asked for, so a
-  // re-sync to another game drops the old one's times instead of showing
-  // them under the new cover.
+  // { id, src, hltb, reviews }, tied to the Steam App ID (or IGDB id) it was
+  // asked for, so a re-sync to another game drops the old one's times
+  // instead of showing them under the new cover.
+  const GAME_TIME_SOURCES = ["steam", "igdb"];
   function readGameInfo(prefix, mediaSource, mediaId) {
     let v = null;
     try { v = JSON.parse($("#" + prefix + "GameInfo").value || "null"); } catch (e) { v = null; }
-    return v && mediaSource === "steam" && mediaId && v.id === String(mediaId) ? v : null;
+    return v && GAME_TIME_SOURCES.includes(mediaSource) && mediaId && v.id === String(mediaId) && (v.src || "steam") === mediaSource ? v : null;
   }
   function seedGameInfo(prefix, item) {
-    const ok = item && item.mediaSource === "steam" && item.mediaId && (item.hltb || item.reviews);
-    $("#" + prefix + "GameInfo").value = ok ? JSON.stringify({ id: String(item.mediaId), hltb: item.hltb || null, reviews: item.reviews || null }) : "";
+    const ok = item && GAME_TIME_SOURCES.includes(item.mediaSource) && item.mediaId && (item.hltb || item.reviews);
+    $("#" + prefix + "GameInfo").value = ok ? JSON.stringify({ id: String(item.mediaId), src: item.mediaSource, hltb: item.hltb || null, reviews: item.reviews || null }) : "";
   }
   // Paints a sheet's times (over the cover, or in the row under the title)
   // and review line, then, for a Steam game whose times are missing or a
@@ -2641,23 +2643,23 @@
     renderCoverScores($("#" + sheet + "CoverScores"), hasCover && reviews, hasCover && f.rating);
     if (!hasCover) appendReviewScores(metaEl, reviews);
     const shown = hasGameTimes(info && info.hltb) || lengthShown;
-    if (mediaSource !== "steam" || !mediaId || !Sync.gameTimesDue({ mediaSource, mediaId, hltb: info && info.hltb })) return shown;
+    if (!GAME_TIME_SOURCES.includes(mediaSource) || !mediaId || !Sync.gameTimesDue({ mediaSource, mediaId, hltb: info && info.hltb })) return shown;
     const key = prefix + ":" + mediaId;
     if (gameInfoAsking.has(key)) return shown;
     gameInfoAsking.add(key);
-    Sync.gameTimesFor(mediaId).then((fresh) => {
+    Sync.gameTimesFor(mediaId, mediaSource).then((fresh) => {
       gameInfoAsking.delete(key);
       if (!fresh || $("#" + prefix + "MediaId").value !== String(mediaId)) return;
       const today = new Date();
       const at = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
-      $("#" + prefix + "GameInfo").value = JSON.stringify({ id: String(mediaId), hltb: { ...(fresh.hltb || {}), at }, reviews: fresh.reviews || (info && info.reviews) || null });
+      $("#" + prefix + "GameInfo").value = JSON.stringify({ id: String(mediaId), src: mediaSource, hltb: { ...(fresh.hltb || {}), at }, reviews: fresh.reviews || (info && info.reviews) || null });
       onFresh(fresh);
     });
     return shown;
   }
   const gameInfoAsking = new Set();
   // The sheet's game info, ready to save onto `item`, or cleared from it
-  // when the sheet no longer shows a Steam game.
+  // when the sheet no longer shows a Steam or IGDB game.
   function saveGameInfo(prefix, item) {
     const info = readGameInfo(prefix, item.mediaSource, item.mediaId);
     delete item.hltb; delete item.reviews;

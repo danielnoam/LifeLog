@@ -1571,7 +1571,7 @@
       const timesShown = paintGameInfo("f", "entry", hasCover, meta, mediaSource, mediaId, (fresh) => {
         if (fresh.hltb && fresh.hltb.story && !isPinned("length")) $("#fLength").value = window.LifeLogMedia.gameHours(fresh.hltb.story);
         const stored = $("#entryId").value && state.data.entries.find((e) => e.id === $("#entryId").value);
-        if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
+        if (stored && stored.mediaSource === mediaSource && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
         setEntryCover($("#fCoverUrl").value, mediaId, mediaSource, $("#fLength").value, ($("#fGenres").value || "").split("|").filter(Boolean));
       }, { length: shownLength, rating: $("#fExternalRating").value });
       if (shownLength && !timesShown) meta.prepend(el("span", "bl-meta", shownLength));
@@ -2065,7 +2065,8 @@
     if (h && typeof h === "object") {
       const t = {};
       for (const k of GAME_TIME_KEYS) if (Number.isInteger(+h[k]) && +h[k] > 0) t[k] = +h[k];
-      if (/^https:\/\/howlongtobeat\.com\/game\/\d+$/.test(h.url || "")) t.url = h.url;
+      if (h.from === "igdb") t.from = "igdb";
+      if ((t.from === "igdb" ? /^https:\/\/www\.igdb\.com\/g\/[a-z0-9]+$/ : /^https:\/\/howlongtobeat\.com\/game\/\d+$/).test(h.url || "")) t.url = h.url;
       if (/^\d{4}-\d{2}-\d{2}$/.test(h.at || "")) t.at = h.at;
       if (Object.keys(t).length) out.hltb = t;
     }

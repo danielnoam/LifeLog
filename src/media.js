@@ -1403,7 +1403,10 @@
     if (!g) return { ...EMPTY_DETAILS };
     const r = mapIgdbResult(g);
     const t = times[0] || {};
-    const secs = +t.normally || +t.hastily || 0;
+    // Hastily is IGDB's main story (to the credits, no side quests), the
+    // same time How Long to Beat calls Main Story, so a game's length means
+    // the same thing whichever source timed it.
+    const secs = +t.hastily || +t.normally || 0;
     return {
       ...EMPTY_DETAILS,
       externalRating: r.externalRating,
@@ -1434,6 +1437,35 @@
       if (m) return m[1];
     }
     return "";
+  }
+
+  // IGDB's time-to-beat as the game-times strip's three times, in minutes,
+  // for a game How Long to Beat (Augmented Steam) has nothing on, or one
+  // with no Steam App ID at all. IGDB's own words: hastily is to the credits
+  // without side quests (Main Story), normally mixes some in (Main +
+  // Extras), completely is 100% (Completionist). `from: "igdb"` and the
+  // game's IGDB page tell the strip whose times they are. Null when IGDB
+  // has none, or no keys are set.
+  async function fetchIgdbTimes(id, keys, proxyUrl) {
+    if (!igdbCreds(keys) || !/^\d+$/.test(String(id || ""))) return null;
+    const t = (await igdbQuery("game_time_to_beats", "fields hastily,normally,completely; where game_id = " + id + ";", keys, proxyUrl))[0] || {};
+    const min = (v) => (Number.isFinite(+v) && +v > 0 ? Math.round(+v / 60) : 0);
+    const times = { story: min(t.hastily), extras: min(t.normally), complete: min(t.completely) };
+    if (!times.story && !times.extras && !times.complete) return null;
+    for (const k of Object.keys(times)) if (!times[k]) delete times[k];
+    return { ...times, from: "igdb", url: "https://www.igdb.com/g/" + Number(id).toString(36) };
+  }
+  // The same, for a Steam game: IGDB's game filed under that App ID (Steam
+  // is external source 1, or category 1 on older entries).
+  async function fetchIgdbTimesForSteam(appId, keys, proxyUrl) {
+    if (!igdbCreds(keys) || !/^\d+$/.test(String(appId || ""))) return null;
+    const rows = await igdbQuery("external_games", 'fields game,category,external_game_source; where uid = "' + appId + '"; limit 50;', keys, proxyUrl);
+    const hit = rows.find((x) => {
+      const src = x && (typeof x.external_game_source === "object" && x.external_game_source ? x.external_game_source.id : x.external_game_source);
+      return src === 1 || x.category === 1;
+    });
+    const game = hit && (typeof hit.game === "object" && hit.game ? hit.game.id : hit.game);
+    return game ? fetchIgdbTimes(game, keys, proxyUrl) : null;
   }
 
   // Discover's two lists. IGDB has no "trending" either, so popular is the
@@ -1949,7 +1981,7 @@
     },
     supportsDiscover(source) { return DISCOVER_SOURCES.includes(source); },
     nytTitle, mapNytBook,
-    fetchGameInfo, gameHours,
+    fetchGameInfo, gameHours, fetchIgdbTimes, fetchIgdbTimesForSteam,
     async fetchPrices(appIds, apiKey, proxyUrl) {
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey, proxyUrl);

@@ -169,6 +169,9 @@
   // isn't asked on every launch, and one whose lookup failed waits a day
   // (0.282.3), so a game the route keeps failing on can't hold the same
   // forty in front of every launch. Settings → Connections turns it off.
+  // Where How Long to Beat has nothing, and for a game picked from IGDB with
+  // no Steam App ID, IGDB's time-to-beat stands in when its keys are set
+  // (media.js fetchIgdbTimes), kept the same way with `hltb.from: "igdb"`.
   const GAME_TIMES_KEY = "lifelog-gametimes-v1";
   const GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_FAIL_DAYS = 1, GAME_TIMES_PER_RUN = 40;
   const dayMs = 24 * 60 * 60 * 1000;
@@ -181,6 +184,14 @@
   const gameTimesOn = () => gameTimesSetting() !== "off";
   const gameTimesFreshDays = () => { const n = parseInt(gameTimesSetting(), 10); return n > 0 ? n : 30; };
   const hasSteamId = (x) => x && x.mediaSource === "steam" && /^\d+$/.test(String(x.mediaId || ""));
+  const igdbKeys = () => {
+    const k = state.data.settings.mediaKeys || {};
+    return String(k.igdb || "").trim() && String(k.igdbSecret || "").trim() ? k : null;
+  };
+  const hasIgdbId = (x) => x && x.mediaSource === "igdb" && /^\d+$/.test(String(x.mediaId || ""));
+  // IGDB ids and Steam App IDs are both numbers, so an IGDB game's miss is
+  // kept under its own key.
+  const missKey = (x) => (x.mediaSource === "igdb" ? "igdb:" : "") + x.mediaId;
   function gameTimesMisses() {
     try { return JSON.parse(localStorage.getItem(GAME_TIMES_KEY)) || {}; } catch (e) { return {}; }
   }
@@ -198,9 +209,19 @@
     try { localStorage.setItem(GAME_TIMES_KEY, JSON.stringify(all)); } catch (e) {}
   }
   function gameTimesDue(x, misses) {
-    if (!hasSteamId(x)) return false;
+    if (!hasSteamId(x) && !(hasIgdbId(x) && igdbKeys())) return false;
     if (x.hltb && daysSince(x.hltb.at) < gameTimesFreshDays()) return false;
-    return missWaited((misses || gameTimesMisses())[x.mediaId]);
+    return missWaited((misses || gameTimesMisses())[missKey(x)]);
+  }
+  // One game's answer, { hltb, reviews }: Augmented Steam for a Steam game,
+  // then IGDB when that has no times. Throws only when Augmented Steam
+  // couldn't be asked.
+  async function askGameTimes(x, proxyUrl) {
+    const keys = igdbKeys();
+    if (hasIgdbId(x)) return { hltb: keys ? await window.LifeLogMedia.fetchIgdbTimes(x.mediaId, keys, proxyUrl) : null, reviews: null };
+    const info = await window.LifeLogMedia.fetchGameInfo(x.mediaId, proxyUrl);
+    if (info.hltb || !keys) return info;
+    return { ...info, hltb: await window.LifeLogMedia.fetchIgdbTimesForSteam(x.mediaId, keys, proxyUrl) };
   }
   // Writes an answer onto the item; true when anything it shows changed.
   // A game with reviews but no times still gets `hltb: { at }`, so the
@@ -214,16 +235,17 @@
     if (hltb && hltb.story && !isOverridden(x, "length")) x.length = window.LifeLogMedia.gameHours(hltb.story);
     return shown() !== before;
   }
-  // One game, now: what a sheet asks for when it opens on a Steam game with
-  // no times, or old ones. Resolves to { hltb, reviews } or null, never
-  // throws.
-  async function gameTimesFor(appId) {
-    if (!gameTimesOn() || !window.LifeLogMedia || !/^\d+$/.test(String(appId || ""))) return null;
+  // One game, now: what a sheet asks for when it opens on a Steam (or
+  // IGDB) game with no times, or old ones. Resolves to { hltb, reviews } or
+  // null, never throws.
+  async function gameTimesFor(id, mediaSource) {
+    const x = { mediaSource: mediaSource || "steam", mediaId: String(id || "") };
+    if (!gameTimesOn() || !window.LifeLogMedia || !(hasSteamId(x) || hasIgdbId(x))) return null;
     const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     if (!proxyUrl) return null;
     try {
-      const info = await window.LifeLogMedia.fetchGameInfo(appId, proxyUrl);
-      noteGameTimesMiss(appId, !info.hltb && !info.reviews);
+      const info = await askGameTimes(x, proxyUrl);
+      noteGameTimesMiss(missKey(x), !info.hltb && !info.reviews);
       return info;
     } catch (e) {
       return null;
@@ -249,15 +271,15 @@
           job.progress(i, targets.length, targets[i].title);
           let info;
           try {
-            info = await window.LifeLogMedia.fetchGameInfo(targets[i].mediaId, proxyUrl);
-            noteGameTimesMiss(targets[i].mediaId, !info.hltb && !info.reviews);
+            info = await askGameTimes(targets[i], proxyUrl);
+            noteGameTimesMiss(missKey(targets[i]), !info.hltb && !info.reviews);
             answered++; failedInARow = 0;
           } catch (e) {
             // That game waits a day. Three in a row and the route itself is
             // down (an old proxy, offline): stop rather than ask forty times
             // to hear the same thing.
             lastError = e;
-            noteGameTimesMiss(targets[i].mediaId, true, true);
+            noteGameTimesMiss(missKey(targets[i]), true, true);
             if (++failedInARow >= 3) break;
             continue;
           }

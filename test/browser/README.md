@@ -28,6 +28,7 @@ because something shipped broken that no unit test could have caught:
 | suite | what it pins down |
 |---|---|
 | `synctoast` | the offline warning doesn't fire while the status line says "Synced" |
+| `igdbtimes` | IGDB's time-to-beat fills the game-times strip for a Steam game How Long to Beat doesn't know and for an IGDB game; nothing is asked of IGDB without its keys |
 | `pollpeek` | a poll reads lifelog.json only when the folder listing says its sha moved; the error log in Settings → About |
 | `recurtools` | a pasted price's currency, a monthly plan's charge day and its overrides following it, the link offer ticking only lookalikes, plans merging into one history (overlap kept as one-off charges, one row in the list), Undo putting them back, adding and deleting a one-off charge, and a merged bill as one bar in the Summary |
 | `fxrate` | rate lookup: URLs, fallback order, date pinning, precision, and the hint's spacing |

@@ -215,7 +215,9 @@ progress. **My list** is a wheel of your own options.
 Every item and entry opens in a sheet: the cover with its scores, length and
 store links, the description, notes, and Sync to fill it from a media
 source. For a Steam game: How Long to Beat times, OpenCritic and Metacritic
-user scores, the GG.deals price, and a price alert in US dollars.
+user scores, the GG.deals price, and a price alert in US dollars. With IGDB
+keys set, IGDB's time-to-beat fills the same strip where How Long to Beat has
+nothing, and for IGDB games that aren't on Steam.
 
 <table><tr>
 <td><img src="docs/screenshots/item-sheet-desktop.webp" alt="A backlog item's sheet on a computer" width="620"></td>
@@ -554,7 +556,7 @@ you add it in **Settings → Media lookups**.
 | --- | --- | --- |
 | RAWG | yes (free) | games: ratings, playtime, genres, descriptions |
 | SteamGridDB | yes (free) + CORS proxy | games: better cover art |
-| IGDB | yes (a free Twitch app's client ID and secret) + CORS proxy in a browser | games: a second source beside RAWG, with play times and early access |
+| IGDB | yes (a free Twitch app's client ID and secret) + CORS proxy in a browser | games: a second source beside RAWG, with play times and early access; time-to-beat where How Long to Beat has none |
 | TMDB | yes (free) | films and TV, with next-episode dates |
 | GG.deals | yes (free); proxy if CORS-blocked | current game prices |
 | Augmented Steam | no; CORS proxy | Steam games: How Long to Beat times, OpenCritic and Metacritic user scores |
