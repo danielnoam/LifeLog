@@ -129,8 +129,33 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     const selected = await page.evaluate(() => document.querySelectorAll("#boardSvg rect.board-sel:not(.board-sel-group)").length);
     check("dragging a box over empty space selects what's inside it", selected === 5, selected);
 
-    // The eraser takes the stroke it's dragged across.
+    // The box lights up what it covers while it is still being dragged.
     await page.keyboard.press("Escape");
+    await page.mouse.move(100, 150); await page.mouse.down();
+    await page.mouse.move(500, 500); await page.mouse.move(900, 700);
+    const live = await page.evaluate(() => document.querySelectorAll("#boardSvg rect.board-sel:not(.board-sel-group)").length);
+    check("items inside the drag box show as selected before the mouse is released", live === 5, live);
+    await page.mouse.up();
+
+    // Copy, paste (offset, selected, one undo step), cut.
+    const before = (await els(page)).length;
+    await page.keyboard.press("Control+c");
+    await page.keyboard.press("Control+v");
+    list = await els(page);
+    const picked = await page.evaluate(() => document.querySelectorAll("#boardSvg rect.board-sel:not(.board-sel-group)").length);
+    check("Ctrl+C then Ctrl+V adds copies with new ids and selects them", list.length === before * 2 && new Set(list.map((e) => e.id)).size === list.length && picked === before, { n: list.length, picked });
+    await page.keyboard.press("Control+z");
+    check("a paste is one undo step", (await els(page)).length === before);
+    await page.keyboard.press("Control+a");
+    await page.keyboard.press("Control+x");
+    check("Ctrl+X removes the selection", (await els(page)).length === 0);
+    await page.keyboard.press("Control+v");
+    check("and Ctrl+V puts it back", (await els(page)).length === before);
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    check("undo restores the board", (await els(page)).length === before);
+
+    // The eraser takes the stroke it's dragged across.
     await page.click('[data-tool="eraser"]');
     await stroke(page, [[260, 180], [262, 260], [264, 330]]);
     list = await els(page);

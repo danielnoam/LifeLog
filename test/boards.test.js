@@ -181,3 +181,12 @@ test("with no base at all, boards and strokes from both sides are united", () =>
 });
 
 console.log(`\n${passed} test(s) passed.`);
+
+// ---------- clipboard ----------
+test("parseClip takes only LifeLog's own board JSON", () => {
+  const text = JSON.stringify({ lifelog: "board-elements", v: 1, elements: [{ id: "a", t: "rect", x: 0, y: 0, w: 5, h: 5 }] });
+  assert.strictEqual(B.parseClip(text).length, 1);
+  assert.strictEqual(B.parseClip("hello"), null);
+  assert.strictEqual(B.parseClip('{"lifelog":"other","elements":[]}'), null);
+  assert.strictEqual(B.parseClip("null"), null);
+});
