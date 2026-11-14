@@ -1,0 +1,79 @@
+{
+  "_about": "Which browser suites a pull request runs, by the files it changes. See test/browser/affected.js. Releases, main and hand-run workflows always run every suite.",
+  "everything": [
+    "index.html", "sw.js", "manifest.json",
+    "src/app.js", "src/styles.css", "src/storage.js", "src/platform.js",
+    "src/merge.js", "src/reconcile.js", "src/icons.js", "src/select.js",
+    "src/jobs.js", "src/errlog.js", "src/dates.js", "src/datefield.js",
+    "src/vendor/",
+    "test/browser/harness.js", "test/browser/run-all.js", "test/browser/affected.js",
+    "test/browser/areas.json", "test/browser/seeds/",
+    ".github/workflows/tests.yml"
+  ],
+  "nothing": [
+    "bridge/", "native/", "src-tauri/", "proxy/", "tools/", "docs/", "changes/",
+    ".claude/", ".github/", "audits/", "assets/",
+    "test/fixtures/", "test/perf/", "test/run-all.js",
+    "package.json", "package-lock.json", "capacitor.config.json", "server.js", "start.cmd",
+    "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png"
+  ],
+  "always": [
+    "a11y", "activity", "bootcache", "btnaudit", "bulkselect", "contextmenu",
+    "dropdowns", "everymode", "ghlarge", "hiddenaudit", "home", "modeswipe",
+    "pollpeek", "press", "realloop", "savecoalesce", "search", "synctoast", "tabtoggle"
+  ],
+  "areas": {
+    "notes": {
+      "files": ["src/notes.js", "src/markdown.js", "src/images.js", "src/docimport.js"],
+      "suites": ["collections", "datefaces", "mdimport", "noteimages", "notekinds", "notemenu", "noteopen", "notesheet", "renames", "todomigrate"]
+    },
+    "boards": {
+      "files": ["src/boards.js"],
+      "suites": ["boardimages", "boards", "excalidraw", "renames"]
+    },
+    "habits": {
+      "files": ["src/habits.js"],
+      "suites": ["datesettings", "habits"]
+    },
+    "backlog": {
+      "files": ["src/backlog.js", "src/media.js", "src/wheel.js"],
+      "suites": ["backlogcount", "backlogcovers", "backlogshow", "bandfold", "coverless", "discoverswitch", "droppedfold", "gametimes", "gametimesfail", "hardcover", "igdb", "igdbtimes", "inprogress", "keystatus", "match", "nextseries", "nytdiscover", "outtoday", "outweek", "pick", "pickspeed", "pricealert", "showstate"]
+    },
+    "timeline": {
+      "files": ["src/journal.js", "src/recap.js"],
+      "suites": ["backlogcount", "entrydate", "inprogress", "recap", "showstate", "sorting", "timelinecal"]
+    },
+    "ledger": {
+      "files": ["src/finance.js", "src/payments.js"],
+      "suites": ["fxrate", "ledgershow", "ledgersuggest", "projadd", "recurfx", "recurproject", "recurtools", "renames", "subcats"]
+    },
+    "investments": {
+      "files": ["src/invest.js"],
+      "suites": ["homeinvest", "invest", "investsearch"]
+    },
+    "travel": {
+      "files": ["src/travel.js"],
+      "suites": ["travel", "travelmap", "travelmore"]
+    },
+    "home": {
+      "files": ["src/home.js"],
+      "suites": ["homeinvest"]
+    },
+    "imports": {
+      "files": ["src/io.js", "src/sync.js", "src/letterboxd.js", "src/stremio.js", "src/connections.js", "src/hardcover.js", "src/waypage.js"],
+      "suites": ["anilist", "connections", "excalidraw", "gametimes", "gametimesfail", "hardcover", "igdbtimes", "importedit", "importkinds", "importmodes", "importreview", "importundo", "letterboxd", "mdimport", "nextseries", "pricealert", "steamowned", "stremio", "tabio", "v151", "waypage"]
+    },
+    "settings": {
+      "files": ["src/settings.js", "src/keys.js", "src/testbuilds.js", "src/qr.js"],
+      "suites": ["bridgehistory", "datesettings", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "tabio", "tabmenu"]
+    },
+    "search": {
+      "files": ["src/search.js"],
+      "suites": []
+    },
+    "native": {
+      "files": ["src/headless.js", "src/widgets.js", "src/reminders.js", "src/alerts.js", "src/share.js", "src/desktop.js"],
+      "suites": ["desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "pricealert", "share"]
+    }
+  }
+}

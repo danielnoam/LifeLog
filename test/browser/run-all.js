@@ -3,8 +3,10 @@
 //
 //   node test/browser/run-all.js            all suites
 //   node test/browser/run-all.js fxrate     just one (substring match)
-//   node test/browser/run-all.js --shard=2/4   every fourth suite, from the
-//                                              second (CI runs four at once)
+//   node test/browser/run-all.js --shard=2/8   every eighth suite, from the
+//                                              second (CI runs eight at once)
+//   node test/browser/run-all.js --only=a,b    just these suites (a pull
+//                                              request's, from affected.js)
 //
 // Each suite is a child process: a crash takes that suite down and not the
 // run, and a suite left mid-run by a timeout can't poison the next one's
@@ -67,13 +69,23 @@ function runSuite(name, url) {
   const args = process.argv.slice(2);
   const filter = args.find((a) => !a.startsWith("--"));
   const shard = /^--shard=(\d+)\/(\d+)$/.exec(args.find((a) => a.startsWith("--shard=")) || "");
-  const suites = fs.readdirSync(HERE)
-    .filter((f) => f.endsWith(".js") && !["run-all.js", "harness.js"].includes(f))
-    .map((f) => f.replace(/\.js$/, ""))
+  const onlyArg = args.find((a) => a.startsWith("--only="));
+  const only = onlyArg ? onlyArg.slice(7).split(",").filter(Boolean) : null;
+  const all = fs.readdirSync(HERE)
+    .filter((f) => f.endsWith(".js") && !["run-all.js", "harness.js", "affected.js"].includes(f))
+    .map((f) => f.replace(/\.js$/, ""));
+  if (only) {
+    const unknown = only.filter((n) => !all.includes(n));
+    if (unknown.length) { console.error("No such suite: " + unknown.join(", ")); process.exit(2); }
+  }
+  const suites = all
     .filter((n) => !filter || n.includes(filter))
+    .filter((n) => !only || only.includes(n))
     .sort()
     .filter((n, i) => !shard || i % +shard[2] === +shard[1] - 1);
 
+  // A pull request's few suites leave some of the eight shards with nothing.
+  if (!suites.length && (only || shard)) { console.log("No suites in this shard."); return; }
   if (!suites.length) { console.error("No suites match " + filter); process.exit(2); }
 
   const { server, port } = await serve();

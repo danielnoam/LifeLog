@@ -3,6 +3,15 @@
     node test/browser/run-all.js            every suite
     node test/browser/run-all.js fxrate     one (substring match)
     node test/browser/fxrate.js             one, against a server you started
+    git diff --name-only origin/main | node test/browser/affected.js
+                                            the suites a PR's changes need
+    node test/browser/run-all.js --only=a,b just those
+
+A pull request runs only the suites its files need, from `areas.json`: a
+shared file (or one the map doesn't know) means every suite, a feature file
+means its area's suites plus the `always` list. A new suite goes into an
+area or `always` there, or `test/browseraffected.test.js` fails. Main and
+releases always run everything.
 
 `run-all.js` serves the repo on a free port and passes it down, so there is
 no port to remember and no stale server to collide with. Each suite runs as
