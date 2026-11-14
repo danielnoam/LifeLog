@@ -5004,12 +5004,15 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 }
 
 /* ---------- Home (0.306.0, src/home.js) ----------
-   One page of what's on now. Sections stack in the order chosen under View;
-   half-width ones next to each other share a .home-pair row on a computer
-   (three across as .is-3, two below 1100px) and stack on a phone. */
+   One page of what's on now, built from floors (.home-floor): rows that split
+   their width evenly between their sections (--n of them), wrapping inside
+   the floor when the window is too narrow for each to get 380px, and one
+   under the other on a phone. On a computer a section is dragged by its
+   heading (.can-arrange): it outlines on hover, leaves a dashed slot where
+   it would land, and a copy (.home-ghost) follows the pointer. */
 .home { display: flex; flex-direction: column; gap: var(--space-24); padding: var(--space-8) 0 var(--space-48); }
 .home-date { margin: 0; font-size: var(--fs-2xl); font-weight: 700; color: var(--text); }
-.home-sec { min-width: 0; }
+.home-sec { min-width: 0; position: relative; }
 .home-sec-head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-10); }
 .home-sec-head h2 { margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--text-dim); }
 .home-sec-head h2 .ico { width: 16px; height: 16px; }
@@ -5020,10 +5023,31 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-more::after { content: ""; position: absolute; inset: -14px -8px; }
 .home-empty { margin: 0; padding: var(--space-14) var(--space-16); color: var(--text-dim); font-size: var(--fs-sm);
   background: var(--surface-card); border: 1px dashed var(--border); border-radius: var(--r-card); }
-.home-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-24); align-items: start; }
-.home-pair.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 1100px) { .home-pair.is-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.home-pair .home-pins { grid-template-columns: minmax(0, 1fr); }
+.home-floor {
+  --n: 1;
+  display: grid; gap: var(--space-24); align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(max(min(380px, 100%), calc((100% - (var(--n) - 1) * var(--space-24)) / var(--n))), 1fr));
+}
+.home.can-arrange { min-height: 70vh; }
+.home-floor.is-shared .home-pins { grid-template-columns: minmax(0, 1fr); }
+@media (hover: hover) {
+  .home.can-arrange .home-sec-head { cursor: grab; }
+  .home.can-arrange .home-sec:hover::before {
+    content: ""; position: absolute; inset: calc(-1 * var(--space-10)); pointer-events: none;
+    border: 1.5px solid var(--accent); border-radius: var(--r-card);
+  }
+}
+.home-sec.is-pushed::before { content: ""; position: absolute; inset: calc(-1 * var(--space-10)); pointer-events: none;
+  border: 1.5px dashed var(--warning); border-radius: var(--r-card); }
+html.home-dragging, html.home-dragging * { cursor: grabbing !important; user-select: none; }
+html.home-dragging .home.can-arrange .home-sec:not(.is-pushed):hover::before { content: none; }
+.home-sec.is-slot { min-height: 160px; border: 2px dashed var(--accent); border-radius: var(--r-card); background: var(--accent-soft); }
+.home-sec.is-slot > * { visibility: hidden; }
+.home-ghost {
+  position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; max-height: 280px; overflow: hidden;
+  padding: var(--space-10); background: var(--bg); border: 1.5px solid var(--accent); border-radius: var(--r-card);
+  box-shadow: var(--shadow); opacity: .94;
+}
 .home-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
 
 /* A scroller clips at its padding box, and a cover's hover and focus
@@ -5080,6 +5104,15 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-ledger-amt { color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .home-ledger-top + .home-day { border-top: 1px solid var(--border); padding-top: var(--space-10); }
 .home-ledger-none { padding: 0 var(--space-14) var(--space-12); }
+.home-invest-none { padding: var(--space-14) var(--space-14) var(--space-4); }
+.home-invest-gain { display: flex; align-items: center; gap: var(--space-6); font-size: var(--fs-sm); margin-top: var(--space-2); font-variant-numeric: tabular-nums; }
+.home-invest-gain .ico { width: 16px; height: 16px; flex: 0 0 auto; }
+.home-ledger-top + .home-invest-row { border-top: 1px solid var(--border); }
+.home-invest-row .invest-spark { flex: 0 0 auto; width: 64px; height: 24px; }
+.home-invest-end { display: flex; flex-direction: column; align-items: flex-end; min-width: 72px; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.home-invest-end b { font-size: var(--fs-sm); color: var(--text); }
+.home-invest-hit { margin-left: var(--space-8); padding: 0 var(--space-6); border-radius: var(--r-pill); background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); font-style: normal; font-size: var(--fs-xs); font-weight: 600; }
+.home-invest-closed { font-size: var(--fs-xs); color: var(--text-dim); }
 
 /* Note / Board (src/home.js modeSwitch), at the start of the scratchpad's
    foot; "Saved" moved up into the head in its place. */
@@ -5103,12 +5136,12 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-sec-row .sitem-title .ico { width: 16px; height: 16px; color: var(--text-dim); }
 
 @media (max-width: 720px) {
-  html:not(.force-pc) .home-pair, html:not(.force-pc) .home-pair.is-3 { grid-template-columns: minmax(0, 1fr); }
+  html:not(.force-pc) .home-floor { grid-template-columns: minmax(0, 1fr); }
   html:not(.force-pc) .home-tile { flex-basis: 112px; }
   html:not(.force-pc) .home-pins { grid-template-columns: minmax(0, 1fr); }
   html:not(.force-pc) .home-pad { font-size: var(--fs-lg); }
 }
-html.force-mobile .home-pair, html.force-mobile .home-pair.is-3 { grid-template-columns: minmax(0, 1fr); }
+html.force-mobile .home-floor { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-tile { flex-basis: 112px; }
 html.force-mobile .home-pins { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-pad { font-size: var(--fs-lg); }

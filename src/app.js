@@ -6330,7 +6330,7 @@
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
   Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page),
     openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
-  Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
+  Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr: () => Finance.localDateStr(new Date()) });
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });

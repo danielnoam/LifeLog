@@ -16,6 +16,8 @@ Every release that adds a feature adds its line here in the same commit.
 - On a computer, Home sections next to each other (Coming up, Scratchpad, Pinned notes) share one row, two or three across (0.307.0)
 - Home scratchpad Note / Board switch: a scratch board (boards.json, `scratch`) kept out of the Boards list, opened in the editor, Keep as a board; switch per device (0.307.0); slimmer switch, board as tall as the note, Save to Notebook (0.307.1)
 - Home is the first tab on a computer and stays in the middle of the phone's bottom bar (0.307.0)
+- Home floors: drag a section by its heading on a computer (outline on hover) into a floor, sharing its width at 380px or more each, or between floors for a new one; a full floor pushes its last section down; per device, Esc cancels, View → Reset layout with Undo, right-click an empty spot to add a hidden section there; phone stacks the floors (0.314.0)
+- Home Investments section: You hold with the gain since buying and today's move, up to five tickers with sparkline, close, day's move and At target, a tap opens the ticker, Add ticker; its own floor at the bottom (0.314.0)
 - Home Ledger card: this month so far against last month by the same day (trip spending counted), a category bar with the top three, the latest four expenses, Add expense; four halves sit two by two (0.308.0)
 - Every tab and mode has its own name: Notebook (Notes, Habits), Timeline (Log, Stats), Backlog (List, Discover, Upcoming), Ledger (Expenses, Summary) (0.231.0)
 - Swipe between modes like a pager, and round from the last to the first (0.177.0)
