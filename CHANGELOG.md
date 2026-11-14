@@ -3,6 +3,36 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.315.0] - 2026-11-14
+
+### Added
+- Settings → Keyboard has a Boards group: every board tool's key can be changed, removed or reset there. Board keys only clash with each other, so a letter can be a board tool and still do its job elsewhere. The ? list shows them under "On a board", and each tool's button shows its key in the bottom-right corner (on a computer) and in its tooltip.
+- Hardcover, both ways: pick a category and it keeps your Hardcover library in step. Want to Read is your backlog, Currently Reading is in progress, Read goes to your Timeline on the day you finished, Did Not Finish goes to Dropped. Books already there are matched by title and author; new ones on Hardcover come in through the review. Starting, finishing or dropping a book here goes back to Hardcover, and so does Waypage starting or finishing one. When both sides changed, the newer change wins. Deleting a book here never deletes it on Hardcover.
+- What comes in, on Hardcover, AniList, Stremio and Steam: whether new titles wait for the review, come in straight away or don't come at all, a switch for each list status, and (Hardcover, AniList) whether your changes are sent back.
+- Waypage: turn it off without disconnecting, Disconnect, how often it checks (every few minutes, every open, once a day, or only when you tap), whether new books wait for a look, come in or stay out, whether it starts and finishes your backlog books and shows how far you are, a list of what it brought in with Unlink, and a Kept out list with Allow again (Never used to be for good).
+- Stremio: "LifeLog: Up next", a row on Stremio's home screen with the movies and shows waiting in your Backlog, starred first. An add-on your proxy worker serves; turn it on in Settings → Connections → Stremio and tap Add to Stremio.
+- Bridge: lifelog_hardcover, lifelog_waypage_unlink and lifelog_waypage_allow; lifelog_waypage shows the new controls and what's kept out.
+- Home is built from floors you arrange on a computer: hover a section to outline it, drag it by its heading into a floor and the sections there share its width (each at least 380px, so three across on a laptop, four on a big monitor). Drop it between floors, or below the last, for a floor of its own. Dropping into a full floor moves that floor's last section down to a new floor under it. Esc cancels a drag. The layout is kept per device; a phone shows the floors one under the other.
+- An Investments section on Home: what you hold and the gain since you bought, today's move, then up to five tickers with a month's sparkline, the last close and the day's move (tagged At target when one is). A tap opens that ticker in the Ledger; Add ticker is at the foot. It starts on a floor of its own at the bottom; drag it wherever you like, or hide it under View.
+- Right-click an empty spot on Home (beside or under a section, between floors, or below them) to add a hidden section right there.
+- View → Reset layout puts Home's sections back where they started and shows them all, with Undo.
+- IGDB time-to-beat for games How Long to Beat doesn't know: with IGDB keys set, a Steam game with no How Long to Beat times, or a game picked from IGDB that isn't on Steam, gets IGDB's Main Story, Main + Extras and Completionist times in the same strip over the cover. Tapping it opens the game on IGDB.
+- Windows: a habit reminder has a Done button that marks the habit done without opening LifeLog, as on Android.
+- Windows: a habit reminder leaves the Action Center once the habit is kept, here or on the phone.
+- Settings → Notifications on the computer has Send a test notification.
+- Stremio sync in a browser: when Stremio turns the browser away, it goes through your proxy instead.
+
+### Changed
+- Settings → Connections is a list now, one row per app with where it stands, and each app has its own screen.
+- View's up and down arrows for Home swap a section with its neighbour, each taking the other's place in the floors.
+- A game picked from IGDB takes its length from IGDB's main-story time, the same kind of time How Long to Beat's Main Story gives a Steam game, instead of its "normally" time.
+
+### Fixed
+- Dragging to select on a board now shows the selection box, with a mouse or a finger. It was drawn with no size.
+- Board tool keys and Ctrl+Z / Ctrl+Y / Ctrl+A on a board work on a Hebrew (or any non-English) keyboard layout; they go by the physical key now.
+- Windows: clicking a reminder or heads-up in the Action Center, or after LifeLog was quit, now opens the habit, Ledger, Upcoming or Backlog. Before, only a click while the toast was still on screen did.
+- In a browser, every key that goes through the proxy (GG.deals, SteamGridDB, IGDB, Hardcover, Tiingo, Steam) read Error 502 and did nothing since IGDB was added. The proxy works again.
+
 ## [0.314.1] - 2026-11-14
 
 ### Added
