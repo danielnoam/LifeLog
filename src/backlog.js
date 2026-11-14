@@ -3232,7 +3232,7 @@
         if (fresh.hltb && fresh.hltb.story && !isPinned("length")) $("#bLength").value = window.LifeLogMedia.gameHours(fresh.hltb.story);
         const id = $("#backlogId").value;
         const stored = id && state.data.backlog.find((x) => x.id === id);
-        if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
+        if (stored && stored.mediaSource === mediaSource && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
         setBacklogCover();
       }, { length: $("#bLength").value, status: airingCells(live), rating: $("#bExternalRating").value });
       const hasSteamPrice = appendBacklogMeta(meta, {
