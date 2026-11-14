@@ -3,7 +3,7 @@
 How LifeLog looks, moves and talks, and the rules that keep it that way. The
 code in `src/styles.css` is the implementation; this file is the intent. When
 the two disagree, one of them is wrong. Fix whichever one it is, and say which
-in NOTES.md.
+in the commit message.
 
 Each rule is marked:
 
@@ -11,7 +11,6 @@ Each rule is marked:
 - **Target:** agreed direction, not built yet. New code follows it; old code
   moves toward it when it's being touched anyway.
 
-Neighbour: **NOTES.md** says why a particular piece is built the way it is.
 Two skills apply this file:
 `.claude/skills/lifelog-design` (building UI) and
 `.claude/skills/lifelog-ui-audit` (checking it).
