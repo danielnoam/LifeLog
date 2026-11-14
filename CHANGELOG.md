@@ -3,6 +3,23 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.313.1] - 2026-11-14
+
+### Added
+- The update bar has a close button. It stays closed for that version and comes back when a newer one is out.
+
+### Changed
+- The + menu has a line for each kind of note: Note, Checklist, Quote and Board. Each opens its own screen, without the switch between kinds at the top.
+- A new board asks for its name and category first. Tap (or click) the blank board to start drawing; closing the screen makes no board.
+- The Favourite star sits beside the ⋯ button in a note, when reading and when editing, and lights up when the note is one.
+- Settings → Imports is now Connections, since it holds the services LifeLog stays in step with (Steam, AniList, Stremio, Waypage, Google Wallet) as well as one-off imports. Searching Settings for "imports" still finds it.
+
+### Fixed
+- On Windows, "LifeLog x.y.z is out" no longer flips back to "Get it" after a flash of "Downloading". When the release has no signed update files, the bar now goes straight to the release page ("Open page") and no longer shows a download that never starts.
+
+### Removed
+- Changing a saved note's kind from its ⋯ menu.
+
 ## [0.313.0] - 2026-11-13
 
 ### Added
