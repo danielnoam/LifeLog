@@ -193,16 +193,25 @@
   // ---------- talking to Stremio ----------
   // The phone and computer apps go through their own native HTTP (see
   // platform.js), so a browser's rules about other sites don't apply there.
-  function endpoint(method) {
+  // A browser asks Stremio directly, and only when that's refused goes
+  // through your proxy (proxy/worker.js), so your sign-in passes through it
+  // only when it has to.
+  function endpoints(method) {
     const p = window.LifeLogPlatform;
-    return p && p.steamDirect ? p.steamProxy("") + "/stremio/" + method : API + method;
+    if (p && p.steamDirect) return [p.steamProxy("") + "/stremio/" + method];
+    const proxy = p && ctx ? p.steamProxy(((ctx.state.data.settings || {}).steam || {}).proxyUrl) : "";
+    return proxy ? [API + method, proxy + "/stremio/" + method] : [API + method];
   }
   async function call(method, body) {
-    const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined;
-    let res;
-    try {
-      res = await fetch(endpoint(method), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
-    } catch (e) { throw new Error("Stremio couldn't be reached"); }
+    let res = null;
+    for (const url of endpoints(method)) {
+      const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined;
+      try {
+        res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
+        break;
+      } catch (e) { /* the next way, if there is one */ }
+    }
+    if (!res) throw new Error("Stremio couldn't be reached");
     let data = null;
     try { data = await res.json(); } catch (e) { /* said below */ }
     if (data && data.error) {
