@@ -72,8 +72,10 @@ off.
 
 Plain notes (Markdown), checklists and quotes, plus drawing boards with a
 hand-drawn look, which can hold pictures (the Image button, a paste or a
-drop). Note categories, favourites, and collections that open
-their notes as pages. A checklist's items tick, reorder by long press (or
+drop). Each kind has its own line in the + menu (Note, Checklist, Quote,
+Board) and keeps that kind; a new board takes a name and a category first,
+then a tap on the blank board opens it to draw. Note categories, favourites,
+and collections that open their notes as pages. A checklist's items tick, reorder by long press (or
 by their handles while editing) and merge item by item between devices. A
 note can become a Timeline entry.
 
@@ -84,8 +86,8 @@ note can become a Timeline entry.
 
 A note opens as one page with **Read** and **Edit** at the top: the title,
 a category chip under it, and the dates at the foot (on a phone, swipe
-sideways to switch). Its ⋯ menu copies the text, stars it and pins it to
-Home. **Notebook → View**
+sideways to switch). The star beside ⋯ makes it a favourite; the ⋯ menu
+copies the text and pins it to Home. **Notebook → View**
 turns on line numbers in the editor, sets the text size and picks which
 view a note opens in.
 

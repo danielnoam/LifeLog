@@ -84,6 +84,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     check("an empty Boards mode offers to make one",
       await page.evaluate(() => /No boards yet/.test(document.querySelector("#viewBody").textContent)));
     await page.click("text=+ New board");
+    await page.click("#nBoardPad");
     await page.waitForTimeout(200);
     check("a new board opens full screen", await page.evaluate(() => !document.querySelector("#boardEditor").hidden));
 
@@ -208,6 +209,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     const { ctx, page } = await open();
     page.on("dialog", (d) => d.accept());
     await page.click("text=+ New board");
+    await page.click("#nBoardPad");
     await page.waitForTimeout(200);
     await page.click("#boardFill");
     await page.click('[data-tool="rect"]');
@@ -290,6 +292,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
       if (!proto.requestPermission) proto.requestPermission = async () => "granted";
     });
     await page.click("text=+ New board");
+    await page.click("#nBoardPad");
     await page.waitForTimeout(200);
     await stroke(page, [[300, 300], [350, 330], [400, 300]]);
     await page.click("#boardBack");
@@ -319,6 +322,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
   {
     const { ctx, page } = await open({ width: 390, height: 844, touch: true });
     await page.click("text=+ New board");
+    await page.click("#nBoardPad");
     await page.waitForTimeout(200);
     const pointer = (type, id, x, y) => page.evaluate(({ type, id, x, y }) => {
       document.querySelector("#boardSvg").dispatchEvent(new PointerEvent(type, {
@@ -347,6 +351,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(600);
     await page.click("text=+ New board");
+    await page.click("#nBoardPad");
     await page.waitForTimeout(200);
     await stroke(page, [[200, 300], [300, 320], [400, 300]]);
     await page.click("#boardBack");

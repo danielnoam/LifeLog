@@ -132,7 +132,9 @@
     <div class="add-menu menu-pop" id="addMenu" hidden>
       <div class="add-group" data-view="notes">
         <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="note" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="pencil"></span>Note</button>
+        <button type="button" data-add="note" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="notebook-text"></span>Note</button>
+        <button type="button" data-add="list" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="list-checks"></span>Checklist</button>
+        <button type="button" data-add="quote" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="quote"></span>Quote</button>
         <button type="button" data-add="board" data-view="notes" data-mode="notes"><span class="add-ico" aria-hidden="true" data-ico="presentation"></span>Board</button>
         <button type="button" data-add="habit" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="square-check-big"></span>Habit</button>
       </div>
@@ -344,36 +346,28 @@
           <button type="button" id="noteReadBtn" title="Read (Ctrl+E)"><span data-ico="notebook-text"></span><span class="nv-mode-label">Read</span></button>
           <button type="button" class="on" aria-pressed="true"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
         </div>
-        <h2 id="noteModalTitle" class="sr-only">New note</h2>
+        <h2 id="noteModalTitle" class="nv-heading">New note</h2>
         <span class="spacer"></span>
+        <button type="button" class="btn btn-icon nv-fav" id="noteFavBtn" title="Favourite" aria-label="Favourite" aria-pressed="false" hidden><span data-ico="star"></span></button>
         <button type="button" class="btn btn-icon" id="noteMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
         <div class="nv-menu nv-menu-end" id="noteMoreMenu" role="menu" hidden>
           <button type="button" role="menuitem" id="nAddImageBtn"><span data-ico="image"></span> Add image</button>
           <hr id="noteImageRule" />
-          <p class="nv-menu-label" id="noteKindMenuLabel">Kind</p>
-          <div id="noteKindMenuSlot"></div>
-          <hr id="noteMenuRule" />
           <button type="button" role="menuitem" id="noteCopyBtn" hidden><span data-ico="copy"></span> Copy text</button>
           <button type="button" role="menuitem" id="noteToEntryBtn" hidden><span data-ico="film"></span> Make entry</button>
-          <button type="button" role="menuitem" id="noteFavBtn" hidden><span data-ico="star"></span> Favourite</button>
           <button type="button" role="menuitem" id="notePinBtn" hidden><span data-ico="pin"></span> Pin to Home</button>
           <button type="button" role="menuitem" class="nv-menu-danger" id="deleteNoteBtn" hidden><span data-ico="trash"></span> Delete note</button>
         </div>
       </div>
       <form id="noteForm" class="nv-scroll">
         <div class="nv-col">
-          <div class="note-kind-seg" id="noteKindSeg" role="radiogroup" aria-label="Kind of note">
-            <button type="button" role="radio" data-kind="text"><span data-ico="notebook-text"></span> Note</button>
-            <button type="button" role="radio" data-kind="list"><span data-ico="list-checks"></span> Checklist</button>
-            <button type="button" role="radio" data-kind="quote"><span data-ico="quote"></span> Quote</button>
-            <button type="button" role="radio" data-kind="board" title="A page to draw on — opens the board editor"><span data-ico="presentation"></span> Board</button>
-          </div>
           <label id="nTitleLabel" class="nv-title-label" hidden><span id="nTitleLabelText" class="sr-only">Title</span>
             <input id="nTitle" class="nv-title" type="text" autocomplete="off" placeholder="Title" />
           </label>
           <label class="nv-cat" title="Category"><span class="dot" id="nCatDot"></span><span class="sr-only">Category</span>
             <select id="nCategory"></select>
           </label>
+          <button type="button" class="nv-board" id="nBoardPad" hidden><span id="nBoardPadText">Tap to start drawing</span></button>
           <div id="nQuoteFields" class="note-quote-fields" hidden>
             <label>Author
               <input id="nAuthor" type="text" autocomplete="off" placeholder="Who said it" />
@@ -414,11 +408,11 @@
           <button type="button" id="editNoteReaderBtn" title="Edit (Ctrl+E)"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
         </div>
         <span class="spacer"></span>
+        <button type="button" class="btn btn-icon nv-fav" id="noteReaderFavBtn" title="Favourite" aria-label="Favourite" aria-pressed="false"><span data-ico="star"></span></button>
         <button type="button" class="btn btn-icon" id="noteReaderMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
         <div class="nv-menu nv-menu-end" id="noteReaderMenu" role="menu" hidden>
           <button type="button" role="menuitem" id="noteReaderCopyBtn"><span data-ico="copy"></span> Copy text</button>
           <button type="button" role="menuitem" id="noteReaderEntryBtn" hidden><span data-ico="film"></span> Make entry</button>
-          <button type="button" role="menuitem" id="noteReaderFavBtn"><span data-ico="star"></span> Favourite</button>
           <button type="button" role="menuitem" id="noteReaderPinBtn" hidden><span data-ico="pin"></span> Pin to Home</button>
           <button type="button" role="menuitem" class="nv-menu-danger" id="noteReaderDeleteBtn"><span data-ico="trash"></span> Delete note</button>
         </div>

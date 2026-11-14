@@ -1,6 +1,6 @@
 // A note's ⋯ menu, in Read and in Edit: Copy text puts the note's words on
 // the clipboard (a checklist as task lines, a quote with who said it, the
-// editor's unsaved words too), Favourite stars it from inside the note, and
+// editor's unsaved words too), the star beside ⋯ makes it a favourite, and
 // on a phone a sideways swipe flips Read and Edit.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
@@ -42,19 +42,22 @@ async function run(b, width) {
   // ---- Read ----
   await read("t1");
   await page.click("#noteReaderMoreBtn");
-  check("Read's ⋯ has Copy text and Favourite" + at, await shown("#noteReaderCopyBtn") && await shown("#noteReaderFavBtn"));
+  check("Read's ⋯ has Copy text, and the star sits beside ⋯" + at, await shown("#noteReaderCopyBtn") && await shown("#noteReaderFavBtn")
+    && await page.evaluate(() => !document.querySelector("#noteReaderFavBtn").closest("#noteReaderMenu")));
   await clear();
   await page.click("#noteReaderCopyBtn");
   await page.waitForTimeout(150);
   check("a note copies its title and its words as written" + at, (await clip()) === "Idea\n\nPaint the fence **blue**", await clip());
   check("the menu shuts after copying" + at, await page.evaluate(() => document.querySelector("#noteReaderMenu").hidden));
 
-  await page.click("#noteReaderMoreBtn");
   await page.click("#noteReaderFavBtn");
   await page.waitForTimeout(300);
   let d = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
   check("Favourite from the reader stars the note" + at, d.notes.find((n) => n.id === "t1").fav === true);
-  check("and the item now offers Unfavourite" + at, await page.evaluate(() => document.querySelector("#noteReaderFavBtn").textContent.trim() === "Unfavourite"));
+  check("and the star is lit and offers Unfavourite" + at, await page.evaluate(() => {
+    const f = document.querySelector("#noteReaderFavBtn");
+    return f.getAttribute("aria-label") === "Unfavourite" && f.classList.contains("on");
+  }));
   await page.click("#closeNoteReaderBtn");
 
   await read("q1");
@@ -74,13 +77,12 @@ async function run(b, width) {
   await openEdit("t1");
   await page.fill("#nText", "Paint the fence green");
   await page.click("#noteMoreBtn");
-  check("Edit's ⋯ has Copy text and Unfavourite" + at, await shown("#noteCopyBtn")
-    && await page.evaluate(() => document.querySelector("#noteFavBtn").textContent.trim() === "Unfavourite"));
+  check("Edit's ⋯ has Copy text, and the lit star beside it says Unfavourite" + at, await shown("#noteCopyBtn")
+    && await page.evaluate(() => { const f = document.querySelector("#noteFavBtn"); return f.getAttribute("aria-label") === "Unfavourite" && f.classList.contains("on") && !f.closest("#noteMoreMenu"); }));
   await clear();
   await page.click("#noteCopyBtn");
   await page.waitForTimeout(150);
   check("the editor copies the words not saved yet" + at, (await clip()) === "Idea\n\nPaint the fence green", await clip());
-  await page.click("#noteMoreBtn");
   await page.click("#noteFavBtn");
   await page.waitForTimeout(150);
   await page.click("#cancelNoteBtn");

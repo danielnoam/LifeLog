@@ -146,11 +146,23 @@ async function run(b, width) {
     document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 2));
   await page.locator("#kindFilter .cat-chip.on").click();
   await page.waitForTimeout(300);
-  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
-  await page.click('#noteKindSeg [data-kind="board"]');
+  await page.evaluate(() => { document.querySelector("#addBtn").click(); document.querySelector('#addMenu [data-add="board"]').click(); });
+  await page.waitForTimeout(400);
+  check("Board in the add menu asks a name and a category first, and makes nothing yet" + at, await page.evaluate(() =>
+    !document.querySelector("#noteModal").hidden && !document.querySelector("#nBoardPad").hidden && document.querySelector("#nTextLabel").hidden
+    && document.querySelector("#noteModalTitle").textContent === "New board" && window.LifeLogBoards.boardsNow().length === 0));
+  await page.click("#cancelNoteBtn");
+  await page.waitForTimeout(300);
+  check("closing it makes no board" + at, await page.evaluate(() => document.querySelector("#noteModal").hidden && window.LifeLogBoards.boardsNow().length === 0));
+  await page.evaluate(() => { document.querySelector("#addBtn").click(); document.querySelector('#addMenu [data-add="board"]').click(); });
+  await page.waitForTimeout(300);
+  await page.fill("#nTitle", "Garden plan");
+  await page.click("#nBoardPad");
   await page.waitForTimeout(800);
-  check("Board in the note sheet opens a new board to draw on" + at, await page.evaluate(() =>
-    !document.querySelector("#boardEditor").hidden && document.querySelector("#noteModal").hidden && window.LifeLogBoards.boardsNow().length === 1));
+  check("the blank board opens the editor on a board with that name" + at, await page.evaluate(() => {
+    const b = window.LifeLogBoards.boardsNow();
+    return !document.querySelector("#boardEditor").hidden && document.querySelector("#noteModal").hidden && b.length === 1 && b[0].name === "Garden plan";
+  }));
   check("a board picks its category in the editor" + at, await page.evaluate(() =>
     [...document.querySelectorAll("#boardCategory option")].map((o) => o.value).join() === ",Recipes,Work"));
   await page.evaluate(() => window.LifeLogBoards.closeBoard());

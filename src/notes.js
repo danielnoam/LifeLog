@@ -1401,24 +1401,25 @@
   }
 
   // ---------- modal ----------
-  // One sheet for all three kinds. Switching kind only changes which fields
-  // show; each keeps what was typed in it, and Save takes the fields of the
-  // kind it's on.
+  // One sheet for every kind, each opened as its own screen from the add
+  // menu: the kind is picked before the sheet opens and stays what it is
+  // (no switching since 0.314.0). "board" is a name and a category over a
+  // blank board; tapping the board makes it and opens the board editor, so
+  // a board left unnamed and untouched is never made.
+  const SHEET_HEADS = { text: "New note", list: "New checklist", quote: "New quote", board: "New board" };
   let editingNoteId = "";
   let sheetKind = "text";
+  let boardAfter = null; // what the add menu wants done once a board is made
   let sheetItems = []; // the checklist being edited: { id, text, done?, doneAt? }
 
   function setSheetKind(kind) {
-    sheetKind = KINDS.includes(kind) ? kind : "text";
-    document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => {
-      const on = b.dataset.kind === sheetKind;
-      b.classList.toggle("on", on);
-      b.setAttribute("aria-checked", String(on));
-    });
+    sheetKind = KINDS.includes(kind) || kind === "board" ? kind : "text";
+    const board = sheetKind === "board";
     $("#nTitleLabel").hidden = sheetKind === "quote";
+    $("#nBoardPad").hidden = !board;
     $("#nTitle").placeholder = sheetKind === "list" ? "Shopping, packing, this week…" : "Title";
     $("#nListEditor").hidden = sheetKind !== "list";
-    $("#nTextLabel").hidden = sheetKind === "list";
+    $("#nTextLabel").hidden = sheetKind === "list" || board;
     $("#nQuoteFields").hidden = sheetKind !== "quote";
     $("#nImages").hidden = sheetKind !== "text";
     $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
@@ -1435,7 +1436,6 @@
     const images = sheetKind === "text";
     $("#nAddImageBtn").hidden = !images;
     $("#noteImageRule").hidden = !images || !editing;
-    $("#noteKindMenuLabel").hidden = $("#noteMenuRule").hidden = !editing;
     $("#noteMoreBtn").hidden = !editing && !images;
     // Reading is for what's written; a checklist is its own page.
     $("#noteModeSeg").hidden = !editing || sheetKind === "list";
@@ -1524,10 +1524,16 @@
     if (!n) return;
     b.replaceChildren(ico(n.pinned ? "pin-off" : "pin"), document.createTextNode(n.pinned ? " Unpin from Home" : " Pin to Home"));
   }
+  // The star beside ⋯ (0.314.0), lit like a card's when the note is one.
   function syncFavButton(n, b = $("#noteFavBtn")) {
     b.hidden = !n;
     if (!n) return;
-    b.replaceChildren(ico("star", n.fav ? "is-fill" : ""), document.createTextNode(n.fav ? " Unfavourite" : " Favourite"));
+    const label = n.fav ? "Unfavourite" : "Favourite";
+    b.replaceChildren(ico("star", n.fav ? "is-fill" : ""));
+    b.classList.toggle("on", !!n.fav);
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    b.setAttribute("aria-pressed", String(!!n.fav));
   }
   // The editor and the reader each have a ⋯ and a menu under it.
   function closeNoteMenu(menu = "#noteMoreMenu", btn = "#noteMoreBtn") {
@@ -1743,17 +1749,11 @@
     }
   }
 
-  function openNoteModal(note, kind) {
+  function openNoteModal(note, kind, { after } = {}) {
     editingNoteId = note ? note.id : "";
+    boardAfter = after || null;
     applyNoteView();
     closeNoteMenu();
-    // A new note picks its kind up top; an old one changes it now and then,
-    // from the ⋯ menu, where Make entry and Delete are too.
-    const seg = $("#noteKindSeg");
-    if (note) $("#noteKindMenuSlot").appendChild(seg);
-    else $("#noteForm .nv-col").prepend(seg);
-    seg.querySelector('[data-kind="board"]').hidden = !!note;
-    $("#noteModalTitle").textContent = note ? "Edit note" : "New note";
     $("#nText").value = note && kindOf(note) !== "list" ? note.text : "";
     $("#nTitle").value = !note ? "" : kindOf(note) === "list" ? note.text : (note.title || "");
     $("#nAuthor").value = (note && note.author) || "";
@@ -1778,6 +1778,11 @@
     // Only when it's showing one; with several there's no telling which.
     const shown = state.noteKinds.size === 1 ? [...state.noteKinds][0] : "";
     setSheetKind(note ? kindOf(note) : (kind || shown || "text"));
+    // A new one says what it is in the bar; an open note's own title does.
+    const head = $("#noteModalTitle");
+    head.textContent = note ? "Edit note" : SHEET_HEADS[sheetKind];
+    head.classList.toggle("sr-only", !!note);
+    if (sheetKind === "board") primeBoardSheet();
     renderSheetImages();
     $("#noteForm").scrollTop = 0;
     if ($("#noteModal").hidden) $("#noteModal").hidden = false;
@@ -1785,7 +1790,7 @@
     // Only a new note starts typing. An existing one, opened to edit or
     // switched to Edit from reading, waits for a tap, so the phone's
     // keyboard doesn't cover what you were about to read.
-    if (!note) (sheetKind === "list" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
+    if (!note) (sheetKind === "list" || sheetKind === "board" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
     openedAs = sheetNow();
   }
   function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
@@ -1797,6 +1802,7 @@
     $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems]);
   async function leaveNoteModal() {
     if ($("#noteModal").hidden) return;
+    if (sheetKind === "board") { closeNoteModal(); return; }
     const blank = !editingNoteId && !$("#nTitle").value.trim() && !$("#nText").value.trim()
       && !$("#nNewItem").value.trim() && !sheetItems.some((i) => i.text.trim());
     if (blank || sheetNow() === openedAs) { closeNoteModal(); return; }
@@ -1805,7 +1811,24 @@
 
   async function saveNoteFromForm(ev) {
     ev.preventDefault();
-    await saveNote();
+    if (sheetKind === "board") await startBoard();
+    else await saveNote();
+  }
+
+  function primeBoardSheet() {
+    const B = window.LifeLogBoards;
+    $("#nBoardPadText").textContent = (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " to start drawing";
+    $("#nTitle").placeholder = "Board name";
+    B.ensureLoaded().then(() => { if (sheetKind === "board") $("#nTitle").placeholder = B.nextName(); }).catch(() => {});
+  }
+  async function startBoard() {
+    const name = $("#nTitle").value.trim();
+    const category = $("#nCategory").value === NEW_CATEGORY ? "" : $("#nCategory").value;
+    const after = boardAfter;
+    boardAfter = null;
+    closeNoteModal();
+    if (after) after();
+    await window.LifeLogBoards.newBoard({ name, category });
   }
   // Saves what's in the sheet and closes it; false when there's nothing to
   // save yet (the toast says what's missing) and the sheet stays.
@@ -1943,12 +1966,7 @@
       await togglePinned(editingNoteId);
       syncPinButton(state.data.notes.find((x) => x.id === editingNoteId));
     };
-    document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => {
-      // A board isn't written in this sheet: it opens the board editor.
-      b.onclick = b.dataset.kind === "board"
-        ? () => { closeNoteModal(); state.noteKinds = new Set(["board"]); buildCatFilter(); render(); window.LifeLogBoards.newBoard(); }
-        : () => setSheetKind(b.dataset.kind);
-    });
+    $("#nBoardPad").onclick = startBoard;
     $("#nNewItem").onkeydown = (ev) => {
       if (ev.key === "Enter") { ev.preventDefault(); addSheetItem(); }
       else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") $("#noteForm").requestSubmit();

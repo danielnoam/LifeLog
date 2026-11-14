@@ -37,9 +37,7 @@ const SEED = {
   // Not the ones animating out (reconcile marks them ll-exit on their way).
   const cards = () => page.evaluate(() => [...document.querySelectorAll(".note-card:not(.ll-exit)")].map((c) => c.dataset.id));
   const openNew = async (kind) => {
-    await page.click('.month-add-btn, [data-add="note"]').catch(() => {});
-    await page.evaluate(() => { if (document.querySelector("#noteModal").hidden) window.LifeLogNotes.openNoteModal(null); });
-    await page.click(`#noteKindSeg [data-kind="${kind}"]`);
+    await page.evaluate((k) => { document.querySelector("#addBtn").click(); document.querySelector(`#addMenu [data-add="${k === "text" ? "note" : k}"]`).click(); }, kind);
   };
   const save = async () => { await page.click("#cancelNoteBtn"); await page.waitForTimeout(250); };
 
@@ -210,15 +208,11 @@ const SEED = {
   await page.waitForTimeout(150);
   await page.click("#editNoteReaderBtn");
   check("Make entry is offered on a plain note", await page.evaluate(() => !document.querySelector("#noteToEntryBtn").hidden));
-  // An old note's kind is in the ⋯ menu.
+  // A note keeps its kind: the ⋯ menu has no switch (0.314.0).
   await page.click("#noteMoreBtn");
-  await page.click('#noteKindSeg [data-kind="quote"]');
-  check("but not on a quote", await page.evaluate(() => document.querySelector("#noteToEntryBtn").hidden));
-  await page.fill("#nAuthor", "Me");
+  check("an old note's ⋯ has no kind to switch to", await page.evaluate(() => !document.querySelector("#noteMoreMenu [data-kind]")));
+  await page.keyboard.press("Escape");
   await save();
-  d = await saved();
-  const turned = d.notes.find((n) => n.id === "mid");
-  check("a note can become a quote, which is an edit", turned.kind === "quote" && turned.author === "Me" && !!turned.editedAt, turned);
 
   // ---- bulk: move to a category ----
   // Held on the date line: a long-press on the note's own words is left to

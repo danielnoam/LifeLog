@@ -569,7 +569,7 @@
       root.appendChild(emptyState({
         glyph: "presentation", title: "No boards yet",
         body: "A board is a page to draw on: sketches, diagrams, arrows and notes, in a hand-drawn style.",
-        action: "New board", onAction: () => newBoard(),
+        action: "New board", onAction: askNewBoard,
       }));
       return;
     }
@@ -580,7 +580,7 @@
       add.type = "button";
       add.appendChild(el("span", "board-new-plus", "+"));
       add.appendChild(el("span", "board-new-label", "New board"));
-      add.onclick = () => newBoard();
+      add.onclick = askNewBoard;
       grid.appendChild(add);
     }
     for (const b of list) {
@@ -637,11 +637,14 @@
     return Dates().day(d, { year: "auto" });
   }
 
-  async function newBoard() {
+  // A new board is named and filed first, in the notes sheet (0.314.0);
+  // tapping the blank board there makes it.
+  const askNewBoard = () => window.LifeLogNotes.openNoteModal(null, "board");
+  const nextName = () => "Board " + (listed().length + 1);
+  async function newBoard({ name, category } = {}) {
     await ensureLoaded();
     const now = new Date().toISOString();
-    const n = listed().length + 1;
-    const b = sanitizeBoard({ id: uid(), name: "Board " + n, createdAt: now, updatedAt: now, elements: [] });
+    const b = sanitizeBoard({ id: uid(), name: name || nextName(), category, createdAt: now, updatedAt: now, elements: [] });
     doc.boards.push(b);
     changed(b);
     openBoard(b.id);
@@ -1543,7 +1546,7 @@
 
   window.LifeLogBoards = {
     init, wire,
-    renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
+    renderBoards, newBoard, nextName, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     thumbnail: (b, opts) => boardSvg(b.elements, { thumb: true, ...(opts || {}) }), isLoaded: () => !!doc,
     allBoards: () => (doc ? boards() : null), missingPictures, linkPictures,
     ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => listed(), toggleFav,
