@@ -1895,7 +1895,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Connections" data-keywords="connections imports sync steam wishlist how long to beat hltb game times opencritic metacritic scores anilist planning watching completed anime manga stremio waypage reading books audiobooks comics serials minutes google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
+      <div class="settings-page" hidden data-page="imports" data-title="Connections" data-keywords="connections imports sync steam wishlist how long to beat hltb game times opencritic metacritic scores anilist planning watching completed anime manga stremio hardcover want to read did not finish waypage reading books audiobooks comics serials minutes google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
       <h2 class="settings-page-title">Connections</h2>
       <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
       <section class="sgroup">
@@ -2001,6 +2001,32 @@
           <button id="stremioSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Stremio</button>
         </div>
         <p class="hint">Reads your Stremio library and never changes it. Your library comes in as backlog items, what you're partway through as in progress with the episode you're on, and watched movies go to your timeline on the day you last played them (Stremio keeps only the last play). Everything goes through the review; an automatic check only offers it. Titles are matched on TMDB when you have a TMDB key. Your password is only used to sign in: the key Stremio sends back syncs like your other keys and is left out of exports. It can change anything on your Stremio account, and Sign out ends it. This is the API Stremio's own apps use; it isn't public and may change.</p>
+      </section>
+
+      <section class="sgroup" id="hardcoverGroup">
+        <h3 class="sgroup-label">Hardcover</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Hardcover library</span><span class="sitem-sub" id="hardcoverState"></span></span>
+          </div>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Books go to</span></span>
+            <select id="hardcoverCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Sync automatically</span></span>
+            <select id="hardcoverAutoSyncDays">
+              <option value="0">Never</option>
+              <option value="open">Every open</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+          <button id="hardcoverSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Hardcover</button>
+        </div>
+        <p class="hint">Keeps your Hardcover library and one category in step. Want to Read is your backlog, Currently Reading is in progress, Read goes to your Timeline on the day you finished, Did Not Finish goes to Dropped, and Paused stays in the backlog. Books already in the category are matched by title and author. Books on Hardcover you don't have come in through the review. Starting, finishing or dropping a book here goes to Hardcover, and so do books you add here after picking the category, when Hardcover has the same title and author. When a book changed on both sides, the newer change wins. Deleting a book here never deletes it on Hardcover. Uses your Hardcover token from Media lookups; it needs access to your library, so make one with only that if Hardcover lets you pick. Waypage starting or finishing a book counts as a change here.</p>
       </section>
 
       <section class="sgroup">
@@ -2795,6 +2821,7 @@
   <script defer src="src/search.js?v=0.314.1"></script>
   <script defer src="src/letterboxd.js?v=0.314.1"></script>
   <script defer src="src/stremio.js?v=0.314.1"></script>
+  <script defer src="src/hardcover.js?v=0.314.1"></script>
   <script defer src="src/payments.js?v=0.314.1"></script>
   <script defer src="src/app.js?v=0.314.1"></script>
 </body>

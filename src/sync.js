@@ -1628,6 +1628,7 @@
   // follow it, whatever the automatic setting says.
   let aniListNudge = null;
   function aniListChanged(item) {
+    if (window.LifeLogHardcover) window.LifeLogHardcover.changed(item);
     const cfg = state.data.settings.anilist || {};
     if (!item || !isAniListSource(item.mediaSource) || !(cfg.token || "").trim()) return;
     clearTimeout(aniListNudge);
@@ -1636,6 +1637,7 @@
   // A title deleted here stays gone: the next sync, on any device, leaves it
   // out instead of bringing it back from your list. The caller persists.
   function aniListRemoved(item) {
+    if (window.LifeLogHardcover) window.LifeLogHardcover.removed(item);
     if (!item || !isAniListSource(item.mediaSource) || !item.mediaId) return;
     const key = item.mediaSource + ":" + item.mediaId;
     const all = { ...(state.data.settings.importSkips || {}) };

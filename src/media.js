@@ -2031,6 +2031,7 @@
     getLastError: () => lastError,
     async aniListViewer(token) { lastError = ""; return aniListViewer(token); },
     async saveAniListEntry(token, mediaId, fields) { lastError = ""; return saveAniListEntry(token, mediaId, fields); },
+    async hardcoverQuery(query, variables, keys, proxyUrl) { lastError = ""; return hardcoverQuery(query, variables, keys, proxyUrl); },
     steamCoverUrl,
     // pure helpers (used by sync.js/backlog.js, and by test/media.test.js)
     parseSteamReleaseDate,

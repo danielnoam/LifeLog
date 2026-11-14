@@ -342,10 +342,11 @@
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
     "anilist.clientId": "AniList client ID", "anilist.token": "AniList access token", "anilist.connectedAt": "AniList sign-in time",
     "stremio.email": "Stremio email", "stremio.authKey": "Stremio sign-in key", "stremio.movieCategory": "Stremio movie category",
+    "hardcover.category": "Hardcover category", "hardcover.autoSyncDays": "Hardcover auto-sync", "hardcover.connectedAt": "Hardcover start time", "hardcover.username": "Hardcover username",
     "stremio.showCategory": "Stremio show category", "stremio.autoSyncDays": "Stremio auto-check", "stremio.connectedAt": "Stremio sign-in time",
     "waypage.repo": "Waypage sync repo", "waypage.token": "Waypage token", "waypage.kinds": "Waypage categories", "waypage.habit": "Waypage minutes habit",
     "releases.autoRefreshDays": "release-date refresh",
-    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.stremio": "Stremio skips", "importSkips.bills": "Not a bill answers",
+    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.stremio": "Stremio skips", "importSkips.hardcover": "Hardcover skips", "importSkips.bills": "Not a bill answers",
     timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
   };
   function settingLabel(path) {
@@ -642,7 +643,7 @@
     tabs: "Show, hide and order tabs",
     keyboard: "Shortcuts",
     media: "Keys for covers and details",
-    imports: "Steam, AniList, Stremio, Waypage",
+    imports: "Steam, AniList, Hardcover, Stremio, Waypage",
     releases: "Upcoming release checks",
   };
 
@@ -1238,6 +1239,7 @@
     renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
     renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
     if (window.LifeLogStremio) window.LifeLogStremio.renderSettings();
+    if (window.LifeLogHardcover) window.LifeLogHardcover.renderSettings();
     renderMediaCatRows();
     if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
   }

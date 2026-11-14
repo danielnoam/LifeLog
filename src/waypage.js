@@ -366,6 +366,8 @@
       afterDataChange();
       await persist();
       render();
+      // What it started or finished goes on to Hardcover from here.
+      if (window.LifeLogHardcover && (counts.started || counts.finished || counts.added || counts.linked)) window.LifeLogHardcover.changed({ category: "" });
     }
     paintStatus();
     paintReview();
