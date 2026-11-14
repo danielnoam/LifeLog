@@ -713,7 +713,8 @@ atest("IGDB details: blurb, play time from time-to-beat, early access cleared on
   });
   const d = await Media.fetchDetails("9", "igdb", IGDB_KEYS, { proxyUrl: "https://proxy.test" });
   assert.strictEqual(d.summary, "First.");
-  assert.strictEqual(d.length, "10 hrs");
+  // Hastily, IGDB's main story, as How Long to Beat's Main Story is a Steam game's length.
+  assert.strictEqual(d.length, "5½ hrs");
   assert.strictEqual(d.externalRating, "80 IGDB");
   assert.strictEqual(d.earlyAccess, false);
 });
@@ -723,6 +724,33 @@ atest("IGDB's Steam App ID comes from its external ids, else its Steam link", as
   assert.strictEqual(await Media.fetchIgdbSteamAppId("1", IGDB_KEYS, "https://proxy.test"), "1145360");
   stubIgdb({ "/igdb/games": [{ id: 1, websites: [{ url: "https://store.steampowered.com/app/504230/Celeste/" }] }] });
   assert.strictEqual(await Media.fetchIgdbSteamAppId("1", IGDB_KEYS, "https://proxy.test"), "504230");
+});
+
+atest("IGDB time-to-beat: hastily, normally, completely as the strip's three times, with the game's IGDB page", async () => {
+  stubIgdb({ "/igdb/game_time_to_beats": [{ hastily: 20000, normally: 36000, completely: 90000 }] });
+  assert.deepStrictEqual(await Media.fetchIgdbTimes("1942", IGDB_KEYS, "https://proxy.test"),
+    { story: 333, extras: 600, complete: 1500, from: "igdb", url: "https://www.igdb.com/g/1hy" });
+  stubIgdb({ "/igdb/game_time_to_beats": [{ normally: 36000 }] });
+  assert.deepStrictEqual(await Media.fetchIgdbTimes("1942", IGDB_KEYS, "https://proxy.test"), { extras: 600, from: "igdb", url: "https://www.igdb.com/g/1hy" });
+  stubIgdb({ "/igdb/game_time_to_beats": [] });
+  assert.strictEqual(await Media.fetchIgdbTimes("1942", IGDB_KEYS, "https://proxy.test"), null);
+  const calls = stubIgdb({});
+  assert.strictEqual(await Media.fetchIgdbTimes("1942", { igdb: "clientid123" }, "https://proxy.test"), null);
+  assert.strictEqual(calls.length, 0);
+});
+
+atest("IGDB time-to-beat for a Steam game finds IGDB's game by its Steam App ID first", async () => {
+  const calls = stubIgdb({
+    "/igdb/external_games": [{ game: 77, external_game_source: 5 }, { game: 1942, external_game_source: 1 }],
+    "/igdb/game_time_to_beats": [{ hastily: 6000 }],
+  });
+  const t = await Media.fetchIgdbTimesForSteam("620", IGDB_KEYS, "https://proxy.test");
+  assert.strictEqual(t.story, 100);
+  assert.strictEqual(t.url, "https://www.igdb.com/g/1hy");
+  assert.match(decodeURIComponent(calls.find((c) => c.url.includes("external_games")).url), /where uid = "620"/);
+  assert.match(decodeURIComponent(calls.find((c) => c.url.includes("game_time_to_beats")).url), /game_id = 1942/);
+  stubIgdb({ "/igdb/external_games": [{ game: 77, category: 5 }] });
+  assert.strictEqual(await Media.fetchIgdbTimesForSteam("620", IGDB_KEYS, "https://proxy.test"), null);
 });
 
 atest("checkKey for IGDB signs in with both halves, and says when the secret is missing", async () => {

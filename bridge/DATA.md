@@ -60,7 +60,10 @@ event or anything else, by category.
   when they were last asked). From Augmented Steam's API, by Steam App ID.
   When it has a `story` time, `length` is that time ("32 hrs", "53½ hrs")
   unless the length is pinned. An `hltb` with only `at` means nothing was
-  known that day.
+  known that day. Where How Long to Beat has nothing, or the game came from
+  IGDB with no Steam App ID (`mediaSource: "igdb"`), the times are IGDB's
+  time-to-beat instead (hastily, normally, completely as `story`, `extras`,
+  `complete`), marked `from: "igdb"`, with `url` the game's IGDB page.
 - How long something is counts in its own unit, never converted
   (`lengthKey` in src/backlog.js): HLTB's `story` time, else the hours,
   pages, episodes, chapters, volumes or seasons read out of `length`.
@@ -99,7 +102,7 @@ Things to play, read, watch or do next.
   and with no time to go by the higher count does. The same goes for
   status: Planning is a plain backlog item, Watching is started, Completed
   is a timeline entry, Paused and Dropped are `dropped`.
-- `hltb`, `reviews`: as on a timeline entry, for a Steam game.
+- `hltb`, `reviews`: as on a timeline entry, for a Steam game (or an IGDB one, times only).
 - Filled in by media lookups (`mediaSource` names the source: `rawg`,
   `igdb`, `hardcover`, `steam`, `tmdb-movie`…): `coverUrl`, `mediaId`, `mediaSource`,
   `summary`, `releaseYear`, `externalRating`, `length`, `genres`.
