@@ -13,6 +13,10 @@
 //   { binds: { search: ["KeyF"], "tab:finance": [] }, otherMode: false, hints: false }
 // Tabs default to their place in the bar (1 is the leftmost tab you have),
 // so their default moves with the bar; a key you pick stays with the tab.
+//
+// The board tools ("board:pen") only work while a board is open, and the
+// board has every key then, so they share keys with the rest of the app
+// freely and only clash with each other and the board's fixed keys.
 (function () {
   const ACTIONS = [
     { id: "add", label: "Add entry", defaults: ["KeyN"] },
@@ -21,6 +25,27 @@
     { id: "help", label: "Show keyboard shortcuts", defaults: ["Shift+Slash"] },
     { id: "noteMode", label: "Switch a note between Read and Edit", defaults: ["Ctrl+KeyE"], sub: "While a note is open" },
   ];
+  const BOARD_ACTIONS = [
+    { id: "board:select", label: "Select", defaults: ["KeyV"] },
+    { id: "board:hand", label: "Move the board", defaults: ["KeyH"] },
+    { id: "board:pen", label: "Pen", defaults: ["KeyP"] },
+    { id: "board:eraser", label: "Eraser", defaults: ["KeyE"] },
+    { id: "board:rect", label: "Rectangle", defaults: ["KeyR"] },
+    { id: "board:ellipse", label: "Ellipse", defaults: ["KeyO"] },
+    { id: "board:arrow", label: "Arrow", defaults: ["KeyA"] },
+    { id: "board:line", label: "Line", defaults: ["KeyL"] },
+    { id: "board:text", label: "Text", defaults: ["KeyT"] },
+    { id: "board:image", label: "Add a picture", defaults: ["KeyI"] },
+  ];
+  // What a board does with these itself (handleKey in boards.js), ahead of
+  // any tool; a tool can't take them.
+  const BOARD_FIXED = {
+    Escape: "Step out of a text box, then a selection, then the board",
+    Space: "Hold to move the board", Delete: "Delete what's selected", Backspace: "Delete what's selected",
+    Equal: "Zoom in", "Shift+Equal": "Zoom in", NumpadAdd: "Zoom in", Minus: "Zoom out", NumpadSubtract: "Zoom out",
+    Digit0: "Fit the drawing on screen", "Ctrl+KeyZ": "Undo", "Ctrl+Shift+KeyZ": "Redo", "Ctrl+KeyY": "Redo",
+    "Ctrl+KeyA": "Select everything", "Ctrl+KeyC": "Copy", "Ctrl+KeyX": "Cut", "Ctrl+KeyV": "Paste",
+  };
   const MAX_KEYS = 2;
   const MAX_TABS = 9;
   const COMBO = /^(Ctrl\+)?(Alt\+)?(Shift\+)?[A-Z][A-Za-z0-9]*$/;
@@ -36,11 +61,13 @@
   const stored = () => { const s = settings(); return (s && s.keys) || {}; };
 
   const isCombo = (c) => typeof c === "string" && COMBO.test(c);
-  const isActionId = (id) => typeof id === "string" && (ACTIONS.some((a) => a.id === id) || /^tab:[a-z]+$/.test(id));
+  const isActionId = (id) => typeof id === "string" && (!!action(id) || /^tab:[a-z]+$/.test(id));
+  const isBoard = (id) => id.startsWith("board:");
   const hasMod = (c) => /^(Ctrl|Alt)\+/.test(c);
   const hasShift = (c) => /(^|\+)Shift\+/.test(c);
   const withoutShift = (c) => c.replace("Shift+", "");
 
+  const action = (id) => ACTIONS.find((a) => a.id === id) || BOARD_ACTIONS.find((a) => a.id === id);
   // A synced-in or hand-edited value, made safe: unknown actions and broken
   // combos dropped, at most two keys each, no repeats.
   function clean(raw) {
@@ -59,7 +86,6 @@
     return out;
   }
 
-  const action = (id) => ACTIONS.find((a) => a.id === id);
   function defaults(id) {
     const a = action(id);
     if (a) return a.defaults.slice();
@@ -76,7 +102,8 @@
   const otherModeOn = () => stored().otherMode !== false;
   const hintsOn = () => stored().hints !== false;
   const tabIds = () => views().map((v) => "tab:" + v);
-  const allIds = () => [...ACTIONS.map((a) => a.id), ...tabIds()];
+  const boardIds = () => BOARD_ACTIONS.map((a) => a.id);
+  const allIds = () => [...ACTIONS.map((a) => a.id), ...tabIds(), ...boardIds()];
   function changedCount() {
     const k = stored();
     return allIds().filter((id) => !isDefault(id)).length + (k.otherMode === false ? 1 : 0) + (k.hints === false ? 1 : 0);
@@ -103,7 +130,8 @@
   const restore = (snap) => { const s = settings(); if (!s) return; if (snap) s.keys = clean(snap); else delete s.keys; };
 
   // Who else has this key: the actions that would lose it if it moved.
-  const holders = (combo, except) => allIds().filter((id) => id !== except && keysFor(id).includes(combo));
+  // A board tool only competes with the other board tools.
+  const holders = (combo, except) => allIds().filter((id) => id !== except && isBoard(id) === isBoard(except || "") && keysFor(id).includes(combo));
   // Gives `combo` to `id` (in place of `replacing`, or added) and takes it
   // from whoever had it. Returns the ids it was taken from.
   function assign(id, combo, replacing) {
@@ -143,6 +171,14 @@
     return null;
   }
   const is = (e, id) => { const m = match(e); return !!m && m.id === id; };
+  // Which board tool a key press asks for ("pen"), or null.
+  function matchBoard(e) {
+    const combo = comboFromEvent(e);
+    if (!combo) return null;
+    const a = BOARD_ACTIONS.find((x) => keysFor(x.id).includes(combo));
+    return a ? a.id.slice(6) : null;
+  }
+  const boardKeyLabel = (tool) => { const k = keysFor("board:" + tool)[0]; return k ? label(k) : ""; };
 
   // A key with Ctrl or Alt works anywhere; a plain one stands down while
   // you're typing, so a title starting with "n" stays a title.
@@ -226,6 +262,10 @@
     const combo = comboFromEvent(e);
     if (!combo) return;
     const { id, replacing } = listening;
+    if (isBoard(id) && BOARD_FIXED[combo]) {
+      ui.toast(label(combo) + " is a fixed key on boards (" + BOARD_FIXED[combo].toLowerCase() + ")", true);
+      return;
+    }
     if (id.startsWith("tab:") && hasShift(combo) && otherModeOn()) {
       ui.toast("Pick a key without Shift — Shift with a tab's key opens its other mode", true);
       return;
@@ -339,6 +379,8 @@
     anywhere.replaceChildren(...ACTIONS.map((a) => row(a.id, a.label, a.sub)));
     const tabRows = (ui.tabs ? ui.tabs() : []).map((t) => row("tab:" + t.view, t.name, t.sub));
     tabs.replaceChildren(...tabRows);
+    const boards = $("#kbBoards");
+    if (boards) boards.replaceChildren(...BOARD_ACTIONS.map((a) => row(a.id, a.label, a.sub)));
     $("#kbOtherMode").checked = otherModeOn();
     $("#kbHints").checked = hintsOn();
     $("#kbZoomRow").hidden = !(window.LifeLogPlatform && window.LifeLogPlatform.desktop);
@@ -346,7 +388,7 @@
   }
 
   const api = {
-    ACTIONS, MAX_KEYS, bind, clean, defaults, keysFor, isDefault, changedCount,
+    ACTIONS, BOARD_ACTIONS, BOARD_FIXED, MAX_KEYS, matchBoard, boardKeyLabel, bind, clean, defaults, keysFor, isDefault, changedCount,
     otherModeOn, hintsOn, setKeys, reset, resetAll, setOtherMode, setHints, assign, holders,
     comboFromEvent, match, is, hasMod, blockedWhileTyping, isTextField, parts, label, onComputer,
     initUI, renderPage, isListening: () => !!listening,

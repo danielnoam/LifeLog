@@ -38,13 +38,20 @@
   const COLORS = ["ink", "#e03131", "#1971c2", "#2f9e44", "#f08c00", "#9c36b5"];
   const WIDTHS = [2, 4, 8];
   const TEXT_SIZE = { 2: 18, 4: 26, 8: 40 };
+  // Each tool's key is in Settings → Keyboard (src/keys.js, "board:<id>").
   const TOOLS = [
-    ["select", "mouse-pointer-2", "Select (V)", "v"], ["hand", "hand", "Move the board (H)", "h"],
-    ["pen", "pencil", "Pen (P)", "p"], ["eraser", "eraser", "Eraser (E)", "e"],
-    ["rect", "square", "Rectangle (R)", "r"], ["ellipse", "circle", "Ellipse (O)", "o"],
-    ["arrow", "arrow-up-right", "Arrow (A)", "a"], ["line", "slash", "Line (L)", "l"], ["text", "type", "Text (T)", "t"],
-    ["image", "image", "Image (I) — or paste or drop one", "i"],
+    ["select", "mouse-pointer-2", "Select"], ["hand", "hand", "Move the board"],
+    ["pen", "pencil", "Pen"], ["eraser", "eraser", "Eraser"],
+    ["rect", "square", "Rectangle"], ["ellipse", "circle", "Ellipse"],
+    ["arrow", "arrow-up-right", "Arrow"], ["line", "slash", "Line"], ["text", "type", "Text"],
+    ["image", "image", "Image", " — or paste or drop one"],
   ];
+  const Keys = () => (typeof window !== "undefined" && window.LifeLogKeys) || null;
+  // "Pen (P)", with the key as Settings → Keyboard has it now.
+  function toolTitle([id, , label, more = ""]) {
+    const K = Keys(), key = K ? K.boardKeyLabel(id) : "";
+    return label + (key ? " (" + key + ")" : "") + more;
+  }
 
   // ---------- pure geometry (test/boards.test.js) ----------
   // Ramer–Douglas–Peucker: the fewest points that stay within `eps` of the
@@ -940,7 +947,8 @@
       overlay.appendChild(svgEl("rect", { x: b.x - 4, y: b.y - 4, width: b.w + 8, height: b.h + 8, class: "board-sel" }));
     }
     if (op && op.kind === "box") {
-      overlay.appendChild(svgEl("rect", { ...norm(op.x0, op.y0, op.x1 - op.x0, op.y1 - op.y0), class: "board-box" }));
+      const r = norm(op.x0, op.y0, op.x1 - op.x0, op.y1 - op.y0);
+      overlay.appendChild(svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, class: "board-box" }));
     }
     const boxing = op && op.kind === "box", moving = op && op.kind === "move" && op.moved;
     if (tool !== "select" || !els.length || boxing) return;
@@ -1375,7 +1383,18 @@
 
   // ---------- chrome ----------
   function syncToolbar() {
-    document.querySelectorAll("#boardTools [data-tool]").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
+    document.querySelectorAll("#boardTools [data-tool]").forEach((b) => {
+      b.classList.toggle("on", b.dataset.tool === tool);
+      const t = TOOLS.find(([id]) => id === b.dataset.tool);
+      if (!t) return;
+      b.title = toolTitle(t);
+      // The key in the corner, only where there's a keyboard to press it on.
+      const K = Keys(), combo = K && K.onComputer() ? K.keysFor("board:" + t[0])[0] : null;
+      let cap = b.querySelector(".board-tool-key");
+      if (!combo) { if (cap) cap.remove(); return; }
+      if (!cap) { cap = el("span", "board-tool-key"); cap.setAttribute("aria-hidden", "true"); b.appendChild(cap); }
+      cap.textContent = K.parts(combo).join("+");
+    });
     document.querySelectorAll("#boardStyle [data-color]").forEach((b) => b.classList.toggle("on", b.dataset.color === color));
     document.querySelectorAll("#boardStyle [data-width]").forEach((b) => b.classList.toggle("on", +b.dataset.width === width));
     $("#boardFill").classList.toggle("on", fill);
@@ -1420,18 +1439,18 @@
     }
     if (typing || document.activeElement === $("#boardName")) return true;
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return true; }
-    if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return true; }
-    if (mod && e.key.toLowerCase() === "a") { e.preventDefault(); setTool("select"); selection = new Set(editing.elements.map((x) => x.id)); redraw(); return true; }
+    const letter = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
+    if (mod && letter === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return true; }
+    if (mod && letter === "y") { e.preventDefault(); redo(); return true; }
+    if (mod && letter === "a") { e.preventDefault(); setTool("select"); selection = new Set(editing.elements.map((x) => x.id)); redraw(); return true; }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelection(); return true; }
     if (e.key === " ") { spaceDown = true; svg.classList.add("panning"); e.preventDefault(); return true; }
     if (!mod && (e.key === "+" || e.key === "=")) { zoomBy(1.25); return true; }
     if (!mod && e.key === "-") { zoomBy(1 / 1.25); return true; }
     if (!mod && e.key === "0") { fitView(); applyView(); return true; }
-    if (!mod && !e.altKey) {
-      const t = TOOLS.find(([, , , key]) => key === e.key.toLowerCase());
-      if (t) { if (t[0] === "image") pickPictures(); else setTool(t[0]); return true; }
-    }
+    // By the physical key (src/keys.js), so a Hebrew layout still finds them.
+    const t = Keys() && Keys().matchBoard(e);
+    if (t) { e.preventDefault(); if (t === "image") pickPictures(); else setTool(t); return true; }
     return true;
   }
   function handleKeyUp(e) {
@@ -1538,10 +1557,11 @@
     textInput = $("#boardTextInput");
 
     const tools = $("#boardTools");
-    for (const [id, icon, label] of TOOLS) {
+    for (const t of TOOLS) {
+      const [id, icon, label] = t;
       const b = el("button", "board-tool");
       b.appendChild(ico(icon));
-      b.type = "button"; b.dataset.tool = id; b.title = label; b.setAttribute("aria-label", label);
+      b.type = "button"; b.dataset.tool = id; b.title = toolTitle(t); b.setAttribute("aria-label", label);
       b.onclick = () => (id === "image" ? pickPictures() : setTool(id));
       tools.appendChild(b);
     }

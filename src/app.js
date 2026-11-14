@@ -4140,6 +4140,11 @@
       if (seconds.length) row(["ShiftLeft"], "+ a tab's key: its other mode — " + seconds.join(", "));
     }
     row(["Escape"], "Stop searching, close a dialog / menu");
+    const boardRows = Keys.BOARD_ACTIONS.filter((a) => Keys.keysFor(a.id).length);
+    if (boardRows.length) {
+      wrap.appendChild(el("div", "shortcuts-head", "On a board"));
+      for (const a of boardRows) row(Keys.keysFor(a.id), a.label);
+    }
   }
 
   // Add "an expense" to a Ledger you have turned off and it lands somewhere

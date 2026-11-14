@@ -395,7 +395,7 @@ list gets the window too, its map beside the list.
   refresh. Quick add and the checklist's + open a small window over the
   home screen, so an entry, expense, backlog item, note or list item goes
   in without opening the app and syncs when it next opens; on iPhone, habits, checklist, quick add, this month and a note.
-- **Keyboard**: N adds, number keys switch tabs (hold Shift to see them), F or / searches and Escape stops, Tab opens Settings, ? lists the rest; Settings → Keyboard changes, removes or resets any of them.
+- **Keyboard**: N adds, number keys switch tabs (hold Shift to see them), F or / searches and Escape stops, Tab opens Settings, ? lists the rest; On a board, a letter picks each tool (V select, P pen, R rectangle…). Settings → Keyboard changes, removes or resets any of them.
 - **Offline**: an installable PWA that works with no connection and syncs
   when there is one.
 
