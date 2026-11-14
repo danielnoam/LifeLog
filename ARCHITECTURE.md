@@ -79,9 +79,12 @@ node test/browser/run-all.js    # browser suites, needs Playwright
 The unit tests cover the data logic: sanitizers, the merge, release dates,
 finance maths, sync passes and the media layer against a stubbed `fetch`.
 The browser suites ([`test/browser/README.md`](test/browser/README.md))
-drive the real app in Chromium. CI runs both through
-`.github/workflows/tests.yml` on every pull request, and the Android, iOS
-and Pages workflows wait on it: a failing test publishes nothing.
+drive the real app in Chromium. CI runs them through
+`.github/workflows/tests.yml`, in eight shards: a pull request runs the unit
+tests and only the browser suites its files need (`test/browser/areas.json`
+and `affected.js`), while a merge to main and a release run every suite.
+The Android, iOS and Pages workflows wait on it: a failing test publishes
+nothing.
 
 ## Screenshots
 
