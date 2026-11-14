@@ -184,4 +184,42 @@ test("Make a token opens GitHub's form filled in: name, owner, a year, contents 
   assert.strictEqual(new URL(W.tokenUrl("")).searchParams.get("target_name"), null);
 });
 
+test("controls: new books wait for a look, or stay out; settings default to how it was", () => {
+  assert.deepStrictEqual([cfg().paused, cfg().every, cfg().newMode, cfg().startFinish, cfg().showProgress], [false, "5m", "add", true, true]);
+  let d = data(), c = cfg({ newMode: "ask" });
+  run(d, c, [item()]);
+  assert.strictEqual(d.backlog.length, 0);
+  assert.strictEqual(c.review.c1.reason, "new");
+  assert.ok(W.resolve(d, c, "c1", "add", TODAY, NOW));
+  assert.strictEqual(d.backlog[0].waypageId, "c1");
+  d = data(); c = cfg({ newMode: "none" });
+  run(d, c, [item()]);
+  assert.deepStrictEqual([d.backlog.length, !!c.seen.c1, Object.keys(c.review).length], [0, false, 0], "not seen, so switching back brings it");
+  c.newMode = "add";
+  run(d, c, [item()]);
+  assert.strictEqual(d.backlog.length, 1);
+});
+
+test("controls: Start and finish off leaves your books' status alone; Show how far off clears the %", () => {
+  const mine = { id: "b1", title: "The Quiet Orbit", category: "Books", startedAt: "2026-10-20", waypageId: "c1", waypageProgress: 0.2 };
+  const d = data({ backlog: [mine] }), c = cfg({ seen: { c1: true }, startFinish: false });
+  run(d, c, [item({ progress: 1, finishedAt: "2026-11-12" })]);
+  assert.deepStrictEqual([d.backlog.length, d.entries.length, mine.waypageProgress], [1, 0, 1], "not finished here, % still shown");
+  c.showProgress = false;
+  run(d, c, [item({ progress: 1, finishedAt: "2026-11-12" })]);
+  assert.ok(!("waypageProgress" in mine));
+});
+
+test("controls: unlink keeps the book and keeps Waypage off it; Allow again lets it match again", () => {
+  const mine = { id: "b1", title: "The Quiet Orbit", category: "Books", startedAt: "2026-10-20", waypageId: "c1", waypageProgress: 0.2 };
+  const d = data({ backlog: [mine] }), c = cfg({ seen: { c1: true } });
+  assert.ok(W.unlink(d, c, "backlog", "b1"));
+  assert.deepStrictEqual([mine.waypageId, mine.waypageProgress, c.never.c1], [undefined, undefined, "The Quiet Orbit"]);
+  run(d, c, [item({ progress: 0.9 })]);
+  assert.ok(!mine.waypageId, "never means never");
+  assert.ok(W.allowAgain(c, "c1"));
+  run(d, c, [item({ progress: 0.9 })]);
+  assert.deepStrictEqual([mine.waypageId, mine.waypageProgress, d.backlog.length], ["c1", 0.9, 1], "matched by title again, not added twice");
+});
+
 console.log(`\n${passed} passed`);

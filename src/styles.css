@@ -2943,6 +2943,15 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 }
 .settings-back-chev { font-size: var(--fs-3xl); line-height: 1; margin-top: -4px; }
 .settings-back:active { background: var(--accent-soft); }
+/* Back to the parent page, on a page inside another (a connection inside
+   Connections). A phone has the same step in its header instead. */
+.settings-crumb {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 32px;
+  margin: -8px 0 4px -6px; padding: 2px 10px 2px 4px; border: 0; border-radius: var(--r-md);
+  background: none; color: var(--accent); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+}
+.settings-crumb .settings-back-chev { font-size: var(--fs-xl); margin-top: -2px; }
+.settings-crumb:hover { background: var(--accent-soft); }
 .settings-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px 36px; }
 .settings-page { max-width: 620px; }
 .settings-page[hidden] { display: none; }
@@ -3661,6 +3670,7 @@ html.force-mobile .backlog-section-head {
   html:not(.force-pc) .settings-modal[data-page=""] .settings-main { display: none; }
   html:not(.force-pc) .settings-side { border-right: 0; }
   html:not(.force-pc) .settings-page-head { display: flex; }
+  html:not(.force-pc) .settings-crumb { display: none; }
   html:not(.force-pc) .settings-pages { padding: 4px 20px 36px; }
   html:not(.force-pc) .modal-overlay.view-options-overlay { align-items: flex-end; padding: 20px 0 0; }
   html:not(.force-pc) .modal.view-options {
@@ -3676,6 +3686,7 @@ html.force-mobile .settings-modal:not([data-page=""]) .settings-side,
 html.force-mobile .settings-modal[data-page=""] .settings-main { display: none; }
 html.force-mobile .settings-side { border-right: 0; }
 html.force-mobile .settings-page-head { display: flex; }
+html.force-mobile .settings-crumb { display: none; }
 html.force-mobile .settings-pages { padding: 4px 20px 36px; }
 html.force-mobile .modal-overlay.view-options-overlay { align-items: flex-end; padding: 20px 0 0; }
 html.force-mobile .modal.view-options {

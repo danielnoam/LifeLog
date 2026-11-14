@@ -1253,6 +1253,23 @@ test("lifelog_backlog's starred, bought and price_alert stack like the Backlog's
   assert.doesNotMatch(alerts, /Hades|Dune|Celeste/);
 });
 
+test("Hardcover: the sync is shown by state without its token", async () => {
+  reset();
+  const d0 = data();
+  d0.backlog.push({ id: "hc-dune", title: "Dune", category: "Books", startedAt: daysAgo(2), mediaSource: "hardcover", mediaId: "dune", createdAt: T, updatedAt: T });
+  d0.backlog.push({ id: "hc-emma", title: "Emma", category: "Books", mediaSource: "hardcover", mediaId: "emma", createdAt: T, updatedAt: T });
+  d0.settings.mediaKeys = { ...(d0.settings.mediaKeys || {}), hardcover: "HC_SECRET" };
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  assert.match(await ok("lifelog_hardcover", {}), /isn't set up/);
+  d0.settings.hardcover = { category: "Books", autoSyncDays: "open", username: "reader" };
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const shown = await ok("lifelog_hardcover", {});
+  assert.doesNotMatch(shown, /HC_SECRET/);
+  assert.match(shown, /keeps "Books" in step as @reader/);
+  assert.match(shown, /Reading \(1\):\n- Dune/);
+  assert.match(shown, /Want to read \(1\):\n- Emma/);
+});
+
 test("Waypage (0.313.0): the reading log is shown without its token, and a review row is answered", async () => {
   reset();
   const d0 = data();
@@ -1275,6 +1292,12 @@ test("Waypage (0.313.0): the reading log is shown without its token, and a revie
   assert.strictEqual(after.settings.waypage.token, "github_pat_SECRET", "the token stays where it was");
   await ok("lifelog_undo", {});
   assert.strictEqual(data().entries.filter((e) => e.title === "Wren").length, 1);
+  assert.match(await ok("lifelog_waypage_unlink", { id: "wp-c1" }), /Unlinked/);
+  assert.strictEqual(data().settings.waypage.never.c1, "Saltmarsh Letters");
+  assert.match(await ok("lifelog_waypage", {}), /Kept out \(1\):\n- Saltmarsh Letters  \(waypage id c1\)/);
+  await refused("lifelog_waypage_allow", { id: "zz" }, /isn't kept out/);
+  assert.match(await ok("lifelog_waypage_allow", { id: "c1" }), /Allowed again/);
+  assert.deepStrictEqual(data().settings.waypage.never, {});
 });
 
 test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", async () => {

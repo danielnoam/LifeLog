@@ -61,7 +61,7 @@ const FILE = JSON.stringify({ schema: 1, app: "waypage", updatedAt: T, timeZone:
   const tile = await page.evaluate(() => [...document.querySelectorAll(".home-tile")].map((t) => t.getAttribute("aria-label") + ":" + (t.querySelector(".home-tile-count") || {}).textContent));
   check("Home shows how far you are", tile.includes("The Quiet Orbit:62%") && tile.includes("Saltmarsh Letters:ch 3/17"), tile);
 
-  await page.evaluate(() => window.LifeLogSettings.openSettings("imports")); await page.waitForTimeout(500);
+  await page.evaluate(() => window.LifeLogSettings.openSettings("conn-waypage")); await page.waitForTimeout(500);
   const labels = await page.$$eval("#waypageKinds .sitem-title", (xs) => xs.map((x) => x.textContent));
   check("Settings lists each kind with its category", labels.join(",") === "Books,Audiobooks,Comics,Serials,Articles", labels);
   check("and the review row", await page.isVisible("#waypageReview") && /Wren/.test(await page.textContent("#waypageReviewList")));

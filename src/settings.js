@@ -342,10 +342,11 @@
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
     "anilist.clientId": "AniList client ID", "anilist.token": "AniList access token", "anilist.connectedAt": "AniList sign-in time",
     "stremio.email": "Stremio email", "stremio.authKey": "Stremio sign-in key", "stremio.movieCategory": "Stremio movie category",
+    "hardcover.category": "Hardcover category", "hardcover.autoSyncDays": "Hardcover auto-sync", "hardcover.connectedAt": "Hardcover start time", "hardcover.username": "Hardcover username",
     "stremio.showCategory": "Stremio show category", "stremio.autoSyncDays": "Stremio auto-check", "stremio.connectedAt": "Stremio sign-in time",
     "waypage.repo": "Waypage sync repo", "waypage.token": "Waypage token", "waypage.kinds": "Waypage categories", "waypage.habit": "Waypage minutes habit",
     "releases.autoRefreshDays": "release-date refresh",
-    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.stremio": "Stremio skips", "importSkips.bills": "Not a bill answers",
+    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.stremio": "Stremio skips", "importSkips.hardcover": "Hardcover skips", "importSkips.bills": "Not a bill answers",
     timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
   };
   function settingLabel(path) {
@@ -609,7 +610,21 @@
       if (on) replay(p, onePane() ? "mode-slide-fwd" : "view-fade-in");
     });
     if (onePane() && was && !currentPage && !$("#settingsModal").hidden) replay($("#settingsModal .settings-side"), "mode-slide-back");
-    document.querySelectorAll("#settingsModal .srow[data-page]").forEach((r) => {
+    // A page inside another (a connection inside Connections) lights its
+    // parent's row in the list, and back steps out to the parent.
+    const pageEl = currentPage ? document.querySelector('#settingsModal .settings-page[data-page="' + currentPage + '"]') : null;
+    const parent = (pageEl && pageEl.dataset.parent) || "";
+    const parentEl = parent ? document.querySelector('#settingsModal .settings-page[data-page="' + parent + '"]') : null;
+    const back = $("#settingsBackBtn");
+    back.lastChild.textContent = parentEl ? parentEl.dataset.title : "Settings";
+    back.setAttribute("aria-label", parentEl ? "Back to " + parentEl.dataset.title : "Back to all settings");
+    if (parent === "imports") renderConnectionRows();
+    document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => {
+      const on = r.dataset.page === (parent || currentPage);
+      r.classList.toggle("active", on);
+      if (on) r.setAttribute("aria-current", "page"); else r.removeAttribute("aria-current");
+    });
+    document.querySelectorAll("#settingsModal .settings-page .srow[data-page]").forEach((r) => {
       const on = r.dataset.page === currentPage;
       r.classList.toggle("active", on);
       if (on) r.setAttribute("aria-current", "page"); else r.removeAttribute("aria-current");
@@ -617,12 +632,30 @@
     const pages = $("#settingsModal .settings-pages");
     if (pages) pages.scrollTop = 0;
     if (!currentPage) updateStatuses();
+    if (currentPage === "imports") renderConnectionRows();
+  }
+
+  // Connections' list: one row per app, with where it stands.
+  const parentOf = (page) => { const p = page && document.querySelector('#settingsModal .settings-page[data-page="' + page + '"]'); return (p && p.dataset.parent) || ""; };
+  function renderConnectionRows() {
+    const C = window.LifeLogConnections;
+    if (!C) return;
+    const pay = $("#paymentsGroup"), payRow = $("#paymentsRow");
+    if (pay && payRow) payRow.hidden = pay.hidden;
+    document.querySelectorAll("#settingsModal [data-conn-status]").forEach((n) => {
+      const st = C.status(n.dataset.connStatus);
+      n.textContent = st.text;
+      n.dataset.tone = st.tone || "";
+    });
   }
 
   // True when it stepped back to the list, so whoever asked (Escape, back)
   // knows not to close Settings as well.
   function settingsBack() {
-    if ($("#settingsModal").hidden || !currentPage || !onePane()) return false;
+    if ($("#settingsModal").hidden || !currentPage) return false;
+    const parent = parentOf(currentPage);
+    if (parent) { showPage(parent); return true; }
+    if (!onePane()) return false;
     showPage("");
     return true;
   }
@@ -642,7 +675,7 @@
     tabs: "Show, hide and order tabs",
     keyboard: "Shortcuts",
     media: "Keys for covers and details",
-    imports: "Steam, AniList, Stremio, Waypage",
+    imports: "Steam, AniList, Hardcover, Stremio, Waypage",
     releases: "Upcoming release checks",
   };
 
@@ -1238,6 +1271,8 @@
     renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
     renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
     if (window.LifeLogStremio) window.LifeLogStremio.renderSettings();
+    if (window.LifeLogHardcover) window.LifeLogHardcover.renderSettings();
+    if (window.LifeLogConnections) window.LifeLogConnections.renderAll();
     renderMediaCatRows();
     if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
   }
@@ -1608,7 +1643,9 @@
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
     $("#closeSettingsPageBtn").onclick = closeSettings;
-    $("#settingsBackBtn").onclick = () => showPage("");
+    $("#settingsBackBtn").onclick = () => showPage(parentOf(currentPage));
+    document.querySelectorAll("#settingsModal .settings-page .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
+    document.querySelectorAll("#settingsModal .settings-crumb[data-go]").forEach((b) => b.onclick = () => showPage(b.dataset.go));
     $("#changelogMoreBtn").onclick = () => renderChangelog(true);
     $("#changelogFold").addEventListener("toggle", (e) => { if (e.target.open) renderChangelog(false); });
     document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));

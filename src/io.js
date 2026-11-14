@@ -731,6 +731,13 @@
       },
     });
   }
+  // A connection set to "Add straight away": the ticked rows come in as
+  // the review would bring them, Undo included, without opening it.
+  async function importStraight(title, picked, newCategories, after) {
+    if (!picked.length) return;
+    await applyImportSelection(picked, []);
+    if (after) await after();
+  }
   const IMPORT_HINT = "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.";
   // ---------- Markdown files as notes (0.200.0) ----------
   // One file, one note. The title is the front matter's `title`, else a
@@ -2040,7 +2047,7 @@
     download, csvEsc, parseCsv,
     exportJson, exportTabJson, exportTabCsv, importJson, importTabCsv, importMarkdown, TAB_KINDS,
     buildImportItems,
-    importItemIncomplete, reviewAndImport, openImportPicker,
+    importItemIncomplete, reviewAndImport, importStraight, openImportPicker,
     // pure helpers (exported for test/io.test.js)
     importItemDateStr, importBucketKey, parseMarkdownNote, findImageFile, linkNoteImages, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv,
     fillableFields, findImportTarget, applyImportSelection,

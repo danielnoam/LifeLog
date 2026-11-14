@@ -94,6 +94,17 @@
 //
 //   (Waypage reading needs no route: GitHub's API answers browsers itself.)
 //
+//   POST /upnext/<id>            (header X-LifeLog-Key: <key>)
+//   GET  /upnext/<id>/manifest.json
+//   GET  /upnext/<id>/catalog/<movie|series>/lifelog-upnext.json
+//     The one route that keeps something: "LifeLog: Up next", a Stremio
+//     add-on with a row of your Backlog's movies and shows. LifeLog posts
+//     the row (IMDb ids, titles and poster addresses only) and Stremio
+//     reads it. Kept in a KV namespace bound as UPNEXT; without one these
+//     answer 501. <id> is random and secret: whoever has the add-on link
+//     can read the row, and only the key LifeLog first wrote with can
+//     change it.
+//
 //   GET /augsteam-app/<appid>
 //     -> https://api.augmentedsteam.com/app/<appid>/v2
 //     A game's How Long to Beat times (and other bits) from Augmented
@@ -103,16 +114,19 @@
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type, Client-ID",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, Client-ID, X-LifeLog-Key",
 };
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: CORS_HEADERS });
     }
 
     const url = new URL(request.url);
+
+    const upNext = url.pathname.match(/^\/upnext\/([a-f0-9]{24})(\/manifest\.json|\/catalog\/(movie|series)\/lifelog-upnext\.json)?$/);
+    if (upNext) return upNextRoute(request, env, upNext[1], upNext[2] || "", upNext[3] || "");
 
     const wishlistMatch = url.pathname.match(/^\/steam-wishlist\/(\d{17})$/);
     if (wishlistMatch) {
@@ -208,6 +222,47 @@ export default {
     return new Response("Not found", { status: 404, headers: CORS_HEADERS });
   },
 };
+
+// ---------- LifeLog: Up next (a Stremio add-on) ----------
+const UPNEXT_MAX = 200;
+const jsonOut = (body, status, extra) => new Response(JSON.stringify(body), {
+  status: status || 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS, ...(extra || {}) },
+});
+function cleanMetas(list, type) {
+  return (Array.isArray(list) ? list : []).slice(0, UPNEXT_MAX)
+    .filter((m) => m && /^tt\d{5,10}$/.test(m.id))
+    .map((m) => ({ id: m.id, type, name: String(m.name || "").slice(0, 200), ...(/^https:\/\/[^\s"<>]{1,500}$/.test(m.poster || "") ? { poster: m.poster } : {}) }));
+}
+async function upNextRoute(request, env, id, rest, type) {
+  const kv = env && env.UPNEXT;
+  if (!kv) return jsonOut({ error: "This worker has no KV namespace bound as UPNEXT yet" }, 501);
+  if (!rest) {
+    if (request.method !== "POST") return jsonOut({ error: "POST the row here" }, 405);
+    const key = request.headers.get("X-LifeLog-Key") || "";
+    if (!/^[a-f0-9]{32}$/.test(key)) return jsonOut({ error: "A key is needed" }, 401);
+    const was = await kv.get(id, "json");
+    if (was && was.key !== key) return jsonOut({ error: "That key doesn't match this row" }, 403);
+    let body = null;
+    try { body = JSON.parse((await request.text()).slice(0, 200000)); } catch (e) { /* said below */ }
+    if (!body) return jsonOut({ error: "Send the row as JSON" }, 400);
+    const row = { key, movie: cleanMetas(body.movie, "movie"), series: cleanMetas(body.series, "series"), at: new Date().toISOString() };
+    await kv.put(id, JSON.stringify(row));
+    return jsonOut({ ok: true, movie: row.movie.length, series: row.series.length });
+  }
+  // Stremio reads these; it caches them for a few minutes.
+  const cache = { "Cache-Control": "max-age=300" };
+  if (rest === "/manifest.json") {
+    return jsonOut({
+      id: "app.lifelog.upnext." + id.slice(0, 8), version: "1.0.0", name: "LifeLog: Up next",
+      description: "The movies and shows waiting in your LifeLog Backlog, in your order.",
+      resources: ["catalog"], types: ["movie", "series"], idPrefixes: ["tt"],
+      catalogs: [{ type: "movie", id: "lifelog-upnext", name: "LifeLog: Up next" }, { type: "series", id: "lifelog-upnext", name: "LifeLog: Up next" }],
+      behaviorHints: { configurable: false },
+    }, 200, cache);
+  }
+  const row = await kv.get(id, "json");
+  return jsonOut({ metas: row ? row[type] || [] : [] }, 200, cache);
+}
 
 async function resolveShortLink(start) {
   const json = (body, status) => new Response(JSON.stringify(body), {
