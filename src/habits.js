@@ -1256,6 +1256,19 @@
     return was;
   }
 
+  // A reminder's Done (the Windows toast): today's mark brought up to what
+  // the habit still needs, as Android's Done does. False when there's
+  // nothing to do: gone, avoided, or already kept.
+  async function finishToday(id) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
+    if (!h || h.avoid || h.archivedAt) return false;
+    const today = todayStr();
+    const p = progressOf(h, today);
+    if (p.met) return false;
+    await setMark(id, today, markOf(h, today) + p.left);
+    return true;
+  }
+
   async function tickPeriod(id, dateStr) {
     const h = (state.data.habits || []).find((x) => x.id === id);
     if (h) await setMark(id, dateStr, nextPeriodMark(h, dateStr));
@@ -1625,7 +1638,7 @@
   }
 
   window.LifeLogHabits = {
-    init, wire, renderHabits, openHabitModal, closeHabitModal, closeAmountModal, isHabitsMode,
+    init, wire, renderHabits, openHabitModal, closeHabitModal, closeAmountModal, isHabitsMode, finishToday,
     sanitizeHabit,
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js

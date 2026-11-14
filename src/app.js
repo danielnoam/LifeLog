@@ -5385,6 +5385,9 @@
     // The background-work notification: Activity opens over whatever was
     // up, since closing an import's sheet would stop the import.
     if (action === "open-activity") { openActivity(); return; }
+    // A Windows habit reminder's Done: kept, with the window left as it was
+    // (in the tray, most likely).
+    if (action.startsWith("done-habit:")) { Habits.finishToday(action.slice("done-habit:".length)); return; }
     if (clearForAction(action)) return;
     if (action.startsWith("share?")) { Share.open(action.slice("share?".length)); return; }
     const goTo = (view, mode) => {

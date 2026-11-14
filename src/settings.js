@@ -836,6 +836,7 @@
     $("#keyboardRow").hidden = !(window.LifeLogKeys && window.LifeLogKeys.onComputer());
     updateKeysFoot();
     $("#openNotifSettingsBtn").hidden = !!D;
+    $("#testNotifBtn").hidden = !D;
     if (D) {
       $("#notifyLede").textContent = "What this computer may ring, while LifeLog is open or in the tray.";
       D.startsAtLogin().then((on) => {
@@ -1807,6 +1808,10 @@
     };
     $("#loginOpens").onchange = () => { window.LifeLogDesktop.setPref("loginOpens", $("#loginOpens").value); updateStatuses(); };
     $("#closeToTray").onchange = () => { window.LifeLogDesktop.setPref("closeToTray", $("#closeToTray").checked); updateStatuses(); };
+    $("#testNotifBtn").onclick = async () => {
+      await window.LifeLogDesktop.ringTest();
+      toast("Sent. Nothing showed? Check Do not disturb and your system's notification settings");
+    };
     $("#openNotifSettingsBtn").onclick = () => {
       const W = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
       if (W && W.openNotificationSettings) W.openNotificationSettings();

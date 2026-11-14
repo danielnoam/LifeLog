@@ -554,5 +554,27 @@ test("left to do: open habits by period, avoided ones never left", () => {
   assert.deepStrictEqual(L.done.map((h) => h.name), ["Walk", "No soda"]);
 });
 
+// A Windows reminder's Done: what's left of today's (or the period's) goal.
+(async () => {
+  const pad = (n) => String(n).padStart(2, "0");
+  const d = new Date();
+  const today = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const data = { habits: [
+    H.sanitizeHabit({ id: "p", name: "Pages", target: 3, startedAt: "2020-01-01", marks: { [today]: 1 } }),
+    H.sanitizeHabit({ id: "k", name: "Kept", startedAt: "2020-01-01", marks: { [today]: 1 } }),
+    H.sanitizeHabit({ id: "s", name: "No soda", avoid: true, startedAt: "2020-01-01" }),
+  ] };
+  let saved = 0;
+  H.init({ uid: () => "x", backfillUpdatedAt: (i) => i.updatedAt || "1970-01-01T00:00:00.000Z", keepUnknown: (s, o) => o,
+    state: { data }, render: () => {}, persist: async () => { saved++; } });
+  assert.strictEqual(await H.finishToday("p"), true);
+  assert.strictEqual(data.habits[0].marks[today], 3);
+  assert.strictEqual(await H.finishToday("k"), false, "already kept");
+  assert.strictEqual(await H.finishToday("s"), false, "an avoided habit has no Done");
+  assert.strictEqual(await H.finishToday("gone"), false);
+  assert.strictEqual(saved, 1);
+  passed++; console.log("  ok - Done brings today's mark up to the goal, and leaves the rest alone");
+})().catch((e) => { console.error("  FAIL - Done: " + e.message); process.exitCode = 1; }).then(() => {
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");
+});

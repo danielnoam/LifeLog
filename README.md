@@ -506,6 +506,11 @@ Linux when `desktop.yml` is run by hand with **Linux too** ticked.
   charge, release-day and price heads-ups ring while it runs, and a click
   on one opens the habit, the Ledger, Upcoming or the Backlog. In the tray
   it still checks GitHub every 10 minutes.
+- **Windows toasts**: on Windows a click works from the Action Center too,
+  even after LifeLog was quit, through a `lifelog://toast/` link carrying a
+  key only that computer knows (`src-tauri/src/toast.rs`). A habit
+  reminder has a Done button and leaves the Action Center once the habit is
+  kept. Settings → Notifications has Send a test notification.
 - **Settings → Desktop**: start at login, into the tray or with the
   window open, and whether closing hides it or quits.
 - **Right-click menus**: on any computer, Timeline, Backlog, Ledger,
