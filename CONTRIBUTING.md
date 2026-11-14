@@ -66,6 +66,19 @@ iOS later. A feature that can't work somewhere gets that platform's nearest
 equivalent. iOS-only work goes on the to-do list's iOS section (or an
 issue).
 
+**Every outside service works in a browser too.** The phone and computer
+apps reach other sites through native HTTP, so CORS never stops them; the
+web app can't, and anything that site doesn't open to browsers has to go
+through `proxy/worker.js`. A change that adds or changes a call to an
+outside service checks it from a browser and, when it's refused, adds the
+same route in three places: `proxy/worker.js`, `upstreamFor` in
+`src/platform.js` and the computer app's allowed hosts in
+`src-tauri/capabilities/default.json`. Keys come from the app on each
+request; the worker never stores one. `test/proxy.test.js` runs the worker
+and fails when it lacks a route the apps have; `test/desktop.test.js` does
+the same for the allowed hosts. The worker redeploys itself when `main`
+changes `proxy/`, so a route only works in a browser once its PR is merged.
+
 **Speed.** Measure before and after anything that could make it slower.
 
 **Design.** Follow DESIGN.md: colors are tokens, sizes come from the scales,

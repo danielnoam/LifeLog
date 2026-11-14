@@ -86,6 +86,14 @@
 //     comes along as the Authorization header, passed through as
 //     SteamGridDB's is.
 //
+//   POST /stremio/<login|logout|datastoreGet>
+//     -> POST https://api.strem.io/api/<method>, the body passed on as it is
+//     The Stremio sync. The browser tries Stremio directly first and comes
+//     here only when that's refused, so your sign-in (email and password,
+//     once) and the auth key Stremio answers with pass through only then.
+//
+//   (Waypage reading needs no route: GitHub's API answers browsers itself.)
+//
 //   GET /augsteam-app/<appid>
 //     -> https://api.augmentedsteam.com/app/<appid>/v2
 //     A game's How Long to Beat times (and other bits) from Augmented
@@ -94,7 +102,7 @@
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Authorization, Content-Type, Client-ID",
 };
 
@@ -170,6 +178,14 @@ export default {
       return proxyJson("https://api.hardcover.app/v1/graphql", headers, "POST", (url.searchParams.get("q") || "").slice(0, 6000));
     }
 
+    // Stremio's calls are POSTs of JSON from the start, so this one takes a
+    // POST and passes its body on as it is.
+    const stremioMatch = url.pathname.match(/^\/stremio\/(login|logout|datastoreGet)$/);
+    if (stremioMatch && request.method === "POST") {
+      const body = (await request.text()).slice(0, 4000);
+      return proxyJson(`https://api.strem.io/api/${stremioMatch[1]}`, { "Content-Type": "application/json", Accept: "application/json" }, "POST", body);
+    }
+
     const augMatch = url.pathname.match(/^\/augsteam-app\/(\d{1,10})$/);
     // Says who's asking: a request with no User-Agent is one some APIs turn
     // away (0.282.3).
@@ -215,8 +231,8 @@ async function resolveShortLink(start) {
 async function proxyJson(target, extraHeaders, method, body) {
   try {
     const res = await fetch(target, { method: method || "GET", headers: extraHeaders || {}, ...(body != null ? { body } : {}) });
-    const body = await res.text();
-    return new Response(body, {
+    const text = await res.text();
+    return new Response(text, {
       status: res.status,
       headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
