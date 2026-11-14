@@ -5985,6 +5985,12 @@
   // the bar still sends you to the download in the phone's browser.
   function offerUpdate(version) {
     offeredUpdate = version;
+    const close = $("#updateCloseBtn");
+    close.hidden = false;
+    close.onclick = () => {
+      try { localStorage.setItem(DISMISSED_KEY, version); } catch (e) { /* hidden until the next launch */ }
+      $("#updateBar").hidden = true;
+    };
     const text = $("#updateBarText");
     const btn = $("#updateReloadBtn");
     let apk = null;
@@ -6023,22 +6029,31 @@
     // release has its signed files; otherwise the release page has the
     // installer (a .deb is always updated that way).
     if (Platform.desktop) {
+      // Asked once. When the updater has nothing (no latest.json on the
+      // release), the bar turns into a plain link to the release page and
+      // stays one, instead of asking again and showing a download that never
+      // happens.
+      let pageOnly = false;
+      const openPage = () => Platform.openOutside(Platform.releasesUrl());
       btn.onclick = async () => {
-        say("Downloading LifeLog " + version + "…", "0%", true);
-        let done = false;
-        try {
-          done = await window.LifeLogDesktop.installUpdate((f) => { btn.textContent = Math.round(f * 100) + "%"; });
-        } catch (e) {
-          say("The update didn't finish", "Retry");
+        if (pageOnly) return openPage();
+        say("Checking…", "…", true);
+        const found = await window.LifeLogDesktop.findUpdate();
+        if (!found) {
+          pageOnly = true;
+          say("LifeLog " + version + " is out", "Open page");
+          openPage();
           return;
         }
-        if (!done) {
-          say("LifeLog " + version + " is out", "Get it");
-          Platform.openOutside(Platform.releasesUrl());
+        say("Downloading LifeLog " + version + "…", "0%", true);
+        try {
+          await window.LifeLogDesktop.installUpdate((f) => { btn.textContent = Math.round(f * 100) + "%"; }, found);
+        } catch (e) {
+          say("The update didn't finish", "Retry");
         }
       };
       say("LifeLog " + version + " is out", "Update");
-      $("#updateBar").hidden = false;
+      showUpdateBar(version);
       return;
     }
     // iOS installs nothing an app hands it: a sideloaded build is updated
@@ -6046,10 +6061,20 @@
     if (Platform.ios) {
       btn.onclick = () => Platform.openOutside(Platform.releasesUrl());
       say("LifeLog " + version + " is out", "Get it");
-      $("#updateBar").hidden = false;
+      showUpdateBar(version);
       return;
     }
     say("LifeLog " + version + " is out", "Update");
+    showUpdateBar(version);
+  }
+
+  // The bar can be closed for one version (a bar you can't dismiss sat on the
+  // Windows app when the updater had nothing to install). A newer version
+  // shows it again. Kept on this device only.
+  const DISMISSED_KEY = "lifelog-update-dismissed-v1";
+  const dismissedUpdate = () => { try { return localStorage.getItem(DISMISSED_KEY) || ""; } catch (e) { return ""; } };
+  function showUpdateBar(version) {
+    if (dismissedUpdate() === version) return;
     $("#updateBar").hidden = false;
   }
 
