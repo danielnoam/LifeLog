@@ -8,6 +8,15 @@ lists (Travel's import). See `worker.js` for what it does and why, and
 CONTRIBUTING.md ("Every outside service works in a browser too") for
 when a new source needs a route here. `node test/proxy.test.js` runs it.
 
+### LifeLog: Up next (the Stremio add-on)
+
+The one route that keeps anything: `/upnext` stores the row LifeLog sends
+(IMDb ids, titles, poster addresses) in a KV namespace bound as `UPNEXT`,
+and serves it to Stremio as a catalog add-on. Once: Cloudflare → Storage &
+Databases → KV → Create a namespace (`lifelog-upnext`), copy its ID into
+`wrangler.toml`'s commented `[[kv_namespaces]]` block, uncomment it and
+push. Until then those routes answer 501 and nothing else changes.
+
 ### Git-connected deploys (already set up)
 
 `lifelog-worker` is connected to this repo's `main` branch with its

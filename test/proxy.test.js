@@ -91,6 +91,33 @@ test("a browser's preflight may send a POST", async () => {
   assert.match(res.headers.get("Access-Control-Allow-Methods"), /POST/);
 });
 
+// A KV namespace as Cloudflare's binding behaves, in memory.
+const kvStore = new Map();
+const KV = { get: async (k, t) => (kvStore.has(k) ? (t === "json" ? JSON.parse(kvStore.get(k)) : kvStore.get(k)) : null), put: async (k, v) => { kvStore.set(k, v); } };
+const callEnv = (p, init, env) => worker.fetch(new Request("https://proxy.example" + p, init), env);
+const UP = "/upnext/" + "a1".repeat(12), KEY = "b2".repeat(16);
+
+test("/upnext answers 501 until a KV namespace is bound", async () => {
+  assert.strictEqual((await callEnv(UP + "/manifest.json", {}, {})).status, 501);
+});
+
+test("/upnext keeps the row LifeLog posts and Stremio reads it back", async () => {
+  const env = { UPNEXT: KV };
+  const post = (key, body) => callEnv(UP, { method: "POST", body: JSON.stringify(body), headers: { "X-LifeLog-Key": key } }, env);
+  const row = { movie: [{ id: "tt0113277", name: "Heat", poster: "https://image.tmdb.org/t/p/w342/x.jpg" }, { id: "nope", name: "Bad" }], series: [{ id: "tt0903747", name: "Breaking Bad", poster: "javascript:alert(1)" }] };
+  assert.strictEqual((await post("short", row)).status, 401);
+  assert.strictEqual((await post(KEY, row)).status, 200);
+  assert.strictEqual((await post("c3".repeat(16), row)).status, 403, "another key can't overwrite it");
+  const man = await (await callEnv(UP + "/manifest.json", {}, env)).json();
+  assert.deepStrictEqual(man.catalogs.map((c) => c.type), ["movie", "series"]);
+  const movies = await (await callEnv(UP + "/catalog/movie/lifelog-upnext.json", {}, env)).json();
+  assert.deepStrictEqual(movies.metas, [{ id: "tt0113277", type: "movie", name: "Heat", poster: "https://image.tmdb.org/t/p/w342/x.jpg" }]);
+  const shows = await (await callEnv(UP + "/catalog/series/lifelog-upnext.json", {}, env)).json();
+  assert.deepStrictEqual(shows.metas, [{ id: "tt0903747", type: "series", name: "Breaking Bad" }], "only https posters");
+  assert.ok(!JSON.stringify(shows).includes(KEY), "the key is never read back");
+  assert.strictEqual((await callEnv("/upnext/short/manifest.json", {}, env)).status, 404);
+});
+
 test("anything else is not found", async () => {
   assert.strictEqual((await call("/https://example.com/")).status, 404);
 });

@@ -1412,6 +1412,29 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_hardcover",
+    description: "The two-way Hardcover sync (the user's book tracker): whether it's set up, which category it keeps in step, and the books linked to Hardcover by state (want to read, reading, did not finish, read lately). Changes made with the other tools (starting, finishing, dropping a book in that category) reach Hardcover at the app's next sync; the bridge never calls Hardcover itself. Never shows the token.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      const st = d.settings || {};
+      const c = st.hardcover || {};
+      const hasToken = !!String((st.mediaKeys || {}).hardcover || "").trim();
+      if (!c.category) return "Hardcover sync isn't set up (Settings → Connections → Hardcover: pick a category).";
+      const out = [`Hardcover: keeps "${c.category}" in step${c.username ? " as @" + c.username : ""}${hasToken ? "" : " (no token in Media lookups yet, so nothing syncs)"}. Sync: ${c.autoSyncDays === "open" ? "every open" : +c.autoSyncDays ? "every " + c.autoSyncDays + " days" : "only by hand"}.`];
+      const linked = (x) => x.mediaSource === "hardcover" && x.mediaId;
+      const b = (d.backlog || []).filter(linked);
+      const list = (label, xs) => out.push("", `${label} (${xs.length}):`, ...(xs.length ? xs.slice(0, 25).map((x) => `- ${x.title}${x.author ? " by " + x.author : ""}${x.startedAt ? ", since " + x.startedAt : ""}  (${x.id})`) : ["- nothing"]));
+      list("Reading", b.filter((x) => x.startedAt && !x.dropped));
+      list("Want to read", b.filter((x) => !x.startedAt && !x.dropped));
+      list("Did not finish", b.filter((x) => x.dropped));
+      const done = (d.entries || []).filter(linked).sort((x, y) => (y.year * 400 + y.month * 32 + (y.day || 0)) - (x.year * 400 + x.month * 32 + (x.day || 0))).slice(0, 10);
+      out.push("", "Read lately:", ...(done.length ? done.map((e) => `- ${e.title} ${e.year}-${String(e.month).padStart(2, "0")}${e.day ? "-" + String(e.day).padStart(2, "0") : ""}  (${e.id})`) : ["- nothing yet"]));
+      return out.join("\n");
+    },
+  },
+  {
     name: "lifelog_waypage",
     description: "The reading log from Waypage (the user's read-later and ebook app): whether it's connected, which Waypage kinds fill which category, the minutes habit it fills, what's being read there now with how far, what it finished lately, and the review list (things that matched a Timeline entry or a backlog title by another author, waiting for an answer). Never shows the token.",
     readOnly: true,
@@ -1419,7 +1442,8 @@ const TOOLS = [
     async run() {
       const d = await readData();
       const c = Waypage.cleanConfig((d.settings || {}).waypage);
-      const out = [c.repo ? `Waypage: reading ${c.repo}${c.token ? "" : " (no token yet, so nothing is read)"}.` : "Waypage isn't connected (Settings → Connections → Waypage reading)."];
+      const out = [c.repo ? `Waypage: reading ${c.repo}${c.token ? "" : " (no token yet, so nothing is read)"}${c.paused ? ", but turned off" : ""}.` : "Waypage isn't connected (Settings → Connections → Waypage)."];
+      out.push(`Checks ${{ "5m": "every few minutes", open: "every open", day: "once a day", manual: "only by hand" }[c.every]}. New books: ${{ add: "added straight away", ask: "wait in the review list", none: "not added" }[c.newMode]}. Starts and finishes backlog books: ${c.startFinish ? "yes" : "no"}. Shows how far: ${c.showProgress ? "yes" : "no"}.`);
       const kinds = Waypage.KINDS.map((k) => `${Waypage.KIND_NAMES[k]} → ${c.kinds[k] || "not brought in"}`);
       out.push("Kinds: " + kinds.join(", ") + ".");
       const h = (d.habits || []).find((x) => x.id === c.habit);
@@ -1429,8 +1453,39 @@ const TOOLS = [
       const done = (d.entries || []).filter((e) => e.waypageId).sort((x, y) => (y.year * 400 + y.month * 32 + (y.day || 0)) - (x.year * 400 + x.month * 32 + (x.day || 0))).slice(0, 10);
       out.push("", "Finished there lately:", ...(done.length ? done.map((e) => `- ${e.title} [${e.category}] ${e.year}-${String(e.month).padStart(2, "0")}${e.day ? "-" + String(e.day).padStart(2, "0") : ""}  (${e.id})`) : ["- nothing yet"]));
       const rows = Object.entries(c.review);
-      out.push("", `To review (${rows.length}):`, ...(rows.length ? rows.map(([id, r]) => `- ${r.title}${r.author ? " by " + r.author : ""} (${r.kind}${r.finishedAt ? ", finished " + r.finishedAt : ""}): ${r.reason === "logged" ? "already on the Timeline, a re-read?" : "a backlog title by another author"}  (review id ${id}, matches ${r.match})`) : ["- nothing"]));
+      out.push("", `To review (${rows.length}):`, ...(rows.length ? rows.map(([id, r]) => `- ${r.title}${r.author ? " by " + r.author : ""} (${r.kind}${r.finishedAt ? ", finished " + r.finishedAt : ""}): ${r.reason === "logged" ? "already on the Timeline, a re-read?" : r.reason === "new" ? "new from Waypage" : "a backlog title by another author"}  (review id ${id}, matches ${r.match})`) : ["- nothing"]));
+      const kept = Object.entries(c.never);
+      out.push("", `Kept out (${kept.length}):`, ...(kept.length ? kept.map(([id, v]) => `- ${typeof v === "string" ? v : "(no title kept)"}  (waypage id ${id})`) : ["- nothing"]));
       return out.join("\n");
+    },
+  },
+  {
+    name: "lifelog_waypage_unlink",
+    description: "Stop Waypage changing one backlog item or Timeline entry: it stays as it is, loses its Waypage link and % read, and that Waypage book goes on the Kept out list (see lifelog_waypage). lifelog_waypage_allow undoes it.",
+    input: { id: S.str("The backlog item's or Timeline entry's id") },
+    async run(a) {
+      return change("waypage unlink", (d) => {
+        d.settings = d.settings || {};
+        const c = Waypage.cleanConfig(d.settings.waypage);
+        const list = (d.backlog || []).some((x) => x.id === a.id) ? "backlog" : "entries";
+        if (!Waypage.unlink(d, c, list, String(a.id))) fail(`"${a.id}" isn't linked to Waypage. lifelog_waypage lists what is.`);
+        d.settings.waypage = c;
+        return { text: "Unlinked: Waypage won't change it.", touched: [["settings", "waypage"], [list, String(a.id)]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_waypage_allow",
+    description: "Take a book off Waypage's Kept out list (a Never answer or an unlink): at the app's next check it's matched by title again or brought in as new.",
+    input: { id: S.str("The Waypage id from lifelog_waypage's Kept out list") },
+    async run(a) {
+      return change("waypage allow", (d) => {
+        d.settings = d.settings || {};
+        const c = Waypage.cleanConfig(d.settings.waypage);
+        if (!Waypage.allowAgain(c, String(a.id))) fail(`"${a.id}" isn't kept out. lifelog_waypage lists what is.`);
+        d.settings.waypage = c;
+        return { text: "Allowed again: it comes back at the next check.", touched: [["settings", "waypage"]] };
+      });
     },
   },
   {

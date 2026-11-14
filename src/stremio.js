@@ -299,7 +299,10 @@
           return;
         }
         const categories = { movie: cfg.movieCategory, series: cfg.showCategory };
-        const records = readLibrary(items).filter((r) => (r.type === "movie" ? categories.movie : categories.series));
+        // What comes in (Settings → Connections → Stremio).
+        const C = window.LifeLogConnections;
+        const takes = (st) => !C || C.takes("stremio", st);
+        const records = readLibrary(items).filter((r) => (r.type === "movie" ? categories.movie : categories.series) && takes(r.status));
         const key = (S().mediaKeys || {}).tmdb || "";
         const matches = await matchAll(records, key, job);
         const seasons = new Map();
@@ -312,6 +315,13 @@
         }
         if (job.stopping) { job.finish("Stopped"); return; }
         const plan = planStremio(records, { categories, data: ctx.state.data, matches, seasons, today: localDay(new Date()) });
+        if (!takes("progress")) {
+          for (const u of plan.updates) {
+            delete u.patch.progress; delete u.patch.progressAt;
+            u.fills = u.fills.filter((f) => f.key !== "progress" && f.key !== "progressAt");
+          }
+          plan.updates = plan.updates.filter((u) => u.fills.length);
+        }
         const skips = new Set(((S().importSkips || {}).stremio) || []);
         const built = buildRows(plan, ctx.buildImportItems, skips);
         const fresh = built.items.filter((it) => (it.update || !it.dup) && !it.skipped);
@@ -321,10 +331,23 @@
           return;
         }
         const n = fresh.length;
-        job.finish(n + " to review");
-        const review = () => ctx.reviewAndImport("Stremio", HINT + (key ? "" : " Add a TMDB key in Media lookups to match titles and get covers, genres and airing."), built, (selected) => rememberSkips(built.items, selected));
-        if (manual) review();
-        else ctx.toast(`Stremio: ${n} to review`, false, { label: "Review", onClick: review });
+        const hint = HINT + (key ? "" : " Add a TMDB key in Media lookups to match titles and get covers, genres and airing.");
+        const mode = C ? C.newMode("stremio") : "ask";
+        if (mode === "none") {
+          // Only what you have is kept in step: the updates, as they'd come.
+          const ups = fresh.filter((it) => it.update);
+          if (ups.length && ctx.importStraight) await ctx.importStraight("Stremio", ups, []);
+          job.finish(ups.length ? ups.length + " updated" : "Nothing new");
+          if (manual && !ups.length) ctx.toast("Nothing new from Stremio");
+          return;
+        }
+        job.finish(n + (mode === "add" ? " new" : " to review"));
+        if (C) C.route("stremio", { built, title: "Stremio", hint, manual, onSkips: (selected, rows) => rememberSkips(rows, selected) });
+        else {
+          const review = () => ctx.reviewAndImport("Stremio", hint, built, (selected) => rememberSkips(built.items, selected));
+          if (manual) review();
+          else ctx.toast(`Stremio: ${n} to review`, false, { label: "Review", onClick: review });
+        }
       });
     } catch (e) {
       // Already said, and kept in Activity.
@@ -359,6 +382,118 @@
     if (!due(String(cfg.autoSyncDays || "0"), lastAt)) return;
     try { localStorage.setItem(SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) { /* checks again next open */ }
     await sync();
+  }
+
+  // ---------- "LifeLog: Up next", a row in Stremio ----------
+  // A Stremio add-on your proxy worker serves (proxy/worker.js, /upnext):
+  // LifeLog posts the movies and shows waiting in your Backlog, Stremio
+  // shows them as a row on its home screen. Only IMDb ids, titles and
+  // poster addresses leave LifeLog. settings.stremio.upNext holds { on, id,
+  // key }: the id is the add-on's secret address, the key what lets LifeLog
+  // change the row; both sync, and the key is left out of exports.
+  const IMDB_KEY = "lifelog-imdb-v1"; // "tmdb-movie:603" → "tt0133093", on this device
+  const PUSHED_KEY = "lifelog-upnext-pushed-v1";
+  const UPNEXT_MAX = 200;
+  const hex = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map((x) => x.toString(16).padStart(2, "0")).join(""); };
+
+  // What waits: not started, not dropped, in your movie or show category
+  // (any TMDB movie or show when none is picked), starred first, then the
+  // oldest first. Pure.
+  function upNextItems(data, categories) {
+    const cats = { movie: categories.movie || "", series: categories.series || "" };
+    const typeOf = (b) => {
+      if (cats.movie && b.category === cats.movie) return "movie";
+      if (cats.series && b.category === cats.series) return "series";
+      if (!cats.movie && b.mediaSource === "tmdb-movie") return "movie";
+      if (!cats.series && b.mediaSource === "tmdb-tv") return "series";
+      return "";
+    };
+    return (data.backlog || [])
+      .filter((b) => !b.dropped && !DAY.test(b.startedAt || "") && typeOf(b))
+      .sort((a, b) => (+b.priority || 0) - (+a.priority || 0) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+      .slice(0, UPNEXT_MAX * 2)
+      .map((b) => ({ type: typeOf(b), b }));
+  }
+  // The row as the worker takes it, from the IMDb ids known so far.
+  function upNextRow(items, imdbOf) {
+    const row = { movie: [], series: [] };
+    for (const { type, b } of items) {
+      const id = imdbOf(b);
+      if (!id || row[type].length >= UPNEXT_MAX) continue;
+      row[type].push({ id, name: b.title || "", ...(/^https:\/\//.test(b.coverUrl || "") ? { poster: b.coverUrl } : {}) });
+    }
+    return row;
+  }
+
+  function readJson(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
+  function writeJson(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* worked out again next time */ } }
+  const workerUrl = () => String(((S().steam || {}).proxyUrl) || "").trim().replace(/\/+$/, "");
+  const upNextCfg = () => ({ on: false, id: "", key: "", ...(cfgOf().upNext || {}) });
+  const addonUrl = (c) => (workerUrl() && c.id ? workerUrl() + "/upnext/" + c.id + "/manifest.json" : "");
+
+  // IMDb ids for TMDB titles: what the Stremio sync already matched, then
+  // TMDB's external ids, a few at a time.
+  async function resolveImdb(items) {
+    const known = readJson(IMDB_KEY);
+    for (const [tt, c] of Object.entries(readCache())) if (c && c.m && c.m.source && c.m.id) known[c.m.source + ":" + c.m.id] = tt;
+    const key = (S().mediaKeys || {}).tmdb || "";
+    let asked = 0;
+    for (const { b } of items) {
+      if (/^tt\d+$/.test(b.mediaId || "")) continue;
+      const k = b.mediaSource + ":" + b.mediaId;
+      if (!b.mediaId || known[k] !== undefined || !key || asked >= 25) continue;
+      const kind = b.mediaSource === "tmdb-movie" ? "movie" : b.mediaSource === "tmdb-tv" ? "tv" : "";
+      if (!kind) continue;
+      asked++;
+      try {
+        const res = await fetch("https://api.themoviedb.org/3/" + kind + "/" + encodeURIComponent(b.mediaId) + "/external_ids?api_key=" + encodeURIComponent(key));
+        if (res.ok) { const j = await res.json(); known[k] = /^tt\d+$/.test(j.imdb_id || "") ? j.imdb_id : ""; }
+      } catch (e) { /* asked again next time */ }
+    }
+    writeJson(IMDB_KEY, known);
+    return (b) => (/^tt\d+$/.test(b.mediaId || "") ? b.mediaId : known[b.mediaSource + ":" + b.mediaId] || "");
+  }
+
+  let upNextLast = "";
+  async function pushUpNext({ manual } = {}) {
+    if (!ctx) return;
+    const c = upNextCfg();
+    if (!c.on || !c.id || !c.key) return;
+    if (!workerUrl()) { upNextLast = "Needs your proxy URL in Media lookups"; paintUpNext(); return; }
+    const cfg = cfgOf();
+    const items = upNextItems(ctx.state.data, { movie: cfg.movieCategory, series: cfg.showCategory });
+    const row = upNextRow(items, await resolveImdb(items));
+    const body = JSON.stringify(row);
+    const pushed = readJson(PUSHED_KEY);
+    if (!manual && pushed.body === body && Date.now() - (pushed.at || 0) < 24 * 60 * 60 * 1000) return;
+    try {
+      const res = await fetch(workerUrl() + "/upnext/" + c.id, { method: "POST", headers: { "Content-Type": "application/json", "X-LifeLog-Key": c.key }, body });
+      if (res.status === 501) upNextLast = "Your worker needs its KV store set up (see the proxy's README)";
+      else if (!res.ok) upNextLast = "Your worker answered " + res.status;
+      else {
+        writeJson(PUSHED_KEY, { body, at: Date.now() });
+        upNextLast = row.movie.length + " movies and " + row.series.length + " shows in the row";
+      }
+    } catch (e) {
+      upNextLast = "Couldn't reach your worker";
+    }
+    paintUpNext();
+    if (manual) ctx.toast(upNextLast, !/in the row$/.test(upNextLast));
+  }
+  let upNextTimer = null;
+  function upNextChanged() {
+    if (!ctx || !upNextCfg().on) return;
+    clearTimeout(upNextTimer);
+    upNextTimer = setTimeout(() => pushUpNext(), 5000);
+  }
+  function paintUpNext() {
+    if (!$("stremioUpNext")) return;
+    const c = upNextCfg();
+    const url = addonUrl(c);
+    $("stremioUpNext").checked = !!c.on;
+    $("stremioUpNextState").textContent = !c.on ? "Off" : !workerUrl() ? "Needs your proxy URL in Media lookups" : upNextLast || "On";
+    $("stremioUpNextAdd").hidden = $("stremioUpNextCopy").hidden = !(c.on && url);
+    if (url) $("stremioUpNextAdd").href = url.replace(/^https?:\/\//, "stremio://");
   }
 
   // ---------- Settings → Connections → Stremio ----------
@@ -396,6 +531,7 @@
     fillCategories($("stremioMovieCategory"), cfg.movieCategory);
     fillCategories($("stremioShowCategory"), cfg.showCategory);
     $("stremioAutoSyncDays").value = String(cfg.autoSyncDays || "0");
+    paintUpNext();
   }
   function wire() {
     if (!$("stremioSyncBtn")) return;
@@ -431,12 +567,29 @@
     $("stremioShowCategory").onchange = () => setSetting("showCategory", $("stremioShowCategory").value);
     $("stremioAutoSyncDays").onchange = () => setSetting("autoSyncDays", $("stremioAutoSyncDays").value);
     $("stremioSyncBtn").onclick = () => sync({ manual: true });
+    $("stremioUpNext").onchange = async () => {
+      const c = upNextCfg();
+      const on = $("stremioUpNext").checked;
+      await setSetting("upNext", { ...c, on, id: c.id || hex(12), key: c.key || hex(16) });
+      paintUpNext();
+      if (on) pushUpNext({ manual: true });
+    };
+    $("stremioUpNextCopy").onclick = async () => {
+      try { await navigator.clipboard.writeText(addonUrl(upNextCfg())); ctx.toast("Add-on link copied. In Stremio: Add-ons → paste it in the search box"); }
+      catch (e) { ctx.toast("Couldn't copy the link", true); }
+    };
     if (window.LifeLogJobs && window.LifeLogJobs.onAgain) window.LifeLogJobs.onAgain("stremioSyncBtn", () => sync({ manual: true }));
   }
 
-  function start(c) { ctx = c; wire(); }
+  function start(c) {
+    ctx = c;
+    wire();
+    // The row is sent when the app opens and a few seconds after the
+    // Backlog changes (sync.js passes those on), at most daily when unchanged.
+    setTimeout(async () => { if (ctx.whenSynced) await ctx.whenSynced(); pushUpNext(); }, 4000);
+  }
 
-  const api = { readLibrary, episodesWatched, planStremio, buildRows, due, dayOf, start, sync, maybeAutoCheck, renderSettings };
+  const api = { readLibrary, episodesWatched, planStremio, buildRows, due, dayOf, start, sync, maybeAutoCheck, renderSettings, upNextItems, upNextRow, upNextChanged, pushUpNext };
   if (typeof window !== "undefined") window.LifeLogStremio = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

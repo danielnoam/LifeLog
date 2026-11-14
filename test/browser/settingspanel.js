@@ -104,7 +104,8 @@ const shown = (page, sel) => page.evaluate((q) => {
   const rows = await page.evaluate(() => [...document.querySelectorAll("#settingsHome .srow[data-page]")].map((r) => ({
     page: r.dataset.page, status: r.querySelector(".srow-status").textContent,
   })));
-  const pages = await page.evaluate(() => [...document.querySelectorAll(".settings-page")].map((p) => p.dataset.page));
+  // A page inside another (a connection) has its row on its parent's page.
+  const pages = await page.evaluate(() => [...document.querySelectorAll(".settings-page:not([data-parent])")].map((p) => p.dataset.page));
   check("every page has a row on the list, and every row a page",
     rows.length === pages.length && rows.every((r) => pages.includes(r.page)), { rows, pages });
   check("and every row says where things stand", rows.every((r) => r.status.trim()), rows);

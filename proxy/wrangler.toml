@@ -1,3 +1,11 @@
 name = "lifelog-worker"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+# "LifeLog: Up next", the Stremio add-on (see worker.js), keeps its row in
+# a KV namespace. Create one in Cloudflare (Storage & Databases → KV →
+# Create, name it lifelog-upnext), put its ID below and uncomment. Until
+# then the /upnext routes answer 501 and everything else works as before.
+# [[kv_namespaces]]
+# binding = "UPNEXT"
+# id = "<the namespace ID>"

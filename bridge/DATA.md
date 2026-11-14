@@ -332,7 +332,32 @@ for good; something you removed isn't brought back), and `review` (Waypage
 id → the item as Waypage has it, with `reason` "logged", already on the
 Timeline, or "author", a backlog title with another author, and `match`,
 "backlog:<id>" or "entries:<id>"). `lifelog_waypage` shows it without the
-token; `lifelog_waypage_review` answers a review row.
+token; `lifelog_waypage_review` answers a review row. Its controls: `paused`
+(true stops reading on every device), `every` ("5m", "open", "day" or
+"manual"), `newMode` ("add", "ask" puts new books in `review` with reason
+"new", or "none"), `startFinish` and `showProgress` (false leaves your
+books' status, or their %, alone). `never` values are the book's title
+when known (true otherwise); `lifelog_waypage_unlink` puts a book there,
+`lifelog_waypage_allow` takes it off.
+
+Hardcover, AniList, Stremio and Steam's settings may also hold the
+Connections screen's What comes in: `newMode` ("ask", "add" or "none"),
+`take` ({ status: false } for a list status left out) and, for Hardcover
+and AniList, `send` (false stops sending changes back). Stremio's
+`upNext` is { on, id, key } for the "LifeLog: Up next" add-on on the proxy
+worker: `id` is its secret address, `key` lets LifeLog change the row
+(blanked in exports).
+
+`hardcover` (two-way Hardcover sync, `src/hardcover.js`) holds `category`
+(the one category kept in step with the Hardcover library, "" for off),
+`autoSyncDays` ("open", days, or "0" for by hand), `connectedAt` (books
+added after it are sent to Hardcover; older ones aren't) and `username`.
+The token is `mediaKeys.hardcover`. A book is linked by `mediaSource`
+"hardcover" + `mediaId` (its Hardcover slug): Want to Read is a backlog
+item, Currently Reading a started one, Did Not Finish a dropped one, Read
+a Timeline entry. Starting, finishing or dropping a linked book with the
+other tools reaches Hardcover at the app's next sync. `importSkips.hardcover`
+lists "hardcover:<slug>" keys kept out. `lifelog_hardcover` shows it.
 
 `scratchpad` (0.306.0) is the Home tab's scratchpad, one string of free
 text, absent when empty; `lifelog_home` reads it and `lifelog_set_scratchpad`
