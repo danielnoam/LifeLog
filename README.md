@@ -57,9 +57,12 @@ charges and the habits still left; a scratchpad that syncs, with Save to Noteboo
 to keep what's in it, or switched to Board to sketch on a board instead
 (Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu; and
 a Ledger card with this month's spending so far against last month by the same
-day, where it went and your latest expenses. View
-orders and hides the sections, per device, and Settings → Tabs turns Home
-off.
+day, where it went and your latest expenses. On a computer you arrange it
+in floors: drag a section by its heading into a floor to share its width
+(a full floor moves its last section down), or between floors to start a
+new one. A phone shows the floors one under the other. View hides
+sections, moves them with arrows and resets the layout, per device, and
+Settings → Tabs turns Home off.
 
 <table><tr>
 <td><img src="docs/screenshots/home-desktop.webp" alt="Home on a computer" width="620"></td>

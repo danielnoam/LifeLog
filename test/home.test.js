@@ -20,6 +20,35 @@ test("a saved section order keeps what it knows and adds what's new at the end",
   assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger"]);
 });
 
+test("floors: the old order turns into the rows it made, halves two or three across", () => {
+  assert.deepStrictEqual(Home.DEFAULT_FLOORS, [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]]);
+  assert.deepStrictEqual(Home.floorLayout(undefined, { order: ["pinned", "progress", "upcoming", "scratchpad"], hidden: ["progress"] }),
+    [["pinned", "upcoming"], ["scratchpad", "ledger"]]);
+});
+
+test("floors: saved floors lose hidden, unknown and repeated sections and empty floors, and gain new ones at the bottom", () => {
+  assert.deepStrictEqual(Home.floorLayout([["ledger", "nope"], [], ["progress", "ledger"], "x", ["pinned"]], { hidden: ["pinned"] }),
+    [["ledger"], ["progress"], ["upcoming"], ["scratchpad"]]);
+});
+
+test("floors: dropping into a floor with room, into a full one, and between floors", () => {
+  const f = [["progress"], ["upcoming", "scratchpad", "pinned"], ["ledger"]];
+  assert.deepStrictEqual(Home.placeSection(f, "ledger", { floor: 0, at: 1 }, 3), { floors: [["progress", "ledger"], ["upcoming", "scratchpad", "pinned"]], pushed: null });
+  assert.deepStrictEqual(Home.placeSection(f, "ledger", { floor: 1, at: 0 }, 3), { floors: [["progress"], ["ledger", "upcoming", "scratchpad"], ["pinned"]], pushed: "pinned" });
+  // dropped last into a full floor, the one before it goes down instead
+  assert.deepStrictEqual(Home.placeSection(f, "ledger", { floor: 1, at: 3 }, 3).floors, [["progress"], ["upcoming", "scratchpad", "ledger"], ["pinned"]]);
+  assert.deepStrictEqual(Home.placeSection(f, "pinned", { floor: 1, newFloor: true }, 3).floors, [["progress"], ["pinned"], ["upcoming", "scratchpad"], ["ledger"]]);
+  assert.deepStrictEqual(Home.placeSection(f, "progress", { floor: 9, newFloor: true }, 3).floors, [["upcoming", "scratchpad", "pinned"], ["ledger"], ["progress"]]);
+  // put back where it was, nothing changes
+  for (const id of ["progress", "scratchpad", "ledger"]) assert.deepStrictEqual(Home.placeSection(f, id, Home.placeOf(f, id), 3).floors, f);
+});
+
+test("floors: how many fit across, and the arrows swap neighbours in reading order", () => {
+  assert.deepStrictEqual([300, 380, 783, 784, 1188, 1400, 1880].map(Home.perFloor), [1, 1, 1, 2, 3, 3, 4]);
+  assert.deepStrictEqual(Home.swapSections([["progress"], ["upcoming", "scratchpad"]], "upcoming", -1), [["upcoming"], ["progress", "scratchpad"]]);
+  assert.deepStrictEqual(Home.swapSections([["progress"], ["upcoming"]], "upcoming", 1), [["progress"], ["upcoming"]]);
+});
+
 test("in progress is what's started and not dropped, newest start first", () => {
   const data = { backlog: [
     { id: "a", title: "A", startedAt: at(-5) }, { id: "b", title: "B", startedAt: at(-1) },

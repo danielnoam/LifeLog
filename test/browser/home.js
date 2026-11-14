@@ -50,12 +50,12 @@ const SEED = {
   const heads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
   check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes", "Ledger"]), heads);
   const row = await page.evaluate(() => {
-    const r = document.querySelector(".home-pair");
-    const tops = [".home-upcoming", ".home-scratch", ".home-pinned", ".home-ledger"].map((s) => { const e = r && r.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; });
-    return { three: !!r && r.classList.contains("is-3"), tops };
+    const floors = [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec));
+    const tops = [".home-upcoming", ".home-scratch", ".home-pinned", ".home-ledger"].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top));
+    return { floors, tops };
   });
   // Four halves in a row go two by two, not three and a lone one.
-  check("Coming up, Scratchpad, Pinned notes and Ledger sit two by two on a computer", !row.three && row.tops.every((t) => t !== null)
+  check("Coming up, Scratchpad, Pinned notes and Ledger sit two by two on a computer", JSON.stringify(row.floors) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]])
     && row.tops[0] === row.tops[1] && row.tops[2] === row.tops[3] && row.tops[2] > row.tops[0], row);
   const ledger = await page.evaluate(() => ({ total: (document.querySelector(".home-ledger-total") || {}).textContent || "", text: document.querySelector(".home-ledger").textContent }));
   check("the Ledger card shows this month so far, and says when nothing's been spent yet", /\d/.test(ledger.total) && ledger.text.includes("No expenses yet this month") && ledger.text.includes("Add expense"), ledger);
@@ -98,16 +98,58 @@ const SEED = {
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
   check("View lists the five sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 5);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
-  await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
-  await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show In progress"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
-  const after = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
-  check("moving Pinned notes to the top and hiding In progress and Ledger redraws Home", JSON.stringify(after) === JSON.stringify(["Pinned notes", "Coming up", "Scratchpad"]), after);
-  check("and the three still share a row, Pinned notes first", await page.evaluate(() => { const r = document.querySelector(".home-pair.is-3"); return !!r && r.firstElementChild.classList.contains("home-pinned"); }));
-  const vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
-  check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad", "ledger"]) && vis.homeHidden.join() === "progress,ledger", vis);
+  const floorsNow = () => page.evaluate(() => [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec)));
+  const after = await floorsNow();
+  check("moving Pinned notes up swaps it with Scratchpad, and hiding In progress and Ledger leaves their floors", JSON.stringify(after) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]), after);
+  let vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
+  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger", vis);
+
+  // ---- arranging by dragging a heading ----
+  const dragHead = async (from, to) => {
+    const h = await page.$(`.home-sec[data-sec="${from}"] .home-sec-head h2`);
+    const a = await h.boundingBox();
+    await page.mouse.move(a.x + 10, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 30, a.y + 20, { steps: 3 });
+    const b = await to();
+    await page.mouse.move(b.x, b.y, { steps: 8 });
+    await page.waitForTimeout(100);
+    const during = await page.evaluate(() => ({ ghost: !!document.querySelector(".home-ghost"), slot: document.querySelector(".home-sec.is-slot")?.dataset.sec || "", pushed: document.querySelector(".home-sec.is-pushed")?.dataset.sec || "" }));
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    return during;
+  };
+  const box = (sel) => page.evaluate((sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; }, sel);
+  check("hovering a section outlines it", await page.evaluate(() => document.querySelector(".home").classList.contains("can-arrange")));
+  let d = await dragHead("scratchpad", async () => { const r = await box('.home-sec[data-sec="upcoming"]'); return { x: r.left + 20, y: r.top + 60 }; });
+  check("dragging Scratchpad shows a copy and a slot where it lands", d.ghost && d.slot === "scratchpad", d);
+  check("and dropping it left of Coming up puts it first in that floor; the empty floor goes", JSON.stringify(await floorsNow()) === JSON.stringify([["scratchpad", "upcoming", "pinned"]]), await floorsNow());
+  const tops = await page.evaluate(() => [...document.querySelectorAll(".home-floor > .home-sec")].map((s) => Math.round(s.getBoundingClientRect().top)));
+  check("the three share the floor's width", new Set(tops).size === 1, tops);
+  d = await dragHead("pinned", async () => { const r = await box(".home-floor"); return { x: r.left + 200, y: r.bottom + 6 }; });
+  check("dropping below the last floor starts a new one", JSON.stringify(await floorsNow()) === JSON.stringify([["scratchpad", "upcoming"], ["pinned"]]), await floorsNow());
+  await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
+  await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
+  await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
+  check("a section shown again gets a floor at the bottom", JSON.stringify(await floorsNow()) === JSON.stringify([["scratchpad", "upcoming"], ["pinned"], ["ledger"]]), await floorsNow());
+  await dragHead("ledger", async () => { const r = await box('.home-sec[data-sec="upcoming"]'); return { x: r.right - 20, y: r.top + 60 }; });
+  check("a floor takes a third section while each still gets 380px", JSON.stringify(await floorsNow()) === JSON.stringify([["scratchpad", "upcoming", "ledger"], ["pinned"]]), await floorsNow());
+  d = await dragHead("pinned", async () => { const r = await box('.home-sec[data-sec="scratchpad"]'); return { x: r.left + 20, y: r.top + 60 }; });
+  check("over a full floor, its last section is marked to move down", d.pushed === "ledger", d);
+  check("and dropping pushes it to a floor of its own below", JSON.stringify(await floorsNow()) === JSON.stringify([["pinned", "scratchpad", "upcoming"], ["ledger"]]), await floorsNow());
+  check("with a toast saying so", (await page.textContent("#toast").catch(() => "")).includes("Ledger moved down"), await page.textContent("#toast").catch(() => ""));
+  await page.keyboard.press("Escape");
+  const h = await (await page.$('.home-sec[data-sec="ledger"] .home-sec-head h2')).boundingBox();
+  await page.mouse.move(h.x + 10, h.y + 5); await page.mouse.down(); await page.mouse.move(h.x + 40, h.y - 300, { steps: 6 });
+  await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(300);
+  check("Esc mid-drag puts everything back", JSON.stringify(await floorsNow()) === JSON.stringify([["pinned", "scratchpad", "upcoming"], ["ledger"]]) && !(await page.$(".home-ghost")), await floorsNow());
+  await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
+  await page.click("#homeResetLayoutBtn"); await page.waitForTimeout(300);
+  await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
+  check("Reset layout brings back the default floors and every section", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]]), await floorsNow());
 
   // ---- the scratchpad as a board ----
   const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
@@ -127,7 +169,7 @@ const SEED = {
   check("in Board, Save to Notebook files it and leaves a blank one", kept.scratch === null && JSON.stringify(kept.listed) === "[1]" && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"), kept);
   await page.click('.home-pad-mode .seg-btn[data-mode="note"]'); await page.waitForTimeout(400);
   check("Note brings the text pad back", (await page.$("#homeScratchpad")) !== null);
-  const rowHeads = await page.evaluate(() => [...document.querySelectorAll(".home-pair .home-sec-head")].map((h) => Math.round(h.getBoundingClientRect().height)));
+  const rowHeads = await page.evaluate(() => [...document.querySelector(".home-scratch").parentElement.querySelectorAll(".home-sec-head")].map((h) => Math.round(h.getBoundingClientRect().height)));
   check("the switch doesn't make the Scratchpad head taller than its neighbours", rowHeads.length > 1 && rowHeads.every((h) => h === rowHeads[0]), rowHeads);
 
   // ---- turned off ----

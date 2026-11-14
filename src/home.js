@@ -2,8 +2,12 @@
 // middle of, what's coming in the next two weeks (releases, new episodes,
 // charges, habits still to do), a scratchpad, and the notes you pinned here.
 //
-// The sections are this device's to order and hide (state.visual.homeSections
-// and homeHidden), like the tabs themselves. The scratchpad is synced, as
+// The sections are this device's to arrange and hide (state.visual.homeFloors
+// and homeHidden), like the tabs themselves. Home is built from floors: rows
+// that split their width evenly between their sections. On a computer a
+// section is dragged by its heading into a floor, or between floors to start
+// a new one; a floor that's full pushes its last section down to a floor of
+// its own. A phone shows the floors one under the other. The scratchpad is synced, as
 // settings.scratchpad: it is one string, and two devices editing it at once
 // resolve as any setting does, the newer save winning. A pinned note is a
 // note with `pinned: true`; it stays in the Notebook too.
@@ -36,6 +40,86 @@
   function sectionOrder(saved) {
     const known = [...new Set((Array.isArray(saved) ? saved : []).filter((id) => SECTION_IDS.includes(id)))];
     return known.concat(SECTION_IDS.filter((id) => !known.includes(id)));
+  }
+
+  // A section is never narrower than this, so a floor holds as many as fit
+  // across the page: three on a laptop, four on a big monitor.
+  const MIN_WIDTH = 380, FLOOR_GAP = 24;
+  const perFloor = (width) => Math.max(1, Math.floor((width + FLOOR_GAP) / (MIN_WIDTH + FLOOR_GAP)));
+
+  // The rows the old section order made, before floors: halves next to each other
+  // shared a row, two or three across.
+  const HALVES = new Set(SECTIONS.filter((s) => s[3]).map(([id]) => id));
+  function legacyFloors(order) {
+    const out = [];
+    for (let i = 0; i < order.length;) {
+      let j = i;
+      while (j < order.length && HALVES.has(order[j])) j++;
+      const run = order.slice(i, Math.max(j, i + 1));
+      const size = run.length === 2 || run.length === 4 ? 2 : 3;
+      for (let k = 0; k < run.length; k += size) out.push(run.slice(k, k + size));
+      i += run.length;
+    }
+    return out;
+  }
+  const DEFAULT_FLOORS = legacyFloors(SECTION_IDS);
+
+  // The floors a device keeps, cleaned: hidden and unknown sections go, as
+  // do floors left empty, and a section added since (or shown again) gets a
+  // floor of its own at the bottom. With nothing saved yet, the old order.
+  function floorLayout(saved, { order, hidden } = {}) {
+    const off = new Set(Array.isArray(hidden) ? hidden : []);
+    const from = Array.isArray(saved) ? saved : legacyFloors(sectionOrder(order).filter((id) => !off.has(id)));
+    const seen = new Set();
+    const out = [];
+    for (const f of from) {
+      if (!Array.isArray(f)) continue;
+      const ids = f.filter((id) => SECTION_IDS.includes(id) && !off.has(id) && !seen.has(id));
+      ids.forEach((id) => seen.add(id));
+      if (ids.length) out.push(ids);
+    }
+    for (const id of SECTION_IDS) if (!seen.has(id) && !off.has(id)) out.push([id]);
+    return out;
+  }
+
+  // Drops section `id` into `floors`. `place` counts floors as they are with
+  // `id` taken out: { floor, at } puts it in that floor before position `at`,
+  // { floor, newFloor: true } gives it a floor of its own before that one.
+  // A floor holding more than `max` pushes its last section (never the one
+  // just dropped) to a new floor right below.
+  function placeSection(floors, id, place, max) {
+    const out = floors.map((f) => f.filter((x) => x !== id)).filter((f) => f.length);
+    const floor = Math.max(0, Math.min(place.floor, out.length));
+    if (place.newFloor || floor === out.length) {
+      out.splice(floor, 0, [id]);
+      return { floors: out, pushed: null };
+    }
+    const row = out[floor].slice();
+    row.splice(Math.max(0, Math.min(place.at, row.length)), 0, id);
+    let pushed = null;
+    if (row.length > Math.max(1, max || 1)) {
+      pushed = row[row.length - 1] === id ? row[row.length - 2] : row[row.length - 1];
+      row.splice(row.indexOf(pushed), 1);
+      out.splice(floor + 1, 0, [pushed]);
+    }
+    out[floor] = row;
+    return { floors: out, pushed };
+  }
+
+  // Where `id` sits now, in placeSection's terms.
+  function placeOf(floors, id) {
+    const fi = floors.findIndex((f) => f.includes(id));
+    if (fi < 0) return { floor: floors.length, newFloor: true };
+    return floors[fi].length === 1 ? { floor: fi, newFloor: true } : { floor: fi, at: floors[fi].indexOf(id) };
+  }
+
+  // The View sheet's up/down arrows: swap with the neighbour in reading
+  // order, each keeping the other's place, so the floors keep their sizes.
+  function swapSections(floors, id, delta) {
+    const flat = floors.flat();
+    const other = flat[flat.indexOf(id) + delta];
+    if (flat.indexOf(id) < 0 || !other) return floors;
+    return floors.map((f) => f.map((x) => (x === id ? other : x === other ? id : x)));
   }
 
   function inProgress(data) {
@@ -131,15 +215,16 @@
     .sort((a, b) => String(b.editedAt || b.createdAt || "").localeCompare(String(a.editedAt || a.createdAt || "")));
 
   // ---------- the view ----------
-  let state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr;
+  let state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr;
   function init(ctx) {
-    ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr } = ctx);
+    ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr } = ctx);
   }
 
-  const visibleSections = () => {
-    const off = state.visual.homeHidden || [];
-    return sectionOrder(state.visual.homeSections).filter((id) => !off.includes(id));
-  };
+  const floors = () => floorLayout(state.visual.homeFloors, { order: state.visual.homeSections, hidden: state.visual.homeHidden });
+  function saveFloors(next) {
+    state.visual.homeFloors = next;
+    saveVisualSettings(state.visual);
+  }
 
   function sectionHead(id, more) {
     const [, label, icon] = SECTIONS.find(([s]) => s === id);
@@ -540,45 +625,242 @@
   }
 
   const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection };
-  const HALF = new Set(SECTIONS.filter((s) => s[3]).map(([id]) => id));
 
   function renderHome(root) {
+    if (drag) endDrag();
     const page = el("div", "home");
     const head = el("div", "home-head");
     const today = todayStr();
     const p = Dates().parts(today);
     head.appendChild(el("h1", "home-date", Dates().WEEKDAY_NAMES[p.wd] + ", " + Dates().dayMonth(p.d, p.m)));
     page.appendChild(head);
-    const ids = visibleSections();
-    if (!ids.length) {
+    const layout = floors();
+    if (!layout.length) {
       page.appendChild(el("p", "home-empty", "Every section is hidden. Turn some back on from the View button."));
       root.appendChild(page);
       return;
     }
-    // Halves next to each other in your order share a row on a wide screen;
-    // a half on its own takes the whole width.
-    for (let i = 0; i < ids.length;) {
-      let j = i;
-      while (j < ids.length && HALF.has(ids[j])) j++;
-      if (j - i >= 2) {
-        const row = el("div", "home-pair" + (j - i === 3 || j - i > 4 ? " is-3" : ""));
-        ids.slice(i, j).forEach((id) => row.appendChild(BUILD[id]()));
-        page.appendChild(row);
-        i = j;
-      } else page.appendChild(BUILD[ids[i++]]());
+    const built = {};
+    for (const row of layout) {
+      for (const id of row) {
+        const sec = BUILD[id]();
+        sec.dataset.sec = id;
+        built[id] = sec;
+      }
     }
+    layFloors(page, layout, built);
+    if (!isMobileLayout()) page.classList.add("can-arrange");
+    page.addEventListener("pointerdown", pressHead);
     root.appendChild(page);
   }
 
-  // ---------- the View sheet: the order and which sections show ----------
+  // Puts the sections into floor rows, replacing the ones there. `tags`
+  // marks each floor for the drag: its index among the floors without the
+  // dragged section, or "own" / "pushed" for floors the drop would make.
+  function layFloors(page, layout, built, tags) {
+    page.querySelectorAll(".home-floor").forEach((f) => f.remove());
+    layout.forEach((row, i) => {
+      const f = el("div", "home-floor");
+      f.style.setProperty("--n", row.length);
+      f.classList.toggle("is-shared", row.length > 1);
+      f.dataset.tag = tags ? tags[i] : String(i);
+      row.forEach((id) => f.appendChild(built[id]));
+      page.appendChild(f);
+    });
+  }
+
+  // ---------- arranging by dragging (a mouse, on a computer) ----------
+  // The page shows where the section would land as you move: the floors are
+  // laid out again with it in place (as a dashed slot) and a copy of it
+  // follows the pointer. Each layout is worked out from the floors as they
+  // were when the drag started, so passing over a full floor and moving on
+  // leaves nothing pushed behind.
+  let drag = null;
+  // How far up into a floor its bottom edge still means "between floors".
+  // Not at a floor's top: the headings you grab sit there.
+  const EDGE = 14;
+
+  function pressHead(e) {
+    if (e.pointerType !== "mouse" || e.button !== 0 || isMobileLayout()) return;
+    const head = e.target.closest(".home-sec-head");
+    if (!head || e.target.closest("button, a, input, textarea, select, [contenteditable]")) return;
+    const sec = head.closest(".home-sec");
+    const page = sec && sec.closest(".home");
+    if (!page || !sec.dataset.sec) return;
+    e.preventDefault();
+    drag = { id: sec.dataset.sec, sec, page, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, live: false };
+    window.addEventListener("pointermove", moveDrag);
+    window.addEventListener("pointerup", dropDrag);
+    window.addEventListener("pointercancel", cancelDrag);
+    window.addEventListener("keydown", keyDrag, true);
+    window.addEventListener("blur", cancelDrag);
+  }
+
+  function startDrag() {
+    const d = drag;
+    const start = floors();
+    d.base = start.map((f) => f.filter((x) => x !== d.id)).filter((f) => f.length);
+    d.max = perFloor(d.page.clientWidth);
+    d.place = placeOf(start, d.id);
+    d.key = JSON.stringify(d.place);
+    d.built = {};
+    d.page.querySelectorAll(".home-sec[data-sec]").forEach((s) => { d.built[s.dataset.sec] = s; });
+    const r = d.sec.getBoundingClientRect();
+    const w = Math.min(r.width, 420);
+    d.dx = Math.min(d.x0 - r.left, w - 24);
+    d.dy = d.y0 - r.top;
+    d.ghost = d.sec.cloneNode(true);
+    d.ghost.className = "home-ghost";
+    d.ghost.removeAttribute("data-sec");
+    d.ghost.setAttribute("aria-hidden", "true");
+    d.ghost.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+    d.ghost.style.width = w + "px";
+    document.body.appendChild(d.ghost);
+    d.sec.classList.add("is-slot");
+    document.documentElement.classList.add("home-dragging");
+    d.live = true;
+    preview(d.place);
+  }
+
+  function moveDrag(e) {
+    const d = drag;
+    if (!d) return;
+    d.x = e.clientX; d.y = e.clientY;
+    if (!d.live) {
+      if (Math.hypot(d.x - d.x0, d.y - d.y0) < 6) return;
+      startDrag();
+    }
+    d.ghost.style.left = Math.max(0, Math.min(d.x - d.dx, window.innerWidth - d.ghost.offsetWidth)) + "px";
+    d.ghost.style.top = d.y - d.dy + "px";
+    track();
+    edgeScroll();
+  }
+
+  function track() {
+    const d = drag;
+    const place = target(d.x, d.y);
+    const key = JSON.stringify(place);
+    if (key === d.key) return;
+    d.key = key;
+    d.place = place;
+    preview(place);
+  }
+
+  function preview(place) {
+    const d = drag;
+    const { floors: next, pushed } = placeSection(d.base, d.id, place, d.max);
+    const at = Math.min(place.floor, d.base.length);
+    const tags = next.map((_, i) => {
+      if (place.newFloor || at === d.base.length) return i < at ? String(i) : i === at ? "own" : String(i - 1);
+      if (pushed) return i <= at ? String(i) : i === at + 1 ? "pushed" : String(i - 1);
+      return String(i);
+    });
+    layFloors(d.page, next, d.built, tags);
+    Object.values(d.built).forEach((s) => s.classList.toggle("is-pushed", s.dataset.sec === pushed));
+    d.pushed = pushed;
+  }
+
+  // Which floor (by its index without the dragged section) a floor element
+  // stands for.
+  function baseIndex(f) {
+    const tag = f.dataset.tag;
+    if (tag === "own") return drag.place.floor;
+    if (tag === "pushed") return drag.place.floor + 1;
+    return +tag;
+  }
+
+  function target(x, y) {
+    const d = drag;
+    const rows = [...d.page.querySelectorAll(".home-floor")];
+    const rects = rows.map((f) => f.getBoundingClientRect());
+    // Between floors (or above the first, or below the last): a new floor.
+    for (let i = 0; i <= rows.length; i++) {
+      const top = i === 0 ? -Infinity : rects[i - 1].bottom - EDGE;
+      const bottom = i === rows.length ? Infinity : rects[i].top;
+      if (y < top || y >= bottom) continue;
+      const below = rows[i];
+      if (below && below.dataset.tag === "own") return d.place;
+      if (i > 0 && rows[i - 1].dataset.tag === "own" && i === rows.length) return d.place;
+      return { floor: below ? baseIndex(below) : d.base.length, newFloor: true };
+    }
+    const i = rects.findIndex((r) => y >= r.top && y < r.bottom);
+    if (i < 0) return d.place;
+    const tag = rows[i].dataset.tag;
+    if (tag === "own" || tag === "pushed") return d.place;
+    const others = [...rows[i].children].filter((s) => s.dataset.sec !== d.id);
+    const at = others.filter((s) => {
+      const r = s.getBoundingClientRect();
+      return y >= r.bottom || (y >= r.top && x > r.left + r.width / 2);
+    }).length;
+    return { floor: +tag, at };
+  }
+
+  // Near the top or bottom of the window, the page scrolls on its own.
+  function edgeScroll() {
+    const d = drag;
+    if (!d || d.scrolling) return;
+    const step = () => {
+      if (!drag || !drag.live) { d.scrolling = false; return; }
+      const zone = 64;
+      const v = drag.y < zone ? -(zone - drag.y) / 3 : drag.y > window.innerHeight - zone ? (drag.y - window.innerHeight + zone) / 3 : 0;
+      if (!v) { d.scrolling = false; return; }
+      window.scrollBy(0, v);
+      track();
+      requestAnimationFrame(step);
+    };
+    d.scrolling = true;
+    requestAnimationFrame(step);
+  }
+
+  function dropDrag() {
+    const d = drag;
+    if (!d) return;
+    if (!d.live) { endDrag(); return; }
+    const { floors: next, pushed } = placeSection(d.base, d.id, d.place, d.max);
+    endDrag();
+    saveFloors(next);
+    render();
+    if (pushed) toast(sectionLabel(pushed) + " moved down — that floor was full");
+  }
+  function cancelDrag() {
+    const was = drag && drag.live;
+    endDrag();
+    if (was) render();
+  }
+  function keyDrag(e) {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelDrag();
+  }
+  function endDrag() {
+    const d = drag;
+    drag = null;
+    window.removeEventListener("pointermove", moveDrag);
+    window.removeEventListener("pointerup", dropDrag);
+    window.removeEventListener("pointercancel", cancelDrag);
+    window.removeEventListener("keydown", keyDrag, true);
+    window.removeEventListener("blur", cancelDrag);
+    if (!d) return;
+    if (d.ghost) d.ghost.remove();
+    document.documentElement.classList.remove("home-dragging");
+    if (d.built) Object.values(d.built).forEach((s) => s.classList.remove("is-slot", "is-pushed"));
+  }
+
+  const sectionLabel = (id) => (SECTIONS.find(([s]) => s === id) || [, id])[1];
+
+  // ---------- the View sheet: which sections show, the arrows, Reset ----------
   function fillViewOptions() {
     const wrap = $("#homeSectionRows");
     if (!wrap) return;
     wrap.innerHTML = "";
-    const order = sectionOrder(state.visual.homeSections);
+    const layout = floors();
+    const flat = layout.flat();
     const off = state.visual.homeHidden || [];
-    order.forEach((id, i) => {
+    const order = flat.concat(SECTION_IDS.filter((id) => !flat.includes(id)));
+    order.forEach((id) => {
       const [, label, icon] = SECTIONS.find(([s]) => s === id);
+      const i = flat.indexOf(id);
       const row = el("div", "sitem home-sec-row");
       const text = el("span", "sitem-text");
       text.appendChild(el("span", "sitem-title")).appendChild(window.LifeLogIcons.labelled(icon, label));
@@ -588,7 +870,7 @@
         b.type = "button";
         b.appendChild(ico(name));
         b.title = words; b.setAttribute("aria-label", words);
-        b.disabled = !order[i + delta];
+        b.disabled = i < 0 || !flat[i + delta];
         b.onclick = () => moveSection(id, delta);
         return b;
       };
@@ -603,14 +885,18 @@
       row.appendChild(box);
       wrap.appendChild(row);
     });
+    const reset = $("#homeResetLayoutBtn");
+    if (reset) {
+      const same = JSON.stringify(layout) === JSON.stringify(DEFAULT_FLOORS) && !off.length;
+      reset.disabled = same;
+      reset.onclick = resetLayout;
+    }
   }
   function moveSection(id, delta) {
-    const order = sectionOrder(state.visual.homeSections);
-    const i = order.indexOf(id);
-    if (i < 0 || !order[i + delta]) return;
-    [order[i], order[i + delta]] = [order[i + delta], order[i]];
-    state.visual.homeSections = order;
-    saveVisualSettings(state.visual);
+    const before = floors().flat();
+    const i = before.indexOf(id);
+    if (i < 0 || !before[i + delta]) return;
+    saveFloors(swapSections(floors(), id, delta));
     fillViewOptions();
     const b = $("#homeSectionRows").children[i + delta];
     const again = b && b.querySelectorAll(".tab-order-btn")[delta < 0 ? 0 : 1];
@@ -618,17 +904,33 @@
     render();
   }
   function setSectionShown(id, on) {
+    const layout = floors();
     const off = new Set(state.visual.homeHidden || []);
     if (on) off.delete(id); else off.add(id);
     state.visual.homeHidden = [...off];
-    saveVisualSettings(state.visual);
+    // Hidden sections leave their floor; one shown again gets a floor of its own at the bottom.
+    saveFloors(floorLayout(layout, { hidden: state.visual.homeHidden }));
+    fillViewOptions();
     render();
+  }
+  function resetLayout() {
+    const was = { homeFloors: state.visual.homeFloors, homeHidden: state.visual.homeHidden };
+    state.visual.homeHidden = [];
+    saveFloors(DEFAULT_FLOORS.map((f) => f.slice()));
+    fillViewOptions();
+    render();
+    toast("Home layout reset", false, { label: "Undo", onClick: () => {
+      state.visual.homeHidden = was.homeHidden || [];
+      saveFloors(was.homeFloors);
+      fillViewOptions();
+      render();
+    } });
   }
 
   const api = {
     init, renderHome, fillViewOptions,
     // pure
-    SECTIONS, SECTION_IDS, sectionOrder, inProgress, comingUp, bucketOf, pinnedNotes, ledgerGlance,
+    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
