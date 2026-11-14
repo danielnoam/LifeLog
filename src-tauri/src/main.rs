@@ -7,8 +7,11 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
+
+mod toast;
 
 // Start at login (Settings → Notifications) launches with this, straight
 // into the tray.
@@ -50,12 +53,36 @@ fn show_main(app: AppHandle) {
     show(&app);
 }
 
+// A Windows toast clicked while LifeLog wasn't running (src/toast.rs): the
+// page asks for it once it's ready.
+struct LaunchAction(Mutex<Option<String>>);
+
+#[tauri::command]
+fn take_launch_action(state: State<LaunchAction>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut a| a.take())
+}
+
+// A toast's link, passed on by a second launch: Done stays in the tray,
+// the rest open where they point.
+fn toast_clicked(app: &AppHandle, action: &str) {
+    if action.is_empty() {
+        show(app);
+    } else if toast::is_quiet(action) {
+        let _ = app.emit("lifelog-action", action);
+    } else {
+        act(app, action);
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         // First, so a second launch (a click on the Start menu entry while it
         // sits in the tray) brings the running one back instead of opening a
         // second copy that would sync against the first.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| match toast::launch_action(&args) {
+            Some(a) => toast_clicked(app, &a),
+            None => show(app),
+        }))
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -69,13 +96,28 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .manage(CloseToTray(AtomicBool::new(true)))
         .manage(LaunchedHidden(std::env::args().any(|a| a == HIDDEN_ARG)))
-        .invoke_handler(tauri::generate_handler![set_close_to_tray, launched_hidden, show_main])
+        .invoke_handler(tauri::generate_handler![
+            set_close_to_tray,
+            launched_hidden,
+            show_main,
+            take_launch_action,
+            toast::toast,
+            toast::clear_toast
+        ])
         .setup(|app| {
+            if let Ok(dir) = app.path().app_local_data_dir() {
+                toast::init(&dir);
+            }
+            let args: Vec<String> = std::env::args().collect();
+            let launch = toast::launch_action(&args);
+            let quiet = launch.as_deref().is_some_and(toast::is_quiet);
+            app.manage(LaunchAction(Mutex::new(launch.filter(|a| !a.is_empty()))));
+
             // A click on a reminder or a heads-up opens the window where it
             // points (the habit, the Ledger, Upcoming): src/desktop.js puts
-            // the app's action in the notification's `extra`. Windows only
-            // reports it while the toast is on screen, not from the Action
-            // Center.
+            // the app's action in the notification's `extra`. On Windows
+            // src/toast.rs shows them instead, so a click from the Action
+            // Center works too; this is Linux, and Windows' fallback.
             let handle = app.handle().clone();
             app.notification().on_action(move |performed| {
                 if performed.action_id() != "tap" {
@@ -117,7 +159,7 @@ fn main() {
             }
             tray.build(app)?;
 
-            if !std::env::args().any(|a| a == HIDDEN_ARG) {
+            if !quiet && !args.iter().any(|a| a == HIDDEN_ARG) {
                 show(app.handle());
             }
             Ok(())

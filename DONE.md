@@ -283,6 +283,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Clicking a reminder or heads-up opens the habit, the Ledger, Upcoming or the Backlog, from the tray too (0.305.0)
 - Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
+- Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (next release)
 
 ## The AI bridge
 

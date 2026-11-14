@@ -58,16 +58,26 @@
     openNotificationSettings() {},
   };
 
-  // A click is reported to src-tauri/src/main.rs, which shows the window
-  // and runs `extra.action` there, as a tapped notification does on Android.
-  // The id only has to be a stable 31-bit number per key.
+  // On Windows the shell shows the toast itself (src-tauri/src/toast.rs), so
+  // a click still works once it's in the Action Center or LifeLog was quit,
+  // and a habit's has a Done button, as on Android. Elsewhere it's the
+  // notification plugin's, whose click main.rs reports while it's on screen.
+  // Either way the window opens and runs the action, as a tapped
+  // notification does on Android. The id only has to be a stable 31-bit
+  // number per key; on Windows it's also the toast's tag.
   function notifyId(key) {
     let h = 0;
     for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
     return (h & 0x7fffffff) || 1;
   }
-  function ring(n) {
-    const N = T() && T().notification;
+  async function ring(n) {
+    if (!T()) return;
+    const buttons = n.habitId ? [["Done", "done-habit:" + n.habitId]] : [];
+    try {
+      await invoke("toast", { tag: String(notifyId(n.key)), title: String(n.title), body: String(n.body || ""), action: n.action || "", buttons });
+      return;
+    } catch (e) { /* not Windows: the plugin's */ }
+    const N = T().notification;
     if (!N) return;
     try {
       N.sendNotification({ id: notifyId(n.key), title: String(n.title), body: String(n.body || ""), extra: n.action ? { action: n.action } : {} });
@@ -87,7 +97,7 @@
       const key = "habit:" + h.id + ":" + today;
       if (late < 0 || late > LATE_HABIT_MIN || fired[key]) continue;
       const when = !h.period || h.period === "day" ? "today" : "this " + h.period;
-      out.push({ key, title: h.name, body: "Still to do " + when, action: "open-habit:" + h.id, habit: true });
+      out.push({ key, title: h.name, body: "Still to do " + when, action: "open-habit:" + h.id, habit: true, habitId: h.id });
     }
     for (const a of alerts) {
       if (!a || a.day !== today || !a.time || fired["alert:" + a.id]) continue;
@@ -116,7 +126,27 @@
       try { alerts = A.current(data, today, !!(ctx.hidden && ctx.hidden())); } catch (e) { alerts = []; }
     }
     const fired = readFired();
-    return { d, today, fired, due: dueNow({ today, now, habits, timeOf: R ? R.remindAt : () => "", alerts, fired }) };
+    return { d, today, fired, habits, due: dueNow({ today, now, habits, timeOf: R ? R.remindAt : () => "", alerts, fired }) };
+  }
+
+  // Today's habit reminders whose habit is no longer left to do: kept here
+  // or on the phone, or Done on the toast (pure; test/desktop.test.js).
+  function keptSince({ today, fired = {}, left = [] }) {
+    const still = new Set(left.map((h) => "habit:" + h.id + ":" + today));
+    return Object.keys(fired).filter((k) => k.startsWith("habit:") && k.endsWith(":" + today) && fired[k] === today && !still.has(k));
+  }
+
+  // Their toasts leave the Action Center, once each (Windows only: the
+  // shell does nothing elsewhere).
+  const cleared = new Set();
+  function clearKept(r) {
+    const R = window.LifeLogReminders;
+    if (!R || !R.isOn()) return;
+    for (const k of keptSince({ today: r.today, fired: r.fired, left: r.habits })) {
+      if (cleared.has(k)) continue;
+      cleared.add(k);
+      invoke("clear_toast", { tag: String(notifyId(k)) }).catch(() => {});
+    }
   }
 
   let ticking = false;
@@ -125,6 +155,7 @@
     ticking = true;
     try {
       let r = dueFromState();
+      if (r) clearKept(r);
       if (!r || !r.due.length) return;
       // A habit ticked on the phone a minute ago shouldn't ring here: pull
       // from GitHub once before a reminder goes off, then look again.
@@ -135,7 +166,7 @@
       }
       const { d, today, fired, due } = r;
       for (const n of due) {
-        ring(n);
+        await ring(n);
         fired[n.key] = today;
       }
       // Only the last few days are kept: an older key can't come round again.
@@ -173,7 +204,7 @@
       closeToTray: p.closeToTray === false ? false : DEFAULT_PREFS.closeToTray,
     };
   }
-  const invoke = (cmd, args) => { const c = T() && T().core; return c ? c.invoke(cmd, args) : Promise.resolve(null); };
+  const invoke = (cmd, args) => { const c = T() && T().core; return c ? c.invoke(cmd, args) : Promise.reject(new Error("no Tauri core")); };
   function setPref(key, value) {
     const p = prefs();
     p[key] = value;
@@ -212,12 +243,19 @@
     return true;
   }
 
+  // Settings → Notifications' Send a test notification.
+  function ringTest() {
+    return ring({ key: "test:" + Date.now(), title: "LifeLog", body: "Notifications work on this computer.", action: "" });
+  }
+
   // ctx: { state, runAction, hidden, refresh }
   function start(c) {
     ctx = c;
     const t = T();
     if (!t) return;
     if (t.event) t.event.listen("lifelog-action", (e) => { if (e && typeof e.payload === "string") ctx.runAction(e.payload); });
+    // A Windows toast clicked while LifeLog wasn't running started it.
+    invoke("take_launch_action").then((a) => { if (typeof a === "string" && a) ctx.runAction(a); }).catch(() => {});
     applyPrefs();
     clearInterval(timer);
     timer = setInterval(tick, TICK_MS);
@@ -226,7 +264,7 @@
 
   window.LifeLogDesktop = {
     available: () => !!T(),
-    notifier, start, tick, dueNow, notifyId,
+    notifier, start, tick, dueNow, keptSince, notifyId, ringTest,
     startsAtLogin, setStartsAtLogin, findUpdate, installUpdate,
     prefs, setPref, FIRED_KEY, PREFS_KEY,
   };

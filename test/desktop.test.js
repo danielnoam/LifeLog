@@ -16,7 +16,7 @@ global.localStorage = { getItem: () => null, setItem: () => {} };
 const platform = { desktop: true, tauri: null };
 global.window.LifeLogPlatform = platform;
 require("../src/desktop.js");
-const { dueNow, notifyId, tick, start, prefs, setPref } = global.window.LifeLogDesktop;
+const { dueNow, keptSince, notifyId, tick, start, prefs, setPref } = global.window.LifeLogDesktop;
 const { build, desktopIndexHtml } = require("../tools/build-www.js");
 const { collect, manifest } = require("../tools/desktop-files.js");
 
@@ -103,6 +103,19 @@ test("Settings → Desktop: closing keeps it in the tray and a login start stays
   global.localStorage = real;
 });
 
+test("a reminder whose habit is kept since is found to clear, today's only", () => {
+  const fired = { "habit:h1:2026-11-04": "2026-11-04", "habit:h2:2026-11-04": "2026-11-04", "habit:h3:2026-11-03": "2026-11-03", "alert:x": "2026-11-04" };
+  assert.deepStrictEqual(keptSince({ today: "2026-11-04", fired, left: [{ id: "h2" }] }), ["habit:h1:2026-11-04"]);
+  assert.deepStrictEqual(keptSince({ today: "2026-11-04", fired, left: [{ id: "h1" }, { id: "h2" }] }), []);
+});
+
+test("a habit's reminder offers Done; a heads-up doesn't", () => {
+  const due = dueNow({ today: "2026-11-04", now: "21:00", habits: [habit], timeOf });
+  assert.strictEqual(due[0].habitId, "h1");
+  const alert = dueNow({ today: "2026-11-04", now: "09:00", alerts: [{ id: "a", day: "2026-11-04", time: "09:00", title: "Rent", body: "", action: "open-finance" }] });
+  assert.strictEqual(alert[0].habitId, undefined);
+});
+
 test("the shell has the commands the page calls, and closing reads the setting", () => {
   const rs = fs.readFileSync(path.join(ROOT, "src-tauri/src/main.rs"), "utf8");
   const js = fs.readFileSync(path.join(ROOT, "src/desktop.js"), "utf8");
@@ -136,8 +149,27 @@ async function asyncTests() {
   assert.strictEqual(sent.length, 1);
   assert.strictEqual(sent[0].extra.action, "open-habit:h1");
   assert.strictEqual(sent[0].id, notifyId("habit:h1:2026-11-04"));
-  global.Date = realDate;
   passed++; console.log("  ok - a reminder checks GitHub before it rings");
+
+  // Windows: the shell's own toast, with Done, and cleared once kept.
+  const calls = [];
+  platform.tauri = { core: { invoke: async (cmd, args) => { calls.push([cmd, args]); } }, notification: { sendNotification: (n) => sent.push(n) } };
+  const fired = {};
+  global.localStorage = { getItem: () => JSON.stringify(fired), setItem: (k, v) => Object.assign(fired, JSON.parse(v)) };
+  await tick();
+  const toast = calls.find((c) => c[0] === "toast");
+  assert.ok(toast, "rang through the shell");
+  assert.strictEqual(sent.length, 1, "not through the plugin too");
+  assert.deepStrictEqual(toast[1].buttons, [["Done", "done-habit:h1"]]);
+  assert.strictEqual(toast[1].action, "open-habit:h1");
+  assert.strictEqual(toast[1].tag, String(notifyId("habit:h1:2026-11-04")));
+  left = false;
+  await tick();
+  await tick();
+  const clears = calls.filter((c) => c[0] === "clear_toast");
+  assert.deepStrictEqual(clears.map((c) => c[1].tag), [toast[1].tag], "cleared once");
+  global.Date = realDate;
+  passed++; console.log("  ok - on Windows a reminder is the shell's toast, with Done, cleared once kept");
 }
 
 console.log("\nthe desktop copy");
