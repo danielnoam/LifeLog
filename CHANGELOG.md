@@ -3,6 +3,21 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.314.0] - 2026-11-14
+
+### Added
+- Boards: copy, cut and paste what's selected (Ctrl/Cmd + C, X, V, or the Copy and Paste buttons by Delete). Items go on the system clipboard, so they paste into another board or into the desktop app, and a paste lands offset and selected.
+
+### Changed
+- The + menu has a line for each kind of note: Note, Checklist, Quote and Board. Each opens its own screen, without the switch between kinds at the top.
+- A new board asks for its name and category first. Tap (or click) the blank board to start drawing; closing the screen makes no board.
+- The Favourite star sits beside the ⋯ button in a note, when reading and when editing, and lights up when the note is one.
+- Boards: dragging a selection box on empty space now highlights what it covers while you drag, not only when you let go; a group you move keeps its outline.
+- Settings → Imports is now Connections, since it holds the services LifeLog stays in step with (Steam, AniList, Stremio, Waypage, Google Wallet) as well as one-off imports. Searching Settings for "imports" still finds it.
+
+### Removed
+- Changing a saved note's kind from its ⋯ menu.
+
 ## [0.313.0] - 2026-11-13
 
 ### Added
