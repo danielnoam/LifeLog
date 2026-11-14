@@ -1292,6 +1292,12 @@ test("Waypage (0.313.0): the reading log is shown without its token, and a revie
   assert.strictEqual(after.settings.waypage.token, "github_pat_SECRET", "the token stays where it was");
   await ok("lifelog_undo", {});
   assert.strictEqual(data().entries.filter((e) => e.title === "Wren").length, 1);
+  assert.match(await ok("lifelog_waypage_unlink", { id: "wp-c1" }), /Unlinked/);
+  assert.strictEqual(data().settings.waypage.never.c1, "Saltmarsh Letters");
+  assert.match(await ok("lifelog_waypage", {}), /Kept out \(1\):\n- Saltmarsh Letters  \(waypage id c1\)/);
+  await refused("lifelog_waypage_allow", { id: "zz" }, /isn't kept out/);
+  assert.match(await ok("lifelog_waypage_allow", { id: "c1" }), /Allowed again/);
+  assert.deepStrictEqual(data().settings.waypage.never, {});
 });
 
 test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", async () => {

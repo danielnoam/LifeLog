@@ -135,4 +135,24 @@ test("auto-check pacing", () => {
   assert.strictEqual(S.due("1", now - 25 * 3600000, now), true);
 });
 
+test("Up next: waiting movies and shows, starred first, then oldest; started, dropped and other categories left out", () => {
+  const data = { backlog: [
+    { id: "a", title: "Heat", category: "Movies", mediaSource: "tmdb-movie", mediaId: "949", createdAt: "2026-01-02", coverUrl: "https://image.tmdb.org/a.jpg" },
+    { id: "b", title: "Thief", category: "Movies", mediaSource: "tmdb-movie", mediaId: "11", createdAt: "2026-01-01" },
+    { id: "c", title: "Ronin", category: "Movies", mediaSource: "tmdb-movie", mediaId: "8195", createdAt: "2026-03-01", priority: 1 },
+    { id: "d", title: "Started", category: "Movies", mediaSource: "tmdb-movie", mediaId: "1", startedAt: "2026-11-01" },
+    { id: "e", title: "Dropped", category: "Shows", mediaSource: "tmdb-tv", mediaId: "2", dropped: true },
+    { id: "f", title: "Dark", category: "Shows", mediaSource: "tmdb-tv", mediaId: "70523", createdAt: "2026-02-01" },
+    { id: "g", title: "A game", category: "Games", mediaSource: "rawg", mediaId: "3" },
+  ] };
+  const items = S.upNextItems(data, { movie: "Movies", series: "Shows" });
+  assert.deepStrictEqual(items.map((x) => x.b.id + ":" + x.type), ["c:movie", "b:movie", "a:movie", "f:series"]);
+  const ids = { 949: "tt0113277", 11: "tt0083190", 70523: "tt5753856" };
+  const row = S.upNextRow(items, (b) => ids[b.mediaId] || "");
+  assert.deepStrictEqual(row.movie.map((m) => m.id), ["tt0083190", "tt0113277"], "no IMDb id, not in the row");
+  assert.strictEqual(row.movie[1].poster, "https://image.tmdb.org/a.jpg");
+  assert.deepStrictEqual(row.series, [{ id: "tt5753856", name: "Dark" }]);
+  assert.deepStrictEqual(S.upNextItems(data, {}).map((x) => x.b.id), ["c", "b", "d", "a", "f"].filter((id) => id !== "d"), "no categories picked: any TMDB title");
+});
+
 console.log(`\n${passed} passed`);

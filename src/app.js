@@ -6371,9 +6371,10 @@
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
   Stremio.start({
-    state, toast, persist, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
+    state, toast, persist, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport, importStraight: IO.importStraight,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },
   });
+  if (window.LifeLogConnections) window.LifeLogConnections.start({ state, el, toast, persist, DEFAULT_SETTINGS, reviewAndImport: IO.reviewAndImport, importStraight: IO.importStraight });
   Hardcover.start({
     state, toast, persist, afterDataChange, render, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },

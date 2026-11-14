@@ -35,7 +35,11 @@
 
   const KINDS = ["book", "audiobook", "comic", "serial", "article"];
   const KIND_NAMES = { book: "Books", audiobook: "Audiobooks", comic: "Comics", serial: "Serials", article: "Articles" };
-  const DEFAULTS = { repo: "", token: "", connectedAt: "", kinds: {}, habit: "", minutes: {}, seen: {}, never: {}, review: {} };
+  // paused: off on every device. every: "5m", "open", "day" or "manual".
+  // newMode: "add" (as before), "ask" (new books wait in the review list) or
+  // "none". startFinish / showProgress: what it does to books you have.
+  const DEFAULTS = { repo: "", token: "", connectedAt: "", kinds: {}, habit: "", minutes: {}, seen: {}, never: {}, review: {}, paused: false, every: "5m", newMode: "add", startFinish: true, showProgress: true };
+  const EVERY_MS = { "5m": 5 * 60 * 1000, open: 10 * 60 * 1000, day: 24 * 60 * 60 * 1000 };
   const FILE = "activity/reading.json";
   const CACHE_KEY = "lifelog-waypage-v1"; // { etag, text, checkedAt } on this device only
   const EVERY = 5 * 60 * 1000;
@@ -75,10 +79,16 @@
     for (const k of Object.keys(plainObj(c.kinds))) if (typeof c.kinds[k] === "string") out.kinds[k] = c.kinds[k];
     out.minutes = {};
     for (const [d, n] of Object.entries(plainObj(c.minutes))) if (isDay(d) && +n > 0) out.minutes[d] = Math.round(+n);
-    for (const key of ["seen", "never"]) {
-      out[key] = {};
-      for (const [id, v] of Object.entries(plainObj(c[key]))) if (v) out[key][id] = true;
-    }
+    out.seen = {};
+    for (const [id, v] of Object.entries(plainObj(c.seen))) if (v) out.seen[id] = true;
+    // A title kept with each so the Kept out list can name it.
+    out.never = {};
+    for (const [id, v] of Object.entries(plainObj(c.never))) if (v) out.never[id] = typeof v === "string" ? v.slice(0, 300) : true;
+    out.paused = c.paused === true;
+    out.every = ["5m", "open", "day", "manual"].includes(c.every) ? c.every : "5m";
+    out.newMode = ["add", "ask", "none"].includes(c.newMode) ? c.newMode : "add";
+    out.startFinish = c.startFinish !== false;
+    out.showProgress = c.showProgress !== false;
     out.review = {};
     for (const [id, r] of Object.entries(plainObj(c.review))) if (r && typeof r === "object" && r.title) out.review[id] = r;
     return out;
@@ -191,6 +201,8 @@
             } else review[it.id] = { ...snapshot(it), reason: "logged", match: "entries:" + e.id };
             continue;
           }
+          if (cfg.newMode === "none") continue; // not seen: it can still come later
+          if (cfg.newMode === "ask") { review[it.id] = { ...snapshot(it), reason: "new", match: "" }; continue; }
           cfg.seen[it.id] = true;
           if (it.finishedAt) {
             const entry = entryFrom(null, it, category, now);
@@ -204,6 +216,11 @@
         cfg.seen[it.id] = true;
       }
       if (b.dropped) continue;
+      if (!cfg.showProgress && (b.waypageProgress != null || b.waypageChapters)) { delete b.waypageProgress; delete b.waypageChapters; counts.progress++; }
+      if (!cfg.startFinish) {
+        if (cfg.showProgress && isDay(b.startedAt)) setProgress(b, it, counts);
+        continue;
+      }
       if (it.finishedAt) {
         const entry = entryFrom(b, it, category, now);
         if (!data.entries.some((x) => x.id === entry.id)) data.entries.push(entry);
@@ -212,12 +229,7 @@
         continue;
       }
       if (!isDay(b.startedAt)) { b.startedAt = it.startedAt || today; counts.started++; }
-      if (b.waypageProgress !== it.progress) { b.waypageProgress = it.progress; counts.progress++; }
-      const ch = it.chapters ? JSON.stringify(it.chapters) : "";
-      if ((b.waypageChapters ? JSON.stringify(b.waypageChapters) : "") !== ch) {
-        if (it.chapters) b.waypageChapters = it.chapters; else delete b.waypageChapters;
-        counts.progress++;
-      }
+      if (cfg.showProgress) setProgress(b, it, counts);
     }
     if (removed.size) data.backlog = data.backlog.filter((x) => !removed.has(x.id));
     // The review list is what this read found; anything you've answered is
@@ -229,6 +241,35 @@
     counts.minutes = fillHabit(data, cfg, act.days);
     const changed = counts.started + counts.finished + counts.added + counts.progress + counts.linked + counts.minutes > 0 || reviewChanged;
     return { changed, counts };
+  }
+
+  function setProgress(b, it, counts) {
+    if (b.waypageProgress !== it.progress) { b.waypageProgress = it.progress; counts.progress++; }
+    const ch = it.chapters ? JSON.stringify(it.chapters) : "";
+    if ((b.waypageChapters ? JSON.stringify(b.waypageChapters) : "") !== ch) {
+      if (it.chapters) b.waypageChapters = it.chapters; else delete b.waypageChapters;
+      counts.progress++;
+    }
+  }
+
+  // Unlink: the item stays and Waypage stops changing it; its id goes on
+  // the Kept out list, named, so Allow again can bring it back.
+  function unlink(data, cfg, list, itemId) {
+    const x = (data[list] || []).find((y) => y.id === itemId);
+    if (!x || !x.waypageId) return false;
+    cfg.never[x.waypageId] = x.title || true;
+    delete x.waypageId;
+    delete x.waypageProgress;
+    delete x.waypageChapters;
+    return true;
+  }
+  // Allow again: forgotten as never and as seen, so the next read matches
+  // it by title again or brings it in as new.
+  function allowAgain(cfg, id) {
+    if (!cfg.never[id]) return false;
+    delete cfg.never[id];
+    delete cfg.seen[id];
+    return true;
   }
 
   const snapshot = (it) => ({ title: it.title, author: it.author, kind: it.kind, progress: it.progress, chapters: it.chapters, startedAt: it.startedAt, finishedAt: it.finishedAt, minutes: it.minutes });
@@ -270,7 +311,7 @@
     const r = cfg.review[id];
     if (!r) return false;
     const it = { id, ...r };
-    if (action === "never") cfg.never[id] = true;
+    if (action === "never") cfg.never[id] = r.title || true;
     else if (action === "same") {
       const [list, mid] = String(r.match || "").split(":");
       const x = (data[list] || []).find((y) => y.id === mid);
@@ -338,8 +379,10 @@
   async function run({ manual, reapply } = {}) {
     const c = cfgNow();
     if (!connected(c)) { if (manual) toast("Add your waypage-data repo and token first", true); return; }
+    if (c.paused) { if (manual) toast("Reading from Waypage is turned off", true); return; }
     const cache = readCache();
-    if (!manual && !reapply && cache.checkedAt && Date.now() - cache.checkedAt < EVERY) return;
+    if (!manual && !reapply && c.every === "manual") return;
+    if (!manual && !reapply && cache.checkedAt && Date.now() - cache.checkedAt < (EVERY_MS[c.every] || EVERY)) return;
     if (whenSynced) await whenSynced();
     let body;
     try {
@@ -371,6 +414,7 @@
     }
     paintStatus();
     paintReview();
+    paintLinked();
     const said = [counts.added && counts.added + " started", counts.finished && counts.finished + " finished", counts.review && counts.review + " to review"].filter(Boolean);
     if (said.length && (manual || counts.added || counts.finished)) toast("Waypage: " + said.join(", "));
     else if (manual) toast("Waypage is up to date");
@@ -380,7 +424,7 @@
   function start() {
     check();
     if (timer) clearInterval(timer);
-    timer = setInterval(() => { if (document.visibilityState === "visible") check(); }, EVERY);
+    timer = setInterval(() => { if (document.visibilityState === "visible" && cfgNow().every === "5m") check(); }, EVERY);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
   }
 
@@ -396,7 +440,8 @@
     const s = $("#waypageStatus");
     if (!s) return;
     const c = cfgNow();
-    s.textContent = !c.repo ? "Not connected" : !c.token ? "Add a token to read it" : lastStatus || "Connected — reads every few minutes";
+    const how = { "5m": "every few minutes", open: "every open", day: "once a day", manual: "when you tap Check" }[c.every];
+    s.textContent = !c.repo ? "Not connected" : !c.token ? "Add a token to read it" : c.paused ? "Turned off: nothing is read" : lastStatus || "Connected — reads " + how;
   }
 
   function fillKinds() {
@@ -429,7 +474,7 @@
     sel.value = [...sel.options].some((o) => o.value === c.habit) ? c.habit : "";
   }
 
-  const REASONS = { logged: "Already on your Timeline. A re-read?", author: "Matches a backlog item by a different author" };
+  const REASONS = { logged: "Already on your Timeline. A re-read?", author: "Matches a backlog item by a different author", new: "New from Waypage" };
   function paintReview() {
     const box = $("#waypageReview");
     if (!box) return;
@@ -444,7 +489,8 @@
       t.append(el("span", "sitem-title", r.title + (r.author ? " · " + r.author : "")), el("span", "sitem-sub", REASONS[r.reason] || "Needs a look"));
       row.appendChild(t);
       const btns = el("div", "wp-review-btns");
-      for (const [act, label] of [["same", "Same one"], ["add", r.finishedAt ? "Add as re-read" : "Add"], ["never", "Never"]]) {
+      const acts = r.reason === "new" ? [["add", "Add"], ["never", "Never"]] : [["same", "Same one"], ["add", r.finishedAt ? "Add as re-read" : "Add"], ["never", "Never"]];
+      for (const [act, label] of acts) {
         const b = el("button", "btn btn-sm", label);
         b.type = "button";
         b.onclick = async () => {
@@ -453,12 +499,67 @@
           await save(x);
           render();
           paintReview();
+          paintLinked();
         };
         btns.appendChild(b);
       }
       row.appendChild(btns);
       list.appendChild(row);
     }
+  }
+
+  // What Waypage brought in or linked, newest first, and what's kept out.
+  function titlesFromCache() {
+    const act = parseActivity(readCache().text || "");
+    return new Map(act ? act.items.map((it) => [it.id, it.title]) : []);
+  }
+  function smallRow(title, sub, label, onClick) {
+    const row = el("div", "sitem");
+    const t = el("span", "sitem-text");
+    t.append(el("span", "sitem-title", title), el("span", "sitem-sub", sub));
+    const b = el("button", "btn btn-sm", label);
+    b.type = "button";
+    b.onclick = onClick;
+    row.append(t, b);
+    return row;
+  }
+  const LINKED_SHOWN = 30;
+  function paintLinked() {
+    const box = $("#waypageLinked");
+    if (!box) return;
+    const c = cfgNow();
+    const d = state.data;
+    const dayText = (e) => e.year + "-" + pad2(e.month) + (e.day ? "-" + pad2(e.day) : "");
+    const rows = [
+      ...(d.backlog || []).filter((b) => b.waypageId).map((b) => ({ list: "backlog", x: b, sort: "9" + (b.startedAt || ""), sub: (b.dropped ? "Dropped" : isDay(b.startedAt) ? "Reading" : "In your backlog") + (progressLabel(b) ? " · " + progressLabel(b) : "") })),
+      ...(d.entries || []).filter((e) => e.waypageId).map((e) => ({ list: "entries", x: e, sort: "1" + dayText(e), sub: "Finished " + dayText(e) + " · on your Timeline" })),
+    ].sort((a, b) => (a.sort < b.sort ? 1 : -1));
+    box.replaceChildren();
+    for (const r of rows.slice(0, LINKED_SHOWN)) {
+      box.appendChild(smallRow(r.x.title + (r.x.author ? " · " + r.x.author : ""), r.sub, "Unlink", async () => {
+        const x = cfgNow();
+        if (!unlink(state.data, x, r.list, r.x.id)) return;
+        await save(x);
+        render();
+        paintLinked();
+        toast("Unlinked: Waypage won't change it");
+      }));
+    }
+    if (rows.length > LINKED_SHOWN) box.appendChild(el("div", "sitem sitem-sub", "And " + (rows.length - LINKED_SHOWN) + " more"));
+    $("#waypageLinkedGroup").hidden = !rows.length;
+    const kept = $("#waypageKeptOut");
+    const names = titlesFromCache();
+    const out = Object.entries(c.never);
+    kept.replaceChildren();
+    for (const [id, v] of out) {
+      kept.appendChild(smallRow(typeof v === "string" ? v : names.get(id) || "A book from Waypage", "Kept out", "Allow again", async () => {
+        const x = cfgNow();
+        if (!allowAgain(x, id)) return;
+        await save(x, { reapply: true });
+        paintLinked();
+      }));
+    }
+    $("#waypageKeptOutGroup").hidden = !out.length;
   }
 
   // GitHub's form for a new fine-grained token, filled in (its URL
@@ -482,10 +583,17 @@
     $("#waypageRepo").value = c.repo || guessRepo();
     $("#waypageTokenLink").href = tokenUrl(c.repo || guessRepo());
     $("#waypageToken").value = c.token;
+    $("#waypageOn").checked = !c.paused;
+    $("#waypageEvery").value = c.every;
+    $("#waypageNew").value = c.newMode;
+    $("#waypageStartFinish").checked = c.startFinish;
+    $("#waypageShowProgress").checked = c.showProgress;
+    $("#waypageDisconnectBtn").hidden = !c.token;
     fillKinds();
     fillHabitSelect();
     paintStatus();
     paintReview();
+    paintLinked();
   }
 
   function wire() {
@@ -520,12 +628,33 @@
       render();
     };
     $("#waypageCheckBtn").onclick = () => check({ manual: true });
+    const setOpt = async (field, value, reapply) => {
+      const c = cfgNow();
+      c[field] = value;
+      await save(c, { reapply });
+      paintStatus();
+      if (reapply) render();
+    };
+    $("#waypageOn").onchange = async () => { await setOpt("paused", !$("#waypageOn").checked); if (!cfgNow().paused) check({ manual: true }); };
+    $("#waypageEvery").onchange = () => setOpt("every", $("#waypageEvery").value);
+    $("#waypageNew").onchange = () => setOpt("newMode", $("#waypageNew").value, true);
+    $("#waypageStartFinish").onchange = () => setOpt("startFinish", $("#waypageStartFinish").checked, true);
+    $("#waypageShowProgress").onchange = () => setOpt("showProgress", $("#waypageShowProgress").checked, true);
+    $("#waypageDisconnectBtn").onclick = async () => {
+      const c = cfgNow();
+      c.token = "";
+      c.connectedAt = "";
+      writeCache({});
+      await save(c);
+      renderSettings();
+      toast("Disconnected from Waypage. What it brought in stays");
+    };
   }
 
   const api = {
     init, wire, start, check, renderSettings, progressLabel,
     // pure, for tests and the bridge
-    KINDS, KIND_NAMES, DEFAULTS, tokenUrl, cleanConfig, parseActivity, apply, resolve, moveHabit, defaultKinds, titleKey, minutesText, entryFrom, backlogFrom,
+    KINDS, KIND_NAMES, DEFAULTS, tokenUrl, cleanConfig, parseActivity, apply, resolve, unlink, allowAgain, moveHabit, defaultKinds, titleKey, minutesText, entryFrom, backlogFrom,
   };
   if (typeof window !== "undefined") window.LifeLogWaypage = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

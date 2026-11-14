@@ -355,13 +355,21 @@
         const today = localDay();
         const now = new Date().toISOString();
         const p = plan(remote, data, cfg.category, base, skips);
+        // What comes in: a status switched off leaves the book here as it is.
+        const C = window.LifeLogConnections;
+        const takes = (s) => !C || C.takes("hardcover", s === "paused" ? "want" : s);
+        const sending = !C || C.sends("hardcover");
+        for (const t of p.titles) if (t.pull && !takes(t.status)) { t.pull = false; t.held = true; }
+        p.fresh = p.fresh.filter((r) => takes(r.status));
         const result = applyPlan(p, data, today, now);
 
         // Sending what this side won.
         let sent = 0, failures = 0;
         for (const t of p.titles) {
           if (job.stopping) break;
+          if (t.held) continue;
           if (!t.push) { base[t.r.slug] = t.status; continue; }
+          if (!sending) continue;
           const slug = t.r.slug;
           const b = t.status === "read" ? null : data.backlog.find((x) => isLinked(x) && x.mediaId === slug);
           const e = t.status === "read" ? (t.e || data.entries.find((x) => isLinked(x) && x.mediaId === slug)) : null;
@@ -372,7 +380,7 @@
         const remoteSlugs = new Set(remote.map((r) => r.slug));
         const misses = readJson(MISS_KEY);
         let searched = 0, linkedNew = 0;
-        for (const { x, isEntry, linked } of localOnly(data, cfg.category, remoteSlugs, cfg.connectedAt, base, skips)) {
+        for (const { x, isEntry, linked } of sending ? localOnly(data, cfg.category, remoteSlugs, cfg.connectedAt, base, skips) : []) {
           if (job.stopping) break;
           let slug = linked ? x.mediaId : "";
           if (!slug) {
@@ -406,7 +414,7 @@
           ctx.render();
         }
         if (result.changed && parts.length) ctx.toast("Hardcover: " + parts.join(", "), false, { label: "Undo", onClick: () => undoPlan(result.undo) });
-        else if (manual && !p.fresh.length) ctx.toast(sent ? `Hardcover is up to date — sent ${sent} change${sent === 1 ? "" : "s"}` : "Your Hardcover library is up to date");
+        else if (manual && (!p.fresh.length || (C && C.newMode("hardcover") === "none"))) ctx.toast(sent ? `Hardcover is up to date — sent ${sent} change${sent === 1 ? "" : "s"}` : "Your Hardcover library is up to date");
 
         // New on Hardcover: through the review.
         const recs = freshRecords(p.fresh, cfg.category, today);
@@ -416,14 +424,13 @@
           const eRows = built.items.filter((it) => it.kind === "entry"), bRows = built.items.filter((it) => it.kind === "backlog");
           eRows.forEach((it, i) => { const rec = recs.entries[i]; if (!rec) return; it.hardcoverSlug = rec.r.slug; if (!it.dup && !isDay(rec.r.finishedAt)) it.checked = false; });
           bRows.forEach((it, i) => { if (recs.backlog[i]) it.hardcoverSlug = recs.backlog[i].r.slug; });
-          n = built.items.filter((it) => !it.dup).length;
+          for (const it of built.items) if (!it.dup && skips.has(SOURCE + ":" + it.hardcoverSlug)) { it.skipped = true; it.checked = false; }
+          n = built.items.filter((it) => !it.dup && !it.skipped).length;
         }
-        job.finish([parts.join(", "), sent && `sent ${sent}`, n && `${n} to review`].filter(Boolean).join(" · ") || "Up to date");
-        if (n) {
-          const review = () => ctx.reviewAndImport("Hardcover", HINT, built, (selected) => rememberSkips(built.items, selected, base));
-          if (manual) review();
-          else ctx.toast(`Hardcover: ${n} new to review`, false, { label: "Review", onClick: review });
-        }
+        const mode = C ? C.newMode("hardcover") : "ask";
+        job.finish([parts.join(", "), sent && `sent ${sent}`, n && mode !== "none" && (mode === "add" ? `${n} new` : `${n} to review`)].filter(Boolean).join(" · ") || "Up to date");
+        if (n && C) C.route("hardcover", { built, title: "Hardcover", hint: HINT, manual, onSkips: (selected, rows) => rememberSkips(rows, selected, base), onAdded: (rows) => rememberSkips(rows, rows, base) });
+        else if (n) ctx.reviewAndImport("Hardcover", HINT, built, (selected) => rememberSkips(built.items, selected, base));
       });
     } catch (e) {
       // Already said, and kept in Activity.

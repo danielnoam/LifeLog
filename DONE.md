@@ -138,6 +138,10 @@ Every release that adds a feature adds its line here in the same commit.
 - AniList: every list, Completed as timeline history, Paused and Dropped as dropped (0.73.0, 0.265.0, 0.268.0)
 - AniList both ways: applied automatically (every open to monthly), episode counts, starts, finishes and drops sent back once signed in, newer change wins (0.292.0)
 - Waypage reading log: reading.json from your Waypage sync repo (read-only token, every few minutes, ETag); Backlog books started with their %, new ones added, finished ones moved to the Timeline, a category per kind, re-reads and author clashes reviewed, minutes into a minutes habit; bridge tools (0.313.0)
+- Hardcover both ways: one category in step with your Hardcover library (Want to Read, Reading, Read, Did Not Finish), matched by title and author, new books through the review, starts/finishes/drops sent back (Waypage's too), newer change wins (next release)
+- Connections as a list with one screen per app; What comes in on Hardcover, AniList, Stremio and Steam: new titles ask/add/skip, a switch per status, send changes on/off (next release)
+- Waypage controls: on/off, Disconnect, check timing, new books ask/add/skip, start-and-finish and progress switches, From Waypage list with Unlink, Kept out with Allow again (next release)
+- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (next release)
 - Letterboxd import (0.252.0)
 - Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (0.313.0)
 - Stremio in a browser: straight to Stremio, through your proxy when it turns the browser away; a test runs the proxy and checks it has every route the apps have

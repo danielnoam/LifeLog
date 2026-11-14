@@ -494,6 +494,14 @@
           state.data.settings.importSkips = all;
           await persist();
         };
+        // A connection's "New ..." choice (Settings → Connections): the
+        // review, straight in, or only what you have kept up to date.
+        const C = window.LifeLogConnections;
+        if (source.connection && C && C.newMode(source.connection) !== "ask") {
+          if (C.newMode(source.connection) === "none") for (const it of built.items) if (!it.dup && !it.update) { it.skipped = true; it.checked = false; }
+          C.route(source.connection, { built: { ...built, items: built.items.filter((it) => !it.skipped || it.update) }, title: source.label, hint: source.hint, manual: true, onSkips: (selected) => rememberSkips(selected) });
+          return;
+        }
         reviewAndImport(source.label, source.hint, built, rememberSkips, source.picker ? source.picker(built) : undefined);
       });
     } catch (e) {
@@ -508,6 +516,7 @@
     id: "steamWishlistSyncBtn",
     label: "Steam Wishlist",
     lane: "steam",
+    connection: "steam",
     skipKey: "steamWishlist",
     hint: "Review which wishlisted games to add. Anything already in your backlog is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
     plan() {
@@ -1525,10 +1534,23 @@
         const base = readAniListBase();
         const skips = new Set(((state.data.settings.importSkips || {}).anilist) || []);
         const plan = planAniList(raw, state.data, base, skips);
+        // What comes in (Settings → Connections → AniList): a status switched
+        // off leaves the title here as it is; new titles come in, wait for
+        // the review, or don't come at all.
+        const C = window.LifeLogConnections;
+        const asLocal = (st) => (st === "paused" ? "dropped" : st);
+        const takes = (st) => !C || C.takes("anilist", asLocal(st));
+        const sending = !C || C.sends("anilist");
+        const mode = C ? C.newMode("anilist") : "add";
+        for (const t of plan.titles) {
+          if (t.pullStatus && !takes(t.status)) { t.pullStatus = false; t.held = true; }
+          if (t.pullProgress && !takes("current")) { t.pullProgress = false; t.held = true; }
+        }
+        plan.fresh = mode === "none" ? [] : plan.fresh.filter(({ m }) => takes(m.listStatus));
         plan.freshByKey = new Map(plan.fresh.map(({ m }) => [m.source + ":" + m.id, m]));
         const built = plan.fresh.length ? buildAniList(plan.fresh) : { items: [], newCategories: [] };
-        const rows = built.items.filter((it) => !it.dup && !it.update && it.checked);
-        const leftovers = built.items.filter((it) => !it.dup && !it.update && !it.checked);
+        const rows = mode === "add" ? built.items.filter((it) => !it.dup && !it.update && it.checked) : [];
+        const leftovers = built.items.filter((it) => !it.dup && !it.update && !rows.includes(it));
         const result = applyAniListPlan(plan, rows);
         for (const it of rows) {
           const m = plan.freshByKey.get(it.entry.mediaSource + ":" + it.entry.mediaId);
@@ -1544,13 +1566,15 @@
         };
         for (const t of plan.titles) {
           if (job.stopping) break;
+          if (t.held) continue;
+          if (!sending && (t.pushStatus || t.pushProgress)) continue;
           const b = t.status === "completed" ? null : state.data.backlog.find((x) => x.mediaSource + ":" + x.mediaId === t.key) || null;
           const e = t.status === "completed" ? (t.e || state.data.entries.find((x) => x.mediaSource + ":" + x.mediaId === t.key)) : null;
           const fields = aniListPushFields(t.status, b, e, t.progress, t.m.total, t.pushStatus, t.pushProgress);
           await send(t.key, t.m.id, fields, { s: t.status, p: t.progress });
         }
         const remoteKeys = new Set(raw.map(({ m }) => m.source + ":" + m.id));
-        for (const x of token ? aniListLocalOnly(state.data, remoteKeys, cfg, base) : []) {
+        for (const x of token && sending ? aniListLocalOnly(state.data, remoteKeys, cfg, base) : []) {
           if (job.stopping) break;
           const st = aniListLocalState(x.b, x.e);
           await send(x.key, x.mediaId, aniListPushFields(st.status, x.b, x.e, st.progress, 0, true, !!x.b), { s: st.status, p: st.progress });
@@ -1576,8 +1600,11 @@
           toast(sent ? `AniList is up to date — sent ${sent} change${sent === 1 ? "" : "s"}` : waiting ? "Up to date here — sign in to AniList to send your changes" : "Your AniList lists are up to date");
         }
         if (leftovers.length) {
-          const review = () => reviewAndImport("AniList", "Completed titles AniList has no dates for. Tick the ones to log; they go under this month.", { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected));
+          const hint = mode === "ask" ? "New on your AniList lists. Completed titles AniList has no dates for are unticked and go under this month. What you leave unticked stays out next time."
+            : "Completed titles AniList has no dates for. Tick the ones to log; they go under this month.";
+          const review = () => reviewAndImport("AniList", hint, { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected));
           if (manual) review();
+          else if (mode === "ask") toast(`AniList: ${leftovers.length} new to review`, false, { label: "Review", onClick: review });
           else if (!result.changed) toast(`${leftovers.length} AniList title${leftovers.length === 1 ? "" : "s"} without dates to review`, false, { label: "Review", onClick: review });
         }
         job.finish([parts.join(", "), sent && `sent ${sent}`, leftovers.length && `${leftovers.length} to review`].filter(Boolean).join(" · ") || "Up to date");
@@ -1629,6 +1656,7 @@
   let aniListNudge = null;
   function aniListChanged(item) {
     if (window.LifeLogHardcover) window.LifeLogHardcover.changed(item);
+    if (window.LifeLogStremio && window.LifeLogStremio.upNextChanged) window.LifeLogStremio.upNextChanged();
     const cfg = state.data.settings.anilist || {};
     if (!item || !isAniListSource(item.mediaSource) || !(cfg.token || "").trim()) return;
     clearTimeout(aniListNudge);
@@ -1638,6 +1666,7 @@
   // out instead of bringing it back from your list. The caller persists.
   function aniListRemoved(item) {
     if (window.LifeLogHardcover) window.LifeLogHardcover.removed(item);
+    if (window.LifeLogStremio && window.LifeLogStremio.upNextChanged) window.LifeLogStremio.upNextChanged();
     if (!item || !isAniListSource(item.mediaSource) || !item.mediaId) return;
     const key = item.mediaSource + ":" + item.mediaId;
     const all = { ...(state.data.settings.importSkips || {}) };

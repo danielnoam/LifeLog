@@ -367,6 +367,16 @@ list gets the window too, its map beside the list.
   both sides changed, the newer change wins. Shows and manga keep how far
   they've run, and In progress items can count episodes (per category); moved back
   to the Backlog, an item keeps its count and its row shows it.
+- **Connections**: Settings → Connections lists each app with where it
+  stands; each has its own screen. Hardcover, AniList, Stremio and Steam
+  have **What comes in**: new titles through the review, straight in, or
+  not at all, a switch per list status, and for the two-way ones whether
+  your changes go back.
+- **Hardcover, both ways**: pick a category and your Hardcover library
+  stays in step with it: Want to Read in the Backlog, Currently Reading in
+  progress, Read on the Timeline on the day you finished, Did Not Finish
+  dropped. Starts, finishes and drops (Waypage's too) go back to
+  Hardcover; the newer change wins. Uses your Hardcover token.
 - **Stremio, read only**: sign in once in Settings → Connections (only the key
   Stremio sends back is kept). Your library goes to the Backlog, what
   you're partway through to In progress with the episode you're on, and
@@ -374,6 +384,9 @@ list gets the window too, its map beside the list.
   through the review. Stremio keeps only the last play, so earlier watches
   aren't there. Nothing is written to Stremio. It uses the API Stremio's
   own apps use, which isn't public.
+  Turn on **LifeLog: Up next** and Stremio's home screen gets a row of the
+  movies and shows waiting in your Backlog, from an add-on your proxy
+  worker serves (it needs a KV namespace; see proxy/README.md).
 - **Waypage reading log**: with Share reading activity on in
   [Waypage](https://github.com/danielnoam/waypage), what you read there
   comes in by itself, with a read-only token for its sync repo. A book in

@@ -1895,76 +1895,113 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Connections" data-keywords="connections imports sync steam wishlist how long to beat hltb game times opencritic metacritic scores anilist planning watching completed anime manga stremio hardcover want to read did not finish waypage reading books audiobooks comics serials minutes google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
+      <div class="settings-page" hidden data-page="imports" data-title="Connections" data-keywords="connections imports services apps accounts sync">
       <h2 class="settings-page-title">Connections</h2>
-      <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
+      <p class="hint page-lede">Apps that keep LifeLog in step. Pick one to set it up and choose what comes in; nothing already here is added twice.</p>
       <section class="sgroup">
-        <h3 class="sgroup-label">Steam wishlist</h3>
+        <h3 class="sgroup-label">Syncing</h3>
+        <div class="sgroup-card" id="connList">
+          <button type="button" class="srow" data-page="conn-hardcover"><span class="srow-ic"><span data-ico="notebook-text"></span></span><span class="srow-text"><span class="srow-title">Hardcover</span><span class="srow-status" data-conn-status="hardcover"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-anilist"><span class="srow-ic"><span data-ico="tv"></span></span><span class="srow-text"><span class="srow-title">AniList</span><span class="srow-status" data-conn-status="anilist"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title">Stremio</span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title">Waypage</span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title">Steam</span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+        </div>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label">One-time imports</h3>
         <div class="sgroup-card">
-          <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">SteamID64</span><span class="sitem-sub"><a href="https://steamid.io/" target="_blank" rel="noopener">Find yours →</a></span></span>
-            <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
+          <button type="button" class="srow" data-page="conn-letterboxd"><span class="srow-ic"><span data-ico="film"></span></span><span class="srow-text"><span class="srow-title">Letterboxd</span><span class="srow-status" data-conn-status="letterboxd"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-payments" id="paymentsRow" hidden><span class="srow-ic"><span data-ico="receipt"></span></span><span class="srow-text"><span class="srow-title">Google Wallet</span><span class="srow-status" data-conn-status="payments"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+        </div>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="conn-hardcover" data-parent="imports" data-title="Hardcover" data-keywords="hardcover books want to read currently reading did not finish paused two-way token">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">Hardcover</h2>
+      <section class="sgroup" id="hardcoverGroup">
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Hardcover library</span><span class="sitem-sub" id="hardcoverState"></span></span>
+          </div>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Books go to</span></span>
+            <select id="hardcoverCategory"></select>
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add games to</span></span>
-            <select id="steamWishlistCategory"></select>
-          </label>
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Auto-check</span></span>
-            <select id="steamAutoSyncDays">
+            <span class="sitem-text"><span class="sitem-title">Sync automatically</span></span>
+            <select id="hardcoverAutoSyncDays">
               <option value="0">Never</option>
+              <option value="open">Every open</option>
               <option value="1">Every day</option>
               <option value="3">Every 3 days</option>
               <option value="7">Every week</option>
               <option value="30">Every month</option>
             </select>
           </label>
-          <button id="steamWishlistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Steam Wishlist</button>
-          <button id="steamRetryUnresolvedBtn" type="button" class="sitem sitem-go" hidden><span data-ico="repeat"></span> Retry unresolved Steam titles</button>
-          <button id="steamBackfillRawgBtn" type="button" class="sitem sitem-go" hidden><span data-ico="gamepad-2"></span> Backfill missing game info</button>
+          <button id="hardcoverSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Hardcover</button>
         </div>
-        <p class="hint">Your wishlist must be public (Steam → Privacy Settings → Game details), and this goes through the CORS proxy on Media lookups.</p>
-        <h3 class="sgroup-label">Steam games you've played</h3>
+        <p class="hint">Keeps your Hardcover library and one category in step. Books already in it are matched by title and author. When a book changed on both sides, the newer change wins, and Waypage starting or finishing one counts as a change here. Deleting a book here never deletes it on Hardcover. Uses your Hardcover token from Media lookups: it needs access to your library, so make one with only that if Hardcover lets you pick.</p>
+      </section>
+      <section class="sgroup comes-in" id="hardcoverComesIn"></section>
+      </div>
+
+      <div class="settings-page" hidden data-page="conn-anilist" data-parent="imports" data-title="AniList" data-keywords="anilist anime manga planning watching completed paused dropped episodes client id sign in token two-way">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">AniList</h2>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Your lists</h3>
         <div class="sgroup-card">
           <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">Steam Web API key</span><span class="sitem-sub"><a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">Get one →</a> (any domain name will do). Steam lists owned games only with a key</span></span>
-            <input id="steamApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="32 characters" />
+            <span class="sitem-text"><span class="sitem-title">AniList username</span></span>
+            <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
           </label>
-          <button id="steamOwnedSyncBtn" type="button" class="sitem sitem-go"><span data-ico="gamepad-2"></span> Import played games</button>
-        </div>
-        <p class="hint">A one-time backfill: every game with time in it becomes a Timeline entry in the month you last played it, with the hours as its length, in the wishlist's category. Steam doesn't know what you finished, so you review the list: two hours or more starts ticked. Game details must be public, like the wishlist.</p>
-        <p class="hint" id="steamRetryUnresolvedHint" hidden><strong>Retry</strong> looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
-        <p class="hint" id="steamBackfillRawgHint" hidden><strong>Backfill</strong> fills in what Steam-synced games lack: rating, length and year from RAWG (needs a RAWG key), and Steam's description (needs the proxy). Never touches title, cover or App ID.</p>
-        <h3 class="sgroup-label">Game times and scores</h3>
-        <div class="sgroup-card">
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">How Long to Beat times</span><span class="sitem-sub">With OpenCritic and Metacritic user scores</span></span>
-            <select id="steamGameTimes">
-              <option value="off">Off</option>
+            <span class="sitem-text"><span class="sitem-title">Add anime to</span></span>
+            <select id="anilistAnimeCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add manga to</span></span>
+            <select id="anilistMangaCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Sync automatically</span></span>
+            <select id="anilistAutoSyncDays">
+              <option value="0">Never</option>
+              <option value="open">Every open</option>
               <option value="1">Every day</option>
               <option value="3">Every 3 days</option>
               <option value="7">Every week</option>
               <option value="30">Every month</option>
             </select>
           </label>
+          <button id="anilistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync AniList</button>
         </div>
-        <p class="hint">For games with a Steam App ID: the Main Story, Main + Extras and Completionist times from How Long to Beat, and the review scores, through Augmented Steam's API and the CORS proxy. Main Story becomes the game's length unless you pinned it. Only the App ID is sent. A game is checked again once its times are older than the interval you pick here.</p>
+        <p class="hint">Keeps your lists and LifeLog in step. Planning comes in as backlog items, Watching as in progress with its episode count, Completed goes to your timeline on the day AniList has it finished, and Paused or Dropped come in dropped. When a title changed on both sides, the newer change wins; with no time to go by, the further one does (Completed over Watching, more episodes over fewer). Completed titles AniList has no dates for wait for you to review. Removing something here never removes it on AniList. Needs no key, but until you sign in below the lists must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to sync only the other.</p>
       </section>
-
+      <section class="sgroup comes-in" id="anilistComesIn"></section>
       <section class="sgroup">
-        <h3 class="sgroup-label">Letterboxd</h3>
+        <h3 class="sgroup-label">Send changes to AniList</h3>
         <div class="sgroup-card">
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add films to</span></span>
-            <select id="letterboxdCategory"></select>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">AniList client ID</span></span>
+            <input id="anilistClientId" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 12345" />
           </label>
-          <button id="letterboxdImportBtn" type="button" class="sitem sitem-go"><span data-ico="film"></span> Import from Letterboxd</button>
+          <button id="anilistSignInBtn" type="button" class="sitem sitem-go"><span data-ico="external-link"></span> Sign in to AniList</button>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">Access token</span><span class="sitem-sub" id="anilistTokenState"></span></span>
+            <input id="anilistToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the token AniList shows you" />
+          </label>
         </div>
-        <p class="hint">On Letterboxd: Settings → Import &amp; Export → Export your data. Pick the zip it gives you (or its CSV files). Your diary and watched films become Timeline entries on the day you saw them, with your stars; the watchlist goes to the Backlog. You review the list before anything comes in.</p>
+        <p class="hint">Sends your episode counts, starts, finishes and drops back to AniList. Once: on anilist.co open Settings → Developer → Create new client, name it LifeLog, set the redirect URL to https://anilist.co/api/v2/oauth/pin and save. Paste its ID above, press Sign in, approve, and paste the token AniList shows you here. The token lasts a year and can change anything on your AniList account, so it syncs like your other keys but is left out of exports; delete the client on AniList to cut it off. Titles you add here after signing in are added to your AniList lists too.</p>
       </section>
+      </div>
 
+      <div class="settings-page" hidden data-page="conn-stremio" data-parent="imports" data-title="Stremio" data-keywords="stremio movies shows library watching watched episodes sign in">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">Stremio</h2>
       <section class="sgroup">
-        <h3 class="sgroup-label">Stremio</h3>
         <div class="sgroup-card">
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title">Stremio account</span><span class="sitem-sub" id="stremioState"></span></span>
@@ -2002,69 +2039,32 @@
         </div>
         <p class="hint">Reads your Stremio library and never changes it. Your library comes in as backlog items, what you're partway through as in progress with the episode you're on, and watched movies go to your timeline on the day you last played them (Stremio keeps only the last play). Everything goes through the review; an automatic check only offers it. Titles are matched on TMDB when you have a TMDB key. Your password is only used to sign in: the key Stremio sends back syncs like your other keys and is left out of exports. It can change anything on your Stremio account, and Sign out ends it. This is the API Stremio's own apps use; it isn't public and may change.</p>
       </section>
-
-      <section class="sgroup" id="hardcoverGroup">
-        <h3 class="sgroup-label">Hardcover</h3>
-        <div class="sgroup-card">
-          <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Hardcover library</span><span class="sitem-sub" id="hardcoverState"></span></span>
-          </div>
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Books go to</span></span>
-            <select id="hardcoverCategory"></select>
-          </label>
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Sync automatically</span></span>
-            <select id="hardcoverAutoSyncDays">
-              <option value="0">Never</option>
-              <option value="open">Every open</option>
-              <option value="1">Every day</option>
-              <option value="3">Every 3 days</option>
-              <option value="7">Every week</option>
-              <option value="30">Every month</option>
-            </select>
-          </label>
-          <button id="hardcoverSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Hardcover</button>
-        </div>
-        <p class="hint">Keeps your Hardcover library and one category in step. Want to Read is your backlog, Currently Reading is in progress, Read goes to your Timeline on the day you finished, Did Not Finish goes to Dropped, and Paused stays in the backlog. Books already in the category are matched by title and author. Books on Hardcover you don't have come in through the review. Starting, finishing or dropping a book here goes to Hardcover, and so do books you add here after picking the category, when Hardcover has the same title and author. When a book changed on both sides, the newer change wins. Deleting a book here never deletes it on Hardcover. Uses your Hardcover token from Media lookups; it needs access to your library, so make one with only that if Hardcover lets you pick. Waypage starting or finishing a book counts as a change here.</p>
-      </section>
-
+      <section class="sgroup comes-in" id="stremioComesIn"></section>
       <section class="sgroup">
-        <h3 class="sgroup-label">AniList lists</h3>
+        <h3 class="sgroup-label">Up next row in Stremio</h3>
         <div class="sgroup-card">
-          <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">AniList username</span></span>
-            <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">LifeLog: Up next</span><span class="sitem-sub" id="stremioUpNextState"></span></span>
+            <input type="checkbox" class="switch" id="stremioUpNext" />
           </label>
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add anime to</span></span>
-            <select id="anilistAnimeCategory"></select>
-          </label>
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add manga to</span></span>
-            <select id="anilistMangaCategory"></select>
-          </label>
-          <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Sync automatically</span></span>
-            <select id="anilistAutoSyncDays">
-              <option value="0">Never</option>
-              <option value="open">Every open</option>
-              <option value="1">Every day</option>
-              <option value="3">Every 3 days</option>
-              <option value="7">Every week</option>
-              <option value="30">Every month</option>
-            </select>
-          </label>
-          <button id="anilistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync AniList</button>
+          <a id="stremioUpNextAdd" class="sitem sitem-go" href="#" hidden><span data-ico="plus"></span> Add to Stremio</a>
+          <button id="stremioUpNextCopy" type="button" class="sitem sitem-go" hidden><span data-ico="copy"></span> Copy the add-on link</button>
         </div>
-        <p class="hint">Keeps your lists and LifeLog in step. Planning comes in as backlog items, Watching as in progress with its episode count, Completed goes to your timeline on the day AniList has it finished, and Paused or Dropped come in dropped. When a title changed on both sides, the newer change wins; with no time to go by, the further one does (Completed over Watching, more episodes over fewer). Completed titles AniList has no dates for wait for you to review. Removing something here never removes it on AniList. Needs no key, but until you sign in below the lists must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to sync only the other.</p>
+        <p class="hint">A row on Stremio's home screen with the movies and shows waiting in your Backlog, starred first. Tap one and it opens in Stremio as usual. It's an add-on your proxy worker serves at a secret address: LifeLog sends it only each title's IMDb id, name and poster, and anyone with the add-on link could see that list. Add to Stremio opens the Stremio app; on the web, copy the link and paste it into Stremio's add-on search. Shows from TMDB need your TMDB key to find their IMDb id.</p>
       </section>
+      </div>
 
+      <div class="settings-page" hidden data-page="conn-waypage" data-parent="imports" data-title="Waypage" data-keywords="waypage reading books audiobooks comics serials articles minutes habit token repo review unlink never">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">Waypage</h2>
       <section class="sgroup" id="waypageGroup">
-        <h3 class="sgroup-label">Waypage reading</h3>
         <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Read from Waypage</span><span class="sitem-sub" id="waypageStatus"></span></span>
+            <input type="checkbox" class="switch" id="waypageOn" />
+          </label>
           <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">Waypage's sync repo</span><span class="sitem-sub" id="waypageStatus"></span></span>
+            <span class="sitem-text"><span class="sitem-title">Waypage's sync repo</span></span>
             <input id="waypageRepo" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. yourname/waypage-data" />
           </label>
           <a id="waypageTokenLink" class="sitem sitem-go" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><span data-ico="external-link"></span> Make a token on GitHub</a>
@@ -2072,14 +2072,19 @@
             <span class="sitem-text"><span class="sitem-title">Read-only token</span></span>
             <input id="waypageToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
           </label>
-          <div id="waypageKinds"></div>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Minutes go to</span></span>
-            <select id="waypageHabit"></select>
+            <span class="sitem-text"><span class="sitem-title">Check</span></span>
+            <select id="waypageEvery">
+              <option value="5m">Every few minutes</option>
+              <option value="open">Every open</option>
+              <option value="day">Once a day</option>
+              <option value="manual">Only when I tap Check</option>
+            </select>
           </label>
           <button id="waypageCheckBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Check Waypage now</button>
+          <button id="waypageDisconnectBtn" type="button" class="sitem sitem-go" hidden><span data-ico="log-out"></span> Disconnect</button>
         </div>
-        <p class="hint">Reads what you read in Waypage, every few minutes. A book already in your backlog starts there and shows how far you are; finishing it in Waypage puts it on your Timeline on that day. One you don't have comes in by itself, and one already on your Timeline waits below for you to say whether it's a re-read. Reading and listening minutes fill the minutes habit you pick, on top of what you add by hand. In Waypage turn on Settings › GitHub sync › Other apps › Share reading activity. Make a token opens GitHub with the name and Contents: Read-only filled in: pick waypage-data under Repository access, generate it and paste it here. It syncs like your other keys.</p>
+        <p class="hint">In Waypage turn on Settings › GitHub sync › Other apps › Share reading activity. Make a token opens GitHub with the name and Contents: Read-only filled in: pick waypage-data under Repository access, generate it and paste it here. It syncs like your other keys. Turning Read from Waypage off stops reading it on every device and keeps everything it brought in; Disconnect also forgets the token.</p>
         <div id="waypageReview" hidden>
           <h3 class="sgroup-label">From Waypage, to check</h3>
           <div class="sgroup-card" id="waypageReviewList"></div>
@@ -2087,23 +2092,123 @@
       </section>
 
       <section class="sgroup">
-        <h3 class="sgroup-label">Send changes to AniList</h3>
+        <h3 class="sgroup-label">What comes in</h3>
         <div class="sgroup-card">
-          <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">AniList client ID</span></span>
-            <input id="anilistClientId" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 12345" />
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">New books</span><span class="sitem-sub">Books you don't have in LifeLog yet</span></span>
+            <select id="waypageNew">
+              <option value="ask">Ask me first</option>
+              <option value="add">Add straight away</option>
+              <option value="none">Don't add new</option>
+            </select>
           </label>
-          <button id="anilistSignInBtn" type="button" class="sitem sitem-go"><span data-ico="external-link"></span> Sign in to AniList</button>
-          <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">Access token</span><span class="sitem-sub" id="anilistTokenState"></span></span>
-            <input id="anilistToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the token AniList shows you" />
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Start and finish backlog books</span><span class="sitem-sub">A book you start in Waypage starts here</span></span>
+            <input type="checkbox" class="switch" id="waypageStartFinish" />
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Show how far you are</span><span class="sitem-sub">62% or ch 31/40 on books in progress</span></span>
+            <input type="checkbox" class="switch" id="waypageShowProgress" />
+          </label>
+          <div id="waypageKinds"></div>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Minutes go to</span></span>
+            <select id="waypageHabit"></select>
           </label>
         </div>
-        <p class="hint">Sends your episode counts, starts, finishes and drops back to AniList. Once: on anilist.co open Settings → Developer → Create new client, name it LifeLog, set the redirect URL to https://anilist.co/api/v2/oauth/pin and save. Paste its ID above, press Sign in, approve, and paste the token AniList shows you here. The token lasts a year and can change anything on your AniList account, so it syncs like your other keys but is left out of exports; delete the client on AniList to cut it off. Titles you add here after signing in are added to your AniList lists too.</p>
+        <p class="hint">A book already in your backlog is matched by title and author. Finishing it in Waypage puts it on your Timeline on that day; one already on your Timeline waits above for you to say whether it's a re-read. Reading and listening minutes fill the minutes habit you pick, on top of what you add by hand.</p>
       </section>
 
+      <section class="sgroup" id="waypageLinkedGroup" hidden>
+        <h3 class="sgroup-label">From Waypage</h3>
+        <div class="sgroup-card" id="waypageLinked"></div>
+        <p class="hint">Unlink keeps the book here and stops Waypage changing it.</p>
+      </section>
+
+      <section class="sgroup" id="waypageKeptOutGroup" hidden>
+        <h3 class="sgroup-label">Kept out</h3>
+        <div class="sgroup-card" id="waypageKeptOut"></div>
+        <p class="hint">Books you said Never to or unlinked. Allow again brings each back at the next check.</p>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="conn-steam" data-parent="imports" data-title="Steam" data-keywords="steam wishlist owned library played playtime backfill api key how long to beat hltb game times opencritic metacritic scores">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">Steam</h2>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Steam wishlist</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">SteamID64</span><span class="sitem-sub"><a href="https://steamid.io/" target="_blank" rel="noopener">Find yours →</a></span></span>
+            <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add games to</span></span>
+            <select id="steamWishlistCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Auto-check</span></span>
+            <select id="steamAutoSyncDays">
+              <option value="0">Never</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+          <button id="steamWishlistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Steam Wishlist</button>
+          <button id="steamRetryUnresolvedBtn" type="button" class="sitem sitem-go" hidden><span data-ico="repeat"></span> Retry unresolved Steam titles</button>
+          <button id="steamBackfillRawgBtn" type="button" class="sitem sitem-go" hidden><span data-ico="gamepad-2"></span> Backfill missing game info</button>
+        </div>
+        <p class="hint">Your wishlist must be public (Steam → Privacy Settings → Game details), and this goes through the CORS proxy on Media lookups.</p>
+        <div class="comes-in" id="steamComesIn"></div>
+        <h3 class="sgroup-label">Steam games you've played</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">Steam Web API key</span><span class="sitem-sub"><a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">Get one →</a> (any domain name will do). Steam lists owned games only with a key</span></span>
+            <input id="steamApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="32 characters" />
+          </label>
+          <button id="steamOwnedSyncBtn" type="button" class="sitem sitem-go"><span data-ico="gamepad-2"></span> Import played games</button>
+        </div>
+        <p class="hint">A one-time backfill: every game with time in it becomes a Timeline entry in the month you last played it, with the hours as its length, in the wishlist's category. Steam doesn't know what you finished, so you review the list: two hours or more starts ticked. Game details must be public, like the wishlist.</p>
+        <p class="hint" id="steamRetryUnresolvedHint" hidden><strong>Retry</strong> looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
+        <p class="hint" id="steamBackfillRawgHint" hidden><strong>Backfill</strong> fills in what Steam-synced games lack: rating, length and year from RAWG (needs a RAWG key), and Steam's description (needs the proxy). Never touches title, cover or App ID.</p>
+        <h3 class="sgroup-label">Game times and scores</h3>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">How Long to Beat times</span><span class="sitem-sub">With OpenCritic and Metacritic user scores</span></span>
+            <select id="steamGameTimes">
+              <option value="off">Off</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">For games with a Steam App ID: the Main Story, Main + Extras and Completionist times from How Long to Beat, and the review scores, through Augmented Steam's API and the CORS proxy. Main Story becomes the game's length unless you pinned it. Only the App ID is sent. A game is checked again once its times are older than the interval you pick here.</p>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="conn-letterboxd" data-parent="imports" data-title="Letterboxd" data-keywords="letterboxd films diary watchlist zip csv export">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">Letterboxd</h2>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add films to</span></span>
+            <select id="letterboxdCategory"></select>
+          </label>
+          <button id="letterboxdImportBtn" type="button" class="sitem sitem-go"><span data-ico="film"></span> Import from Letterboxd</button>
+        </div>
+        <p class="hint">On Letterboxd: Settings → Import &amp; Export → Export your data. Pick the zip it gives you (or its CSV files). Your diary and watched films become Timeline entries on the day you saw them, with your stars; the watchlist goes to the Backlog. You review the list before anything comes in.</p>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="conn-payments" data-parent="imports" data-title="Google Wallet" data-keywords="google wallet pay payment notification expense ledger">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title">Google Wallet</h2>
       <section class="sgroup" id="paymentsGroup" hidden>
-        <h3 class="sgroup-label">Google Wallet payments</h3>
         <div class="sgroup-card">
           <label class="sitem">
             <span class="sitem-text"><span class="sitem-title">Offer each one to the Ledger</span><span class="sitem-sub" id="paymentsSub"></span></span>
@@ -2821,6 +2926,7 @@
   <script defer src="src/search.js?v=0.314.1"></script>
   <script defer src="src/letterboxd.js?v=0.314.1"></script>
   <script defer src="src/stremio.js?v=0.314.1"></script>
+  <script defer src="src/connections.js?v=0.314.1"></script>
   <script defer src="src/hardcover.js?v=0.314.1"></script>
   <script defer src="src/payments.js?v=0.314.1"></script>
   <script defer src="src/app.js?v=0.314.1"></script>
