@@ -39,7 +39,7 @@
   }
   function noteRawgError(msg) {
     lastError = msg;
-    if (typeof window !== "undefined" && window.LifeLogErrors) window.LifeLogErrors.record(msg);
+    if (typeof window !== "undefined" && window.Keel && window.Keel.errlog) window.Keel.errlog.record(msg);
   }
 
   // Tags out, then the handful of entities a source's escaped text can
@@ -1238,7 +1238,7 @@
   let igdbToken = null;
   function igdbErr(msg) {
     lastError = msg;
-    if (typeof window !== "undefined" && window.LifeLogErrors) window.LifeLogErrors.record(msg);
+    if (typeof window !== "undefined" && window.Keel && window.Keel.errlog) window.Keel.errlog.record(msg);
   }
   function igdbCreds(keys) {
     const k = keys || {};
@@ -1503,7 +1503,7 @@
   // Rate limit: 60 requests a minute, and search gives up after 2s.
   function noteError(msg) {
     lastError = msg;
-    if (typeof window !== "undefined" && window.LifeLogErrors) window.LifeLogErrors.record(msg);
+    if (typeof window !== "undefined" && window.Keel && window.Keel.errlog) window.Keel.errlog.record(msg);
   }
   function hardcoverToken(keys) {
     return String((keys || {}).hardcover || "").trim().replace(/^bearer\s+/i, "");

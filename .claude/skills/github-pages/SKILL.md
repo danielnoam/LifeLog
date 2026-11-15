@@ -231,30 +231,11 @@ bumped + both layouts work (9).
 
 ---
 
-## Maintaining this skill — keep every copy in sync
+## Maintaining this skill
 
-This skill is intentionally **duplicated** across several locations so it
-loads both locally and in web sessions: a user-scoped copy
-(`~/.claude/skills/`) covers local Claude Code sessions, and a copy committed
-inside each repo's `.claude/skills/` covers web sessions opened on that repo
-(web containers don't see your user-scoped skills). The copies must stay
-identical, so treat the list below as part of the skill.
-
-**Copies of this skill (the list) — keep these in sync:**
-
-1. `danielnoam/lifelog` → `.claude/skills/github-pages/SKILL.md` — **source of truth, edit here first**
-2. `danielnoam/portfolio` → `.claude/skills/github-pages/SKILL.md`
-3. User scope → `~/.claude/skills/github-pages/SKILL.md` (local machine)
-
-**Rules whenever this file changes:**
-
-- **Edit the source of truth (LifeLog's copy) first**, then immediately copy
-  the *entire* file over every other location in the list, and commit + push
-  each repo (straight to `main`). Never leave copies on different versions.
-- **If you add the skill to a new place** (another repo, another machine, an
-  account-level skill store, a plugin), **add that location to the list above
-  in the same change** — so the next person/session knows to sync it too.
-- **If you remove a copy**, delete it from the list as well.
-- Quick check that they match: diff each copy against LifeLog's; they should
-  be byte-identical (e.g. `diff <lifelog>/.claude/skills/github-pages/SKILL.md
-  <other>/SKILL.md` prints nothing).
+The source of this file is `danielnoam/keel`
+(`.claude/skills/github-pages/SKILL.md`). Each app gets a copy through
+`node tools/keel-sync.js <tag>`, and its `keel.lock.json` test fails if the
+copy is edited in the app. Change it in keel, tag a release, then sync each
+app. A copy kept outside keel's apps (a user-scope `~/.claude/skills/`, or
+another repo) is copied from keel by hand.

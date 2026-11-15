@@ -30,7 +30,7 @@ src/images.js       images in notes: shrunk, kept on the device, synced
 src/jobs.js         Activity: the work that takes a while
 src/share.js        what other apps share into LifeLog
 src/storage.js      persistence: GitHub, local file, IndexedDB
-src/drive.js        Google Drive backups: sign-in on each platform, the files in Drive
+src/drive.js        Google Drive backups: keel's drive.js set up for LifeLog
 src/merge.js        the three-way merge between devices
 src/reconcile.js    keyed list updates in place
 src/settings.js     the Settings sheet
@@ -45,8 +45,14 @@ src/dates.js        where a week starts and how a date is written
 src/datefield.js    every date box drawn in that format
 src/icons.js        the Lucide icon map
 src/select.js       the app's own dropdown list for every <select>
-src/errlog.js       the errors this device has hit
-src/qr.js, wheel.js QR codes for setup links; the Spin wheel
+src/keel/errlog.js  the errors this device has hit (from keel; set up by its tag in index.html)
+src/keel/platform.js  where it runs (phone, desktop, browser), app-build.json, links out to the device's browser (from keel); src/platform.js builds on it
+src/wheel.js        the Spin wheel
+src/keel/           from keel (danielnoam/keel): the setup link's QR codes,
+                    github.js, the GitHub calls storage.js makes, errlog.js,
+                    the errors this device hit, releases.js, the update check's
+                    and Test builds' look at the releases (sw-preview.js is
+                    sw.js's half), and drive.js (not loaded yet)
 src/vendor/         rough.js and the Virgil font (boards)
 src/styles.css      every style and the four themes
 native/             Android and iOS widgets, reminders, share extension
@@ -67,7 +73,17 @@ changes/            each pull request's changelog lines until the next release
 DONE.md             every feature, by area, with the version it came in
 DROPPED.md          decided against, and why
 CHANGELOG.md        every release, in user-facing words
+keel.config.json,   the files shared with Waypage through keel
+keel.lock.json      (danielnoam/keel): see below
 ```
+
+The files listed in `keel.lock.json` (server.js, src/keel/qr.js,
+src/keel/github.js, src/keel/drive.js, src/keel/errlog.js, src/keel/platform.js, src/keel/releases.js,
+src/keel/sw-preview.js,
+tools/release.js, tools/android-version.js, tools/keel-sync.js, tools/keel-checks.js (the contrast and CSP checks the tests use),
+test/keel.test.js, the github-pages skill) come from keel. Don't edit
+them here: `test/keel.test.js` fails. Change them in keel, tag a
+release there, then `node tools/keel-sync.js v<version>` in a PR here.
 
 ## Tests
 

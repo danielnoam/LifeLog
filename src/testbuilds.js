@@ -17,30 +17,25 @@
 //
 // A test build syncs with the real data, as the release does; History's
 // Undo is how its writes are taken back. The fold says so.
+//
+// Reading the releases and opening a build in the browser are keel's
+// (src/keel/releases.js, sw.js's src/keel/sw-preview.js); this is the fold.
 (function () {
-  const PREVIEW_CACHE = "lifelog-preview";
   const P = () => window.LifeLogPlatform;
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-
-  // The repo, from the app's build or the GitHub Pages address (owner.github.io/repo/).
-  function webRepo() {
-    const host = /^([^.]+)\.github\.io$/i.exec(location.hostname);
-    const name = location.pathname.split("/")[1];
-    return host && name ? host[1] + "/" + name : null;
-  }
+  const K = window.Keel.releases;
   const native = () => !!(P() && P().native);
-  const repo = () => (native() ? (P().build && P().build.repo) || null : webRepo());
-  const webReady = () => !native() && !!webRepo() && "caches" in window && !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-  const available = () => (native() ? !!repo() : webReady());
+  // The app's build names its repo (phones and computers); a browser's comes
+  // from its GitHub Pages address.
+  const R = K.create({ name: "LifeLog", repo: () => (P() && P().build && P().build.repo) || null });
+  const available = () => (native() ? !!R.repo() : R.webReady);
+  const newer = K.newer;
 
   // The test build this copy is running, if any: the app's build says its
   // branch; a browser's is preview.json in the preview cache.
   let webPreview = null;
-  if (!native() && "caches" in window) {
-    caches.open(PREVIEW_CACHE).then((c) => c.match("./preview.json")).then((r) => (r ? r.json() : null))
-      .then((p) => { webPreview = p; }).catch(() => {});
-  }
+  if (!native()) R.running.then((p) => { webPreview = p; });
   function running() {
     if (!native()) return webPreview;
     const b = P().build;
@@ -49,38 +44,6 @@
 
   const st = { phase: "idle", list: [], stable: null, error: "", checkedAt: 0, going: null };
 
-  // The pre-release's notes start with "version:", "branch:", "commit:", "pr:".
-  function notesOf(body) {
-    const out = {};
-    for (const line of String(body || "").split("\n")) {
-      const m = /^(version|branch|commit|pr):\s*(\S+)/.exec(line);
-      if (m) out[m[1]] = m[2];
-      else if (!line.trim()) break;
-    }
-    return out;
-  }
-  const newer = (a, b) => {
-    const [x, y] = [a, b].map((v) => String(v).split(".").map(Number));
-    for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
-    return false;
-  };
-
-  function parse(releases) {
-    const all = (releases || []).filter((r) => r && !r.draft);
-    const stable = all.find((r) => !r.prerelease && /^app-v\d+\.\d+\.\d+$/.test(r.tag_name));
-    const list = all.filter((r) => r.prerelease && /^test-/.test(r.tag_name)).map((r) => {
-      const n = notesOf(r.body);
-      const assets = (r.assets || []).map((a) => a.name);
-      return {
-        tag: r.tag_name, title: String(r.name || "").replace(/^Test: /, "") || n.branch || r.tag_name,
-        branch: n.branch || r.tag_name.replace(/^test-/, ""), version: n.version || "", sha: n.commit || "", pr: n.pr || "",
-        at: Date.parse(r.published_at || r.created_at) || 0,
-        apk: assets.includes("LifeLog.apk"), ipa: assets.includes("LifeLog.ipa"),
-      };
-    }).sort((a, b) => b.at - a.at);
-    return { stable: stable ? stable.tag_name.replace(/^app-v/, "") : null, list };
-  }
-
   async function load() {
     if (!available() || st.phase === "loading") return;
     if (P().ready) await P().ready;
@@ -88,9 +51,7 @@
     st.error = "";
     paint();
     try {
-      const r = await fetch("https://api.github.com/repos/" + repo() + "/releases?per_page=100", { cache: "no-store", headers: { Accept: "application/vnd.github+json" } });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      Object.assign(st, parse(await r.json()));
+      Object.assign(st, await R.list());
       st.checkedAt = Date.now();
       st.phase = "loaded";
     } catch (e) {
@@ -109,7 +70,7 @@
     const d = Math.round(h / 24);
     return d === 1 ? "yesterday" : d + " days ago";
   };
-  const releasePage = (tag) => "https://github.com/" + repo() + "/releases/" + (tag ? "tag/" + tag : "latest");
+  const releasePage = R.releaseUrl;
 
   // Android: the updater's download and installer, under the build's tag.
   async function installApk(key, version, tag) {
@@ -128,25 +89,14 @@
     paint();
   }
 
-  async function openWeb(p) {
-    try {
-      const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k.startsWith(PREVIEW_CACHE)).map((k) => caches.delete(k)));
-      const c = await caches.open(PREVIEW_CACHE);
-      await c.put("./preview.json", new Response(JSON.stringify({ repo: webRepo(), sha: p.sha, title: p.title, pr: p.pr, branch: p.branch, tag: p.tag }),
-        { headers: { "Content-Type": "application/json" } }));
-    } catch (e) { return; }
-    location.replace(new URL("./", location.href).href);
-  }
-
   function install(p) {
-    if (!native()) { if (p.sha) openWeb(p); return; }
+    if (!native()) { if (p.sha) R.open(p); return; }
     if (P().ios || !p.apk) { P().openOutside(releasePage(p.tag)); return; }
     installApk(p.tag, "test-" + p.branch.replace(/[^A-Za-z0-9._-]/g, "-") + "-" + p.sha.slice(0, 7), p.tag);
   }
 
   function backToRelease() {
-    if (!native()) { location.replace(new URL("./?release", location.href).href); return; }
+    if (!native()) { R.back(); return; }
     if (P().ios) { P().openOutside(releasePage(null)); return; }
     if (st.stable) installApk("release", st.stable);
   }
@@ -238,5 +188,5 @@
     paint();
   }
 
-  window.LifeLogTestBuilds = { render, parse, notesOf, running, PREVIEW_CACHE };
+  window.LifeLogTestBuilds = { render, running, releases: R };
 })();

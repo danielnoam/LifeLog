@@ -16,79 +16,14 @@
 // `build` is app-build.json, written into the bundle at build time. It only
 // exists inside the app; in a browser it is null and nothing asks for it.
 (function () {
-  const cap = window.Capacitor;
-  const native = !!(cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform());
-  // Which phone, since the iOS app (0.216.0): most of the app is the same on
-  // both, and what isn't — the APK updater, Google's QR scanner, the widgets
-  // plugin, the storage flags — asks this rather than assuming Android.
-  const os = native ? String((cap.getPlatform && cap.getPlatform()) || "android") : "web";
-
-  // The Windows and Linux app (Tauri, src-tauri/): the web's files in the
-  // system's WebView, with Tauri's API on window.__TAURI__ in place of
-  // Capacitor's plugins. Not `native`: that still means a phone, with its
+  // Where it runs (phone, desktop, browser), app-build.json and links out
+  // to the device's browser are keel's (src/keel/platform.js).
+  // Not `native` for the desktop: that still means a phone, with its
   // widgets, bars and APK updater. What the desktop shares with the phones
   // (files in the bundle, no service worker, native HTTP, links out to the
   // browser) asks `bundled` instead.
-  const tauri = !native && window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__ : null;
-  const desktop = !!tauri;
-  const desktopOs = desktop ? (/Windows/i.test(navigator.userAgent) ? "windows" : "linux") : "";
-  const bundled = native || desktop;
-
-  // Also baked into the app's index.html by tools/build-www.js, so the
-  // edge-to-edge padding applies from the first frame; this is the same
-  // thing again for anything that loads the page some other way.
-  if (native) document.documentElement.classList.add("native");
-
-  let build = null;
-  const ready = bundled
-    ? fetch("app-build.json", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((b) => { build = b; return b; })
-        .catch(() => null)
-    : Promise.resolve(null);
-
-  // Anything that leaves the app — the token page, a release, a store link —
-  // opens in the phone's own browser, as its own app, rather than inside
-  // LifeLog. Loaded into the app's WebView it would have no address bar, and
-  // back would put the whole app away. 0.178.0 used Chrome's in-app tab (the
-  // Browser plugin) for this, and that still reads as being inside LifeLog —
-  // so it hands the link to Android instead (AppLauncher: a plain "view this"
-  // intent), which opens whatever browser the phone uses. Both ways out are
-  // routed: clicks on outside <a> links, and window.open.
-  const isOutside = (url) => {
-    try {
-      const u = new URL(String(url), location.href);
-      return /^https?:$/.test(u.protocol) && u.origin !== location.origin;
-    } catch (e) { return false; }
-  };
-  const launcher = () => (native && cap.Plugins && cap.Plugins.AppLauncher) || null;
-  const nativeOpen = window.open.bind(window);
-  function openOutside(url) {
-    if (desktop && tauri.opener) {
-      Promise.resolve(tauri.opener.openUrl(String(url))).catch(() => nativeOpen(url, "_blank"));
-      return true;
-    }
-    const L = launcher();
-    if (L) {
-      // If Android can't find anything to open it with, fall back to the
-      // WebView's own hand-off, which also goes out to the browser.
-      Promise.resolve(L.openUrl({ url: String(url) }))
-        .then((r) => { if (r && r.completed === false) nativeOpen(url, "_blank"); })
-        .catch(() => nativeOpen(url, "_blank"));
-      return true;
-    }
-    nativeOpen(url, "_blank");
-    return true;
-  }
-  if (bundled) {
-    window.open = (url, target, features) => (isOutside(url) ? (openOutside(url), null) : nativeOpen(url, target, features));
-    document.addEventListener("click", (e) => {
-      const a = e.target && e.target.closest && e.target.closest("a[href]");
-      if (!a || a.hasAttribute("download") || !isOutside(a.href)) return;
-      e.preventDefault();
-      openOutside(a.href);
-    }, true);
-  }
+  const K = window.Keel.platform;
+  const { cap, native, os, tauri, desktop, desktopOs, bundled, ready, openOutside } = K;
 
   // ---- files out of the app (0.179.0) ----
   // A browser saves a file when a page clicks a download link; the app's
@@ -148,8 +83,8 @@
   async function downloadUpdate(version, onProgress, tag = "app-v" + version) {
     if (os !== "android") return null;
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
-    if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !build || !build.repo) return null;
-    const url = "https://github.com/" + build.repo + "/releases/download/" + tag + "/LifeLog.apk";
+    if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !K.build || !K.build.repo) return null;
+    const url = "https://github.com/" + K.build.repo + "/releases/download/" + tag + "/LifeLog.apk";
     const path = "LifeLog-" + version + ".apk";
     const listener = await FS.addListener("progress", (p) => {
       if (onProgress && p && p.contentLength > 0) onProgress(Math.min(1, p.bytes / p.contentLength));
@@ -317,7 +252,7 @@
     linux: desktopOs === "linux",
     get tauri() { return tauri; },
     ready,
-    get build() { return build; },
+    get build() { return K.build; },
     // A native plugin, or null in a browser or when the build doesn't carry it.
     plugin(name) { return (native && cap.Plugins && cap.Plugins[name]) || null; },
     openOutside,
@@ -329,8 +264,8 @@
     openInstaller,
     clearOldUpdates,
     // Where the web copy lives, for links that have to work on another device.
-    webUrl() { return (build && build.webUrl) || null; },
-    releasesUrl() { return build && build.repo ? "https://github.com/" + build.repo + "/releases/latest" : null; },
-    apkUrl() { return build && build.repo ? "https://github.com/" + build.repo + "/releases/latest/download/LifeLog.apk" : null; },
+    webUrl() { return (K.build && K.build.webUrl) || null; },
+    releasesUrl() { return K.build && K.build.repo ? "https://github.com/" + K.build.repo + "/releases/latest" : null; },
+    apkUrl() { return K.build && K.build.repo ? "https://github.com/" + K.build.repo + "/releases/latest/download/LifeLog.apk" : null; },
   };
 })();

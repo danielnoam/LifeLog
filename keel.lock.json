@@ -1,0 +1,19 @@
+{
+  "version": "0.7.0",
+  "files": {
+    "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
+    "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
+    "src/keel/github.js": "d4b224ae152a7ec7719a0cb1c4c136137cb8fda689f495e0b527030cf4cae9e2",
+    "src/keel/drive.js": "3859b1c7ebb5cbba1c18827e6245095bad54691c0bbec53c6ef527223f69357d",
+    "src/keel/errlog.js": "d25c1074c3f7163c8c1f66359c8cc4e9f923efeab2907d585d071302da1876e0",
+    "src/keel/platform.js": "a3a178f83d9cd661a29a99eae4abbd62bfcc056f3831a9761cf012177e26e998",
+    "src/keel/releases.js": "0cbd8bc150ad8201d9bac653d6737f3912a6371d12af954825082b7ed6be359c",
+    "src/keel/sw-preview.js": "3c55e81926300b26d8038c27e3b97f85e9e29d78f195bbd9e1a86823db871c4c",
+    "tools/release.js": "cde945173156ec316d7fff3f117f063665bb1549aac5d4b01e2ba30007bb3414",
+    "tools/android-version.js": "70f2cb0950e023cb33301f39012f5c9aaa96ad0695a01e0150751bc8a41c5ce1",
+    "tools/keel-sync.js": "e2283af6896d9e0c6d33fe57a67fbacd4d3a708e002c49f9b8e37929fe3038e3",
+    "tools/keel-checks.js": "2389eba5c62a3e8816c7660c3800bdb3ffb82cb6ebd30b841a073496e119987d",
+    "test/keel.test.js": "520c4d3be61fb1667955618191c510216ada98550ee2c2822643f279cfdee76e",
+    ".claude/skills/github-pages/SKILL.md": "c4f253041e5e36182ed594c03b8cc6e1d3a1cd04135d5ac84ea0806494f565be"
+  }
+}

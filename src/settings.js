@@ -80,8 +80,9 @@
         $("#ghLocalWarn").hidden = !localOnly;
         // render QR (hidden when local-only or text too long for a v1-9 code)
         const qr = $("#ghQr");
-        const tooLong = !localOnly && window.LifeLogQR && !window.LifeLogQR.fits(link);
-        const svg = (!localOnly && window.LifeLogQR && !tooLong) ? window.LifeLogQR.svg(link, { size: 200 }) : null;
+        const encoder = window.Keel && window.Keel.qr;
+        const tooLong = !localOnly && encoder && !encoder.fits(link);
+        const svg = (!localOnly && encoder && !tooLong) ? encoder.svg(link, { size: 200 }) : null;
         if (svg) { qr.innerHTML = svg; qr.hidden = false; } else { qr.innerHTML = ""; qr.hidden = true; }
         $("#ghQrTooLong").hidden = !tooLong;
         share.hidden = false;
@@ -804,12 +805,12 @@
     more.hidden = shown.length === changelog.length;
   }
 
-  // Settings → About → Errors on this device (src/errlog.js), folded away
+  // Settings → About → Errors on this device (src/keel/errlog.js), folded away
   // under its count. The newest ten here; Copy all carries every one kept,
   // stack lines included.
   const ERRLOG_SHOWN = 10;
   function renderErrLog() {
-    const all = window.LifeLogErrors ? window.LifeLogErrors.list() : [];
+    const all = window.Keel && window.Keel.errlog ? window.Keel.errlog.list() : [];
     const box = $("#errLogList");
     box.textContent = "";
     $("#errLogHint").textContent = all.length
@@ -947,7 +948,7 @@
       if (!Storage.fileName) return { text: "Not synced — on this device only", tone: "warn" };
     }
     if (page === "about") {
-      const n = window.LifeLogErrors ? window.LifeLogErrors.list().length : 0;
+      const n = window.Keel && window.Keel.errlog ? window.Keel.errlog.list().length : 0;
       return n ? { text: "Version " + APP_VERSION + " · " + (n === 1 ? "1 error" : n + " errors") + " recorded", tone: "warn" }
         : { text: "Version " + APP_VERSION + " · what's new, credits" };
     }
@@ -1949,15 +1950,15 @@
     $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghSetupLink").onclick = (e) => e.target.select();
     $("#errLogCopyBtn").onclick = async () => {
-      try { await navigator.clipboard.writeText(window.LifeLogErrors.asText()); toast("Errors copied"); }
+      try { await navigator.clipboard.writeText(window.Keel.errlog.asText()); toast("Errors copied"); }
       catch (e) { toast("Couldn't copy — your browser blocked the clipboard", true); }
     };
     $("#errLogClearBtn").onclick = () => {
-      const kept = window.LifeLogErrors.list();
-      window.LifeLogErrors.clear();
+      const kept = window.Keel.errlog.list();
+      window.Keel.errlog.clear();
       renderErrLog();
       toast("Errors cleared", false, { label: "Undo", onClick: () => {
-        window.LifeLogErrors.restore(kept);
+        window.Keel.errlog.restore(kept);
         renderErrLog();
       } });
     };

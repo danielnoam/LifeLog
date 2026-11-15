@@ -140,7 +140,7 @@ async function boot(browser, { stub = false, trace = false } = {}) {
     route.fulfill({ status: 200, headers: { "content-type": "text/javascript" }, body });
   });
   if (stub) {
-    await page.route("**/src/*.js*", (route) => {
+    await page.route("**/src/**/*.js*", (route) => {
       const f = route.request().url().replace(/^.*\//, "").replace(/\?.*$/, "");
       if (!NOT_FIRST_PAINT.includes(f)) return route.fallback();
       route.fulfill({ status: 200, headers: { "content-type": "text/javascript" }, body: "" });

@@ -2,9 +2,9 @@
   "_about": "Which browser suites a pull request runs, by the files it changes. See test/browser/affected.js. Releases, main and hand-run workflows always run every suite.",
   "everything": [
     "index.html", "sw.js", "manifest.json",
-    "src/app.js", "src/styles.css", "src/storage.js", "src/platform.js",
+    "src/app.js", "src/styles.css", "src/storage.js", "src/keel/github.js", "src/platform.js",
     "src/merge.js", "src/reconcile.js", "src/icons.js", "src/select.js",
-    "src/jobs.js", "src/errlog.js", "src/dates.js", "src/datefield.js",
+    "src/jobs.js", "src/keel/errlog.js", "src/dates.js", "src/datefield.js",
     "src/vendor/",
     "test/browser/harness.js", "test/browser/run-all.js", "test/browser/affected.js",
     "test/browser/areas.json", "test/browser/durations.json", "test/browser/seeds/",
@@ -60,7 +60,7 @@
       "suites": ["anilist", "connections", "excalidraw", "gametimes", "gametimesfail", "hardcover", "igdbtimes", "importedit", "importkinds", "importmodes", "importreview", "importundo", "letterboxd", "mdimport", "nextseries", "pricealert", "steamowned", "stremio", "tabio", "v151", "waypage"]
     },
     "settings": {
-      "files": ["src/settings.js", "src/drive.js", "src/keys.js", "src/testbuilds.js", "src/qr.js"],
+      "files": ["src/settings.js", "src/drive.js", "src/keel/drive.js", "src/keys.js", "src/testbuilds.js", "src/keel/releases.js", "src/keel/qr.js"],
       "suites": ["bridgehistory", "datafolder", "datesettings", "drivebackup", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu"]
     },
     "search": {
@@ -69,7 +69,7 @@
     },
     "native": {
       "files": ["src/headless.js", "src/widgets.js", "src/reminders.js", "src/alerts.js", "src/share.js", "src/desktop.js"],
-      "suites": ["datafolder", "desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "pricealert", "share"]
+      "suites": ["datafolder", "desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "pricealert", "share", "webupdate"]
     }
   }
 }

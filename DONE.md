@@ -39,7 +39,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Lucide icons everywhere, no emoji in the UI, and the timeline-pin app icon (0.247.0)
 - Right-click menus on a computer: Timeline, In progress, Backlog, Ledger, notes, boards and habits rows have their own actions, Select starts selecting, and with items selected it acts on all of them (0.305.0)
 - Dropdowns open the app's own list in every theme: a menu under the field on a computer, a sheet from the bottom on a phone, arrow keys and type-to-jump included (0.307.0)
-- "New version ready" with a Reload button (0.118.0)
+- "New version ready" with a Reload button (0.118.0) and a close button (next release)
 - Activity: everything that takes a while in one list, with a ring or pill while it runs (0.244.0)
 - Work on the same site waits its turn; different sites run side by side (0.244.0)
 - Work the app was closed on is offered again (0.245.0)
@@ -249,7 +249,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Cover art size per view (0.45.0)
 - Currency (0.22.0)
 - Dates: the week starts on Sunday, Monday or Saturday (weekly goals, habit grids, the calendar, widgets, the bridge; a Saturday week makes the weekend Friday and Saturday), and five date formats used everywhere a date is shown; synced (0.301.0)
-- About: what's new (folded shut until opened), repo links, credits, and errors on this device (0.232.0, 0.246.0, 0.264.0)
+- About: what's new (folded shut until opened), repo links, credits, and errors on this device (0.232.0, 0.246.0, 0.264.0), copied with addresses and anything like a token cut out (next release)
 - About → Test builds: install a pull request's build on Android, open it on iPhone, or run it in place in a browser, and go back to the release (0.299.0)
 - Notifications: a switch per kind on the phones (habits, charges, release days, price drops) (0.278.0)
 
