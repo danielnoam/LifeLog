@@ -48,7 +48,6 @@
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
   const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned"]);
-  const KNOWN_ITEM_KEYS = new Set(["id", "text", "done", "doneAt", "updatedAt"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -72,11 +71,15 @@
       // An item keeps the fields this build doesn't know: tasks (dates,
       // priority, subtasks) are coming, and a device still on this build
       // must not strip them from a list it saves.
+      // Built over a copy so the keys keep the order they came in: the
+      // merge compares items as JSON, and a tick drained on top of a
+      // sanitized item would otherwise read as an edit from elsewhere.
       out.items = (Array.isArray(n.items) ? n.items : []).map((it) => {
-        const item = { id: (it && it.id) || uid(), text: String(it && it.text != null ? it.text : "").trim() };
-        if (it && it.done) { item.done = true; item.doneAt = it.doneAt || out.updatedAt; }
-        if (it && it.updatedAt) item.updatedAt = it.updatedAt;
-        return it && typeof it === "object" ? keepUnknown(it, item, KNOWN_ITEM_KEYS) : item;
+        const src = it && typeof it === "object" ? it : {};
+        const item = { ...src, id: src.id || uid(), text: String(src.text != null ? src.text : "").trim() };
+        if (src.done) { item.done = true; item.doneAt = src.doneAt || out.updatedAt; } else { delete item.done; delete item.doneAt; }
+        if (!item.updatedAt) delete item.updatedAt;
+        return item;
       }).filter((it) => it.text);
     }
     return keepUnknown(n, out, KNOWN_NOTE_KEYS);
