@@ -1,5 +1,4 @@
-// Makes a release commit's edits: `node tools/release.js 0.299.0`
-// (2026-11-02, from Waypage's).
+// keel: makes a release commit's edits: `node tools/release.js 1.2.0`.
 //
 // A version lives in three places (CONTRIBUTING.md, "Versions and
 // releases"): APP_VERSION in src/app.js, the ?v= on index.html's tags and
@@ -31,9 +30,11 @@ function bump(version, { root = ROOT, date = new Date().toISOString().slice(0, 1
   write("index.html", index.replace(/\?v=[^"]+"/g, "?v=" + version + '"'));
 
   const sw = read("sw.js");
-  const cache = sw.match(/const CACHE = "lifelog-v(\d+)"/);
-  if (!cache) throw new Error("sw.js has no CACHE");
-  write("sw.js", sw.replace(cache[0], 'const CACHE = "lifelog-v' + (Number(cache[1]) + 1) + '"'));
+  // CACHE is "<app>-v<n>": the number goes up by one, the prefix stays.
+  const cache = sw.match(/const CACHE = "([^"]*?)v(\d+)"/);
+  if (!cache) throw new Error('sw.js has no const CACHE = "<app>-v<n>"');
+  const nextCache = cache[1] + "v" + (Number(cache[2]) + 1);
+  write("sw.js", sw.replace(cache[0], 'const CACHE = "' + nextCache + '"'));
 
   let log = read("CHANGELOG.md");
   const heading = /^## Unreleased[^\n]*\n/m;
@@ -52,7 +53,7 @@ function bump(version, { root = ROOT, date = new Date().toISOString().slice(0, 1
   write("CHANGELOG.md", log.slice(0, at).replace(/\n*$/, "\n\n") + "## [" + version + "] - " + date + "\n\n" + entry + "\n" + log.slice(at));
   for (const f of notes) fs.unlinkSync(path.join(dir, f));
 
-  return { was, version, cache: "lifelog-v" + (Number(cache[1]) + 1), tags, notes: notes.length };
+  return { was, version, cache: nextCache, tags, notes: notes.length };
 }
 
 // Notes ("### Added" and its "- " lines, and so on) merged under one
