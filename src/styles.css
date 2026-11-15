@@ -2264,7 +2264,21 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
 }
 .cal-name .dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
 .cal-name.is-more { color: var(--text-dim); }
-.cal-daycard h3, .cal-undated h3 { margin-bottom: var(--space-6); }
+.cal-daycard h3, .cal-undated h3, .cal-tasks h3 { margin-bottom: var(--space-6); }
+/* Open tasks on a day (0.317.0): on the desktop a line each, with a ring
+   for a dot in the colour of its priority; on a phone, where the cell is a
+   cover, one ring in its corner for the most urgent, with how many. */
+.cal-ring { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; border: 1.5px solid var(--text-dim); }
+.cal-ring.is-p1, .cal-task.is-p1 { border-color: var(--danger); }
+.cal-ring.is-p2, .cal-task.is-p2 { border-color: var(--warning); }
+.cal-ring.is-p3, .cal-task.is-p3 { border-color: var(--accent); }
+.cal-name.is-task { color: var(--text-dim); }
+.cal-task {
+  display: none; position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1;
+  min-width: 14px; height: 14px; padding: 0 var(--space-2); border-radius: var(--r-pill);
+  border: 2px solid var(--text-dim); background: var(--surface-card);
+  font-size: var(--fs-3xs); line-height: 10px; text-align: center; color: var(--text); font-weight: 600;
+}
 .cal-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-dim); }
 @media (hover: hover) { .cal-day:not(.is-out):hover { background: var(--hover-bg); } }
 /* Phones: a cover per day instead of names, and the lists under the grid. */
@@ -2273,6 +2287,7 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
   html:not(.force-pc) .cal-main { padding: var(--space-10); }
   html:not(.force-pc) .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
   html:not(.force-pc) .cal-names { display: none; }
+  html:not(.force-pc) .cal-task { display: block; }
   html:not(.force-pc) .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
   html:not(.force-pc) .cal-day .cal-cover.cover-empty { display: flex; }
   html:not(.force-pc) .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
@@ -2286,6 +2301,7 @@ html.force-mobile .cal-body { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .cal-main { padding: var(--space-10); }
 html.force-mobile .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
 html.force-mobile .cal-names { display: none; }
+html.force-mobile .cal-task { display: block; }
 html.force-mobile .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
 html.force-mobile .cal-day .cal-cover.cover-empty { display: flex; }
 html.force-mobile .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }

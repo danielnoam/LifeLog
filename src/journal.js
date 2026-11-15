@@ -234,6 +234,16 @@
       if (!byDay.has(d)) byDay.set(d, []);
       byDay.get(d).push(e);
     }
+    // Open tasks dated this month (0.317.0): a ring on their day, and the
+    // picked day's under its entries, to tick or open.
+    const T = window.LifeLogTasks, Home = window.LifeLogHome;
+    const tasksByDay = new Map();
+    if (T && Home) for (const r of T.dueTasks(state.data, calMonth + "-31")) {
+      if (!r.day.startsWith(calMonth + "-")) continue;
+      const d = +r.day.slice(8);
+      if (!tasksByDay.has(d)) tasksByDay.set(d, []);
+      tasksByDay.get(d).push(r);
+    }
     const now = new Date();
     const today = now.getFullYear() === y && now.getMonth() + 1 === m ? now.getDate() : 0;
     if (!calDay || calDay > days) calDay = today && byDay.has(today) ? today : (Math.max(0, ...byDay.keys()) || today || 1);
@@ -267,7 +277,9 @@
       cell.classList.toggle("is-picked", d === calDay);
       cell.classList.toggle("has-entries", list.length > 0);
       cell.setAttribute("aria-pressed", String(d === calDay));
-      cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + list.length + " finished" : ""));
+      const due = tasksByDay.get(d) || [];
+      cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + list.length + " finished" : "")
+        + (due.length ? ", " + due.length + (due.length === 1 ? " task" : " tasks") : ""));
       cell.dataset.day = d;
       if (list.length) {
         const first = list[0];
@@ -276,20 +288,30 @@
           ? coverEl(first.coverUrl, "", "cal-cover", first.category)
           : emptyCoverEl("cal-cover cover-empty", first.category));
         if (list.length > 1) cell.appendChild(el("span", "cal-more", "+" + (list.length - 1)));
-        // The desktop's cells are wide enough for names; the phone's show
-        // the cover alone (styles.css picks one).
+      }
+      // The desktop's cells are wide enough for names (finished entries,
+      // then open tasks with a ring for a dot); the phone's show the cover
+      // alone and a ring in the corner for tasks (styles.css picks one).
+      if (list.length || due.length) {
         const names = el("div", "cal-names");
-        for (const e of list.slice(0, 3)) {
-          const n = el("span", "cal-name", e.title);
-          const dot = el("span", "dot");
-          dot.style.background = colorOf(e.category);
+        const lines = [...list.map((e) => ["entry", e]), ...due.map((r) => ["task", r])];
+        for (const [kind, x] of lines.slice(0, 3)) {
+          const n = el("span", "cal-name" + (kind === "task" ? " is-task" : ""), kind === "task" ? x.item.text : x.title);
+          const dot = el("span", kind === "task" ? "cal-ring" + (x.item.priority ? " is-p" + x.item.priority : "") : "dot");
+          if (kind === "entry") dot.style.background = colorOf(x.category);
           n.prepend(dot);
           names.appendChild(n);
         }
-        if (list.length > 3) names.appendChild(el("span", "cal-name is-more", "+" + (list.length - 3) + " more"));
+        if (lines.length > 3) names.appendChild(el("span", "cal-name is-more", "+" + (lines.length - 3) + " more"));
         cell.appendChild(names);
       }
       cell.appendChild(el("span", "cal-n", String(d)));
+      if (due.length) {
+        const top = Math.min(...due.map((r) => r.item.priority || 4));
+        const mark = el("span", "cal-task" + (top < 4 ? " is-p" + top : ""), due.length > 1 ? String(due.length) : "");
+        mark.setAttribute("aria-hidden", "true");
+        cell.appendChild(mark);
+      }
       cell.onclick = () => { calDay = d; render(); };
       grid.appendChild(cell);
     }
@@ -302,6 +324,17 @@
     if (picked.length) for (const e of picked) dayCard.appendChild(calRow(e));
     else dayCard.appendChild(el("p", "cal-empty", "Nothing finished this day"));
     side.appendChild(dayCard);
+    const dueOn = tasksByDay.get(calDay) || [];
+    if (dueOn.length) {
+      const box = el("div", "month-card cal-tasks");
+      box.appendChild(el("h3", null, "Tasks · " + dueOn.length));
+      const todayKey = T.today();
+      for (const r of dueOn) {
+        box.appendChild(Home.taskRow({ kind: "task", day: r.day, title: r.item.text, category: r.category, list: r.note.text || "",
+          noteId: r.note.id, id: r.item.id, time: r.item.time || "", priority: r.item.priority || 0, repeat: !!r.item.repeat }, todayKey));
+      }
+      side.appendChild(box);
+    }
     if (undated.length) {
       const box = el("div", "month-card cal-undated");
       box.appendChild(el("h3", null, "No day set · " + undated.length));
@@ -999,7 +1032,9 @@
     $("#fTitle").value = editing ? entry.title
       : (fromBacklog ? fromBacklog.title : ((preset && preset.title) || ""));
     fillCategorySelect($("#fCategory"), state.data.categories,
-      editing ? entry.category : (fromBacklog ? fromBacklog.category : (state.data.categories[0] && state.data.categories[0].name)));
+      editing ? entry.category : fromBacklog ? fromBacklog.category
+        : preset && preset.category && state.data.categories.some((c) => c.name === preset.category) ? preset.category
+        : (state.data.categories[0] && state.data.categories[0].name));
     const now = new Date();
     if (editing) setDateField($("#fDate"), ymd(entry.year, entry.month, entry.day), !!entry.day);
     else if (preset && preset.year) setDateField($("#fDate"), ymd(preset.year, preset.month), false);

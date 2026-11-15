@@ -1092,6 +1092,7 @@
     init, renderHome, fillViewOptions,
     // pure
     SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
+    taskRow,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

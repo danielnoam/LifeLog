@@ -6385,7 +6385,7 @@
     openEntryModal: Journal.openEntryModal,
     backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS, CATEGORY_PALETTE, sortSelect, attachSwipe,
   });
-  Tasks.init({ state, $, el, uid, toast, persist, render });
+  Tasks.init({ state, $, el, uid, toast, persist, render, modeEnabled });
 
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,

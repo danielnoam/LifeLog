@@ -241,7 +241,8 @@
 
   // ---------- the task sheet ----------
   let state, $, el, uid, toast, persist, render;
-  function init(ctx) { ({ state, $, el, uid, toast, persist, render } = ctx); }
+  let modeEnabled = () => false;
+  function init(ctx) { ({ state, $, el, uid, toast, persist, render } = ctx); if (ctx.modeEnabled) modeEnabled = ctx.modeEnabled; }
   const Notes = () => window.LifeLogNotes;
   let cur = null; // { noteId, itemId }
   const findNote = (id) => (state.data.notes || []).find((n) => n.id === id && n.kind === "list");
@@ -258,6 +259,7 @@
     cur = { noteId, itemId };
     if (!current().it) { cur = null; return; }
     $("#taskMoreMenu").hidden = true;
+    $("#taskLogBtn").hidden = !(window.LifeLogJournal && modeEnabled("timeline", "entries"));
     fill();
     $("#taskModal").hidden = false;
     $("#taskModal .nv-scroll").scrollTop = 0;
@@ -501,6 +503,19 @@
     const text = [listLines([it, ...kids], api.today()).join("\n"), it.note ? it.note.trim() : ""].filter(Boolean).join("\n\n");
     Notes().copyText(text);
   }
+  // A task done is often worth a Timeline line (0.317.0): the Add entry
+  // sheet opens on it, with its words, description and, when the Timeline
+  // has one by that name, its category. Nothing is saved until Save, and
+  // the task stays as it was, ticked or not.
+  function logTask() {
+    const { n, it } = current();
+    $("#taskMoreMenu").hidden = true;
+    if (!it) return;
+    commitText();
+    const category = categoryOf(n, it);
+    closeTask({ all: true });
+    window.LifeLogJournal.openEntryModal(null, null, { title: it.text, notes: it.note || "", category });
+  }
   async function deleteTask() {
     const { n, it } = current();
     $("#taskMoreMenu").hidden = true;
@@ -647,6 +662,7 @@
       $("#taskMoreBtn").setAttribute("aria-expanded", String(!menu.hidden));
     };
     $("#taskModal").addEventListener("click", (ev) => { if (!ev.target.closest("#taskMoreMenu, #taskMoreBtn")) $("#taskMoreMenu").hidden = true; });
+    $("#taskLogBtn").onclick = logTask;
     $("#taskCopyBtn").onclick = copyTask;
     $("#taskDeleteBtn").onclick = deleteTask;
     $("#taskList").onchange = () => moveToList($("#taskList").value);
