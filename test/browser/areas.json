@@ -51,10 +51,6 @@
       "files": ["src/invest.js"],
       "suites": ["homeinvest", "invest", "investsearch"]
     },
-    "travel": {
-      "files": ["src/travel.js"],
-      "suites": ["travel", "travelmap", "travelmore"]
-    },
     "home": {
       "files": ["src/home.js"],
       "suites": ["homeinvest"]

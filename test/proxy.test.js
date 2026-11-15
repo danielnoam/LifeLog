@@ -49,7 +49,6 @@ const routes = [
   ["/igdb/games?q=fields%20name%3B", "api.igdb.com"],
   ["/hardcover?q=%7B%22query%22%3A%22%7Bme%7Bid%7D%7D%22%7D", "api.hardcover.app"],
   ["/augsteam-app/570", "api.augmentedsteam.com"],
-  ["/gmaps-list/" + "a".repeat(20), "www.google.com"],
 ];
 
 console.log("\nthe worker");

@@ -17,7 +17,9 @@
   const HANDLE_KEY = "dataFile";
   const IDB_HISTORY_STORE = "history";
   const IDB_BOARDS_HISTORY = "boardsHistory"; // boards.json's own saves (0.194.0)
-  const IDB_TRAVEL_HISTORY = "travelHistory"; // travel.json's (0.241.0)
+  // travel.json's (0.241.0). Travel left LifeLog (2026-11); the store stays
+  // so a device that kept trips can still have them wiped (forgetDevice).
+  const IDB_TRAVEL_HISTORY = "travelHistory";
   const IDB_INVEST_HISTORY = "investHistory"; // investments.json's
   const BOARDS_HISTORY_CAP = 30;
   const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
@@ -740,7 +742,7 @@
     return { removed: gone.length, bytes: gone.reduce((t, e) => t + (e.size || 0), 0), kept: kept.length };
   }
 
-  // ---- files beside lifelog.json: boards (0.193.0), travel (0.241.0) ----
+  // ---- files beside lifelog.json: boards (0.193.0), investments ----
   // Drawing boards live in a file of their own, boards.json beside the data
   // file, so an ordinary save — ticking a habit — never uploads them, and a
   // heavy board can't push lifelog.json past GitHub's 1MB mark. The file has
@@ -749,11 +751,13 @@
   // lifelog.json, a merge here is adopted by the caller straight away (see
   // boards.js), so the sha and base move to whatever was written.
   //
-  // Trips (travel.json) are small, but sit beside rather than inside for a
+  // The watchlist (investments.json) sits beside rather than inside for a
   // different reason: mergeAllSources builds a fresh object from the keys it
-  // knows, so a build older than 0.241.0 merging lifelog.json would drop a
-  // new root key, and that deletion would then win everywhere. An older
-  // build never opens travel.json at all.
+  // knows, so an older build merging lifelog.json would drop a new root key,
+  // and that deletion would then win everywhere. An older build never opens
+  // a sibling file at all. (travel.json was one too, until Travel moved out
+  // of LifeLog in 2026-11: nothing reads or writes it now, so the file is
+  // left exactly as it was.)
   const idbGetSafe = (k) => idbGet(k).catch(() => null);
 
   // Every save that changed something is kept on the device too, like
@@ -942,16 +946,7 @@
     histStore: IDB_BOARDS_HISTORY, histCap: BOARDS_HISTORY_CAP, histMark: "lifelog-boards-history-mark",
     fileKey: "boardsFile", fileType: "LifeLog boards",
   });
-  const Travel = siblingStore({
-    file: "travel.json", label: "travel", keys: ["trips", "places"],
-    merge: (base, local, remote) => window.LifeLogMerge.mergeTravel(base, local, remote),
-    shaKey: "travelSha", cacheKey: "travelCache", baseKey: "travelBase",
-    histStore: IDB_TRAVEL_HISTORY, histCap: BOARDS_HISTORY_CAP, histMark: "lifelog-travel-history-mark",
-    fileKey: "travelFile", fileType: "LifeLog trips",
-  });
-
-  // The Ledger's watchlist (investments.json): beside lifelog.json for the
-  // same reason as travel.json.
+  // The Ledger's watchlist (investments.json), beside lifelog.json.
   const Invest = siblingStore({
     file: "investments.json", label: "investments", keys: ["watchlist", "pins"],
     merge: (base, local, remote) => window.LifeLogMerge.mergeInvest(base, local, remote),
@@ -964,7 +959,6 @@
     fsSupported,
     bridgeOf,
     boards: Boards,
-    travel: Travel,
     invest: Invest,
     // Values only this device keeps (the watchlist's prices): never synced,
     // never in a backup.
@@ -1302,14 +1296,16 @@
       if (gh && gh.token) await Storage.disconnectGithub();
       if (handle) await Storage.disconnect();
       await Boards.forget();
-      await Travel.forget();
+      // The trips this device kept before Travel moved out (2026-11).
+      for (const k of ["travelCache", "travelBase", "travelFile"]) await idbDel(k).catch(() => {});
+      for (const e of await idbGetAllHistory(IDB_TRAVEL_HISTORY).catch(() => [])) await idbDeleteHistory(e.id, IDB_TRAVEL_HISTORY).catch(() => {});
       await Invest.forget();
       await idbDel("device:investPrices").catch(() => {});
       if (window.LifeLogImages) await window.LifeLogImages.forget().catch(() => {});
       // The sync base is a whole copy of the data too.
       keepCopy(CACHE_COPY, null); keepCopy(BASE_COPY, null);
       await Storage.copiesWritten();
-      try { localStorage.removeItem("lifelog-travel-ui"); localStorage.removeItem("lifelog-invest-ui"); } catch (e) {}
+      try { localStorage.removeItem("lifelog-travel-ui"); localStorage.removeItem("lifelog-travel-history-mark"); localStorage.removeItem("lifelog-invest-ui"); } catch (e) {}
     },
 
     // Lightweight poll for changes made elsewhere (e.g. another device).

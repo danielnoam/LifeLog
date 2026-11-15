@@ -65,14 +65,14 @@ const activeView = (page) => page.evaluate(() => {
   // tests, not about the feature.
   let ALL_VIEWS = [];
 
-  // ---- 1. the defaults: everything but Travel (0.248.0) ----
+  // ---- 1. the defaults: every tab (Travel, off by default since 0.248.0, left in 2026-11) ----
   {
     const { page, ctx, errs: e } = await app(browser);
     ALL_VIEWS = await page.evaluate(() =>
       [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
     const shown = await shownTabs(page);
-    check("with nothing saved, every tab but Travel is there",
-      JSON.stringify(shown) === JSON.stringify(ALL_VIEWS.filter((v) => v !== "travel")) && shown.length >= 4, shown);
+    check("with nothing saved, every tab is there",
+      JSON.stringify(shown) === JSON.stringify(ALL_VIEWS) && shown.length >= 4 && !ALL_VIEWS.includes("travel"), shown);
     errs.push(...e);
     await ctx.close();
     const all = await app(browser, { visual: { disabledViews: [] } });
@@ -316,11 +316,11 @@ const activeView = (page) => page.evaluate(() => {
 
     await press("Ledger", "tab-up");
     check("↑ moves a tab left, and the tab bar follows",
-      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "home", "finance", "backlog", "travel"]) &&
-      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "home", "finance", "backlog", "travel"]),
+      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "home", "finance", "backlog"]) &&
+      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "home", "finance", "backlog"]),
       { bar: await barOrder(), stored: (await visual()).viewOrder });
     check("and so does the list in Settings", await page.evaluate(() =>
-      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Home,Ledger,Backlog,Travel"));
+      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Home,Ledger,Backlog"));
 
     await press("Discover", "mode-default");
     check("starring an end mode of a three-mode tab moves it into the middle",
@@ -360,14 +360,23 @@ const activeView = (page) => page.evaluate(() => {
   {
     const { page, ctx, errs: e } = await app(browser, {
       ui: { view: "backlog", backlogMode: "entries" },
-      visual: { modeOrder: { backlog: ["gone", "discover", "entries"] }, viewOrder: ["finance", "nope"] },
+      visual: { modeOrder: { backlog: ["gone", "discover", "entries"] }, viewOrder: ["finance", "travel"] },
     });
     const dots = await page.evaluate(() => document.querySelectorAll('#viewTabs .tab[data-view="backlog"] .tab-mode-dot').length);
     const bar = await page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
     // Home, new since that order was saved, goes in the middle of the tabs
     // that are on (0.306.0), where it starts for everyone.
     check("unknown ids in a saved order are dropped and missing ones added at the end",
-      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "home", "timeline", "backlog", "travel"]), { dots, bar });
+      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "home", "timeline", "backlog"]), { dots, bar });
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 6a3. a device that closed on Travel, which left in 2026-11 ----
+  {
+    const { page, ctx, errs: e } = await app(browser, { ui: { view: "travel", travelMode: "map" }, visual: { disabledViews: ["travel"] } });
+    const at = await page.evaluate(() => document.querySelector("#viewTabs .tab[aria-selected=true]")?.dataset.view);
+    check("a device last on Travel opens on a tab that exists", !!at && at !== "travel", at);
     errs.push(...e);
     await ctx.close();
   }

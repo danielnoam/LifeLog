@@ -17,7 +17,6 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Timeline](#timeline): [Log](#log), [Layouts](#timeline-layouts-covers-and-calendar), [Stats and Recap](#stats-and-recap)
 - [Backlog](#backlog): [List](#list), [Covers](#covers), [Pick](#pick), [An item's sheet](#an-items-sheet), [Next releases](#next-releases), [Discover](#discover)
 - [Ledger](#ledger): [Expenses](#expenses), [Summary](#summary), [Investments](#investments)
-- [Travel](#travel)
 - [Search](#search)
 - [Settings](#settings)
 - [Imports](#imports)
@@ -30,8 +29,8 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 
 ## Getting around
 
-Six tabs: Home (first on a computer, in the middle on a phone), and Notebook, Timeline, Backlog, Ledger and
-Travel, each with modes.
+Five tabs: Home (first on a computer, in the middle on a phone), and Notebook,
+Timeline, Backlog and Ledger, each with modes.
 On a computer the tabs sit along the top and hovering one drops its modes
 out; on a phone they're the bar at the bottom, and holding a tab raises its
 modes. Swiping across the page moves between modes on both, and tapping
@@ -289,22 +288,10 @@ pins and buys sync in `investments.json`.
 <td><img src="docs/screenshots/ledger-investments-phone.webp" alt="The Ledger's watchlist on a phone" width="200"></td>
 </tr></table>
 
-## Travel
-
-Off by default (Settings → Tabs). Trips with places planned By time, By
-area or on a Map, with times, days, a visited tick and drag to arrange.
-Places come in from Google Maps lists or links, and show Google's rating,
-hours and reviews when you add your own Places key.
-
-<table><tr>
-<td><img src="docs/screenshots/travel-desktop.webp" alt="A trip on a computer" width="620"></td>
-<td><img src="docs/screenshots/travel-phone.webp" alt="A trip on a phone" width="200"></td>
-</tr></table>
-
 ## Search
 
-One box over everything: entries, backlog, notes, habits, boards, expenses,
-trips, places and Settings pages, grouped by tab. Timeline and Backlog
+One box over everything: entries, backlog, notes, habits, boards, expenses
+and Settings pages, grouped by tab. Timeline and Backlog
 results show their cover, where they stand (Completed, In progress,
 Dropped…) and a star or bag for starred and bought. Filter on a group narrows
 that tab instead, for bulk work.
@@ -396,8 +383,8 @@ list gets the window too, its map beside the list.
   with the app put away on Android, and is offered again if the app was
   closed on it.
 - **Share into LifeLog** from other apps on Android and iPhone, and into the
-  installed web app: titles go to the Backlog, Maps links to a trip,
-  anything else to a note.
+  installed web app: titles go to the Backlog, anything else to an
+  item or a note.
 - **Bulk actions**: long-press to select, then move, sync or delete.
 - **Sync and history**: GitHub and a local file, merged between devices,
   every save in Settings → History to restore or undo, Recently deleted,
@@ -426,9 +413,8 @@ The app keeps a working copy on the device and, on every save, writes to
 every target connected in **Settings → Sync**:
 
 - **GitHub** (works on phones): `lifelog.json` in a **private repo**, so
-  every device shares one log and every save is a commit. Boards, trips
-  and the Ledger's watchlist sit beside it in `boards.json`, `travel.json`
-  and `investments.json`, and the pictures in notes and on boards on the
+  every device shares one log and every save is a commit. Boards and the
+  Ledger's watchlist sit beside it in `boards.json` and `investments.json`, and the pictures in notes and on boards on the
   repo's `lifelog-images` branch.
 - **Local file** (desktop Chrome and Edge): a `.json` file you pick, for
   example in your Google Drive folder.
@@ -560,7 +546,6 @@ you add it in **Settings → Media lookups**.
 | Augmented Steam | no; CORS proxy | Steam games: How Long to Beat times, OpenCritic and Metacritic user scores |
 | New York Times | yes (free) | books: bestseller lists in Discover |
 | Hardcover | yes (your API token, expires) + CORS proxy in a browser | books: series, next in the series, trending in Discover |
-| Google Places | yes (your own) | Travel: a place's rating, hours and reviews |
 | Tiingo | yes (free, personal use); CORS proxy in a browser | the Ledger's watchlist: daily stock and ETF prices |
 | Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime and manga, music |
 | Stremio | your sign-in (only its key is kept) | your movie and show library and what you've watched, read only |

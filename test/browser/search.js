@@ -129,7 +129,7 @@ async function run(b, width) {
   check("✕ clears it too" + at, await page.evaluate(() => document.querySelector("#searchResults").hidden && !document.querySelector(".tab-match-badge")));
 
   // ---- a disabled tab has no group ----
-  await page.evaluate(() => localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ disabledViews: ["travel", "finance"] })));
+  await page.evaluate(() => localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ disabledViews: ["finance"] })));
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
   await type("diner");
   check("a tab turned off has no group" + at, !(await groups()).some((g) => g.startsWith("finance:")), await groups());

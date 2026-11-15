@@ -10,7 +10,7 @@ function test(name, fn) {
   catch (e) { console.error("  FAIL - " + name); console.error("    " + e.message); process.exitCode = 1; }
 }
 let settings = {};
-let views = ["notes", "timeline", "home", "backlog", "finance", "travel"];
+let views = ["notes", "timeline", "home", "backlog", "finance"];
 K.bind(() => settings, () => views);
 const key = (code, mods = {}) => ({ code, key: "", ctrlKey: !!mods.ctrl, metaKey: !!mods.meta, altKey: !!mods.alt, shiftKey: !!mods.shift });
 const hit = (e) => { const m = K.match(e); return m && (m.other ? m.id + "+other" : m.id); };
@@ -42,7 +42,7 @@ test("tab defaults follow the bar", () => {
   views = ["home", "notes"];
   assert.strictEqual(hit(key("Digit1")), "tab:home");
   assert.deepStrictEqual(K.keysFor("tab:finance"), []);
-  views = ["notes", "timeline", "home", "backlog", "finance", "travel"];
+  views = ["notes", "timeline", "home", "backlog", "finance"];
 });
 
 test("assigning a taken key moves it and only stores what changed", () => {
