@@ -203,7 +203,7 @@
   function lsKeep(k, why) {
     try { if (copies[k] == null) localStorage.removeItem(LS_KEY[k]); else localStorage.setItem(LS_KEY[k], copies[k]); }
     catch (e) {
-      if (window.LifeLogErrors) window.LifeLogErrors.record("This device couldn't keep its " + (k === CACHE_COPY ? "copy of your data" : "sync base")
+      if (window.Keel && window.Keel.errlog) window.Keel.errlog.record("This device couldn't keep its " + (k === CACHE_COPY ? "copy of your data" : "sync base")
         + " (" + ((why || e).message || why || e) + ")", (why || e).stack);
     }
   }

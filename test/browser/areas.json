@@ -4,7 +4,7 @@
     "index.html", "sw.js", "manifest.json",
     "src/app.js", "src/styles.css", "src/storage.js", "src/keel/github.js", "src/platform.js",
     "src/merge.js", "src/reconcile.js", "src/icons.js", "src/select.js",
-    "src/jobs.js", "src/errlog.js", "src/dates.js", "src/datefield.js",
+    "src/jobs.js", "src/keel/errlog.js", "src/dates.js", "src/datefield.js",
     "src/vendor/",
     "test/browser/harness.js", "test/browser/run-all.js", "test/browser/affected.js",
     "test/browser/areas.json", "test/browser/durations.json", "test/browser/seeds/",
