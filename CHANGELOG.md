@@ -3,6 +3,21 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.316.1] - 2026-11-15
+
+### Added
+- Google Drive backups are switched on: Settings → Sync → Google Drive backups → Connect Google Drive, in the browser, the Android app and the Windows app.
+- Settings → Appearance → Animations: turn it off and nothing in LifeLog slides, springs or fades on this device.
+
+### Changed
+- With a mouse on a big screen, sheets and presses settle quicker and without the bounce.
+- Motion now runs on keel's shared engine, the same one Waypage uses. On a phone it moves as before, with a slightly longer, invisible settle at the end.
+- Checklist items keep details this version doesn't show yet, so a device that hasn't updated won't wipe them when it saves a list. Groundwork for tasks with dates, priority and subtasks.
+- When the same checklist item is changed on two devices, the newer change is kept, rather than always the one on this device.
+
+### Fixed
+- LifeLog: Up next, the Stremio row, now has its storage on the web proxy, so sending your Backlog to Stremio works instead of failing.
+
 ## [0.316.0] - 2026-11-15
 
 ### Added
