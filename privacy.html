@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · LifeLog</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#11141a; --text:#e6e9ef; --dim:#9aa3b2; --border:#2c3342; --accent:#6f9bff; color-scheme: dark light; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f7f8fa; --text:#1b1f27; --dim:#555e6e; --border:#dde1e8; --accent:#2f5fd0; } }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:680px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:28px; line-height:1.2; margin:0 0 4px; }
+  h2 { font-size:18px; margin:32px 0 8px; }
+  p, li { color:var(--text); }
+  .dim, footer { color:var(--dim); font-size:14px; }
+  a { color:var(--accent); }
+  ul { padding-left:20px; }
+  footer { margin-top:48px; padding-top:16px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+<main>
+<h1>Privacy</h1>
+<p class="dim">LifeLog · last updated 15 November 2026</p>
+
+<p>LifeLog is a personal log app made by one person. It has no accounts, no servers that hold your log, no ads and no analytics. Your log lives on your device and in places you choose and own.</p>
+
+<h2>Where your data is kept</h2>
+<ul>
+  <li><strong>On your device.</strong> Everything you write is kept in the browser's or app's own storage on that device.</li>
+  <li><strong>In your GitHub repository, if you turn on sync.</strong> LifeLog saves your data to a private repository in your own GitHub account, using a token you create. The token stays on your device.</li>
+  <li><strong>In your Google Drive, if you turn on backups.</strong> See the next section.</li>
+</ul>
+
+<h2>Google Drive backups</h2>
+<p>When you connect Google Drive in Settings → Sync, LifeLog asks Google for one permission: to see and change only the files LifeLog itself creates in your Drive (the <code>drive.file</code> scope). It can't see or open any other file in your Drive.</p>
+<ul>
+  <li>LifeLog uses this to create a "LifeLog" folder, save backup copies of your log there, list them, restore one when you ask, and delete old ones.</li>
+  <li>A backup holds your entries, notes, boards and watchlist. It never holds your API keys or tokens.</li>
+  <li>LifeLog also reads your Google account's email address, only to show you which account is connected.</li>
+  <li>The sign-in and the files go straight between your device and Google. Nothing passes through a LifeLog server, and nobody but you can see the backups.</li>
+  <li>You can disconnect in Settings → Sync at any time, and remove LifeLog's access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Your backups stay in your Drive until you delete them.</li>
+</ul>
+<p>LifeLog's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Data from Google is used only to provide the backups described above. It is not sold, not used for advertising, not shared with anyone, and not read by people.</p>
+
+<h2>Other services</h2>
+<p>Some features look things up in outside services, such as game, film, book and price databases (the full list is in Settings → About). They receive only what the lookup needs, such as a title you search for, and the key you entered for that service, if it needs one. A few of these requests pass through a small relay LifeLog runs on Cloudflare, because those services don't accept requests from a browser directly. The relay passes each request on and stores nothing. The one exception is the Stremio "Up next" add-on, if you turn it on: it keeps that row of titles and posters so Stremio can show it.</p>
+
+<h2>Removing your data</h2>
+<p>Clear the app's data or uninstall it to remove the copy on a device. Delete your GitHub data repository or your Drive "LifeLog" folder to remove those copies. There's nothing else to delete, because nothing else is kept.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy: <a href="https://github.com/danielnoam/LifeLog/issues">open an issue on GitHub</a>.</p>
+
+<footer><a href="./">LifeLog</a> · <a href="terms.html">Terms</a></footer>
+</main>
+</body>
+</html>
