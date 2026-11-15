@@ -100,11 +100,14 @@ const SEED = {
   check("the add line adds an item after the open ones", its.filter((i) => !i.done).map((i) => i.text).join() === "Charger,Jacket,Socks,Toothbrush", its.map((i) => i.text));
   check("and keeps the focus there for the next one", await page.evaluate((L) => document.activeElement === document.querySelector(`${L} .note-list-compose input`), L));
   check("clicking in the list doesn't open the note", await page.evaluate(() => document.querySelector("#noteModal").hidden));
-  await page.locator(`${L} .todo-row:not(.is-done) .todo-text`, { hasText: "Socks" }).click();
-  await page.fill(`${L} .todo-edit`, "Wool socks");
-  await page.press(`${L} .todo-edit`, "Enter");
+  // Since tasks, tapping the words opens the task's sheet, where it's renamed.
+  await page.locator(`${L} .todo-row:not(.is-done) .todo-body`, { hasText: "Socks" }).click();
   await page.waitForTimeout(250);
-  check("tapping an item's words edits them in place", (await items()).some((i) => i.text === "Wool socks"));
+  check("tapping an item's words opens its task sheet", await page.evaluate(() => !document.querySelector("#taskModal").hidden));
+  await page.fill("#taskText", "Wool socks");
+  await page.click("#taskCloseBtn");
+  await page.waitForTimeout(250);
+  check("and renaming it there saves on close", (await items()).some((i) => i.text === "Wool socks"));
   await page.locator(`${L} .todo-row`, { hasText: "Jacket" }).locator(".todo-del").click();
   await page.waitForTimeout(250);
   check("✕ deletes an item", !(await items()).some((i) => i.text === "Jacket"));

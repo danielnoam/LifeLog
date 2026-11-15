@@ -8,7 +8,7 @@
     android:layout_height="wrap_content"
     android:buttonTint="@color/widget_accent"
     android:ellipsize="end"
-    android:maxLines="2"
+    android:maxLines="3"
     android:minHeight="40dp"
     android:paddingStart="6dp"
     android:textColor="@color/widget_text"

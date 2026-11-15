@@ -134,10 +134,18 @@
   // Everything dated from today to `days` ahead, soonest first. Only what is
   // known to the day: a release "sometime in November" is the Upcoming
   // page's to list, and here it would read as due today.
-  //   { kind: "release" | "episode" | "charge" | "habit", day, title, ... }
-  function comingUp(data, today, { Backlog, Finance, Habits, days = DAYS_AHEAD } = {}) {
+  //   { kind: "release" | "episode" | "charge" | "habit" | "task", day, title, ... }
+  // Open tasks with a date come too, the overdue ones before today
+  // (bucketOf files them under Overdue).
+  function comingUp(data, today, { Backlog, Finance, Habits, Tasks, days = DAYS_AHEAD } = {}) {
     const until = addDays(today, days);
     const rows = [];
+    if (Tasks) {
+      for (const r of Tasks.dueTasks(data, until)) {
+        rows.push({ kind: "task", day: r.day, title: r.item.text, category: r.category, list: r.note.text || "", noteId: r.note.id, id: r.item.id,
+          time: r.item.time || "", priority: r.item.priority || 0, repeat: !!r.item.repeat });
+      }
+    }
     if (Backlog) {
       for (const b of data.backlog || []) {
         if (b.dropped) continue;
@@ -174,12 +182,15 @@
         }
       }
     }
-    const order = { habit: 0, release: 1, episode: 2, charge: 3 };
-    return rows.sort((a, b) => a.day.localeCompare(b.day) || order[a.kind] - order[b.kind] || String(a.title).localeCompare(String(b.title)));
+    const order = { task: 0, habit: 1, release: 2, episode: 3, charge: 4 };
+    return rows.sort((a, b) => a.day.localeCompare(b.day) || order[a.kind] - order[b.kind]
+      || (a.kind === "task" ? (a.time || "99").localeCompare(b.time || "99") || (a.priority || 4) - (b.priority || 4) : 0)
+      || String(a.title).localeCompare(String(b.title)));
   }
 
   // Which heading a day goes under.
   function bucketOf(day, today) {
+    if (day < today) return "Overdue";
     if (day === today) return "Today";
     if (day === addDays(today, 1)) return "Tomorrow";
     return day <= addDays(today, 6) ? "This week" : "Later";
@@ -296,7 +307,40 @@
   }
 
   const KIND_ICON = { release: "star", episode: "tv", charge: "repeat", habit: "square-check-big" };
+  // A task's row: its tick where the others have an icon, ticking it right
+  // here; the rest of the row opens it.
+  function taskRow(r, today) {
+    const row = el("div", "home-row is-task");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "todo-check" + (r.priority ? " is-p" + r.priority : "");
+    cb.setAttribute("aria-label", "Mark as done: " + r.title);
+    cb.onchange = () => window.LifeLogNotes.tickItem(r.noteId, r.id, cb.checked);
+    const tick = el("span", "home-row-tick");
+    tick.appendChild(cb);
+    row.appendChild(tick);
+    const open = el("button", "home-row-open");
+    open.type = "button";
+    const text = el("span", "home-row-text");
+    text.appendChild(el("span", "home-row-title", r.title));
+    const sub = el("span", "home-row-sub");
+    if (r.category) {
+      const c = (state.data.noteCategories || []).find((x) => x.name === r.category);
+      if (c && c.color) { const dot = el("span", "dot"); dot.style.background = c.color; sub.appendChild(dot); }
+    }
+    sub.appendChild(document.createTextNode([r.list, r.repeat ? "repeats" : ""].filter(Boolean).join(" · ")));
+    text.appendChild(sub);
+    open.appendChild(text);
+    const T = window.LifeLogTasks;
+    const end = el("span", "home-row-end" + (r.day < today ? " is-late" : ""),
+      r.day === today ? (r.time || "Today") : T.shortDay(r.day, today) + (r.time ? " " + r.time : ""));
+    open.appendChild(end);
+    open.onclick = () => T.openTask(r.noteId, r.id);
+    row.appendChild(open);
+    return row;
+  }
   function upcomingRow(r, today) {
+    if (r.kind === "task") return taskRow(r, today);
     const row = el("button", "home-row");
     row.type = "button";
     const ki = el("span", "home-row-ico");
@@ -339,7 +383,7 @@
 
   function upcomingSection() {
     const today = todayStr();
-    const rows = comingUp(state.data, today, { Backlog: window.LifeLogBacklog, Finance: window.LifeLogFinance, Habits: window.LifeLogHabits });
+    const rows = comingUp(state.data, today, { Backlog: window.LifeLogBacklog, Finance: window.LifeLogFinance, Habits: window.LifeLogHabits, Tasks: window.LifeLogTasks });
     const run = goTo("backlog", "upcoming");
     const sec = el("section", "home-sec home-upcoming");
     sec.appendChild(sectionHead("upcoming", run ? { label: "Upcoming", run } : null));
@@ -1048,6 +1092,7 @@
     init, renderHome, fillViewOptions,
     // pure
     SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
+    taskRow,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

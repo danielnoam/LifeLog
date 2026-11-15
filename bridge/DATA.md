@@ -168,10 +168,23 @@ rename by editing items one at a time.
 Newest first. Three kinds:
 
 - `kind` absent: a text note. `text` is Markdown, `title` optional.
-- `kind: "list"`: a checklist. `items` is a list of
-  `{ id, text, done?, doneAt?, updatedAt? }`. `text` on the note is unused,
-  and a list has no `title`. An item keeps any other field it carries, so
-  write back an item as you read it.
+- `kind: "list"`: a checklist, whose items are tasks. `items` is a list of
+  `{ id, text, done?, doneAt?, updatedAt? }` plus any of these task fields,
+  each absent unless set: `note` (description, Markdown), `priority` (1
+  high, 2 medium, 3 low), `date` (YYYY-MM-DD), `time` (HH:MM, only with a
+  date), `repeat` (`{ every, unit: day|week|month|year, days?, fromDone? }`,
+  only with a date; `days` are weekdays, 0 = Sunday, for a weekly one on
+  certain days; `fromDone` counts the next date from the tick), `remind`
+  (minutes before the date and time; an all-day task counts from 09:00),
+  `deadline` (YYYY-MM-DD), `parent` (the id of the task it sits under, one
+  level deep: a subtask's subtasks come back to the top), `category` (a
+  note category; none means its task's, then its list's), `ticks` (when a
+  repeating task was ticked, kept for later and not shown). Ticking a
+  repeating task doesn't finish it: its date moves to the next one, its
+  deadline with it, and its subtasks untick. `lifelog_add_task`,
+  `lifelog_update_task` and `lifelog_tasks` do this the app's way. `text`
+  on the note is the list's title, and a list has no `title`. An item keeps
+  any other field it carries, so write back an item as you read it.
 - `kind: "quote"`: `text` is the quote, with optional `author` and `source`.
 
 Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last

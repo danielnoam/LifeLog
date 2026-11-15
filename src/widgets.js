@@ -82,7 +82,25 @@
       .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)) || String(a.title).localeCompare(String(b.title)))
       .slice(0, BACKLOG_ROWS)
       .map((b) => ({ id: b.id, title: b.title, category: b.category, color: colorOf(b.category), startedAt: b.startedAt, startedText: Dates().day(b.startedAt, { year: b.startedAt.slice(0, 4) !== today.slice(0, 4) }), length: b.length || "" }));
-    return { upcoming, inProgress };
+    return { upcoming: withTasks(upcoming, data, today), inProgress };
+  }
+  // Dated open tasks join the Upcoming widget (0.317.0), as Home's Coming
+  // up has them: overdue ones first, then by day among the releases, up to
+  // a fortnight ahead. `kind: "task"` tells the widget to keep an overdue
+  // one rather than drop it as past, and to word its day itself.
+  const TASK_DAYS = 14;
+  function withTasks(upcoming, data, today) {
+    const T = typeof window !== "undefined" && window.LifeLogTasks;
+    if (!T) return upcoming;
+    const tasks = T.dueTasks(data, addDays(today, TASK_DAYS)).map((r) => {
+      const t = { id: r.item.id, kind: "task", title: r.item.text, list: r.note.text || "", day: r.day,
+        dayText: Dates().day(r.day, { year: r.day.slice(0, 4) !== today.slice(0, 4) }) };
+      if (r.item.time) t.time = r.item.time;
+      if (r.item.priority) t.priority = r.item.priority;
+      return t;
+    });
+    return [...tasks, ...upcoming].sort((a, b) => a.day.localeCompare(b.day) || (a.kind === "task" ? -1 : 0) - (b.kind === "task" ? -1 : 0))
+      .slice(0, BACKLOG_ROWS);
   }
 
   function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "", currencySymbol = "" } = {}) {
@@ -150,14 +168,31 @@
     const listsOut = [];
     const seen = new Map();
     for (const n of lists) {
-      const base = n.text || "Checklist";
+      const base = n.text || "Tasks";
       const k = (seen.get(base) || 0) + 1;
       seen.set(base, k);
       const name = k > 1 ? `${base} (${k})` : base;
       const color = n.category ? colorOf(n.category) : "";
       listsOut.push({ id: n.id, name, color });
-      const row = (it) => ({ id: it.id, text: it.text, category: name, list: n.id, color, done: !!it.done });
-      const items = n.items || [];
+      // Tasks (tasks.js): a subtask stays off the widget, and a task's
+      // second line (0.317.0) is its date, then repeats and subtasks done.
+      // The date goes as a day, not words: the widget words it by the
+      // phone's clock ("Overdue", "Today 18:00"), since this snapshot can be
+      // days old by the time it's read. `dateText` is for a day further off.
+      const all = n.items || [];
+      const ids = new Set(all.map((it) => it.id));
+      const row = (it) => {
+        const out = { id: it.id, text: it.text, category: name, list: n.id, color, done: !!it.done };
+        if (it.done) return out;
+        const kids = all.filter((c) => c.parent === it.id);
+        const meta = [it.repeat ? "repeats" : "", kids.length ? kids.filter((c) => c.done).length + "/" + kids.length + " subtasks" : ""].filter(Boolean).join(" · ");
+        if (it.date) { out.date = it.date; out.dateText = Dates().day(it.date, { year: it.date.slice(0, 4) !== today.slice(0, 4) }); }
+        if (it.time && it.date) out.time = it.time;
+        if (meta) out.meta = meta;
+        if (it.priority) out.priority = it.priority;
+        return out;
+      };
+      const items = all.filter((it) => !it.parent || !ids.has(it.parent));
       const open = items.filter((it) => !it.done);
       const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
@@ -246,7 +281,14 @@
           if (t) break;
         }
         if (!t || !!t.done === !!it.done) continue;
-        if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
+        // A reminder's Done (0.317.0) is for the date it rang about; a
+        // repeating task ticked since has moved on, and stays as it is.
+        if (it.due && t.date && t.date !== it.due) continue;
+        // Through tasks.js where it's loaded, so a repeating task ticked on
+        // the widget moves to its next date and a task's subtasks tick too.
+        const list = (data.notes || []).find((n) => n.kind === "list" && (n.items || []).includes(t));
+        if (window.LifeLogTasks && list) window.LifeLogTasks.tick(list, t.id, !!it.done, it.at ? new Date(it.at) : new Date());
+        else if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
         else { delete t.done; delete t.doneAt; }
         changed++;
       } else if (it.kind === "expense") {

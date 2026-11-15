@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -476,6 +476,68 @@ const S = {
   date: (description) => ({ type: "string", description: description + " (YYYY-MM-DD)" }),
   limit: { type: "integer", description: "Most rows to return" },
 };
+
+// ---------- tasks (a checklist's items) ----------
+const TASK_FIELDS = {
+  note: S.str("Description (Markdown)"),
+  priority: S.int("1 high, 2 medium, 3 low; 0 for none"),
+  date: S.date("The day to do it"),
+  time: S.str("HH:MM, with a date"),
+  repeat: S.str("With a date: day, weekday, week, month, year, or \"every N days|weeks|months|years\"; none to stop"),
+  repeat_from_done: S.bool("Count the next date from when it's ticked rather than from its date (chores)"),
+  remind: S.int("Minutes before its date and time to remind (an all-day task counts from 09:00 that day, so 0 is 09:00 on the day and 1440 the day before); -1 for none"),
+  deadline: S.date("The day it must be done by"),
+  category: S.str("A note category of its own (none = its list's)"),
+};
+function pickTask(items, ref) {
+  const r = lower(ref);
+  const hit = items.find((i) => i.id === ref) || items.find((i) => lower(i.text) === r)
+    || (items.filter((i) => lower(i.text).includes(r)).length === 1 ? items.find((i) => lower(i.text).includes(r)) : null);
+  return hit || fail(`No single task matches "${ref}" in that checklist.`);
+}
+function parseRepeat(s, d) {
+  const v = lower(s);
+  if (!v || v === "none" || v === "never") return null;
+  if (["day", "week", "month", "year"].includes(v)) return { every: 1, unit: v };
+  if (v === "daily") return { every: 1, unit: "day" };
+  if (v === "weekly") return { every: 1, unit: "week" };
+  if (v === "monthly") return { every: 1, unit: "month" };
+  if (v === "yearly") return { every: 1, unit: "year" };
+  if (v === "weekday" || v === "weekdays") {
+    const ws = (d.settings && +d.settings.weekStart) || 0;
+    return { every: 1, unit: "week", days: ws === 6 ? [0, 1, 2, 3, 4] : [1, 2, 3, 4, 5] };
+  }
+  const m = /^every\s+(\d+)\s+(day|week|month|year)s?$/.exec(v);
+  if (m) return { every: Math.max(1, Math.min(999, +m[1])), unit: m[2] };
+  fail(`repeat "${s}" isn't one I know: day, weekday, week, month, year, or "every N days|weeks|months|years".`);
+}
+// The fields given, onto a task (copy); empty clears.
+function applyTaskFields(d, it, a) {
+  const clear = (v) => v === "" || v === null;
+  if (a.note != null) { if (clear(a.note) || !String(a.note).trim()) delete it.note; else it.note = String(a.note); }
+  if (a.priority != null) { const p = Math.round(+a.priority); if (p >= 1 && p <= 3) it.priority = p; else if (p === 0) delete it.priority; else fail("priority is 1 (high), 2, 3 (low) or 0 for none."); }
+  if (a.date != null) { if (clear(a.date)) { for (const k of ["date", "time", "repeat", "remind"]) delete it[k]; } else it.date = requireDate(a.date, "date"); }
+  if (a.time != null) { if (clear(a.time)) delete it.time; else if (/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)) it.time = a.time; else fail(`time must be HH:MM, got "${a.time}".`); }
+  if (a.repeat != null) { const r = parseRepeat(a.repeat, d); if (r) it.repeat = r; else delete it.repeat; }
+  if (a.repeat_from_done != null && it.repeat) { if (a.repeat_from_done) it.repeat.fromDone = true; else delete it.repeat.fromDone; }
+  if (a.remind != null) { const m = Math.round(+a.remind); if (m < 0 || clear(a.remind)) delete it.remind; else it.remind = m; }
+  if (a.deadline != null) { if (clear(a.deadline)) delete it.deadline; else it.deadline = requireDate(a.deadline, "deadline"); }
+  if (a.category != null) { if (clear(a.category) || !String(a.category).trim()) delete it.category; else it.category = nameIn(d, "noteCategories", a.category, "note category"); }
+  if ((it.time || it.repeat || it.remind != null) && !it.date) fail("A time, repeat or reminder needs a date.");
+}
+// One line of what's set on a task.
+function taskLine(it) {
+  const bits = [];
+  if (it.done) bits.push("done");
+  if (it.date) bits.push(it.date + (it.time ? " " + it.time : ""));
+  if (it.priority) bits.push(["", "high", "medium", "low"][it.priority] + " priority");
+  if (it.repeat) bits.push(Tasks.repeatText(it.repeat).toLowerCase());
+  if (it.remind != null && it.date) bits.push("reminder " + Tasks.remindText(it).toLowerCase());
+  if (it.deadline) bits.push("deadline " + it.deadline);
+  if (it.category) bits.push("category " + it.category);
+  if (it.note) bits.push("has a description");
+  return bits.join(", ") || "plain";
+}
 const COLL_ENUM = Object.keys(COLLECTIONS);
 const SEARCH_COLLS = ["entries", "backlog", "notes", "financeEntries", "recurringExpenses", "habits", "accomplishments", "boards"];
 
@@ -1143,7 +1205,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_home",
-    description: "What the Home tab shows: what's in progress, what's coming in the next days (releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, and the Ledger card (this month so far against last month by the same day, top categories, latest expenses).",
+    description: "What the Home tab shows: what's in progress, what's coming in the next days (tasks with a date, overdue ones included, releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, and the Ledger card (this month so far against last month by the same day, top categories, latest expenses).",
     readOnly: true,
     input: { days: S.int("How far ahead Coming up goes, default 14 (as the app)") },
     async run(a) {
@@ -1153,8 +1215,9 @@ const TOOLS = [
       const out = [`Home, ${t}.`];
       const prog = Home.inProgress(d);
       out.push("", `In progress (${prog.length}):`, ...(prog.length ? prog.map((b) => `- ${b.title} [${b.category}] since ${b.startedAt}${+b.progress ? ", " + progressFlag(b) : ""}${b.waypageProgress != null ? ", " + Waypage.progressLabel(b) + " in Waypage" : ""}  (${b.id})`) : ["- nothing"]));
-      const rows = Home.comingUp(d, t, { Backlog, Finance, Habits, days });
-      const say = (r) => r.kind === "charge" ? `${r.title} charges ${money(d, r.amount)}${r.category ? " [" + r.category + "]" : ""}  (${r.id})`
+      const rows = Home.comingUp(d, t, { Backlog, Finance, Habits, Tasks, days });
+      const say = (r) => r.kind === "task" ? `${r.title}${r.time ? " at " + r.time : ""} (task in "${r.list}"${r.day < t ? ", overdue" : ""})  (${r.id})`
+        : r.kind === "charge" ? `${r.title} charges ${money(d, r.amount)}${r.category ? " [" + r.category + "]" : ""}  (${r.id})`
         : r.kind === "habit" ? (r.period === "day" ? `Habits left today: ${r.title}` : `${r.title}: ${r.done} of ${r.target} this ${r.period}`)
           : `${r.title} [${r.category}] ${r.kind === "episode" ? (r.label || "new episode") : "release"}  (${r.id})`;
       out.push("", `Coming up to ${Finance.addDaysStr(t, days)} (${rows.length}):`, ...(rows.length ? rows.map((r) => `- ${r.day} · ${say(r)}`) : ["- nothing dated"]));
@@ -1550,8 +1613,9 @@ const TOOLS = [
             || (items.filter((i) => lower(i.text).includes(r)).length === 1 ? items.find((i) => lower(i.text).includes(r)) : null);
           return hit || fail(`No single item matches "${ref}" in that checklist.`);
         };
-        const now = nowIso();
-        for (const ref of a.check || []) { const i = pick(ref); i.done = true; i.doneAt = i.doneAt || now; }
+        const now = new Date();
+        // As the app ticks: a repeating task moves to its next date, a task's open subtasks tick with it.
+        for (const ref of a.check || []) { const i = pick(ref); if (!i.done) Tasks.tick({ items }, i.id, true, now, today()); }
         for (const ref of a.uncheck || []) { const i = pick(ref); delete i.done; delete i.doneAt; }
         const gone = new Set((a.remove || []).map((ref) => pick(ref).id));
         const kept = items.filter((i) => !gone.has(i.id));
@@ -1560,6 +1624,117 @@ const TOOLS = [
         const open = kept.filter((i) => !i.done).length;
         return { text: `Updated the checklist: ${kept.length} items, ${open} open.`, touched: [["notes", n.id]] };
       });
+    },
+  },
+  {
+    name: "lifelog_add_task",
+    description: "Add a task to a checklist: a checklist's items are tasks, and any of description, priority, date, time, repeat, reminder, deadline, category and a parent task (making it a subtask, one level deep) are optional. A plain one is just an item, as lifelog_update_list adds.",
+    input: {
+      list: S.str("The checklist's id or title"),
+      text: S.str("The task"),
+      ...TASK_FIELDS,
+      parent: S.str("A task in the same list to put this under, by id or text (one level: not a subtask)"),
+    },
+    required: ["list", "text"],
+    async run(a) {
+      const text = String(a.text || "").trim();
+      if (!text) fail("Give the task some words.");
+      return change(`task in "${a.list}"`, (d) => {
+        const n = findItem(d, "notes", a.list);
+        if (n.kind !== "list") fail(`"${cut(n.title || n.text, 40)}" isn't a checklist.`);
+        const items = (n.items || []).map((i) => ({ ...i }));
+        const it = { id: L.uid(), text };
+        applyTaskFields(d, it, a);
+        if (a.parent) {
+          const p = pickTask(items, a.parent);
+          if (p.parent) fail(`"${p.text}" is itself a subtask; subtasks go one level deep.`);
+          it.parent = p.id;
+          const kids = items.filter((i) => i.parent === p.id);
+          items.splice(items.indexOf(kids.length ? kids[kids.length - 1] : p) + 1, 0, it);
+        } else {
+          const lastOpen = items.map((i) => !i.done).lastIndexOf(true);
+          items.splice(lastOpen + 1, 0, it);
+        }
+        const next = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
+        replaceItem(d, "notes", next);
+        const saved = next.items.find((i) => i.id === it.id);
+        return { text: `Added the task "${text}" to "${n.text}"${saved.parent ? " under \"" + items.find((i) => i.id === saved.parent).text + "\"" : ""}: ${taskLine(saved)}  (${saved.id})`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_update_task",
+    description: "Change a task in a checklist: its words, description, priority, date, time, repeat, reminder, deadline or category, tick or untick it (a repeating one moves to its next date instead of finishing), or move it (with its subtasks) to another checklist. Give a field as an empty string (or 0 for priority) to clear it. Fields left out stay as they are.",
+    input: {
+      list: S.str("The checklist it's in, by id or title"),
+      task: S.str("The task, by id or text"),
+      text: S.str("New words"),
+      ...TASK_FIELDS,
+      done: S.bool("Tick (true) or untick (false)"),
+      move_to: S.str("Another checklist (id or title) to move it to, with its subtasks"),
+    },
+    required: ["list", "task"],
+    async run(a) {
+      return change(`task "${a.task}" in "${a.list}"`, (d) => {
+        const n = findItem(d, "notes", a.list);
+        if (n.kind !== "list") fail(`"${cut(n.title || n.text, 40)}" isn't a checklist.`);
+        const items = (n.items || []).map((i) => ({ ...i }));
+        const it = pickTask(items, a.task);
+        const said = [];
+        if (a.text != null && String(a.text).trim()) { it.text = String(a.text).trim(); said.push("renamed"); }
+        applyTaskFields(d, it, a);
+        let next = null;
+        if (a.done != null) {
+          const r = Tasks.tick({ items }, it.id, !!a.done, new Date(), today());
+          said.push(r && r.next ? `ticked, next ${r.next}` : a.done ? "ticked" : "unticked");
+        }
+        const touched = [["notes", n.id]];
+        let where = n.text;
+        if (a.move_to) {
+          const to = findItem(d, "notes", a.move_to);
+          if (to.kind !== "list") fail(`"${cut(to.title || to.text, 40)}" isn't a checklist.`);
+          if (to.id !== n.id) {
+            if (it.parent) fail("A subtask moves with its task; move the task instead.");
+            const moving = items.filter((i) => i.id === it.id || i.parent === it.id);
+            const rest = items.filter((i) => !moving.includes(i));
+            const toItems = (to.items || []).map((i) => ({ ...i }));
+            const lastOpen = toItems.map((i) => !i.done).lastIndexOf(true);
+            toItems.splice(lastOpen + 1, 0, ...moving);
+            replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items: rest, editedAt: nowIso() }));
+            replaceItem(d, "notes", cleanItem(d, "notes", { ...to, items: toItems, editedAt: nowIso() }));
+            touched.push(["notes", to.id]);
+            where = to.text;
+            said.push(`moved to "${to.text}"`);
+            next = d.notes.find((x) => x.id === to.id).items.find((i) => i.id === it.id);
+          }
+        }
+        if (!next) {
+          const clean = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
+          replaceItem(d, "notes", clean);
+          next = clean.items.find((i) => i.id === it.id);
+        }
+        return { text: `Updated "${next.text}" in "${where}"${said.length ? " (" + said.join(", ") + ")" : ""}: ${taskLine(next)}  (${next.id})`, touched };
+      });
+    },
+  },
+  {
+    name: "lifelog_tasks",
+    description: "Open tasks with a date, from every checklist (or one): overdue, today, or up to a day ahead. For \"what's on today\" or \"what's overdue\". Each line says its list, time, priority, repeat and deadline.",
+    readOnly: true,
+    input: {
+      when: S.str("overdue, today (overdue included, the default), week (the next 7 days, overdue included) or all (every dated task)", { enum: ["overdue", "today", "week", "all"] }),
+      list: S.str("Only this checklist (id or title)"),
+    },
+    async run(a) {
+      const d = await readData();
+      const t = today();
+      const when = a.when || "today";
+      const until = when === "overdue" ? Finance.addDaysStr(t, -1) : when === "today" ? t : when === "week" ? Finance.addDaysStr(t, 6) : null;
+      const only = a.list ? findItem(d, "notes", a.list) : null;
+      const rows = Tasks.dueTasks(d, until).filter((r) => !only || r.note.id === only.id);
+      if (!rows.length) return `No open dated tasks ${when === "all" ? "" : when === "overdue" ? "overdue" : "up to " + until}${only ? ` in "${only.text}"` : ""}.`;
+      return [`${rows.length} open ${rows.length === 1 ? "task" : "tasks"} (today is ${t}):`,
+        ...rows.map((r) => `- ${r.day < t ? "OVERDUE " : ""}${taskLine(r.item)} — "${r.item.text}" in "${r.note.text}"${r.category ? " [" + r.category + "]" : ""}  (${r.item.id})`)].join("\n");
     },
   },
   {

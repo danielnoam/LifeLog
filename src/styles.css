@@ -1275,6 +1275,42 @@ select:focus { outline: none; border-color: var(--accent); }
   color: var(--text-faint); font-size: var(--fs-sm); padding: 2px 4px; line-height: 1;
 }
 .todo-del:hover { color: var(--danger); }
+/* Tasks (tasks.js). The tick is a ring that takes the priority's colour;
+   ticked, it fills and shows a check. The words and the line of what's set
+   under them are one button that opens the task. */
+input.todo-check {
+  width: 18px; height: 18px; border: 2px solid var(--text-dim); border-radius: 50%; background: transparent;
+}
+input.todo-check.is-p1 { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+input.todo-check.is-p2 { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 14%, transparent); }
+input.todo-check.is-p3 { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+input.todo-check::before { width: 9px; height: 9px; background: var(--bg); }
+input.todo-check:checked { background: var(--text-dim); border-color: var(--text-dim); }
+input.todo-check:focus-visible { border-radius: 50%; }
+.todo-row.has-meta { align-items: flex-start; }
+.todo-row.is-sub { padding-left: var(--space-32); }
+.todo-body {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2);
+  margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit;
+  text-align: left; cursor: pointer;
+}
+.todo-body .todo-text { cursor: inherit; }
+.todo-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-10);
+  font-size: var(--fs-xs); color: var(--text-dim);
+}
+.todo-meta > span { display: inline-flex; align-items: center; gap: var(--space-4); }
+.todo-meta .ico { width: 13px; height: 13px; }
+.todo-meta .is-late { color: var(--danger); }
+.todo-meta .is-today { color: var(--success); }
+.todo-meta .dot { width: 8px; height: 8px; border-radius: 50%; }
+.todo-row.is-done .todo-meta { color: var(--text-faint); }
+.todo-fold {
+  flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px 4px;
+  color: var(--text-dim); line-height: 1; position: relative;
+}
+.todo-fold .ico { width: 16px; height: 16px; display: block; }
+.todo-fold::after { content: ""; position: absolute; inset: -8px -4px; }
 /* The panel's own category, beside its name in the heading. */
 .month-card .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 /* The finished ones, under a rule at the foot of their own panel rather than
@@ -2228,7 +2264,21 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
 }
 .cal-name .dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
 .cal-name.is-more { color: var(--text-dim); }
-.cal-daycard h3, .cal-undated h3 { margin-bottom: var(--space-6); }
+.cal-daycard h3, .cal-undated h3, .cal-tasks h3 { margin-bottom: var(--space-6); }
+/* Open tasks on a day (0.317.0): on the desktop a line each, with a ring
+   for a dot in the colour of its priority; on a phone, where the cell is a
+   cover, one ring in its corner for the most urgent, with how many. */
+.cal-ring { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; border: 1.5px solid var(--text-dim); }
+.cal-ring.is-p1, .cal-task.is-p1 { border-color: var(--danger); }
+.cal-ring.is-p2, .cal-task.is-p2 { border-color: var(--warning); }
+.cal-ring.is-p3, .cal-task.is-p3 { border-color: var(--accent); }
+.cal-name.is-task { color: var(--text-dim); }
+.cal-task {
+  display: none; position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1;
+  min-width: 14px; height: 14px; padding: 0 var(--space-2); border-radius: var(--r-pill);
+  border: 2px solid var(--text-dim); background: var(--surface-card);
+  font-size: var(--fs-3xs); line-height: 10px; text-align: center; color: var(--text); font-weight: 600;
+}
 .cal-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-dim); }
 @media (hover: hover) { .cal-day:not(.is-out):hover { background: var(--hover-bg); } }
 /* Phones: a cover per day instead of names, and the lists under the grid. */
@@ -2237,6 +2287,7 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
   html:not(.force-pc) .cal-main { padding: var(--space-10); }
   html:not(.force-pc) .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
   html:not(.force-pc) .cal-names { display: none; }
+  html:not(.force-pc) .cal-task { display: block; }
   html:not(.force-pc) .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
   html:not(.force-pc) .cal-day .cal-cover.cover-empty { display: flex; }
   html:not(.force-pc) .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
@@ -2250,6 +2301,7 @@ html.force-mobile .cal-body { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .cal-main { padding: var(--space-10); }
 html.force-mobile .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
 html.force-mobile .cal-names { display: none; }
+html.force-mobile .cal-task { display: block; }
 html.force-mobile .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
 html.force-mobile .cal-day .cal-cover.cover-empty { display: flex; }
 html.force-mobile .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
@@ -4718,16 +4770,16 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .nv-cat:hover, .nv-cat:focus-within { border-color: var(--border-strong); color: var(--text); }
 .nv-cat .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--text-faint); }
-#noteModal .nv-cat select {
+#noteModal .nv-cat select, #taskModal .nv-cat select {
   appearance: none; display: inline; font-size: var(--fs-xs); background-position: calc(100% - 10px) calc(50% + 1px), calc(100% - 6px) calc(50% + 1px); padding-right: 20px !important; -webkit-appearance: none; border: 0; background-color: transparent; color: inherit;
   font: inherit; padding: 0; margin: 0; width: auto; min-width: 0; min-height: 0; cursor: pointer;
 }
-#noteModal .nv-cat select:focus { outline: none; box-shadow: none; }
+#noteModal .nv-cat select:focus, #taskModal .nv-cat select:focus { outline: none; box-shadow: none; }
 /* 44px tall to press on a phone, without moving the text under it, and the
    whole chip, dot included, opens the picker. The reach is the select's own
    padding: a box laid over it would take the tap,
    and tapping a label only focuses its select, it doesn't open it. */
-#noteModal .nv-cat select {
+#noteModal .nv-cat select, #taskModal .nv-cat select {
   --nv-cat-lead: calc(var(--space-8) + 8px + var(--space-6));
   position: relative; padding: 14px 24px 14px var(--nv-cat-lead) !important;
   margin: -14px calc(-1 * var(--space-4)) -14px calc(-1 * var(--nv-cat-lead));
@@ -4925,6 +4977,17 @@ html.home-dragging .home.can-arrange .home-sec:not(.is-pushed):hover::before { c
 .home-row-sub { display: flex; align-items: center; gap: var(--space-6); font-size: var(--fs-xs); color: var(--text-dim); min-width: 0; }
 .home-row-end { font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .home-row-end.is-money { color: var(--text); font-weight: 600; }
+.home-row-end.is-late { color: var(--danger); }
+/* A task: its tick in the icon's place, the rest a button that opens it. */
+.home-row.is-task { cursor: default; padding: 0 0 0 var(--space-14); gap: 0; }
+.home-row-tick { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; }
+.home-row-tick input.todo-check { position: relative; }
+.home-row-tick input.todo-check::after { content: ""; position: absolute; inset: -13px -10px; }
+.home-row-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-10); min-height: 48px;
+  padding: var(--space-6) var(--space-14) var(--space-6) var(--space-10); border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+@media (hover: hover) { .home-row.is-task:hover { background: var(--hover-bg); } }
 
 .home-pad {
   display: block; width: 100%; min-height: 240px; resize: none; overflow: hidden; border: 0; outline: none; background: transparent;
@@ -5212,3 +5275,120 @@ html.force-mobile #rangeFilter { flex-wrap: nowrap; gap: 6px; overflow-x: auto; 
 
 /* Settings → Connections → Waypage reading: a review row's three answers. */
 .wp-review-btns { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+
+/* ---------- a task (tasks.js) ----------
+   The note sheet's frame, smaller on a computer: the title with its tick,
+   a description, rows for category, date and priority, then subtasks. */
+@media (min-width: 721px) {
+  html:not(.force-mobile) .nv-overlay > .modal.nv.task-sheet { width: 600px; height: auto; max-height: min(86vh, 860px); }
+}
+.task-head { display: flex; align-items: flex-start; gap: var(--space-12); }
+.task-head .todo-check { width: 24px; height: 24px; margin-top: var(--space-4); position: relative; }
+.task-head .todo-check::after { content: ""; position: absolute; inset: -10px; }
+.task-head input.todo-check { width: 24px; height: 24px; }
+.task-head input.todo-check::before { width: 12px; height: 12px; }
+#taskModal .task-title { flex: 1; min-width: 0; margin: 0; resize: none; overflow: hidden; }
+#taskModal .task-title:focus { outline: none; box-shadow: none; }
+#taskModal .task-note {
+  display: block; width: 100%; box-sizing: border-box; margin: var(--space-8) 0 var(--space-16); padding: 0 0 0 calc(24px + var(--space-12));
+  border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-read); line-height: 1.5;
+  resize: none; overflow: hidden; min-height: 0;
+}
+#taskModal .task-note:focus { outline: none; box-shadow: none; color: var(--text); }
+#taskModal .task-note::placeholder { color: var(--text-dim); }
+.task-fields, .task-date-opts {
+  border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); overflow: visible;
+}
+.modal label.task-field, .task-field {
+  display: flex; align-items: center; gap: var(--space-12); width: 100%; box-sizing: border-box; margin: 0;
+  min-height: 48px; padding: 0 var(--space-14); background: none; color: var(--text);
+  font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer;
+}
+.task-field + .task-field, .task-field + .task-repeat-custom, .task-repeat-custom + .task-field,
+.task-from-done + .task-field, .task-repeat-custom + .task-from-done, .task-field + .task-from-done { border-top: 1px solid var(--border); }
+button.task-field { border: 0; }
+.task-field > .ico { width: 18px; height: 18px; color: var(--text-dim); }
+.task-field-label { flex: 1; }
+.task-field .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.task-field .dot[hidden] { display: none; }
+.task-field-value { color: var(--text-dim); font-size: var(--fs-sm); text-align: right; }
+.task-field-value.is-today { color: var(--success); }
+.task-field-value.is-late { color: var(--danger); }
+.modal label.task-field select, .modal label.task-field input:not([type=checkbox]), .task-field select, .task-field input {
+  display: block; width: auto; min-width: 0; max-width: 60%; margin: 0; padding: var(--space-6) var(--space-4);
+  border: 0; background-color: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-sm); text-align: right;
+}
+.task-field select { text-align-last: right; padding-right: 20px; }
+.task-field select:focus, .task-field input:focus { outline: none; box-shadow: none; color: var(--text); }
+.task-field:focus-within, .task-field:hover { background: var(--accent-soft); }
+.task-field:first-child { border-radius: var(--r-card) var(--r-card) 0 0; }
+.task-field:last-child { border-radius: 0 0 var(--r-card) var(--r-card); }
+.task-field input:disabled, .task-field select:disabled { opacity: .45; }
+.task-subs-wrap { margin-top: var(--space-20); }
+.task-subs-wrap[hidden] { display: none; }
+.task-subs-head { margin: 0 0 var(--space-8); font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); }
+.task-subs { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); }
+.task-subs[hidden] { display: none; }
+.task-subs .todo-row { padding: var(--space-8) var(--space-10) var(--space-8) 0; font-size: var(--fs-md); }
+.task-subs .note-list-grip { align-self: stretch; }
+.task-sub-new { margin-top: var(--space-8); }
+.task-sub-new input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-md); padding: var(--space-10) var(--space-6); }
+.task-sub-new input:focus { outline: none; box-shadow: none; }
+
+/* The Date sheet: what's set, quick picks, the month, then the rest. */
+.modal.task-date { width: 380px; padding: var(--space-14) 0 var(--space-12); }
+.task-date-now {
+  display: flex; align-items: center; gap: var(--space-8); margin: 0 var(--space-14) var(--space-6); padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg); font-size: var(--fs-md);
+}
+.task-date-now .ico { width: 16px; height: 16px; color: var(--text-dim); }
+.task-date-now.is-today .ico { color: var(--success); }
+.task-quick { display: flex; flex-direction: column; padding: 0 var(--space-6); }
+.task-quick-btn {
+  display: flex; align-items: center; gap: var(--space-12); min-height: 44px; padding: 0 var(--space-10);
+  border: 0; border-radius: var(--r-md); background: none; color: var(--text); font: inherit; font-size: var(--fs-md); cursor: pointer; text-align: left;
+}
+.task-quick-btn:hover, .task-quick-btn.on { background: var(--accent-soft); }
+.task-quick-btn .ico { width: 18px; height: 18px; }
+.task-quick-btn.is-today .ico { color: var(--success); }
+.task-quick-btn.is-tomorrow .ico { color: var(--warning); }
+.task-quick-btn.is-next .ico { color: var(--accent); }
+.task-quick-btn.is-none .ico { color: var(--text-dim); }
+.task-quick-label { flex: 1; }
+.task-quick-day { color: var(--text-dim); font-size: var(--fs-sm); }
+.task-cal { padding: var(--space-6) var(--space-14) var(--space-4); border-top: 1px solid var(--border); margin-top: var(--space-6); }
+.task-cal-head { display: flex; align-items: center; gap: var(--space-4); font-size: var(--fs-sm); font-weight: 600; }
+.task-cal-head .spacer { flex: 1; }
+.task-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: var(--space-2); text-align: center; }
+.task-cal-wd { font-size: var(--fs-2xs); color: var(--text-dim); padding: var(--space-4) 0; }
+.task-cal-day {
+  position: relative; width: 36px; height: 36px; margin: auto; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.task-cal-day:hover { background: var(--accent-soft); }
+.task-cal-day.is-past { color: var(--text-dim); }
+.task-cal-day.is-today { color: var(--success); font-weight: 700; }
+.task-cal-day.is-deadline { box-shadow: inset 0 0 0 1.5px var(--danger); }
+.task-cal-day.on { background: var(--accent-fill); color: var(--text-on-fill); font-weight: 700; }
+.task-cal-day.has-tasks::after {
+  content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: currentColor; opacity: .7;
+}
+.task-date-opts { margin: var(--space-8) var(--space-14) 0; }
+.task-repeat-custom { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-14); font-size: var(--fs-sm); color: var(--text-dim); }
+.task-repeat-custom[hidden] { display: none; }
+.task-repeat-custom label { display: flex; align-items: center; gap: var(--space-8); margin: 0; }
+.task-repeat-custom input { width: 72px; }
+.task-repeat-custom select { width: auto; }
+.task-from-done { padding: var(--space-10) var(--space-14); margin: 0; font-size: var(--fs-sm); }
+.task-from-done[hidden] { display: none; }
+.modal.task-date .modal-actions { padding: var(--space-12) var(--space-14) 0; }
+@media (max-width: 720px) {
+  .modal.task-date { width: 100%; }
+  .task-field select, .task-field input, .task-sub-new input, .task-repeat-custom input { font-size: var(--fs-lg); }
+  #taskModal .task-note { font-size: var(--fs-lg); }
+}
+html.force-mobile .modal.task-date { width: 100%; }
+html.force-mobile .task-field select, html.force-mobile .task-field input, html.force-mobile .task-sub-new input,
+html.force-mobile .task-repeat-custom input { font-size: var(--fs-lg); }
+html.force-mobile #taskModal .task-note { font-size: var(--fs-lg); }

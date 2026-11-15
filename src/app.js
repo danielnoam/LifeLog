@@ -6,6 +6,7 @@
   const Backlog = window.LifeLogBacklog;
   const Journal = window.LifeLogJournal;
   const Notes = window.LifeLogNotes;
+  const Tasks = window.LifeLogTasks || { init() {}, wire() {}, handleEscape: () => false, closeAll() {}, closeDate() {} };
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
@@ -174,7 +175,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.316.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.317.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3593,7 +3594,7 @@
   // number at once, like the rows around it (0.214.0), and none is all; its
   // label selects every one or none. Boards on its own is the Boards page,
   // with New board; beside another kind they're cards in the feed, as in All.
-  const NOTE_KIND_CHIPS = [["text", "Notes", "notebook-text"], ["list", "Checklists", "list-checks"], ["quote", "Quotes", "quote"], ["board", "Boards", "presentation"]];
+  const NOTE_KIND_CHIPS = [["text", "Notes", "notebook-text"], ["list", "Task lists", "list-checks"], ["quote", "Quotes", "quote"], ["board", "Boards", "presentation"]];
   const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || !!window.LifeLogBoards);
   function toggleAllKinds() {
     const all = noteKindChips().map(([k]) => k);
@@ -4979,6 +4980,7 @@
 
     Journal.wire(); // timeline entry modal, achievements, category management
     Notes.wire(); // the note modal (Timeline's Notes mode + the + menu)
+    Tasks.wire(); // the task sheet and its Date sheet
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Invest.wire(); // the Ledger watchlist's ticker and pin sheets
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
@@ -5050,6 +5052,8 @@
         else if (ov.id === "boardEditor") return; // it is the whole screen; nothing outside it to tap
         else if (ov.id === "pickModal") Backlog.closePickModal(); // stops a spin or shuffle in flight
         else if (ov.id === "noteModal") Notes.leaveNoteModal(); // keeps what was written
+        else if (ov.id === "taskModal") Tasks.closeAll(); // keeps what was written
+        else if (ov.id === "taskDateModal") Tasks.closeDate();
         else ov.hidden = true;
       });
     });
@@ -5135,6 +5139,9 @@
       if (e.key === "Tab" && trapTabInSheet(e)) return;
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
+        // A task's sheets step back one at a time: the Date sheet, then a
+        // subtask back to its task, then out.
+        if (Tasks.handleEscape()) return;
         // Stops the search: clears it and lets go of the box, so the next
         // F or number key is a shortcut again rather than a letter typed.
         const inSearch = document.activeElement === $("#search");
@@ -5399,6 +5406,12 @@
     }
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
     else if (action === "open-finance" && viewEnabled("finance")) goTo("finance", "entries");
+    // A task's reminder: the task itself, over its list.
+    else if (action.startsWith("open-task:") && modeEnabled("notes", "notes")) {
+      const [noteId, itemId] = action.slice("open-task:".length).split(":");
+      goTo("notes", "notes");
+      Tasks.openTask(noteId, itemId);
+    }
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
     // A release-day heads-up (0.272.0): Upcoming, where Out today leads.
     else if (action === "open-upcoming" && modeEnabled("backlog", "upcoming")) goTo("backlog", "upcoming");
@@ -6372,6 +6385,7 @@
     openEntryModal: Journal.openEntryModal,
     backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS, CATEGORY_PALETTE, sortSelect, attachSwipe,
   });
+  Tasks.init({ state, $, el, uid, toast, persist, render, modeEnabled });
 
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,

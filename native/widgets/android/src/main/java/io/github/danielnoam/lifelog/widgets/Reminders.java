@@ -42,11 +42,15 @@ final class Reminders {
     static final String CHANNEL_RELEASES = "release_days";
     static final String CHANNEL_PRICES = "price_drops";
     static final String CHANNEL_TARGETS = "invest_targets";
+    static final String CHANNEL_TASKS = "task_reminders";
     static final String ACTION_FIRE = "io.github.danielnoam.lifelog.widgets.REMIND";
     static final String ACTION_DONE = "io.github.danielnoam.lifelog.widgets.REMIND_DONE";
+    static final String ACTION_TASK_DONE = "io.github.danielnoam.lifelog.widgets.TASK_DONE";
+    static final String EXTRA_ALERT = "alert";
+    static final String EXTRA_DUE = "due";
     private static final String KEY_LAST = "remind_checked_until";
     private static final String TAG = "habit";
-    private static final String TAG_ALERT = "alert";
+    static final String TAG_ALERT = "alert";
 
     private Reminders() {}
 
@@ -167,6 +171,11 @@ final class Reminders {
             ch.setDescription("A ticker on your watchlist closing at or under its target");
             nm.createNotificationChannel(ch);
         }
+        if (nm.getNotificationChannel(CHANNEL_TASKS) == null) {
+            NotificationChannel ch = new NotificationChannel(CHANNEL_TASKS, "Task reminders", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription("A task with Remind me set in its date");
+            nm.createNotificationChannel(ch);
+        }
     }
 
     private static void notifyAlert(Context c, JSONObject a) {
@@ -175,7 +184,7 @@ final class Reminders {
         ensureAlertChannels(nm);
         String id = WidgetStore.str(a, "id");
         String kind = WidgetStore.str(a, "kind");
-        String channel = "release".equals(kind) ? CHANNEL_RELEASES : "price".equals(kind) ? CHANNEL_PRICES : "target".equals(kind) ? CHANNEL_TARGETS : CHANNEL_CHARGES;
+        String channel = "release".equals(kind) ? CHANNEL_RELEASES : "price".equals(kind) ? CHANNEL_PRICES : "target".equals(kind) ? CHANNEL_TARGETS : "task".equals(kind) ? CHANNEL_TASKS : CHANNEL_CHARGES;
         String action = WidgetStore.str(a, "action");
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(c, channel)
@@ -187,6 +196,20 @@ final class Reminders {
             .setAutoCancel(true)
             .setContentIntent(WidgetStore.openAppOn(c, action.isEmpty() ? "open-finance" : action, 960,
                 android.net.Uri.parse("lifelog-alert:" + id)));
+        // A task's reminder (0.317.0) can be ticked from here: "open-task:<note>:<item>",
+        // and its id ends in the date it was due, so a Done pressed after the
+        // task has moved on to its next round ticks nothing.
+        String[] task = "task".equals(kind) && action.startsWith("open-task:") ? action.split(":", 3) : null;
+        if (task != null && task.length == 3) {
+            Intent done = new Intent(c, ReminderReceiver.class);
+            done.setAction(ACTION_TASK_DONE);
+            done.setData(android.net.Uri.parse("lifelog-task-done:" + id));
+            done.putExtra(ListWidget.EXTRA_ID, task[2]);
+            done.putExtra(EXTRA_ALERT, id);
+            done.putExtra(EXTRA_DUE, id.length() >= 10 ? id.substring(id.length() - 10) : "");
+            PendingIntent donePi = PendingIntent.getBroadcast(c, idOf(id), done, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            b.addAction(new Notification.Action.Builder(Icon.createWithResource(c, R.drawable.widget_notify), "Done", donePi).build());
+        }
         nm.notify(TAG_ALERT, idOf(id), b.build());
     }
 

@@ -698,4 +698,27 @@ public class WidgetLogicTest {
         assertEquals("35 min left", WidgetStore.leftText(r));
         assertEquals(40, WidgetStore.nextValue(r));
     }
+
+    @Test
+    public void aTaskDayIsWordedByThePhonesClock() {
+        assertEquals("Overdue", WidgetStore.taskWhen("2026-09-20", "18:00", "20 Sep", D));
+        assertEquals("Yesterday", WidgetStore.taskWhen("2026-09-23", "", "", D));
+        assertEquals("Today 18:00", WidgetStore.taskWhen(D, "18:00", "", D));
+        assertEquals("Tomorrow", WidgetStore.taskWhen("2026-09-25", "", "", D));
+        assertEquals("9 Oct 09:00", WidgetStore.taskWhen("2026-10-09", "09:00", "9 Oct", D));
+        assertEquals("", WidgetStore.taskWhen("", "09:00", "", D));
+    }
+
+    @Test
+    public void aTaskRowCarriesItsDayAndOverdueOnesAreCounted() throws Exception {
+        JSONObject snap = json("{\"todos\":[{\"id\":\"a\",\"text\":\"Book\",\"category\":\"Trip\",\"list\":\"L\",\"date\":\"2026-09-20\",\"priority\":1,\"meta\":\"repeats\"},"
+            + "{\"id\":\"b\",\"text\":\"Plain\",\"category\":\"Trip\",\"list\":\"L\"}]}");
+        List<WidgetStore.Row> rows = WidgetStore.todoRows(snap, NONE);
+        WidgetStore.Row a = null;
+        for (WidgetStore.Row r : rows) if ("a".equals(r.id)) a = r;
+        assertEquals("2026-09-20", a.date);
+        assertEquals(1, a.priority);
+        assertEquals("repeats", a.meta);
+        assertEquals(1, WidgetStore.overdueCount(rows, D));
+    }
 }

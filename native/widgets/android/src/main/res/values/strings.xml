@@ -2,10 +2,10 @@
 <resources>
     <string name="widget_habits_label">LifeLog habits</string>
     <string name="widget_habits_description">Today\'s habits, ticked without opening the app</string>
-    <string name="widget_todos_label">LifeLog checklist</string>
-    <string name="widget_todos_description">Your checklists, or the ones you choose, ticked without opening the app</string>
+    <string name="widget_todos_label">LifeLog tasks</string>
+    <string name="widget_todos_description">Your task lists, or the ones you choose, ticked without opening the app</string>
     <string name="widget_quickadd_label">LifeLog quick add</string>
-    <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a checklist item</string>
+    <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a task</string>
     <string name="widget_spend_label">LifeLog spending</string>
     <string name="widget_spend_description">What this month has cost so far, and where it went</string>
     <string name="widget_invest_label">LifeLog investments</string>
@@ -15,7 +15,7 @@
     <string name="widget_randomnote_label">LifeLog random note</string>
     <string name="widget_randomnote_description">A different note every hour, every day or on a tap</string>
     <string name="widget_upcoming_label">LifeLog upcoming</string>
-    <string name="widget_upcoming_description">What in your Backlog is out next, counted down</string>
+    <string name="widget_upcoming_description">What in your Backlog is out next, counted down, and your dated tasks</string>
     <string name="widget_inprogress_label">LifeLog in progress</string>
     <string name="widget_inprogress_description">What you have going in your Backlog, and since when</string>
     <string name="widget_next_note">Another note</string>
@@ -24,6 +24,6 @@
     <string name="widget_add_expense">Expense</string>
     <string name="widget_add_backlog">Backlog</string>
     <string name="widget_add_note">Note</string>
-    <string name="widget_add_todo">Checklist</string>
+    <string name="widget_add_todo">Task</string>
     <string name="payments_listener_label">LifeLog: Google Wallet payments</string>
 </resources>

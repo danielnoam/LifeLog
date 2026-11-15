@@ -663,7 +663,7 @@
     count("achievement", "achievement", "achievements");
     count("backlog", "backlog item", "backlog items");
     count("note", "note", "notes");
-    count("todo", "checklist item", "checklist items");
+    count("todo", "task", "tasks");
     count("habit", "habit", "habits");
     count("board", "board", "boards");
     count("finance", "finance entry", "finance entries");
@@ -783,8 +783,22 @@
     const note = { createdAt: isNaN(when) ? null : when.toISOString() };
     if (meta.category) note.category = meta.category;
     if (filled.length && filled.every((l) => MD_TASK.test(l))) {
-      return { ...note, kind: "list", text: title,
-        items: filled.map((l) => { const m = MD_TASK.exec(l); return m[1] === " " ? { text: m[2].trim() } : { text: m[2].trim(), done: true }; }) };
+      // An indented task is a subtask of the last unindented one above it
+      // (0.317.0); deeper levels fold into that one too, since subtasks go
+      // one level deep. Ids only when there's a parent to point at.
+      const indent = (l) => /^\s*/.exec(l)[0].replace(/\t/g, "    ").length;
+      const nested = filled.some((l) => indent(l) > indent(filled[0]));
+      let top = null, n = 0;
+      const items = filled.map((l) => {
+        const m = MD_TASK.exec(l);
+        const it = nested ? { id: uid ? uid() : "md" + (n++) } : {};
+        it.text = m[2].trim();
+        if (m[1] !== " ") it.done = true;
+        if (top && indent(l) > indent(top.line)) it.parent = top.it.id;
+        else top = { line: l, it };
+        return it;
+      });
+      return { ...note, kind: "list", text: title, items };
     }
     if (filled.length && filled.every((l) => /^\s*>/.test(l))) {
       const quoted = filled.map((l) => l.replace(/^\s*>\s?/, ""));
@@ -1265,7 +1279,7 @@
       }
       if (e.category) row.appendChild(el("span", "ecat", e.category));
       // A plain note says nothing by being one; a list or a quote does.
-      const tag = item.kind === "note" ? e.kind : { todo: "checklist item", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
+      const tag = item.kind === "note" ? e.kind : { todo: "task", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
       if (tag) row.appendChild(el("span", "dup-tag", tag));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));
@@ -1528,7 +1542,7 @@
   };
   let pickerKeysWired = false, pickerKeyHandler = null;
 
-  const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["checklist item", "checklist items"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
+  const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["task", "tasks"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
   const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
   function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold, previewImage }) {
     const sorted = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));

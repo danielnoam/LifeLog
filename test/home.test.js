@@ -3,7 +3,7 @@
 // the bridge loads them.
 const assert = require("assert");
 const { load } = require("../bridge/load.js");
-const { Backlog, Finance, Habits, Home } = load();
+const { Backlog, Finance, Habits, Home, Tasks } = load();
 
 let passed = 0;
 function test(name, fn) {
@@ -95,6 +95,18 @@ test("habits still to do today are one row; a weekly goal short of its target is
   assert.strictEqual(daily.count, 2);
   const gym = rows.find((r) => r.title === "Gym");
   assert.ok(gym && gym.period === "week" && gym.target === 3 && gym.done === 0, JSON.stringify(rows));
+});
+
+test("tasks with a date come up, overdue ones first, done and undated ones not", () => {
+  const data = { backlog: [], recurringExpenses: [], habits: [], notes: [{ id: "L", kind: "list", text: "Trip", category: "Travel", items: [
+    { id: "a", text: "Late", date: at(-2) }, { id: "b", text: "Today later", date: today, time: "18:00" }, { id: "c", text: "Today early", date: today, time: "08:00" },
+    { id: "d", text: "Done", date: today, done: true }, { id: "e", text: "Undated" }, { id: "f", text: "Far", date: at(30) }] }] };
+  const rows = Home.comingUp(data, today, { ...deps, Tasks });
+  assert.deepStrictEqual(rows.map((r) => [r.kind, r.title, r.list, r.category]), [
+    ["task", "Late", "Trip", "Travel"], ["task", "Today early", "Trip", "Travel"], ["task", "Today later", "Trip", "Travel"]]);
+  assert.strictEqual(Home.bucketOf(at(-2), today), "Overdue");
+  // Without Tasks (an older caller) nothing changes.
+  assert.strictEqual(Home.comingUp(data, today, deps).length, 0);
 });
 
 test("days fall under Today, Tomorrow, This week and Later", () => {

@@ -1121,6 +1121,7 @@
       $("#notifyCharges").checked = A.kindOn("charges");
       $("#notifyPrices").checked = A.kindOn("prices");
       $("#notifyTargets").checked = A.kindOn("targets");
+      $("#notifyTasks").checked = A.kindOn("tasks");
     }
     // The computer app: no Android channels to point at, and Start at
     // login in their place.
@@ -2095,6 +2096,7 @@
     $("#notifyCharges").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("charges", $("#notifyCharges").checked); updateStatuses(); };
     $("#notifyPrices").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("prices", $("#notifyPrices").checked); updateStatuses(); };
     $("#notifyTargets").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("targets", $("#notifyTargets").checked); updateStatuses(); };
+    $("#notifyTasks").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("tasks", $("#notifyTasks").checked); updateStatuses(); };
     $("#backgroundRefresh").onchange = () => { window.LifeLogWidgets && window.LifeLogWidgets.setBackgroundMinutes($("#backgroundRefresh").value); updateStatuses(); };
     $("#startAtLogin").onchange = async () => {
       const box = $("#startAtLogin");

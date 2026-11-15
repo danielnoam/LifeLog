@@ -3,6 +3,27 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.317.0] - 2026-11-15
+
+### Added
+- Privacy and Terms pages on the web app (privacy.html, terms.html), for Google's sign-in screen. The privacy page says what Google Drive backups can see (only the files LifeLog makes) and where your data is kept.
+- Checklist items are now tasks. A plain one works as before; tap a task's words to open it and give it a description, its own category, a priority (the tick's ring turns red, amber or blue) and a date. Under the words, one quiet line shows what's set.
+- The Date button: Today, Tomorrow, Next week or a day on the month (dots mark days that already have tasks), then an optional time, a repeat (every day, weekday, week, month, year or every N, counted from the date or from when you tick it), a reminder and a deadline. Ticking a repeating task moves it to its next date, with Undo.
+- Subtasks, one level deep: add them in a task's sheet, open them the same way, drag them by the handle. The chevron on the card folds them away. Ticking a task ticks its open subtasks.
+- Tasks with a date show on Home's Coming up, with an Overdue group on top; tick them right there.
+- Task reminders on Android and in the Windows app, with their own switch in Settings → Notifications and their own Android notification channel. A reminder opens its task.
+- The Tasks widget: each task has a second line with its day (red when overdue, green for today, worded by the phone's own clock), whether it repeats and how many subtasks are done; its tick takes the priority's colour, and the header counts what's overdue. Subtasks stay off its rows, and a repeating task ticked there moves on.
+- The Upcoming widget also lists your dated tasks for the next two weeks, overdue ones first, among the releases.
+- The Timeline's calendar shows open tasks on their day: by name on a computer, a ring in the corner on a phone, and the picked day's tasks under its entries, to tick or open.
+- Log as entry, in a task's ⋯: the Add entry sheet opens with the task's words, description and (when the Timeline has one by that name) category. The task itself stays as it is.
+- On Android, a task's reminder has a Done button: it ticks the task without opening the app (a repeating one moves to its next date).
+- Importing Markdown files: indented `- [ ]` lines come in as subtasks of the task above them.
+- Bridge: lifelog_add_task, lifelog_update_task and lifelog_tasks (what's overdue, today or this week); lifelog_home lists tasks in Coming up, and lifelog_update_list ticks a repeating task the app's way.
+
+### Changed
+- Checklists are called task lists now: the + menu's Task list, the Task lists filter, the Tasks widget, and "tasks" in imports, recaps and sync messages.
+- A task list's tick is a round one now. Deleting a task with subtasks or a description offers Undo. Copy text indents subtasks and puts dates in brackets, and search finds task descriptions.
+
 ## [0.316.1] - 2026-11-15
 
 ### Added

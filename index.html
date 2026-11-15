@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.316.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.317.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -132,7 +132,7 @@
       <div class="add-group" data-view="notes">
         <p class="add-head" aria-hidden="true"></p>
         <button type="button" data-add="note" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="notebook-text"></span>Note</button>
-        <button type="button" data-add="list" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="list-checks"></span>Checklist</button>
+        <button type="button" data-add="list" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="list-checks"></span>Task list</button>
         <button type="button" data-add="quote" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="quote"></span>Quote</button>
         <button type="button" data-add="board" data-view="notes" data-mode="notes"><span class="add-ico" aria-hidden="true" data-ico="presentation"></span>Board</button>
         <button type="button" data-add="habit" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="square-check-big"></span>Habit</button>
@@ -415,6 +415,116 @@
       </div>
       <div class="nv-foot">
         <p class="added-line nv-stamp" id="noteReaderMeta"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- A task: a checklist's item with its description, category, date
+       and priority, and its subtasks (src/tasks.js). Closing keeps what
+       was written, as a note's sheet does. -->
+  <div class="modal-overlay nv-overlay" id="taskModal" hidden>
+    <div class="modal nv task-sheet" role="dialog" aria-modal="true" aria-labelledby="taskHeading">
+      <div class="nv-bar">
+        <button type="button" class="btn btn-icon" id="taskCloseBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
+        <label class="nv-cat task-list-chip" id="taskListChip" title="List"><span class="dot"></span><span class="sr-only">List</span>
+          <select id="taskList"></select>
+        </label>
+        <p class="nv-cat nv-cat-static task-crumb" id="taskCrumb" hidden><span class="dot"></span><span id="taskCrumbText"></span></p>
+        <h2 id="taskHeading" class="sr-only">Task</h2>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-icon" id="taskMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
+        <div class="nv-menu nv-menu-end" id="taskMoreMenu" role="menu" hidden>
+          <button type="button" role="menuitem" id="taskLogBtn"><span data-ico="notebook-pen"></span> Log as entry</button>
+          <button type="button" role="menuitem" id="taskCopyBtn"><span data-ico="copy"></span> Copy text</button>
+          <button type="button" role="menuitem" class="nv-menu-danger" id="taskDeleteBtn"><span data-ico="trash"></span> Delete task</button>
+        </div>
+      </div>
+      <div class="nv-scroll">
+        <div class="nv-col">
+          <div class="task-head">
+            <input type="checkbox" class="todo-check" id="taskTick" />
+            <textarea id="taskText" class="nv-title task-title" rows="1" autocomplete="off" aria-label="Task" placeholder="Task"></textarea>
+          </div>
+          <textarea id="taskNote" class="task-note" rows="1" autocomplete="off" aria-label="Description" placeholder="Add a description"></textarea>
+          <div class="task-fields">
+            <label class="task-field"><span data-ico="layers"></span><span class="task-field-label">Category</span>
+              <span class="dot" id="taskCatDot"></span><select id="taskCategory"></select>
+            </label>
+            <button type="button" class="task-field" id="taskDateBtn"><span data-ico="calendar"></span><span class="task-field-label">Date</span>
+              <span class="task-field-value" id="taskDateValue"></span>
+            </button>
+            <label class="task-field"><span data-ico="flag"></span><span class="task-field-label">Priority</span>
+              <select id="taskPriority">
+                <option value="">None</option>
+                <option value="1">High</option>
+                <option value="2">Medium</option>
+                <option value="3">Low</option>
+              </select>
+            </label>
+          </div>
+          <div class="task-subs-wrap" id="taskSubs">
+            <p class="task-subs-head" id="taskSubsHead">Subtasks</p>
+            <div class="task-subs" id="taskSubList"></div>
+            <div class="note-list-new task-sub-new"><span aria-hidden="true">+</span><input id="taskNewSub" type="text" autocomplete="off" placeholder="Add a subtask" aria-label="New subtask" /></div>
+            <p class="nv-hint" id="taskSubHint" hidden>Drag the handle to move a subtask</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A task's Date button: the day, its time, repeat, reminder and
+       deadline in one sheet (src/tasks.js). -->
+  <div class="modal-overlay" id="taskDateModal" hidden>
+    <div class="modal task-date" role="dialog" aria-modal="true" aria-labelledby="taskDateHeading">
+      <h2 id="taskDateHeading" class="sr-only">Date</h2>
+      <p class="task-date-now" id="taskDateNow"></p>
+      <div class="task-quick" id="taskQuick"></div>
+      <div class="task-cal">
+        <div class="task-cal-head">
+          <span id="taskCalMonth"></span>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-icon" id="taskCalPrev" aria-label="Previous month"><span data-ico="chevron-left"></span></button>
+          <button type="button" class="btn btn-icon" id="taskCalNext" aria-label="Next month"><span data-ico="chevron-right"></span></button>
+        </div>
+        <div class="task-cal-grid" id="taskCalGrid" role="grid" aria-labelledby="taskCalMonth"></div>
+      </div>
+      <div class="task-date-opts">
+        <label class="task-field"><span data-ico="clock"></span><span class="task-field-label">Time</span>
+          <input type="time" id="taskTime" />
+        </label>
+        <label class="task-field"><span data-ico="repeat"></span><span class="task-field-label">Repeat</span>
+          <select id="taskRepeat">
+            <option value="">Never</option>
+            <option value="day">Every day</option>
+            <option value="weekday">Every weekday</option>
+            <option value="week">Every week</option>
+            <option value="month">Every month</option>
+            <option value="year">Every year</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </label>
+        <div class="task-repeat-custom" id="taskRepeatCustom" hidden>
+          <label>Every <input type="number" id="taskRepeatEvery" min="1" max="999" step="1" inputmode="numeric" /></label>
+          <select id="taskRepeatUnit" aria-label="Unit">
+            <option value="day">days</option>
+            <option value="week">weeks</option>
+            <option value="month">months</option>
+            <option value="year">years</option>
+          </select>
+        </div>
+        <label class="toggle-label task-from-done" id="taskFromDoneLabel" hidden><input type="checkbox" id="taskFromDone" /> Count from when I tick it</label>
+        <label class="task-field"><span data-ico="bell"></span><span class="task-field-label">Remind me</span>
+          <select id="taskRemind"></select>
+        </label>
+        <label class="task-field"><span data-ico="hourglass"></span><span class="task-field-label">Deadline</span>
+          <input type="date" id="taskDeadline" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="taskDateClear">Clear</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary" id="taskDateDone">Done</button>
       </div>
     </div>
   </div>
@@ -1494,7 +1604,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download notes checklist to-do habits timeline achievements backlog ledger finance projects markdown md pdf epub book document">
+      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download notes checklist tasks to-do habits timeline achievements backlog ledger finance projects markdown md pdf epub book document">
       <h2 class="settings-page-title">Import &amp; export</h2>
       <p class="hint page-lede">Importing adds to what you have, never replaces it, and lets you pick what comes in first. Anything you already have is skipped. JSON keeps everything; CSV is for spreadsheets and keeps what fits in a row, so an entry's cover, rating and notes stay behind. A tab's import takes its own part of any LifeLog file, a full backup included.</p>
       <section class="sgroup">
@@ -1521,7 +1631,7 @@
         <h3 class="sgroup-label">Notebook</h3>
         <div class="sgroup-card">
           <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Notes, checklists and habits with their history</span></span>
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Notes, task lists and habits with their history</span></span>
             <span class="sitem-btns"><button class="btn btn-small" data-io="export-json" data-tab="notes">JSON</button><button class="btn btn-small" data-io="export-csv" data-tab="notes">CSV</button></span>
           </div>
           <div class="sitem">
@@ -2356,6 +2466,10 @@
             <span class="sitem-text"><span class="sitem-title">Investment targets</span><span class="sitem-sub">A ticker on your watchlist closing at or under its target</span></span>
             <input type="checkbox" class="switch" id="notifyTargets" />
           </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Task reminders</span><span class="sitem-sub">A task with Remind me set in its Date</span></span>
+            <input type="checkbox" class="switch" id="notifyTasks" />
+          </label>
           <button id="openNotifSettingsBtn" type="button" class="sitem sitem-go"><span data-ico="bell"></span> Android's notification settings for LifeLog</button>
           <button id="testNotifBtn" type="button" class="sitem sitem-go" hidden><span data-ico="bell"></span> Send a test notification</button>
         </div>
@@ -2540,7 +2654,7 @@
             </select>
           </label>
         </div>
-        <p class="hint">This device only. Checklists always open ready to edit.</p>
+        <p class="hint">This device only. Task lists always open ready to edit.</p>
       </section>
 
       <section class="sgroup" data-for="habits">
@@ -2844,57 +2958,58 @@
     </div>
   </div>
 
-  <script defer src="src/keel/errlog.js?v=0.316.1" data-key="lifelog-errors-v1" data-keep="50"></script>
-  <script defer src="src/headless.js?v=0.316.1"></script>
-  <script defer src="src/keel/platform.js?v=0.316.1"></script>
-  <script defer src="src/platform.js?v=0.316.1"></script>
-  <script defer src="src/keel/motion.js?v=0.316.1"></script>
-  <script defer src="src/motion.js?v=0.316.1"></script>
-  <script defer src="src/desktop.js?v=0.316.1"></script>
-  <script defer src="src/dates.js?v=0.316.1"></script>
-  <script defer src="src/datefield.js?v=0.316.1"></script>
-  <script defer src="src/keys.js?v=0.316.1"></script>
-  <script defer src="src/keel/releases.js?v=0.316.1"></script>
-  <script defer src="src/testbuilds.js?v=0.316.1"></script>
-  <script defer src="src/icons.js?v=0.316.1"></script>
-  <script defer src="src/select.js?v=0.316.1"></script>
-  <script defer src="src/jobs.js?v=0.316.1"></script>
-  <script defer src="src/reconcile.js?v=0.316.1"></script>
-  <script defer src="src/keel/qr.js?v=0.316.1"></script>
-  <script defer src="src/media.js?v=0.316.1"></script>
-  <script defer src="src/merge.js?v=0.316.1"></script>
-  <script defer src="src/keel/github.js?v=0.316.1"></script>
-  <script defer src="src/storage.js?v=0.316.1"></script>
-  <script defer src="src/finance.js?v=0.316.1"></script>
-  <script defer src="src/settings.js?v=0.316.1"></script>
-  <script defer src="src/wheel.js?v=0.316.1"></script>
-  <script defer src="src/backlog.js?v=0.316.1"></script>
-  <script defer src="src/journal.js?v=0.316.1"></script>
-  <script defer src="src/markdown.js?v=0.316.1"></script>
-  <script defer src="src/images.js?v=0.316.1"></script>
-  <script defer src="src/notes.js?v=0.316.1"></script>
-  <script defer src="src/docimport.js?v=0.316.1"></script>
-  <script defer src="src/io.js?v=0.316.1"></script>
-  <script defer src="src/sync.js?v=0.316.1"></script>
-  <script defer src="src/habits.js?v=0.316.1"></script>
-  <script defer src="src/vendor/rough.js?v=0.316.1"></script>
-  <script defer src="src/boards.js?v=0.316.1"></script>
-  <script defer src="src/invest.js?v=0.316.1"></script>
-  <script defer src="src/waypage.js?v=0.316.1"></script>
-  <script defer src="src/home.js?v=0.316.1"></script>
-  <script defer src="src/recap.js?v=0.316.1"></script>
-  <script defer src="src/reminders.js?v=0.316.1"></script>
-  <script defer src="src/alerts.js?v=0.316.1"></script>
-  <script defer src="src/widgets.js?v=0.316.1"></script>
-  <script defer src="src/share.js?v=0.316.1"></script>
-  <script defer src="src/search.js?v=0.316.1"></script>
-  <script defer src="src/letterboxd.js?v=0.316.1"></script>
-  <script defer src="src/stremio.js?v=0.316.1"></script>
-  <script defer src="src/keel/drive.js?v=0.316.1"></script>
-  <script defer src="src/drive.js?v=0.316.1"></script>
-  <script defer src="src/connections.js?v=0.316.1"></script>
-  <script defer src="src/hardcover.js?v=0.316.1"></script>
-  <script defer src="src/payments.js?v=0.316.1"></script>
-  <script defer src="src/app.js?v=0.316.1"></script>
+  <script defer src="src/keel/errlog.js?v=0.317.0" data-key="lifelog-errors-v1" data-keep="50"></script>
+  <script defer src="src/headless.js?v=0.317.0"></script>
+  <script defer src="src/keel/platform.js?v=0.317.0"></script>
+  <script defer src="src/platform.js?v=0.317.0"></script>
+  <script defer src="src/keel/motion.js?v=0.317.0"></script>
+  <script defer src="src/motion.js?v=0.317.0"></script>
+  <script defer src="src/desktop.js?v=0.317.0"></script>
+  <script defer src="src/dates.js?v=0.317.0"></script>
+  <script defer src="src/datefield.js?v=0.317.0"></script>
+  <script defer src="src/keys.js?v=0.317.0"></script>
+  <script defer src="src/keel/releases.js?v=0.317.0"></script>
+  <script defer src="src/testbuilds.js?v=0.317.0"></script>
+  <script defer src="src/icons.js?v=0.317.0"></script>
+  <script defer src="src/select.js?v=0.317.0"></script>
+  <script defer src="src/jobs.js?v=0.317.0"></script>
+  <script defer src="src/reconcile.js?v=0.317.0"></script>
+  <script defer src="src/keel/qr.js?v=0.317.0"></script>
+  <script defer src="src/media.js?v=0.317.0"></script>
+  <script defer src="src/merge.js?v=0.317.0"></script>
+  <script defer src="src/keel/github.js?v=0.317.0"></script>
+  <script defer src="src/storage.js?v=0.317.0"></script>
+  <script defer src="src/finance.js?v=0.317.0"></script>
+  <script defer src="src/settings.js?v=0.317.0"></script>
+  <script defer src="src/wheel.js?v=0.317.0"></script>
+  <script defer src="src/backlog.js?v=0.317.0"></script>
+  <script defer src="src/journal.js?v=0.317.0"></script>
+  <script defer src="src/markdown.js?v=0.317.0"></script>
+  <script defer src="src/images.js?v=0.317.0"></script>
+  <script defer src="src/tasks.js?v=0.317.0"></script>
+  <script defer src="src/notes.js?v=0.317.0"></script>
+  <script defer src="src/docimport.js?v=0.317.0"></script>
+  <script defer src="src/io.js?v=0.317.0"></script>
+  <script defer src="src/sync.js?v=0.317.0"></script>
+  <script defer src="src/habits.js?v=0.317.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.317.0"></script>
+  <script defer src="src/boards.js?v=0.317.0"></script>
+  <script defer src="src/invest.js?v=0.317.0"></script>
+  <script defer src="src/waypage.js?v=0.317.0"></script>
+  <script defer src="src/home.js?v=0.317.0"></script>
+  <script defer src="src/recap.js?v=0.317.0"></script>
+  <script defer src="src/reminders.js?v=0.317.0"></script>
+  <script defer src="src/alerts.js?v=0.317.0"></script>
+  <script defer src="src/widgets.js?v=0.317.0"></script>
+  <script defer src="src/share.js?v=0.317.0"></script>
+  <script defer src="src/search.js?v=0.317.0"></script>
+  <script defer src="src/letterboxd.js?v=0.317.0"></script>
+  <script defer src="src/stremio.js?v=0.317.0"></script>
+  <script defer src="src/keel/drive.js?v=0.317.0"></script>
+  <script defer src="src/drive.js?v=0.317.0"></script>
+  <script defer src="src/connections.js?v=0.317.0"></script>
+  <script defer src="src/hardcover.js?v=0.317.0"></script>
+  <script defer src="src/payments.js?v=0.317.0"></script>
+  <script defer src="src/app.js?v=0.317.0"></script>
 </body>
 </html>

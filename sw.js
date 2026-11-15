@@ -12,12 +12,12 @@
 // touched — intercepting those and falling back to index.html on failure
 // previously turned a real network/CORS error into a fake 200 OK full of HTML,
 // masking the actual failure from the app's own error handling.
-const CACHE = "lifelog-v280";
+const CACHE = "lifelog-v281";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
   "./", "./index.html",
-  "./src/styles.css", "./src/keel/errlog.js", "./src/dates.js", "./src/datefield.js", "./src/keys.js", "./src/headless.js", "./src/keel/platform.js", "./src/platform.js", "./src/keel/motion.js", "./src/motion.js", "./src/desktop.js", "./src/keel/releases.js", "./src/keel/sw-preview.js", "./src/testbuilds.js", "./src/icons.js", "./src/select.js", "./src/jobs.js", "./src/app.js", "./src/reconcile.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/notes.js", "./src/markdown.js", "./src/images.js", "./src/docimport.js", "./src/io.js", "./src/sync.js", "./src/habits.js", "./src/recap.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/keel/qr.js", "./src/keel/github.js", "./src/widgets.js", "./src/share.js", "./src/search.js", "./src/letterboxd.js", "./src/stremio.js", "./src/keel/drive.js", "./src/drive.js", "./src/connections.js", "./src/hardcover.js", "./src/payments.js", "./src/reminders.js", "./src/alerts.js", "./src/boards.js", "./src/invest.js", "./src/waypage.js", "./src/home.js", "./src/vendor/rough.js", "./src/vendor/Virgil.woff2",
+  "./src/styles.css", "./src/keel/errlog.js", "./src/dates.js", "./src/datefield.js", "./src/keys.js", "./src/headless.js", "./src/keel/platform.js", "./src/platform.js", "./src/keel/motion.js", "./src/motion.js", "./src/desktop.js", "./src/keel/releases.js", "./src/keel/sw-preview.js", "./src/testbuilds.js", "./src/icons.js", "./src/select.js", "./src/jobs.js", "./src/app.js", "./src/reconcile.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/notes.js", "./src/tasks.js", "./src/markdown.js", "./src/images.js", "./src/docimport.js", "./src/io.js", "./src/sync.js", "./src/habits.js", "./src/recap.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/keel/qr.js", "./src/keel/github.js", "./src/widgets.js", "./src/share.js", "./src/search.js", "./src/letterboxd.js", "./src/stremio.js", "./src/keel/drive.js", "./src/drive.js", "./src/connections.js", "./src/hardcover.js", "./src/payments.js", "./src/reminders.js", "./src/alerts.js", "./src/boards.js", "./src/invest.js", "./src/waypage.js", "./src/home.js", "./src/vendor/rough.js", "./src/vendor/Virgil.woff2",
   "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "./CHANGELOG.md",
 ];
 

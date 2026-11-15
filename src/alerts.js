@@ -24,6 +24,9 @@
   // its 64 pending notifications, with the habit reminders beside them.
   const WINDOW_DAYS = 40;
   const MAX = 24;
+  // Task reminders have room of their own, so a busy week of tasks can't
+  // push a charge's heads-up out, nor the other way round.
+  const MAX_TASKS = 16;
   const CHARGE_DAYS = [["", "Off"], ["0", "On the day"], ["1", "The day before"], ["3", "3 days before"], ["7", "A week before"]];
   const RELEASE_MODES = [["off", "Off"], ["starred", "Starred"], ["all", "Everything"]];
 
@@ -153,17 +156,45 @@
     return out;
   }
 
+  // A task's reminder (tasks.js): its own time, `remind` minutes before its
+  // date and time (09:00 for an all-day one). Keyed by the date too, so a
+  // repeating task's next round is a new alert rather than a rung one.
+  function taskAlerts(data, today, Tasks, now) {
+    if (!Tasks) return [];
+    const out = [];
+    const last = addDays(today, WINDOW_DAYS);
+    for (const r of Tasks.dueTasks(data, addDays(last, 7))) {
+      const at = Tasks.remindAt(r.item);
+      if (!at || at < now) continue;
+      const day = localDate(at);
+      if (day > last) continue;
+      const when = r.item.time ? (r.day === day ? "at " + r.item.time : Tasks.shortDay(r.day, day).toLowerCase() + " at " + r.item.time)
+        : r.day === day ? "today" : Tasks.shortDay(r.day, day).toLowerCase();
+      out.push({
+        id: "task-" + r.item.id + "-" + r.day,
+        kind: "task",
+        day, time: pad(at.getHours()) + ":" + pad(at.getMinutes()),
+        title: r.item.text,
+        body: (r.note.text || "A task") + " · " + when,
+        action: "open-task:" + r.note.id + ":" + r.item.id,
+      });
+    }
+    return out.sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time)).slice(0, MAX_TASKS);
+  }
+
   // `hidden`: the lock is on with "hide in widgets" (0.262.0). A
   // notification shows on the lock screen, so it says what kind of thing,
   // not which.
-  const HIDDEN_BODY = { charge: "A recurring charge is coming up", release: "Something in your Backlog is out today", price: "A game in your Backlog is on sale", target: "A ticker on your watchlist reached its target" };
-  function alertsOf(data, { today, charges = {}, releases = "off", prices = {}, targets = {}, finance, fmt, hidden = false } = {}) {
+  const HIDDEN_BODY = { charge: "A recurring charge is coming up", release: "Something in your Backlog is out today", price: "A game in your Backlog is on sale", target: "A ticker on your watchlist reached its target", task: "A task is coming up" };
+  function alertsOf(data, { today, charges = {}, releases = "off", prices = {}, targets = {}, finance, fmt, hidden = false, tasks = null, now = new Date() } = {}) {
     const list = [
       ...(finance ? chargeAlerts(data, today, charges, finance, fmt) : []),
       ...releaseAlerts(data, today, releases),
       ...priceAlerts(data, today, prices),
       ...targetAlerts(today, targets),
-    ].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).slice(0, MAX);
+    ].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).slice(0, MAX)
+      .concat(taskAlerts(data, today, tasks, now))
+      .sort((a, b) => a.day.localeCompare(b.day) || String(a.time).localeCompare(String(b.time)) || a.id.localeCompare(b.id));
     if (!hidden) return list;
     return list.map((a) => ({ ...a, title: "LifeLog", body: HIDDEN_BODY[a.kind] || "LifeLog has something for you" }));
   }
@@ -273,6 +304,7 @@
       finance: F,
       fmt: ctx ? ctx.fmt : { money: String, day: String },
       hidden,
+      tasks: kindOn("tasks") ? window.LifeLogTasks : null,
     });
   }
 

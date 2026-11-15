@@ -69,13 +69,16 @@ Settings → Tabs turns Home off.
 
 ### Notes
 
-Plain notes (Markdown), checklists and quotes, plus drawing boards with a
+Plain notes (Markdown), task lists and quotes, plus drawing boards with a
 hand-drawn look, which can hold pictures (the Image button, a paste or a
-drop). Each kind has its own line in the + menu (Note, Checklist, Quote,
+drop). Each kind has its own line in the + menu (Note, Task list, Quote,
 Board) and keeps that kind; a new board takes a name and a category first,
 then a tap on the blank board opens it to draw. Note categories, favourites,
-and collections that open their notes as pages. A checklist's items tick, reorder by long press (or
-by their handles while editing) and merge item by item between devices. A
+and collections that open their notes as pages. A task list's items are tasks: they tick, reorder by long press (or
+by their handles while editing) and merge item by item between devices,
+and tapping one opens it for a description, a category, a priority, a date
+(with a time, a repeat, a reminder and a deadline) and subtasks. Dated
+tasks show on Home's Coming up. A
 note can become a Timeline entry.
 
 <table><tr>
@@ -390,11 +393,11 @@ list gets the window too, its map beside the list.
   every save in Settings → History to restore or undo, Recently deleted,
   and how much room the GitHub repo has left, with what takes it.
 - **App lock**: a PIN, with fingerprint or face where the device has it.
-- **Widgets**: on Android, checklist, habits, quick add, spending, note,
-  random note, upcoming, in progress and investments, with an optional background
-  refresh. Quick add and the checklist's + open a small window over the
+- **Widgets**: on Android, tasks, habits, quick add, spending, note,
+  random note, upcoming (releases and dated tasks), in progress and investments, with an optional background
+  refresh. Quick add and the Tasks widget's + open a small window over the
   home screen, so an entry, expense, backlog item, note or list item goes
-  in without opening the app and syncs when it next opens; on iPhone, habits, checklist, quick add, this month and a note.
+  in without opening the app and syncs when it next opens; on iPhone, habits, tasks, quick add, this month and a note.
 - **Keyboard**: N adds, number keys switch tabs (hold Shift to see them), F or / searches and Escape stops, Tab opens Settings, ? lists the rest; On a board, a letter picks each tool (V select, P pen, R rectangle…). Settings → Keyboard changes, removes or resets any of them.
 - **Offline**: an installable PWA that works with no connection and syncs
   when there is one.

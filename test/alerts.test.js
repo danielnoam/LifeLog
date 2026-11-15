@@ -136,4 +136,24 @@ test("target: a ticker's hit rings once from what it carries; an old hit is drop
   assert.strictEqual(h[0].body, "A ticker on your watchlist reached its target");
 });
 
+test("a task's reminder rings at its own time, keyed by its date; past ones and done ones don't", () => {
+  const Tasks = require("../src/tasks.js");
+  const data = { notes: [{ id: "L", kind: "list", text: "Trip", items: [
+    { id: "a", text: "Book the campsite", date: "2026-03-12", time: "18:00", remind: 30 },
+    { id: "b", text: "Water the plants", date: "2026-03-13", remind: 1440 },
+    { id: "c", text: "Gone by", date: "2026-03-10", time: "08:00", remind: 0 },
+    { id: "d", text: "Done", date: "2026-03-12", remind: 0, done: true },
+    { id: "e", text: "No reminder", date: "2026-03-12" }] }] };
+  const now = new Date(2026, 2, 10, 12, 0);
+  const a = alertsOf(data, { today: "2026-03-10", tasks: Tasks, now }).filter((x) => x.kind === "task");
+  assert.deepStrictEqual(a.map((x) => [x.id, x.day, x.time, x.title, x.action]), [
+    ["task-b-2026-03-13", "2026-03-12", "09:00", "Water the plants", "open-task:L:b"],
+    ["task-a-2026-03-12", "2026-03-12", "17:30", "Book the campsite", "open-task:L:a"],
+  ]);
+  assert.match(a[1].body, /Trip · at 18:00/);
+  assert.match(a[0].body, /Trip · tomorrow/);
+  assert.strictEqual(alertsOf(data, { today: "2026-03-10", now }).filter((x) => x.kind === "task").length, 0, "switched off");
+  assert.strictEqual(alertsOf(data, { today: "2026-03-10", tasks: Tasks, now, hidden: true })[0].body, "A task is coming up");
+});
+
 console.log(`\n${passed} test(s) passed.`);

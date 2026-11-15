@@ -187,6 +187,16 @@ test("a to-do ticked on the widget is done as of when it was ticked", () => {
   assert.strictEqual(t.doneAt, "2026-09-24T08:00:00.000Z");
 });
 
+test("a task reminder's Done ticks only the round it rang for (0.317.0)", () => {
+  const d = data();
+  const t = allItems(d).find((x) => x.id === "t1");
+  t.date = "2026-09-25";
+  assert.strictEqual(W.applyQueue(d, [{ kind: "todo", id: "t1", done: true, due: "2026-09-24" }]), 0);
+  assert.ok(!t.done);
+  assert.strictEqual(W.applyQueue(d, [{ kind: "todo", id: "t1", done: true, due: "2026-09-25" }]), 1);
+  assert.strictEqual(t.done, true);
+});
+
 test("unticking a to-do clears it the way the app does", () => {
   const d = data();
   W.applyQueue(d, [{ kind: "todo", id: "t3", done: false }]);
@@ -387,6 +397,29 @@ test("the window's expense keeps the category and sub it picked; Auto files it a
   assert.deepStrictEqual([by("x1").amount, by("x1").category, by("x1").subcategory], [12.5, "Food", "Coffee"]);
   assert.strictEqual(by("x2").category, "Home");
   assert.deepStrictEqual([by("x3").category, by("x3").subcategory], ["Food", undefined]);
+});
+
+// Tasks (0.317.0): loaded last, so the tests above see the widgets as
+// they work without tasks.js.
+require("../src/tasks.js");
+test("a task row carries its day, time, priority and what else it has; the words stay its own", () => {
+  const d = { notes: [{ id: "L", kind: "list", text: "Trip", createdAt: "2026-01-01", items: [
+    { id: "a", text: "Book", date: "2026-09-23", time: "18:00", priority: 1, repeat: { every: 1, unit: "week" } },
+    { id: "b", text: "Pick", parent: "a", done: true }, { id: "c", text: "Pay", parent: "a" }, { id: "d", text: "Plain" }] }] };
+  const s = W.snapshotOf(d, { today: TODAY });
+  assert.deepStrictEqual(s.todos.map((r) => r.id), ["a", "d"]);
+  const a = s.todos[0];
+  assert.deepStrictEqual([a.text, a.date, a.time, a.priority, a.meta], ["Book", "2026-09-23", "18:00", 1, "repeats · 1/2 subtasks"]);
+  assert.deepStrictEqual(Object.keys(s.todos[1]).sort(), ["category", "color", "done", "id", "list", "text"]);
+});
+test("Upcoming takes open dated tasks up to a fortnight ahead, overdue first, among the releases", () => {
+  const d = { backlog: [{ id: "u", title: "Game", category: "Games", releaseDate: "2026-09-26" }],
+    notes: [{ id: "L", kind: "list", text: "Trip", items: [
+      { id: "late", text: "Late", date: "2026-09-20" }, { id: "soon", text: "Soon", date: "2026-09-26", time: "09:00", priority: 2 },
+      { id: "far", text: "Far", date: "2026-11-01" }, { id: "done", text: "Done", date: "2026-09-25", done: true }] }] };
+  const s = W.snapshotOf(d, { today: TODAY, upcomingAt: (b) => b.releaseDate, releaseLabel: () => "" });
+  assert.deepStrictEqual(s.upcoming.map((r) => r.id), ["late", "soon", "u"]);
+  assert.deepStrictEqual(s.upcoming[1], { id: "soon", kind: "task", title: "Soon", list: "Trip", day: "2026-09-26", dayText: "26 Sep", time: "09:00", priority: 2 });
 });
 
 console.log(`\n${passed} test(s) passed.`);
