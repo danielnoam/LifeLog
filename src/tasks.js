@@ -259,8 +259,10 @@
   const isOpen = () => !$("#taskModal").hidden;
 
   let tagField = null;
-  function openTask(noteId, itemId) {
+  let onClosed = null;
+  function openTask(noteId, itemId, { onClose } = {}) {
     cur = { noteId, itemId };
+    onClosed = onClose || null;
     if (!current().it) { cur = null; return; }
     $("#taskMoreMenu").hidden = true;
     $("#taskLogBtn").hidden = !(window.LifeLogJournal && modeEnabled("timeline", "entries"));
@@ -479,6 +481,9 @@
     $("#taskModal").hidden = true;
     $("#taskMoreMenu").hidden = true;
     cur = null;
+    const done = onClosed;
+    onClosed = null;
+    if (done) done();
   }
   async function moveToList(toId) {
     const { n, it } = current();

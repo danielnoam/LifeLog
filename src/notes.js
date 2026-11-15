@@ -1721,7 +1721,6 @@
     $("#nTextLabel").hidden = sheetKind === "list" || board;
     $("#nQuoteFields").hidden = sheetKind !== "quote";
     $("#nImages").hidden = sheetKind !== "text";
-    $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
     $("#nTextLabelText").textContent = sheetKind === "quote" ? "Quote" : "Note";
     $("#nText").placeholder = sheetKind === "quote" ? "The words, as they were said" : "What happened, what you noticed…";
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
@@ -1852,7 +1851,7 @@
     sheetItems.forEach((it, i) => {
       // No tick here: that's the card's job. A finished item keeps its tick
       // and shows struck through.
-      const row = el("div", "note-list-row" + (it.done ? " is-done" : ""));
+      const row = el("div", "note-list-row" + (it.done ? " is-done" : "") + (it.parent ? " is-sub" : ""));
       row.dataset.idx = String(i);
       const grip = el("button", "note-list-grip");
       grip.type = "button";
@@ -1871,10 +1870,42 @@
       del.type = "button";
       del.setAttribute("aria-label", "Remove item");
       del.onclick = () => { sheetItems.splice(i, 1); renderSheetItems(); };
-      row.append(grip, input, del);
+      // What's set on the task, under its words, and the pen to open it: the
+      // date, priority, subtasks and the rest live in the task's sheet.
+      const words = el("div", "note-list-words");
+      words.appendChild(input);
+      const saved = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
+      const meta = taskMeta(saved || { category: $("#nCategory").value }, it, sheetItems.filter((c) => c.parent === it.id));
+      if (meta) { meta.onclick = () => openSheetTask(i); words.appendChild(meta); }
+      const open = el("button", "note-list-open");
+      open.type = "button";
+      open.appendChild(ico("pencil"));
+      open.setAttribute("aria-label", "Edit " + (it.text || "task"));
+      open.title = "Edit task";
+      open.onclick = () => openSheetTask(i);
+      row.append(grip, words, open, del);
       wrap.appendChild(row);
     });
-    $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
+  }
+  // A task opened from its list's page: the page is saved first so the
+  // task sheet works on the stored list, and takes the list back when the
+  // task closes.
+  async function openSheetTask(i) {
+    const id = sheetItems[i] && sheetItems[i].id;
+    if (!id) return;
+    const isNew = !editingNoteId;
+    if (!(await saveNote(() => {}))) return;
+    if (isNew) { editingNoteId = state.data.notes[0].id; setSheetKind(sheetKind); }
+    const noteId = editingNoteId;
+    const reload = () => {
+      const n = state.data.notes.find((x) => x.id === noteId);
+      if (!n || editingNoteId !== noteId || $("#noteModal").hidden) return;
+      sheetItems = (n.items || []).map((x) => ({ ...x }));
+      sheetTags = n.tags ? n.tags.slice() : [];
+      renderSheetItems();
+    };
+    reload();
+    Tasks().openTask(noteId, id, { onClose: reload });
   }
   // Moving a checklist's items in the sheet (0.304.0): the handle follows
   // the pointer and the row takes the place it's over; arrow keys move it

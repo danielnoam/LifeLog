@@ -71,7 +71,7 @@ async function run(b, width) {
   await page.evaluate(() => window.LifeLogNotes.openNoteModal(window.LifeLogStorage.cachedCopy().notes.find((n) => n.kind === "list")));
   for (const t of ["Tickets"]) { await page.fill("#nNewItem", t); await page.press("#nNewItem", "Enter"); }
   check("each row has a handle" + at, await page.evaluate(() => document.querySelectorAll("#nItems .note-list-grip").length === 3));
-  check("and the sheet says what it's for" + at, await page.evaluate(() => !document.querySelector("#nListHint").hidden));
+  check("and no drag hint under them (Daniel, 2026-11-15)" + at, await page.evaluate(() => !document.querySelector("#nListHint")));
   const g = await page.locator("#nItems .note-list-grip").nth(2).boundingBox();
   const top = await page.locator("#nItems .note-list-row").nth(0).boundingBox();
   await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
