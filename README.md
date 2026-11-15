@@ -76,14 +76,17 @@ Board) and keeps that kind; a new board takes a name and a category first,
 then a tap on the blank board opens it to draw. Note categories, favourites,
 and collections that open their notes as pages. Tasks tick, reorder by long press (or
 by their handles while editing) and merge item by item between devices,
-and tapping one opens it for a description, a category, a priority, a date
-(with a time, a repeat, a reminder and a deadline) and subtasks. Dated
-tasks show on Home's Coming up. A
+and tapping one (or its pen on the list's page) opens it for a description,
+a category, a priority and a date (with a time, a repeat, a reminder and a
+deadline). A tasks list is a task itself, with the same fields on its page
+and its rows as its subtasks; ticking it ticks them all. Dated tasks and
+lists show on Home's Coming up. A
 note can become a Timeline entry.
 
 Tags work across every kind and category: give a note, a quote, a tasks
 list, a task or a board a few words in its sheet (a board's in ⋯ → Tags),
-and the Notebook's Tags row shows everything carrying any tag you pick.
+and the Notebook's Tags row shows everything carrying any tag you pick
+(its "+" makes a new tag).
 **All tags** renames, merges and deletes them, `#tag` in the search box
 asks for one, and a note category can give its tags to every note made in
 it.

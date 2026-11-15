@@ -175,7 +175,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.317.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.318.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3650,28 +3650,38 @@
   function buildTagFilter() {
     const group = $("#tagFilterGroup");
     if (!group) return;
-    const counts = state.view === "notes" && state.notesMode === "notes" ? Notes.tagCounts() : [];
+    const here = state.view === "notes" && state.notesMode === "notes";
+    const counts = here ? Notes.tagCounts() : [];
     const T = window.LifeLogTags;
     // A tag that's on but no longer carried by anything (deleted on another
     // device) lets go.
     for (const t of [...state.noteActiveTags]) if (!counts.some((c) => c.key === T.key(t))) state.noteActiveTags.delete(t);
-    group.hidden = !counts.length;
-    if (!counts.length) return;
+    // Always there in the Notebook (16 Nov 2026): All tags first, then the
+    // most used, then + to make one.
+    group.hidden = !here;
+    if (!here) return;
     const on = new Set([...state.noteActiveTags].map(T.key));
     // Fewer on a phone, where each row of chips is a line of the screen.
     const room = typeof matchMedia === "function" && matchMedia("(max-width: 720px)").matches ? 5 : TAG_CHIPS;
     const shown = counts.filter((c, i) => i < room || on.has(c.key));
-    const chips = shown.map((c) => ({ key: c.key, name: c.name, n: c.total }));
-    chips.push({ key: "\u0000all", all: true, more: counts.length - shown.length });
+    const chips = counts.length ? [{ key: "\u0000all", all: true, more: counts.length - shown.length }] : [];
+    chips.push(...shown.map((c) => ({ key: c.key, name: c.name, n: c.total })));
+    chips.push({ key: "\u0000add", add: true });
     reconcile($("#tagFilter"), chips, {
       keyOf: (item) => item.key,
       create: (item) => {
+        if (item.add) {
+          const add = el("span", "cat-chip add-chip", "+");
+          activatable(add, (ev) => { ev.stopPropagation(); Notes.openTagsModal({ adding: true }); }, "Add a tag");
+          return add;
+        }
         const chip = el("span", "cat-chip tag-chip");
         if (item.all) activatable(chip, () => Notes.openTagsModal());
         else activatable(chip, () => Notes.toggleTagFilter(chip.dataset.name));
         return chip;
       },
       update: (chip, item) => {
+        if (item.add) return;
         if (item.all) {
           const k = el("span", "kind-ico");
           k.appendChild(ico("tags"));
@@ -4509,7 +4519,7 @@
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
     "mediaKeys", "steam", "anilist", "waypage", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
-    "weekStart", "dateFormat", "scratchpad", "keys",
+    "weekStart", "dateFormat", "scratchpad", "keys", "tagNames",
   ]);
 
   function sanitizeAccomplishment(a, y) {
@@ -4621,6 +4631,12 @@
     if (incomingSettings.keys) {
       const keys = Keys.clean(incomingSettings.keys);
       if (Object.keys(keys).length) data.settings.keys = keys;
+    }
+    // Tags made with + in the Notebook's Tags row (16 Nov 2026), kept
+    // until deleted even while nothing carries them.
+    if (Array.isArray(incomingSettings.tagNames)) {
+      const names = (window.LifeLogTags || require("./tags.js")).clean(incomingSettings.tagNames);
+      if (names.length) data.settings.tagNames = names;
     }
     keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     delete data.settings.monthOrder;

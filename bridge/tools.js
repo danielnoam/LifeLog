@@ -554,8 +554,12 @@ async function renameTagEverywhere(from, to) {
   to = to == null ? "" : String(to);
   if (to && !Tags.cleanOne(to)) fail("new_name can't be empty; lifelog_delete_tag takes a tag off.");
   const summary = to ? `rename tag "${tag}" to "${Tags.cleanOne(to)}"` : `delete tag "${tag}"`;
+  let saved = false;
   const main = await commit("data", summary, (d) => {
     const hit = Tags.renameIn({ notes: d.notes || [], cats: d.noteCategories || [] }, tag, to);
+    // Tags made in the app's Tags row and not used yet (settings.tagNames).
+    const names = d.settings && Tags.renamed(d.settings.tagNames, tag, to);
+    if (names) { saved = true; if (names.length) d.settings.tagNames = names; else delete d.settings.tagNames; }
     return { text: "", touched: [...[...hit.notes].map((n) => ["notes", n.id]), ...hit.cats.map((c) => ["noteCategories", c.id])] };
   });
   // boards.json only when a board carries it, so nothing is written for nothing.
@@ -565,7 +569,7 @@ async function renameTagEverywhere(from, to) {
     return { text: "", touched: hit.map((b) => ["boards", b.id]) };
   }) : { items: [] };
   const items = main.items.concat(boards.items);
-  if (!items.length) fail(`No note, task or board has the tag "${tag}". lifelog_tags lists them.`);
+  if (!items.length && !saved) fail(`No note, task or board has the tag "${tag}". lifelog_tags lists them.`);
   undoLog(cfg).push({ summary, at: main.at, items });
   return to ? `Renamed the tag "${tag}" to "${Tags.cleanOne(to)}" on ${items.length} thing${items.length === 1 ? "" : "s"} (a checklist counts once for its tasks).`
     : `Took the tag "${tag}" off ${items.length} thing${items.length === 1 ? "" : "s"}. Nothing else was deleted.`;
@@ -1665,12 +1669,12 @@ const TOOLS = [
   },
   {
     name: "lifelog_add_task",
-    description: "Add a task to a checklist: a checklist's items are tasks, and any of description, priority, date, time, repeat, reminder, deadline, category and a parent task (making it a subtask, one level deep) are optional. A plain one is just an item, as lifelog_update_list adds.",
+    description: "Add a task to a checklist: a checklist's items are tasks (the checklist's own subtasks, since the checklist is a task itself; lifelog_list_task sets its own date and the rest), and any of description, priority, date, time, repeat, reminder, deadline and category are optional. Rows don't nest. A plain one is just an item, as lifelog_update_list adds.",
     input: {
       list: S.str("The checklist's id or title"),
       text: S.str("The task"),
       ...TASK_FIELDS,
-      parent: S.str("A task in the same list to put this under, by id or text (one level: not a subtask)"),
+      parent: S.str("A task in the same list to put this right after, by id or text (rows don't nest any more)"),
     },
     required: ["list", "text"],
     async run(a) {
@@ -1684,10 +1688,7 @@ const TOOLS = [
         applyTaskFields(d, it, a);
         if (a.parent) {
           const p = pickTask(items, a.parent);
-          if (p.parent) fail(`"${p.text}" is itself a subtask; subtasks go one level deep.`);
-          it.parent = p.id;
-          const kids = items.filter((i) => i.parent === p.id);
-          items.splice(items.indexOf(kids.length ? kids[kids.length - 1] : p) + 1, 0, it);
+          items.splice(items.indexOf(p) + 1, 0, it);
         } else {
           const lastOpen = items.map((i) => !i.done).lastIndexOf(true);
           items.splice(lastOpen + 1, 0, it);
@@ -1695,20 +1696,47 @@ const TOOLS = [
         const next = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
         replaceItem(d, "notes", next);
         const saved = next.items.find((i) => i.id === it.id);
-        return { text: `Added the task "${text}" to "${n.text}"${saved.parent ? " under \"" + items.find((i) => i.id === saved.parent).text + "\"" : ""}: ${taskLine(saved)}  (${saved.id})`, touched: [["notes", n.id]] };
+        return { text: `Added the task "${text}" to "${n.text}": ${taskLine(saved)}  (${saved.id})`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_list_task",
+    description: "Set a checklist's own task fields: a checklist is a task itself (its items are its subtasks), with a description, priority, date, time, repeat, reminder and deadline, and it can be ticked (ticking it ticks every item; a repeating one moves to its next date and unticks them). Give a field as an empty string (or 0 for priority) to clear it.",
+    input: {
+      list: S.str("The checklist's id or title"),
+      note: TASK_FIELDS.note, priority: TASK_FIELDS.priority, date: TASK_FIELDS.date, time: TASK_FIELDS.time,
+      repeat: TASK_FIELDS.repeat, repeat_from_done: TASK_FIELDS.repeat_from_done, remind: TASK_FIELDS.remind, deadline: TASK_FIELDS.deadline,
+      done: S.bool("Tick (true) or untick (false) the checklist itself"),
+    },
+    required: ["list"],
+    async run(a) {
+      return change(`checklist task "${a.list}"`, (d) => {
+        const n = findItem(d, "notes", a.list);
+        if (n.kind !== "list") fail(`"${cut(n.title || n.text, 40)}" isn't a checklist.`);
+        const head = JSON.parse(JSON.stringify(n));
+        applyTaskFields(d, head, { ...a, category: undefined, tags: undefined });
+        let said = "";
+        if (a.done != null) {
+          const r = Tasks.tick(head, head.id, !!a.done, new Date(), today());
+          said = r && r.next ? ` (ticked, next ${r.next})` : a.done ? " (ticked)" : " (unticked)";
+        }
+        const next = cleanItem(d, "notes", { ...head, editedAt: nowIso() });
+        replaceItem(d, "notes", next);
+        return { text: `Set "${next.text}"${said}: ${taskLine(next) || "nothing set"}  (${next.id})`, touched: [["notes", n.id]] };
       });
     },
   },
   {
     name: "lifelog_update_task",
-    description: "Change a task in a checklist: its words, description, priority, date, time, repeat, reminder, deadline or category, tick or untick it (a repeating one moves to its next date instead of finishing), or move it (with its subtasks) to another checklist. Give a field as an empty string (or 0 for priority) to clear it. Fields left out stay as they are.",
+    description: "Change a task in a checklist: its words, description, priority, date, time, repeat, reminder, deadline or category, tick or untick it (a repeating one moves to its next date instead of finishing), or move it to another checklist. Give a field as an empty string (or 0 for priority) to clear it. Fields left out stay as they are.",
     input: {
       list: S.str("The checklist it's in, by id or title"),
       task: S.str("The task, by id or text"),
       text: S.str("New words"),
       ...TASK_FIELDS,
       done: S.bool("Tick (true) or untick (false)"),
-      move_to: S.str("Another checklist (id or title) to move it to, with its subtasks"),
+      move_to: S.str("Another checklist (id or title) to move it to"),
     },
     required: ["list", "task"],
     async run(a) {
@@ -1731,8 +1759,7 @@ const TOOLS = [
           const to = findItem(d, "notes", a.move_to);
           if (to.kind !== "list") fail(`"${cut(to.title || to.text, 40)}" isn't a checklist.`);
           if (to.id !== n.id) {
-            if (it.parent) fail("A subtask moves with its task; move the task instead.");
-            const moving = items.filter((i) => i.id === it.id || i.parent === it.id);
+            const moving = [it];
             const rest = items.filter((i) => !moving.includes(i));
             const toItems = (to.items || []).map((i) => ({ ...i }));
             const lastOpen = toItems.map((i) => !i.done).lastIndexOf(true);
@@ -2159,7 +2186,7 @@ const TOOLS = [
       const d = await readData();
       let boards = [];
       try { boards = await readBoards(); } catch (e) { /* no boards file */ }
-      const rows = Tags.count(d.notes || [], boards);
+      const rows = Tags.count(d.notes || [], boards, (d.settings || {}).tagNames);
       const cats = (d.noteCategories || []).filter((c) => c.tags && c.tags.length);
       return [rows.length ? `${rows.length} tag${rows.length === 1 ? "" : "s"}:` : "No tags yet.",
         ...rows.map((c) => `- ${c.name}: ${Tags.summary(c)}`),

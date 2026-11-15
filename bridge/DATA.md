@@ -179,16 +179,22 @@ Newest first. Three kinds:
   only with a date; `days` are weekdays, 0 = Sunday, for a weekly one on
   certain days; `fromDone` counts the next date from the tick), `remind`
   (minutes before the date and time; an all-day task counts from 09:00),
-  `deadline` (YYYY-MM-DD), `parent` (the id of the task it sits under, one
-  level deep: a subtask's subtasks come back to the top), `category` (a
-  note category; none means its task's, then its list's), `tags` (see
-  Tags below; a subtask's are its own, never its task's), `ticks` (when a
-  repeating task was ticked, kept for later and not shown). Ticking a
-  repeating task doesn't finish it: its date moves to the next one, its
-  deadline with it, and its subtasks untick. `lifelog_add_task`,
-  `lifelog_update_task` and `lifelog_tasks` do this the app's way. `text`
-  on the note is the list's title, and a list has no `title`. An item keeps
-  any other field it carries, so write back an item as you read it.
+  `deadline` (YYYY-MM-DD), `category` (a note category; none means its
+  list's), `tags` (see Tags below), `ticks` (when a repeating task was
+  ticked, kept for later and not shown). Ticking a repeating task doesn't
+  finish it: its date moves to the next one, its deadline with it.
+  Items don't nest (0.318.0): the list is the task and its items are its
+  subtasks. A `parent` left by 0.317.0 is dropped and the item stays where
+  it is. `text` on the note is the list's title, and a list has no `title`.
+  An item keeps any other field it carries, so write back an item as you
+  read it.
+  The list itself is a task too (0.318.0): the note can carry `note`
+  (its description), `priority`, `date`, `time`, `repeat`, `remind`,
+  `deadline`, `ticks`, `done` and `doneAt`, as on an item. Ticking the
+  list ticks all its items; ticking a repeating list moves its date on and
+  unticks its items. A dated list shows as one row in `lifelog_tasks`.
+  `lifelog_add_task`, `lifelog_update_task`, `lifelog_list_task` (the
+  list's own fields) and `lifelog_tasks` do this the app's way.
 - `kind: "quote"`: `text` is the quote, with optional `author` and `source`.
 
 Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last
@@ -203,8 +209,9 @@ to the Home tab; it stays in the Notebook too, `lifelog_pin_note`), `items`,
 (`boards.json`), absent when empty. Tags cut across categories and kinds;
 a thing has any number (up to 30, each up to 40 characters, no commas, no
 leading `#`). Two tags that differ only in case are the same tag; the first
-spelling is kept. There's no list of tags of its own: a tag exists while
-something carries it. In the Notebook a tag chip (or `#tag` in the search
+spelling is kept. A tag exists while something carries it, or while it's
+in `settings.tagNames` (0.318.0: tags made with the Notebook's "+" before
+anything carries them). In the Notebook a tag chip (or `#tag` in the search
 box) shows everything with any of the chosen tags; a checklist shows when
 one of its tasks has one. `lifelog_tags` lists them, `lifelog_tag` adds or
 takes them off one thing, `lifelog_rename_tag` (onto an existing tag merges
@@ -402,6 +409,7 @@ Keys: `scratchpad`, `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 keys of items left unticked in a review, so they stay hidden next time;
 `bills` (0.309.0) holds the `category|note` keys of hand-logged bills
 answered Not a bill, so the Ledger stops suggesting them),
+`tagNames` (saved tag names, see Notes → Tags),
 `updatedAt`, `imagesCleanedAt` (when images in notes were last cleaned up;
 a device that sees a newer one uploads again any image of its own the
 clean-up dropped), `weekStart` and `dateFormat` (0.301.0, Settings →

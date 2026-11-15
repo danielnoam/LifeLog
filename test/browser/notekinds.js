@@ -45,7 +45,7 @@ const SEED = {
   await openNew("list");
   check("the List kind shows a title and a checklist, not the note box or the quote's fields", await page.evaluate(() =>
     !document.querySelector("#nTitleLabel").hidden && !document.querySelector("#nListEditor").hidden &&
-    document.querySelector("#nTextLabel").hidden && getComputedStyle(document.querySelector("#nQuoteFields")).display === "none"));
+    document.querySelector("#nTextLabel").hidden && document.querySelector("#nAuthorRow").hidden && document.querySelector("#nSourceRow").hidden));
   await page.fill("#nTitle", "Packing");
   for (const t of ["Passport", "Charger", "Jacket"]) { await page.fill("#nNewItem", t); await page.press("#nNewItem", "Enter"); }
   await page.fill("#nNewItem", "Socks"); // typed, never Entered: still meant
@@ -76,7 +76,7 @@ const SEED = {
 
   // ---- ticking on the card ----
   const listId = list.id;
-  await page.locator(`.note-card[data-id="${listId}"] .todo-check`).first().click();
+  await page.locator(`.note-card[data-id="${listId}"] [data-item] .todo-check`).first().click();
   await page.waitForTimeout(250);
   d = await saved();
   const ticked = d.notes.find((n) => n.id === listId);
@@ -131,9 +131,15 @@ const SEED = {
   check("dragging reorders it", (await items()).filter((i) => !i.done)[0].text === "Toothbrush", (await items()).map((i) => i.text));
   await page.locator(`${L} .note-list-head button`, { hasText: "Done" }).click();
   await page.waitForTimeout(200);
-  await page.locator(`${L} .note-list-head button`, { hasText: "Clear" }).click();
+  check("the card has no Clear button (it's in the list's ⋯)", !(await page.locator(`${L} .note-list-head button`, { hasText: "Clear" }).count()));
+  await page.locator(`${L} .note-list-title`).click();
   await page.waitForTimeout(300);
-  check("Clear takes the finished items away", !(await items()).some((i) => i.done));
+  await page.click("#noteMoreBtn");
+  await page.click("#noteClearDoneBtn");
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  check("Clear finished, in the list's ⋯, takes the finished items away", !(await items()).some((i) => i.done));
   await page.locator(`${L} .note-list-title`).click();
   await page.waitForTimeout(200);
   check("its header opens the note", await page.evaluate(() => !document.querySelector("#noteModal").hidden));

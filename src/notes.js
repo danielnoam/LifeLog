@@ -88,7 +88,10 @@
       }).filter((it) => it.text);
       Tasks().cleanParents(out.items);
     }
-    return keepUnknown(n, out, KNOWN_NOTE_KEYS);
+    const kept = keepUnknown(n, out, KNOWN_NOTE_KEYS);
+    // A list is a task itself (16 Nov 2026): its date, priority and the rest.
+    if (out.kind === "list") Tasks().cleanHead(kept);
+    return kept;
   }
   const kindOf = (n) => n.kind || "text";
   const openItems = (n) => (n.kind === "list" ? (n.items || []).filter((i) => !i.done) : []);
@@ -508,7 +511,7 @@
   function tagCounts() {
     const B = window.LifeLogBoards;
     const boards = B && B.isLoaded && B.isLoaded() ? B.boardsNow() : [];
-    return Tags().count(state.data.notes, boards);
+    return Tags().count(state.data.notes, boards, (state.data.settings || {}).tagNames);
   }
 
   // A board in the feed: its name, its picture, then its stamp and category.
@@ -571,8 +574,19 @@
     const reordering = listReorderId === n.id && openTop.length > 1;
     card.classList.toggle("is-reordering", reordering);
 
-    const h = el("h3", "note-list-head");
+    const h = el("h3", "note-list-head" + (n.done ? " is-done" : ""));
     const left = el("span", "mc-left");
+    // The list is a task too (16 Nov 2026): its own tick, ringed in its
+    // priority, ticks every row (or moves a repeating list on).
+    if (!reordering) {
+      const cb = own(document.createElement("input"));
+      cb.type = "checkbox";
+      cb.className = "todo-check note-list-tick" + (n.priority ? " is-p" + n.priority : "");
+      cb.checked = !!n.done;
+      cb.setAttribute("aria-label", (n.done ? "Mark as not done: " : "Mark as done: ") + (n.text || "this list"));
+      cb.onchange = () => tickItem(n.id, n.id, cb.checked);
+      left.appendChild(cb);
+    }
     if (n.category) { const dot = el("span", "dot"); dot.style.background = catColor(n.category); left.appendChild(dot); }
     left.appendChild(el("span", "note-list-title", reordering ? "Drag to reorder" : (n.text || "Untitled list")));
     if (n.tags && !reordering) left.appendChild(tagPills(n.tags));
@@ -586,16 +600,11 @@
       right.appendChild(btn);
     } else {
       right.appendChild(el("span", "mc", String(open.length)));
-      if (done.length) {
-        const btn = el("button", "btn btn-sm", "Clear");
-        btn.type = "button";
-        btn.title = "Delete this list's finished items";
-        btn.onclick = (ev) => { ev.stopPropagation(); clearDoneItems(n.id); };
-        right.appendChild(btn);
-      }
     }
     h.appendChild(right);
     card.appendChild(h);
+    const headMeta = !reordering && taskMeta(n, n, [], { head: true });
+    if (headMeta) { h.classList.add("has-meta"); card.appendChild(el("div", "note-list-head-meta")).appendChild(headMeta); }
 
     const rows = el("div", "note-list-rows");
     if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
@@ -696,7 +705,7 @@
     return row;
   }
   // What's set on a task, in one line under it; null for a plain item.
-  function taskMeta(n, it, kids) {
+  function taskMeta(n, it, kids, { head = false } = {}) {
     const T = Tasks();
     const today = T.today();
     const bits = [];
@@ -707,7 +716,7 @@
       bits.push(b);
       return b;
     };
-    if (it.category && it.category !== n.category) {
+    if (!head && it.category && it.category !== n.category) {
       const b = el("span", "");
       const dot = el("span", "dot");
       dot.style.background = catColor(it.category);
@@ -724,7 +733,7 @@
     if (it.note) bit("text", "").setAttribute("aria-label", "Has a description");
     if (kids && kids.length) bit("list-tree", kids.filter((c) => c.done).length + "/" + kids.length);
     // Spans, not buttons: the whole line is inside the row's button.
-    if (it.tags) bits.push(tagPills(it.tags, { buttons: false }));
+    if (it.tags && !head) bits.push(tagPills(it.tags, { buttons: false }));
     if (!bits.length) return null;
     const line = el("span", "todo-meta");
     line.append(...bits);
@@ -785,21 +794,26 @@
     await persist();
     toast(n.pinned ? "Pinned to Home" : "Unpinned from Home");
   }
+  // The list itself ticks by its own id (16 Nov 2026).
+  const HEAD_STATE = ["date", "deadline", "ticks", "done", "doneAt"];
   async function tickItem(noteId, itemId, done) {
     const n = findList(noteId);
-    const it = n && (n.items || []).find((i) => i.id === itemId);
+    const it = n && (itemId === n.id ? n : (n.items || []).find((i) => i.id === itemId));
     if (!it) return;
     const before = (n.items || []).map((i) => ({ ...i }));
+    const head = {};
+    for (const k of HEAD_STATE) if (n[k] != null) head[k] = JSON.parse(JSON.stringify(n[k]));
     const r = Tasks().tick(n, itemId, done);
     await saveList(n, false);
     // A repeating task moved on rather than finishing: say where to, with
     // a way back for a tick that wasn't meant.
-    if (r && r.next) toast("Next: " + Tasks().shortDay(r.next, Tasks().today()), false, { label: "Undo", onClick: () => restoreItems(noteId, before) });
+    if (r && r.next) toast("Next: " + Tasks().shortDay(r.next, Tasks().today()), false, { label: "Undo", onClick: () => restoreItems(noteId, before, head) });
   }
-  async function restoreItems(noteId, items) {
+  async function restoreItems(noteId, items, head) {
     const n = findList(noteId);
     if (!n) return;
     n.items = items;
+    if (head) { for (const k of HEAD_STATE) delete n[k]; Object.assign(n, head); }
     await saveList(n, false);
   }
   async function addItem(noteId, text) {
@@ -832,14 +846,21 @@
     await saveList(n, true);
     if (it && (always || it.note || n.items.length < before.length - 1)) toast("Task deleted", false, { label: "Undo", onClick: () => restoreItems(noteId, before) });
   }
-  async function clearDoneItems(noteId) {
-    const n = findList(noteId);
-    if (!n) return;
-    const count = (n.items || []).filter((i) => i.done).length;
-    if (!count || !confirm(`Clear ${count} finished item${count === 1 ? "" : "s"} from ${n.text ? "“" + n.text + "”" : "this list"}?`)) return;
-    n.items = n.items.filter((i) => !i.done);
-    await saveList(n, true);
-    toast(`Cleared ${count}`);
+  // Clear finished, in a list's ⋯ (Daniel, 2026-11-16: not on the card).
+  // Takes the ticked rows off the page; saved with the rest when it closes.
+  function clearDoneSheetItems() {
+    const done = sheetItems.filter((i) => i.done);
+    if (!done.length) return;
+    const ids = new Set(done.map((i) => i.id));
+    if (!confirm(`Clear ${done.length} finished item${done.length === 1 ? "" : "s"}?`)) return;
+    sheetItems = sheetItems.filter((i) => !ids.has(i.id) && !ids.has(i.parent));
+    renderSheetItems();
+    syncClearDone();
+    toast(`Cleared ${done.length}`);
+  }
+  function syncClearDone() {
+    const b = $("#noteClearDoneBtn");
+    if (b) b.hidden = sheetKind !== "list" || !sheetItems.some((i) => i.done);
   }
 
   // ---------- quick add (0.197.0) ----------
@@ -1466,13 +1487,14 @@
   // the two become one) and the bin takes it off everything. Nothing but
   // the tag itself is ever deleted.
   let renaming = "";
-  async function openTagsModal() {
+  async function openTagsModal({ adding = false } = {}) {
     renaming = "";
     $("#tagsFind").value = "";
     const B = window.LifeLogBoards;
     if (B && !B.isLoaded()) { try { await B.ensureLoaded(); } catch (e) { /* boards just don't count */ } }
     drawTagsList();
     $("#tagsModal").hidden = false;
+    if (adding) $("#tagsFind").focus();
   }
   function closeTagsModal() { $("#tagsModal").hidden = true; renaming = ""; }
   function drawTagsList() {
@@ -1481,8 +1503,18 @@
     const all = tagCounts();
     const rows = all.filter((c) => !q || c.key.includes(q));
     list.replaceChildren();
-    if (!all.length) { list.appendChild(el("p", "muted tags-empty", "No tags yet. Add one from a note's, a task's or a board's sheet.")); return; }
-    if (!rows.length) { list.appendChild(el("p", "muted tags-empty", "No tag is called that.")); return; }
+    // What's typed, when no tag is called that: a row to make it.
+    const typed = Tags().cleanOne($("#tagsFind").value);
+    if (typed && !all.some((c) => c.key === Tags().key(typed))) {
+      const add = el("button", "tags-name tags-add");
+      add.type = "button";
+      add.append(ico("plus"), el("span", "tags-name-text", `Add “${typed}”`));
+      add.onclick = () => addTagName(typed);
+      const row = el("div", "tags-row");
+      row.appendChild(add);
+      list.appendChild(row);
+    }
+    if (!all.length && !typed) { list.appendChild(el("p", "muted tags-empty", "No tags yet. Type one above to add it.")); return; }
     for (const c of rows) {
       const row = el("div", "tags-row");
       if (renaming === c.key) {
@@ -1552,6 +1584,9 @@
     to = T.cleanOne(to);
     if (to === from) { renaming = ""; drawTagsList(); return; }
     const hit = T.renameIn({ notes: state.data.notes, cats: noteCats() }, from, to);
+    const st = state.data.settings || (state.data.settings = {});
+    const saved = T.renamed(st.tagNames, from, to);
+    if (saved) { if (saved.length) st.tagNames = saved; else delete st.tagNames; }
     const B = window.LifeLogBoards;
     if (B) await B.renameTag(from, to);
     const set = state.noteActiveTags;
@@ -1561,7 +1596,19 @@
     if (!$("#tagsModal").hidden) drawTagsList();
     buildCatFilter();
     render();
-    if (hit.notes.size || hit.cats.length) await persist();
+    if (hit.notes.size || hit.cats.length || saved) await persist();
+  }
+  // A tag made from the Tags row's +, before anything carries it.
+  async function addTagName(name) {
+    const T = Tags();
+    const t = T.cleanOne(name);
+    if (!t) return;
+    const st = state.data.settings || (state.data.settings = {});
+    if (!tagCounts().some((c) => c.key === T.key(t))) { st.tagNames = T.clean([...(st.tagNames || []), t]); await persist(); }
+    $("#tagsFind").value = "";
+    drawTagsList();
+    buildCatFilter();
+    toast(`Tag “${t}” added`);
   }
   async function deleteTag(c) {
     if (!confirm(`Take the tag “${c.name}” off ${Tags().summary(c)}? Nothing else is deleted.`)) return;
@@ -1571,6 +1618,11 @@
   function wireTags() {
     $("#closeTagsBtn").onclick = closeTagsModal;
     $("#tagsFind").oninput = () => { renaming = ""; drawTagsList(); };
+    $("#tagsFind").onkeydown = (ev) => {
+      if (ev.key !== "Enter") return;
+      const t = Tags().cleanOne($("#tagsFind").value);
+      if (t && !tagCounts().some((c) => c.key === Tags().key(t))) { ev.preventDefault(); addTagName(t); }
+    };
     $("#tagsModal").addEventListener("click", (ev) => { if (ev.target === $("#tagsModal")) closeTagsModal(); });
   }
   // Escape and phone Back: the rename first, then the sheet.
@@ -1698,6 +1750,29 @@
   // picking another category before it's saved swaps those for the new
   // one's, and leaves the ones you typed.
   let sheetTags = [], fromCat = [], sheetTagField = null;
+  // A list's own task fields while its page is open (16 Nov 2026).
+  const HEAD_FIELDS = ["note", "priority", "date", "time", "repeat", "remind", "deadline"];
+  let sheetHead = {};
+  function readSheetHead() {
+    const h = { ...sheetHead };
+    const d = $("#nDesc").value.replace(/\s+$/, "");
+    if (d.trim()) h.note = d; else delete h.note;
+    const p = +$("#nPriority").value;
+    if (p) h.priority = p; else delete h.priority;
+    return h;
+  }
+  function syncSheetHead() {
+    const T = Tasks(), today = T.today();
+    $("#nPriority").value = sheetHead.priority ? String(sheetHead.priority) : "";
+    const when = T.dateSummary(sheetHead, today);
+    const val = $("#nDateValue");
+    val.textContent = when || "Add";
+    val.classList.toggle("is-today", sheetHead.date === today);
+    val.classList.toggle("is-late", !!sheetHead.date && sheetHead.date < today);
+    val.classList.toggle("is-empty", !when);
+    fitDesc();
+  }
+  function fitDesc() { const t = $("#nDesc"); t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
   function syncSheetTags() {
     if (sheetTagField) sheetTagField.refresh();
   }
@@ -1719,9 +1794,10 @@
     $("#nTitle").placeholder = sheetKind === "list" ? "Shopping, packing, this week…" : "Title";
     $("#nListEditor").hidden = sheetKind !== "list";
     $("#nTextLabel").hidden = sheetKind === "list" || board;
-    $("#nQuoteFields").hidden = sheetKind !== "quote";
+    $("#nAuthorRow").hidden = $("#nSourceRow").hidden = sheetKind !== "quote";
+    const list = sheetKind === "list";
+    $("#nDesc").hidden = $("#nDateBtn").hidden = $("#nPriorityRow").hidden = $("#nSubsHead").hidden = !list;
     $("#nImages").hidden = sheetKind !== "text";
-    $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
     $("#nTextLabelText").textContent = sheetKind === "quote" ? "Quote" : "Note";
     $("#nText").placeholder = sheetKind === "quote" ? "The words, as they were said" : "What happened, what you noticed…";
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
@@ -1735,7 +1811,8 @@
     const images = sheetKind === "text";
     $("#nAddImageBtn").hidden = !images;
     $("#noteImageRule").hidden = !images || !editing;
-    $("#noteMoreBtn").hidden = !editing && !images;
+    syncClearDone();
+    $("#noteMoreBtn").hidden = !editing && !images && $("#noteClearDoneBtn").hidden;
     // Reading is for what's written; a checklist is its own page.
     $("#noteModeSeg").hidden = !editing || sheetKind === "list";
     fitText();
@@ -1852,7 +1929,7 @@
     sheetItems.forEach((it, i) => {
       // No tick here: that's the card's job. A finished item keeps its tick
       // and shows struck through.
-      const row = el("div", "note-list-row" + (it.done ? " is-done" : ""));
+      const row = el("div", "note-list-row" + (it.done ? " is-done" : "") + (it.parent ? " is-sub" : ""));
       row.dataset.idx = String(i);
       const grip = el("button", "note-list-grip");
       grip.type = "button";
@@ -1871,10 +1948,43 @@
       del.type = "button";
       del.setAttribute("aria-label", "Remove item");
       del.onclick = () => { sheetItems.splice(i, 1); renderSheetItems(); };
-      row.append(grip, input, del);
+      // What's set on the task, under its words, and the pen to open it: the
+      // date, priority, subtasks and the rest live in the task's sheet.
+      const words = el("div", "note-list-words");
+      words.appendChild(input);
+      const saved = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
+      const meta = taskMeta(saved || { category: $("#nCategory").value }, it, sheetItems.filter((c) => c.parent === it.id));
+      if (meta) { meta.onclick = () => openSheetTask(i); words.appendChild(meta); words.classList.add("has-meta"); }
+      const open = el("button", "note-list-open");
+      open.type = "button";
+      open.appendChild(ico("pencil"));
+      open.setAttribute("aria-label", "Edit " + (it.text || "task"));
+      open.title = "Edit task";
+      open.onclick = () => openSheetTask(i);
+      row.append(grip, words, open, del);
       wrap.appendChild(row);
     });
-    $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
+    syncClearDone();
+  }
+  // A task opened from its list's page: the page is saved first so the
+  // task sheet works on the stored list, and takes the list back when the
+  // task closes.
+  async function openSheetTask(i) {
+    const id = sheetItems[i] && sheetItems[i].id;
+    if (!id) return;
+    const isNew = !editingNoteId;
+    if (!(await saveNote(() => {}))) return;
+    if (isNew) { editingNoteId = state.data.notes[0].id; setSheetKind(sheetKind); }
+    const noteId = editingNoteId;
+    const reload = () => {
+      const n = state.data.notes.find((x) => x.id === noteId);
+      if (!n || editingNoteId !== noteId || $("#noteModal").hidden) return;
+      sheetItems = (n.items || []).map((x) => ({ ...x }));
+      sheetTags = n.tags ? n.tags.slice() : [];
+      renderSheetItems();
+    };
+    reload();
+    Tasks().openTask(noteId, id, { onClose: reload });
   }
   // Moving a checklist's items in the sheet (0.304.0): the handle follows
   // the pointer and the row takes the place it's over; arrow keys move it
@@ -1944,7 +2054,7 @@
     opt(NEW_CATEGORY, "New category…");
     sel.value = noteCats().some((c) => c.name === value) ? value : "";
     sel.dataset.prev = sel.value;
-    setCatChip(sel.closest(".nv-cat"), sel.value);
+    setCatChip(sel.closest(".task-field"), sel.value);
   }
 
   // The note sheet's pictures: a row of thumbnails for the ones the text
@@ -2057,6 +2167,11 @@
     $("#nTitle").value = !note ? "" : kindOf(note) === "list" ? note.text : (note.title || "");
     $("#nAuthor").value = (note && note.author) || "";
     $("#nSource").value = (note && note.source) || "";
+    // A list's own task fields: the box shows them, Save writes them.
+    sheetHead = {};
+    if (note && kindOf(note) === "list") for (const k of HEAD_FIELDS) if (note[k] != null) sheetHead[k] = JSON.parse(JSON.stringify(note[k]));
+    $("#nDesc").value = sheetHead.note || "";
+    syncSheetHead();
     $("#nNewItem").value = "";
     sheetItems = note && note.items ? note.items.map((i) => ({ ...i })) : [];
     renderSheetItems();
@@ -2102,7 +2217,7 @@
   // empty, it just closes.
   let openedAs = "";
   const sheetNow = () => JSON.stringify([sheetKind, $("#nTitle").value, $("#nText").value, $("#nAuthor").value,
-    $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems, sheetTags]);
+    $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems, sheetTags, readSheetHead()]);
   async function leaveNoteModal() {
     if ($("#noteModal").hidden) return;
     if (sheetKind === "board") { closeNoteModal(); return; }
@@ -2147,7 +2262,11 @@
     }
     const fields = { text, kind: kind === "text" ? undefined : kind, title: kind === "text" ? $("#nTitle").value.trim() : undefined };
     if (kind === "quote") { fields.author = $("#nAuthor").value.trim(); fields.source = $("#nSource").value.trim(); }
-    if (kind === "list") fields.items = items;
+    if (kind === "list") {
+      fields.items = items;
+      const h = readSheetHead();
+      for (const k of HEAD_FIELDS) fields[k] = h[k];
+    }
     const category = $("#nCategory").value === NEW_CATEGORY ? "" : $("#nCategory").value;
     fields.tags = sheetTags;
     const now = new Date().toISOString();
@@ -2157,10 +2276,10 @@
         // Only a change to what the note says counts as an edit — reopening
         // one, ticking an item or filing it under a category doesn't
         // relabel it as edited.
-        const said = (x) => JSON.stringify([kindOf(x), x.title || "", x.text, x.author || "", x.source || "", (x.items || []).map((i) => i.text)]);
+        const said = (x) => JSON.stringify([kindOf(x), x.title || "", x.text, x.author || "", x.source || "", x.note || "", (x.items || []).map((i) => i.text)]);
         const before = said(n);
         const next = sanitizeNote({ ...n, ...fields, category });
-        for (const k of ["kind", "title", "author", "source", "items", "category", "tags"]) delete n[k];
+        for (const k of ["kind", "title", "author", "source", "items", "category", "tags", ...(kind === "list" ? HEAD_FIELDS : [])]) delete n[k];
         Object.assign(n, next);
         if (said(n) !== before) n.editedAt = now;
       }
@@ -2186,7 +2305,14 @@
 
   function wire() {
     $("#noteForm").onsubmit = saveNoteFromForm;
-    sheetTagField = Tags().field($("#nTags"), { get: () => sheetTags, set: (v) => { sheetTags = v; syncSheetTags(); }, known: tagCounts });
+    sheetTagField = Tags().field($("#nTags"), { get: () => sheetTags, set: (v) => { sheetTags = v; syncSheetTags(); }, known: tagCounts, placeholder: "+" });
+    $("#nTagsRow").addEventListener("click", (ev) => { if (!ev.target.closest("button, input")) sheetTagField.input.focus(); });
+    $("#nDesc").addEventListener("input", fitDesc);
+    $("#nPriority").addEventListener("change", () => { sheetHead = readSheetHead(); });
+    $("#nDateBtn").onclick = () => Tasks().openDateFor({
+      get: () => sheetHead,
+      set: (h) => { sheetHead = { ...readSheetHead(), ...h }; for (const k of ["date", "time", "repeat", "remind", "deadline"]) if (h[k] == null) delete sheetHead[k]; syncSheetHead(); },
+    });
     wireTags();
     $("#closeNoteReaderBtn").onclick = closeNoteReader;
     $("#editNoteReaderBtn").onclick = () => {
@@ -2249,6 +2375,7 @@
       new ResizeObserver(() => { const now = $("#nText").clientWidth; if (now !== w) { w = now; fitText(); } }).observe($("#nText"));
     }
     $("#deleteNoteBtn").onclick = () => deleteNote();
+    $("#noteClearDoneBtn").onclick = () => clearDoneSheetItems();
     $("#noteToEntryBtn").onclick = () => makeEntryFromNote();
     // The sheet as it stands, so unsaved words copy too.
     $("#noteCopyBtn").onclick = () => copyText(noteAsText({
@@ -2279,7 +2406,7 @@
     };
     $("#nCategory").onchange = () => {
       const sel = $("#nCategory");
-      if (sel.value !== NEW_CATEGORY) { sel.dataset.prev = sel.value; setCatChip(sel.closest(".nv-cat"), sel.value); catDefaults(sel.value); return; }
+      if (sel.value !== NEW_CATEGORY) { sel.dataset.prev = sel.value; setCatChip(sel.closest(".task-field"), sel.value); catDefaults(sel.value); return; }
       // Back to where it was until the new one exists: cancelling the
       // category sheet must not leave "New category…" chosen.
       sel.value = sel.dataset.prev || "";
