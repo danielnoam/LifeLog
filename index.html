@@ -1431,6 +1431,10 @@
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title">GitHub</span><span class="sitem-sub" id="ghInfo"></span></span>
           </div>
+          <button type="button" class="sitem sitem-go space-row" id="ghSpace" hidden>
+            <span class="sitem-text"><span class="sitem-title" id="ghSpaceLeft"></span><span class="sitem-sub" id="ghSpaceUsed"></span>
+              <span class="space-bar" role="progressbar" aria-label="Space used on GitHub" aria-valuemin="0" aria-valuemax="100"><span class="space-fill"></span></span></span>
+          </button>
           <div class="gh-fields">
             <a class="sitem sitem-go gh-steps" href="https://github.com/new?name=lifelog-data&amp;visibility=private&amp;description=LifeLog%20data" target="_blank" rel="noopener">
               <span class="sitem-text"><span class="sitem-title">1. Create a private repo on GitHub</span><span class="sitem-sub">Name it lifelog-data and keep it private; nothing else to set</span></span>
@@ -1543,6 +1547,25 @@
           <button type="button" class="sitem sitem-go sitem-danger" id="ghDisconnectBtn" hidden>Disconnect GitHub</button>
         </div>
         <p class="hint">Your data stays on this device and on GitHub.</p>
+      </section>
+      </div>
+
+      <!-- What the GitHub repo's room goes on (2026-11). -->
+      <div class="settings-page" hidden data-page="sync-space" data-parent="sync" data-title="Space on GitHub" data-keywords="space storage size room repo github pictures images history notes breakdown">
+      <button type="button" class="settings-crumb" data-go="sync"><span class="settings-back-chev" aria-hidden="true">‹</span>Sync</button>
+      <h2 class="settings-page-title">Space on GitHub</h2>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <div class="sitem space-row" id="spaceTotal">
+            <span class="sitem-text"><span class="sitem-title" id="spaceTotalLeft"></span><span class="sitem-sub" id="spaceTotalUsed"></span>
+              <span class="space-bar" role="progressbar" aria-label="Space used on GitHub" aria-valuemin="0" aria-valuemax="100"><span class="space-fill"></span></span></span>
+          </div>
+        </div>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label">What takes it</h3>
+        <div class="sgroup-card" id="spaceParts"></div>
+        <p class="hint">Your data is measured on this device as it's saved. GitHub's total is packed smaller and also holds every earlier save, so the parts won't add up to it exactly, and History is what's left over: a rough figure.</p>
       </section>
       </div>
 
