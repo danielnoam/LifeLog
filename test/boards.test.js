@@ -24,7 +24,9 @@ test("a picture keeps only a kept id, an https address or a missing file's name"
     { id: "f", t: "img", x: 0, y: 0, w: 10, h: 10, miss: "Pasted Image.png", cr: [0, 0, 1, 1] },
   ] }).elements;
   assert.deepStrictEqual(els.map((e) => e.id), ["a", "e", "f"]);
-  assert.deepStrictEqual(els[0], { id: "a", t: "img", x: 1, y: 2, w: 30, h: 20, img: "abcdefgh12.png", cr: [0.1, 0, 0.5, 1] });
+  // A field this build doesn't know rides along (a newer build's); the
+  // ones it does know are still checked.
+  assert.deepStrictEqual(els[0], { id: "a", t: "img", x: 1, y: 2, w: 30, h: 20, img: "abcdefgh12.png", extra: "x", cr: [0.1, 0, 0.5, 1] });
   assert.ok(!("cr" in els[2]), "a crop of the whole picture is no crop");
 });
 
@@ -41,6 +43,11 @@ test("a picture is hit anywhere in its box, turns, and keeps its shape when resi
 });
 
 // ---------- strokes ----------
+test("a board keeps a field this build doesn't know", () => {
+  const b = B.sanitizeBoard({ id: "t", name: "T", tags: ["trip"], elements: [] });
+  assert.deepStrictEqual(b.tags, ["trip"]);
+});
+
 test("the scratch flag (Home's scratch board) survives sanitizing, and only when set", () => {
   assert.strictEqual(B.sanitizeBoard({ id: "a", name: "S", scratch: true }).scratch, true);
   assert.ok(!("scratch" in B.sanitizeBoard({ id: "b", name: "B", scratch: false })));

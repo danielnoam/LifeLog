@@ -14,6 +14,7 @@ always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 - Motion now runs on keel's shared engine, the same one Waypage uses. On a phone it moves as before, with a slightly longer, invisible settle at the end.
 - Checklist items keep details this version doesn't show yet, so a device that hasn't updated won't wipe them when it saves a list. Groundwork for tasks with dates, priority and subtasks.
 - When the same checklist item is changed on two devices, the newer change is kept, rather than always the one on this device.
+- The same protection for boards, pictures on boards, a habit's days and the "keep my value" ticks on Timeline and Backlog items: a device that hasn't updated keeps what a newer version added instead of dropping it.
 
 ### Fixed
 - LifeLog: Up next, the Stremio row, now has its storage on the web proxy, so sending your Backlog to Stremio works instead of failing.

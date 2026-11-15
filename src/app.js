@@ -2689,9 +2689,14 @@
   // Kept as an object rather than a list so it reads the same as it stores;
   // dropped entirely when nothing is ticked, so an item that has never used
   // the foldout stays byte-identical to how it saved before this existed.
+  // A ticked key this build doesn't list (a newer build's field) stays too,
+  // so an older device saving the item doesn't untick it.
   function sanitizeOverrides(overrides, keys) {
     const out = {};
     for (const key of keys) if (overrides && overrides[key]) out[key] = true;
+    if (overrides && typeof overrides === "object") {
+      for (const key of Object.keys(overrides)) if (!keys.includes(key) && overrides[key] === true) out[key] = true;
+    }
     return Object.keys(out).length ? out : null;
   }
 
