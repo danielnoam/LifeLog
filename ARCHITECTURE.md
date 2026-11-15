@@ -15,7 +15,6 @@ src/notes.js        Notes: the feed, the sheet, lists and quotes
 src/boards.js       drawing boards (boards.json)
 src/habits.js       Habits
 src/finance.js      Ledger: expenses, recurring bills, Summary
-src/travel.js       Travel: trips and places (travel.json)
 src/invest.js       The Ledger's Investments mode: watchlist and pins (investments.json)
 src/home.js         Home: in progress, coming up, the scratchpad and pinned notes
 src/recap.js        the yearly Recap
@@ -47,7 +46,7 @@ src/icons.js        the Lucide icon map
 src/select.js       the app's own dropdown list for every <select>
 src/errlog.js       the errors this device has hit
 src/qr.js, wheel.js QR codes for setup links; the Spin wheel
-src/vendor/         Leaflet (maps), rough.js and the Virgil font (boards)
+src/vendor/         rough.js and the Virgil font (boards)
 src/styles.css      every style and the four themes
 native/             Android and iOS widgets, reminders, share extension
 src-tauri/          the Windows and Linux app's shell (Tauri)

@@ -441,20 +441,8 @@
     });
   }
 
-  // Trips and their places (travel.json, 0.241.0): two plain collections,
-  // each merged item by item. Places are their own list rather than an
-  // array inside the trip so two devices planning different days of one
-  // trip both keep their changes.
-  function mergeTravel(base, local, remote) {
-    base = base || {}; local = local || {}; remote = remote || {};
-    return {
-      trips: mergeCollection(base.trips || [], local.trips || [], remote.trips || []).merged,
-      places: mergeCollection(base.places || [], local.places || [], remote.places || []).merged,
-    };
-  }
-
   // The Ledger's watchlist and its date pins (investments.json): two plain
-  // collections, like trips and places. Pins are their own list rather than
+  // collections, each merged item by item. Pins are their own list rather than
   // an array inside the ticker so two devices pinning different days of one
   // ticker both keep theirs. The watchlist keeps the order a side chose.
   function mergeInvest(base, local, remote) {
@@ -479,7 +467,7 @@
   }
 
   const api = {
-    COLLECTION_KEYS, byId, mergeBoards, mergeTravel, mergeInvest, sameContent, flattenAccomplishments, unflattenAccomplishments,
+    COLLECTION_KEYS, byId, mergeBoards, mergeInvest, sameContent, flattenAccomplishments, unflattenAccomplishments,
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, settingsFromBackup,

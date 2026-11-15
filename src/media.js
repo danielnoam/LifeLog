@@ -1878,10 +1878,6 @@
       url: proxy + "/steamgriddb/search/autocomplete/portal",
       init: { headers: { Authorization: "Bearer " + k } }, success: true,
     },
-    googlePlaces: (k) => ({
-      url: "https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4",
-      init: { headers: { "X-Goog-Api-Key": k, "X-Goog-FieldMask": "id" } },
-    }),
     nyt: (k) => ({ url: "https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=" + enc(k) }),
     tiingo: (k, proxy) => proxy && { url: proxy + "/tiingo-meta/SPY", init: { headers: { Authorization: "Token " + k } } },
     // Hardcover's: who the token belongs to. A bad token is a GraphQL error

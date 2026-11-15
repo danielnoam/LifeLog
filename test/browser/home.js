@@ -198,7 +198,7 @@ const SEED = {
   // ---- turned off ----
   await page.evaluate(() => {
     const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1"));
-    v.disabledViews = ["travel", "home"];
+    v.disabledViews = ["home"];
     localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v));
     sessionStorage.removeItem("lifelog-started");
   });

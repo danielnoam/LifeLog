@@ -11,7 +11,6 @@
   const Wheel = window.LifeLogWheel;
   const Habits = window.LifeLogHabits;
   const Boards = window.LifeLogBoards;
-  const Travel = window.LifeLogTravel;
   const Invest = window.LifeLogInvest;
   const Waypage = window.LifeLogWaypage || { init() {}, wire() {}, start() {}, check() {}, progressLabel: () => "" };
   const Recap = window.LifeLogRecap;
@@ -53,7 +52,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", hardcover: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, waypage: { repo: "", token: "" }, stremio: { email: "", authKey: "", movieCategory: "", showCategory: "", autoSyncDays: "0", connectedAt: "" }, hardcover: { category: "", autoSyncDays: "open", connectedAt: "", username: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, stremio, hardcover, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", hardcover: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, waypage: { repo: "", token: "" }, stremio: { email: "", authKey: "", movieCategory: "", showCategory: "", autoSyncDays: "0", connectedAt: "" }, hardcover: { category: "", autoSyncDays: "open", connectedAt: "", username: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, stremio, hardcover, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -67,9 +66,7 @@
     // Dropped starts folded because it is the band you gave up on; the other
     // two are things you are waiting on and worth seeing.
     backlogFoldEa: "open", backlogFoldUnreleased: "open", backlogFoldDropped: "collapsed",
-    // Travel starts off (0.248.0): Settings → Tabs turns it on. A device that
-    // has saved its own tab choices keeps them.
-    disabledViews: ["travel"] };
+    disabledViews: [] };
   // Every option is a complete statement about the whole list — "Largest
   // first", not "Amount" plus a direction toggle somewhere else. The control
   // that replaced monthOrder said one thing on its face ("↑ Oldest first")
@@ -186,7 +183,7 @@
   // left to right — the swipe, the number keys — asks enabledViews().
   // Home sits in the middle (0.306.0): what's going on now, a tab either
   // side of where you start.
-  const VIEW_ORDER = ["notes", "timeline", "home", "backlog", "finance", "travel"];
+  const VIEW_ORDER = ["notes", "timeline", "home", "backlog", "finance"];
 
   function loadVisualSettings() {
     try {
@@ -229,7 +226,7 @@
     try {
       localStorage.setItem(UI_KEY, JSON.stringify({
         view: state.view, notesMode: state.notesMode, timelineMode: state.timelineMode,
-        backlogMode: state.backlogMode, financeMode: state.financeMode, travelMode: state.travelMode, scrollY: window.scrollY,
+        backlogMode: state.backlogMode, financeMode: state.financeMode, scrollY: window.scrollY,
       }));
     } catch (e) {}
   }
@@ -484,8 +481,6 @@
     // thing — the entries and their stats, the ledger and its summary — or,
     // for Notes, the two things you write yourself.
     notesMode: "notes",
-    // Travel's: a trip by time, by area or on the map (0.243.0).
-    travelMode: "time",
     financeActiveProjects: new Set(),
     // Which foldable backlog bands are open, keyed "<category>|<band>". In
     // memory rather than in saveUiState on purpose: a fold is a look, not a
@@ -743,15 +738,6 @@
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
-    // A trip's three views (0.243.0). They were a switch on the trip page in
-    // 0.242.0; as modes they swipe and get the whole screen. The map keeps
-    // its own drags: its side is .no-swipe.
-    travel: {
-      key: "travel",
-      modes: Travel.MODES,
-      get: () => state.travelMode,
-      set: (m) => { state.travelMode = m; },
-    },
   };
   // ---------- the order of tabs and modes, and where a tab opens ----------
   // Settings → Tabs (0.188.0). Both orders belong to this device, like
@@ -765,7 +751,7 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"], travel: ["area", "time", "map"] };
+  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"] };
   // With more than three there's no middle — and with fewer, the first may
   // not be the one it has always opened on — so a tab opens on your choice
   // or, until you make one, on this.
@@ -1757,7 +1743,6 @@
         else Finance.renderFinanceEntries(c);
         return;
       }
-      if (state.view === "travel") { Travel.renderTravel(c); return; }
       if (state.view === "home") { Home.renderHome(c); return; }
       const entries = getFiltered();
       // What you're on now (0.218.0), above the log — and shown even when
@@ -2314,8 +2299,7 @@
     let startX = null, startY = null, captured = false;
     el.addEventListener("pointerdown", (e) => {
       if (!isMobileLayout()) return;
-      // A surface with drags of its own (Travel's map, its rows while
-      // they're being arranged) keeps them: no swipe starts there.
+      // A surface with drags of its own keeps them: no swipe starts there.
       if (e.target.closest && e.target.closest(".no-swipe")) { startX = null; return; }
       startX = e.clientX; startY = e.clientY; captured = false;
     });
@@ -3523,19 +3507,14 @@
   function updateFilterbarVisibility() {
     const bar = $("#filterbar");
     if (!bar) return;
-    // Travel's one row is its trips (0.243.0), built by travel.js: a trip
-    // has no categories, and is its own span of days rather than something
-    // filed under a year.
     // Home has nothing to filter: it is a page of what's on now.
     if (state.view === "home") { bar.hidden = true; return; }
-    const travel = state.view === "travel";
     // The Ledger's Investments mode has one row too, its Range (invest.js):
     // a ticker is filed under no year or category.
     const invest = state.view === "finance" && state.financeMode === "invest";
-    if (travel || invest) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
-    if (!travel) $("#tripFilterGroup").hidden = true;
+    if (invest) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
     if (!invest) $("#rangeFilterGroup").hidden = true;
-    bar.hidden = travel ? $("#tripFilterGroup").hidden : invest ? $("#rangeFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
+    bar.hidden = invest ? $("#rangeFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
       && $("#kindFilterGroup").hidden && $("#showFilterGroup").hidden && $("#projFilterGroup").hidden);
   }
 
@@ -4976,9 +4955,6 @@
         if (state.view !== "finance") switchToView("finance"); else commitModeChange();
         Invest.addTicker();
       }
-      else if (b.dataset.add === "trip") Travel.addTrip();
-      else if (b.dataset.add === "place") Travel.addPlace();
-      else if (b.dataset.add === "import-places") Travel.importPlaces();
     });
     document.addEventListener("click", closeAddMenu);
 
@@ -4987,7 +4963,6 @@
     Journal.wire(); // timeline entry modal, achievements, category management
     Notes.wire(); // the note modal (Timeline's Notes mode + the + menu)
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
-    Travel.wire(); // the trip and place sheets
     Invest.wire(); // the Ledger watchlist's ticker and pin sheets
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
@@ -5151,7 +5126,6 @@
           if (inSearch) $("#search").blur();
           return;
         }
-        if (state.view === "travel" && Travel.endSort()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Backlog.closeOutTodaySheet();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
@@ -5160,7 +5134,7 @@
         // unless a new category's sheet is up over it: that one goes first.
         if ($("#noteCatModal").hidden) { Notes.leaveNoteModal(); Notes.closeNoteReader(); }
         Habits.closeHabitModal(); Habits.closeAmountModal(); Notes.closeNoteCatModal();
-        Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
+        Share.close();
         Invest.closeWatchModal(); Invest.closePinModal(); Invest.closeBuyModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
@@ -6365,13 +6339,12 @@
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
-  Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
   Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page),
     openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr: () => Finance.localDateStr(new Date()) });
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
-  Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
+  Share.start({ Backlog, Notes, toast, viewEnabled, modeEnabled });
   Stremio.start({
     state, toast, persist, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport, importStraight: IO.importStraight,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },
@@ -6384,7 +6357,7 @@
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
   Search.start({
     state, ico, render, viewEnabled, modeEnabled, coverEl, emptyCoverEl,
-    Notes, Habits, Journal, Backlog, Finance, Travel, Settings: SettingsUI,
+    Notes, Habits, Journal, Backlog, Finance, Settings: SettingsUI,
     goTo: (view) => { if (view !== state.view && viewEnabled(view)) switchToView(view); },
     viewLabel: (view) => { const t = document.querySelector('.tab[data-view="' + view + '"]'); return t ? t.textContent.trim() : view; },
   });

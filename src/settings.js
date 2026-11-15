@@ -418,7 +418,6 @@
 
   function updateFileInfo() {
     updateBoardsFileInfo();
-    updateTravelFileInfo();
     updatePhoneBackupInfo();
     const info = $("#fileInfo");
     const connect = $("#connectFileBtn");
@@ -477,37 +476,6 @@
       toast("Couldn't connect file: " + (e.message || e), true);
     }
     updateBoardsFileInfo();
-  }
-
-  // Trips' own backup file (0.245.0), the same as the boards'.
-  async function updateTravelFileInfo() {
-    const card = $("#travelFileCard");
-    card.hidden = !Storage.fsSupported;
-    if (!Storage.fsSupported) return;
-    await Storage.travel.ensureFile();
-    const T = Storage.travel;
-    const info = $("#travelFileInfo"), connect = $("#connectTravelFileBtn"), recon = $("#reconnectTravelFileBtn"), disc = $("#disconnectTravelFileBtn");
-    if (T.fileConnected) {
-      info.textContent = "Connected: " + T.fileName + " (every trip save goes here too).";
-      connect.textContent = "Change trips file…"; recon.hidden = true; disc.hidden = false;
-    } else if (T.fileNeedsReconnect) {
-      info.textContent = "File “" + T.fileName + "” needs permission again.";
-      connect.textContent = "Choose a different file…"; recon.hidden = false; disc.hidden = false;
-    } else {
-      info.textContent = "Not backed up to a file.";
-      connect.textContent = "Choose trips file…"; recon.hidden = true; disc.hidden = true;
-    }
-  }
-  async function connectTravelFile() {
-    try {
-      const doc = await window.LifeLogTravel.tripsForExport();
-      const name = await Storage.travel.connectFile(doc);
-      toast("Trips backed up to " + name);
-    } catch (e) {
-      if (e && e.name === "AbortError") return;
-      toast("Couldn't connect the file — " + (e.message || e), true);
-    }
-    updateTravelFileInfo();
   }
 
   // ---------- pages (0.186.0) ----------
@@ -1198,7 +1166,7 @@
   // or the proxy changes. A working key is remembered for ten minutes, so
   // stepping in and out of the page doesn't ask again; a failing one is asked
   // every time, so a service coming back up shows as soon as you look.
-  const KEY_KINDS = ["rawg", "tmdb", "ggdeals", "steamgriddb", "igdb", "hardcover", "googlePlaces", "nyt", "tiingo"];
+  const KEY_KINDS = ["rawg", "tmdb", "ggdeals", "steamgriddb", "igdb", "hardcover", "nyt", "tiingo"];
   const KEY_STATUS_ICONS = { ok: "check", bad: "x", warn: "triangle-alert", down: "triangle-alert", checking: "loader-circle" };
   const keyWorks = new Map();
   const keyAsk = {};
@@ -1246,7 +1214,6 @@
     $("#igdbClientId").value = state.data.settings.mediaKeys?.igdb || "";
     $("#igdbSecret").value = state.data.settings.mediaKeys?.igdbSecret || "";
     $("#hardcoverKey").value = state.data.settings.mediaKeys?.hardcover || "";
-    $("#googlePlacesKey").value = state.data.settings.mediaKeys?.googlePlaces || "";
     $("#nytKey").value = state.data.settings.mediaKeys?.nyt || "";
     $("#tiingoKey").value = state.data.settings.mediaKeys?.tiingo || "";
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
@@ -1678,13 +1645,6 @@
     };
     $("#disconnectBoardsFileBtn").onclick = async () => { await Storage.boards.disconnectFile(); updateBoardsFileInfo(); toast("Boards file disconnected"); };
     $("#boardHistoryBtn").onclick = () => window.LifeLogBoards.renderHistory($("#boardHistoryList"), $("#boardHistoryStatus"));
-    $("#connectTravelFileBtn").onclick = connectTravelFile;
-    $("#reconnectTravelFileBtn").onclick = async () => {
-      if (await Storage.travel.reconnectFile()) { await window.LifeLogTravel.flush(); toast("Reconnected"); } else toast("Permission denied", true);
-      updateTravelFileInfo();
-    };
-    $("#disconnectTravelFileBtn").onclick = async () => { await Storage.travel.disconnectFile(); updateTravelFileInfo(); toast("Trips file disconnected"); };
-    $("#travelHistoryBtn").onclick = () => window.LifeLogTravel.renderHistory($("#travelHistoryList"), $("#travelHistoryStatus"));
     $("#ghConnectBtn").onclick = connectGithub;
     // Only where there's a scanner to ask: a browser already has the camera.
     $("#ghScanBtn").hidden = !scanner();
@@ -1759,7 +1719,6 @@
     $("#igdbClientId").oninput = () => setMediaKey("igdb", $("#igdbClientId").value.trim());
     $("#hardcoverKey").oninput = () => setMediaKey("hardcover", $("#hardcoverKey").value.trim());
     $("#igdbSecret").oninput = async () => { await setMediaKey("igdbSecret", $("#igdbSecret").value.trim()); checkMediaKeySoon("igdb"); };
-    $("#googlePlacesKey").oninput = () => setMediaKey("googlePlaces", $("#googlePlacesKey").value.trim());
     $("#nytKey").oninput = () => setMediaKey("nyt", $("#nytKey").value.trim());
     $("#tiingoKey").oninput = () => setMediaKey("tiingo", $("#tiingoKey").value.trim());
 

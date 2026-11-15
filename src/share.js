@@ -10,10 +10,10 @@
 //   turns into that action string (ShareIntent.java);
 // - the iOS app, when it gets a share extension, through lifelog://action/.
 //
-// Where it goes is decided from the link: a Google Maps link is a place for
-// Travel, a link to a site that lists titles (Letterboxd, Steam, IMDb…) is a
-// Backlog item with the lookup already running, and anything else asks,
-// Backlog or Note, since text with no link could be either.
+// Where it goes is decided from the link: a link to a site that lists titles
+// (Letterboxd, Steam, IMDb…) is a Backlog item with the lookup already
+// running, and anything else asks, Backlog or Note, since text with no link
+// could be either. A Google Maps link is never taken for a site's name.
 (() => {
   const MAPS = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)/i;
   // Sites a share is a title from. `slug` is the part of the path that spells
@@ -92,7 +92,6 @@
     if (!s.title && !s.text && !s.url) return;
     const backlog = ctx.viewEnabled("backlog");
     const notes = ctx.modeEnabled("notes", "notes");
-    if (s.kind === "place" && ctx.viewEnabled("travel")) { ctx.Travel.importSharedLink(s.url); return; }
     if (s.kind === "media" && backlog) { toBacklog(s); return; }
     if (backlog && !notes) { toBacklog(s); return; }
     if (notes && !backlog) { toNote(s); return; }

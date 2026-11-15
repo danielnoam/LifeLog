@@ -17,11 +17,6 @@ const FAKE_BRIDGE = () => {
         request: async ({ url, method, headers, data, disableRedirects, readTimeout, connectTimeout }) => {
           window.__http.push({ url, method, headers, data, disableRedirects, readTimeout, connectTimeout });
           if (window.__httpFails) throw new Error("Unable to resolve host");
-          // A Google Maps short link: one hop on goo.gl, then Maps itself.
-          if (url === "https://maps.app.goo.gl/Code1") return { status: 302, headers: { location: "https://goo.gl/maps/hop" }, data: "" };
-          if (url === "https://goo.gl/maps/hop") return { status: 301, headers: { Location: "https://www.google.com/maps/@/data=!4m3!11m2!2sListId00000000000001!3e3" }, data: "" };
-          if (url === "https://maps.app.goo.gl/Gone") return { status: 404, headers: {}, data: "Not found" };
-          if (url.startsWith("https://www.google.com/maps/preview/entitylist/getlist")) return { status: 200, headers: {}, data: ")]}'\n[[]]" };
           if (url.startsWith("https://id.twitch.tv/oauth2/token")) return { status: 200, data: JSON.stringify({ access_token: "tok", expires_in: 5000000 }) };
           if (url === "https://api.hardcover.app/v1/graphql") return { status: 200, data: JSON.stringify({ data: { search: { results: { hits: [{ document: { slug: "mistborn", title: "Mistborn", author_names: ["Brandon Sanderson"] } }] } } } }) };
           if (url.startsWith("https://api.igdb.com/v4/")) return { status: 200, data: JSON.stringify([{ id: 7, name: "Celeste" }]) };
@@ -97,20 +92,7 @@ const FAKE_BRIDGE = () => {
       && hc.asked[0].data && /search\(query: \$q/.test(hc.asked[0].data.query) && hc.asked[0].data.variables.q === "Mistborn"
       && /"Content-Type":"application\/json"/.test(JSON.stringify(hc.asked[0].headers)) && /"Bearer hctok"/.test(JSON.stringify(hc.asked[0].headers)), hc.asked[0]);
 
-    // Travel's Google import (0.242.0; redirects read, not followed, 0.243.2).
-    const maps = await page.evaluate(async (p) => {
-      window.__http = [];
-      const link = await (await fetch(p + "/gmaps-link/Code1")).json();
-      const gone = (await fetch(p + "/gmaps-link/Gone")).status;
-      const list = await (await fetch(p + "/gmaps-list/ListId00000000000001")).text();
-      return { link, gone, list, asked: window.__http };
-    }, proxy);
-    check("a short link is followed hop by hop to where it leads", maps.link.url === "https://www.google.com/maps/@/data=!4m3!11m2!2sListId00000000000001!3e3", maps);
-    check("reading each redirect rather than loading Google Maps' page", maps.asked.slice(0, 2).every((a) => a.disableRedirects === true)
-      && !maps.asked.some((a) => a.url.startsWith("https://www.google.com/maps/@")), maps.asked);
-    check("a dead link says so with its status", maps.gone === 404, maps.gone);
-    check("the list comes from Google's list endpoint, as text", maps.list === ")]}'\n[[]]" && /entitylist\/getlist\?.*!1sListId00000000000001/.test(maps.asked[3].url), maps.asked[3]);
-    check("every native request has a timeout", maps.asked.every((a) => a.readTimeout > 0 && a.connectTimeout > 0), maps.asked);
+    check("every native request has a timeout", hc.asked.length > 0 && hc.asked.every((a) => a.readTimeout > 0 && a.connectTimeout > 0), hc.asked);
 
     const unknown = await page.evaluate(async (p) => (await fetch(p + "/anything-else")).status, proxy);
     check("anything the worker wouldn't relay isn't relayed here either", unknown === 404, unknown);

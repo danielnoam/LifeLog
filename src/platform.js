@@ -180,7 +180,6 @@
   }
 
   // ---- Steam and friends without the proxy (0.215.0) ----
-  // (Google Maps links and lists joined them in 0.242.0, for Travel's import.)
   // Steam's store API, SteamGridDB and GG.deals send no CORS headers, so a
   // browser needs proxy/worker.js in front of them. The app doesn't: its
   // native HTTP (CapacitorHttp, part of Capacitor itself) isn't a browser
@@ -243,10 +242,6 @@
     if (m) return { url: "https://api.strem.io/api/" + m[1], method: "POST", bodyFromInit: true, contentType: "application/json" };
     m = /^\/augsteam-app\/(\d+)$/.exec(u.pathname);
     if (m) return "https://api.augmentedsteam.com/app/" + m[1] + "/v2";
-    m = /^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/.exec(u.pathname);
-    if (m) return "https://maps.app.goo.gl/" + m[1];
-    m = /^\/gmaps-list\/([A-Za-z0-9_-]{16,64})$/.exec(u.pathname);
-    if (m) return "https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=en&gl=us&pb=!1m4!1s" + m[1] + "!2e1!3m1!1e1!2e2!3e2!4i500!16b1";
     return null;
   }
   // Only the parameters a Tiingo route takes are passed on.
@@ -267,13 +262,8 @@
   }
   // Every native request gives up rather than waiting forever: with no
   // read timeout, a server that keeps the connection open left the caller
-  // spinning (Travel's Google import, 0.243.2).
+  // spinning (0.243.2).
   const NATIVE_TIMEOUTS = { connectTimeout: 15000, readTimeout: 20000 };
-  const headerOf = (res, name) => {
-    const h = (res && res.headers) || {};
-    const key = Object.keys(h).find((k) => k.toLowerCase() === name);
-    return key ? String(h[key]) : "";
-  };
   async function nativeRequest(opts) {
     try {
       return await nativeHttp().request({ method: "GET", responseType: "text", ...NATIVE_TIMEOUTS, ...opts });
@@ -281,34 +271,10 @@
       throw new TypeError("Failed to fetch (" + ((e && e.message) || e) + ")");
     }
   }
-  // A short link, answered as the worker does: where it leads, read off the
-  // redirect rather than followed. Following it loaded Google Maps' whole
-  // page (and on Android could hang there) just to learn its address.
-  async function resolveShort(target) {
-    let at = target;
-    for (let hop = 0; hop < 4; hop++) {
-      const res = await nativeRequest({ url: at, disableRedirects: true });
-      const next = headerOf(res, "location");
-      if (!next) {
-        // Answered with a page after all: its final address, and any list
-        // id the page carries.
-        const body = typeof res.data === "string" ? res.data : "";
-        const hint = /!11m\d+!2s[A-Za-z0-9_-]{16,}|placelists\/list\/[A-Za-z0-9_-]{16,}/.exec(body);
-        return { url: String(res.url || at) + (hint ? " " + hint[0] : ""), status: res.status };
-      }
-      at = new URL(next, at).toString();
-      if (!/^https:\/\/(maps\.app\.goo\.gl|goo\.gl)\//.test(at)) return { url: at };
-    }
-    return { url: at };
-  }
   async function viaNative(url, init) {
     const target = upstreamFor(url);
     if (!target) return new Response("Not found", { status: 404 });
     const json = (body, status) => new Response(JSON.stringify(body), { status: status || 200, headers: { "Content-Type": "application/json" } });
-    if (typeof target === "string" && target.startsWith("https://maps.app.goo.gl/")) {
-      const out = await resolveShort(target);
-      return out.status && out.status >= 400 ? json({ error: "HTTP " + out.status }, out.status) : json({ url: out.url });
-    }
     const headers = {};
     new Headers((init && init.headers) || {}).forEach((v, k) => { headers[k] = v; });
     let req = { url: target, headers };

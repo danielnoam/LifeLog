@@ -196,28 +196,6 @@ function buildData() {
       scratchpad: "Call the landlord about the boiler\nPick up the film photos, ready Saturday\n\nGift ideas for Maya: the ceramics class, The Salt Archive hardback" },
   };
 
-  const tripStart = daysAgo(-18), day = (k) => ymd(new Date(tripStart.getFullYear(), tripStart.getMonth(), tripStart.getDate() + k));
-  const tripId = id();
-  const place = (name, k, extra) => ({ id: id(), trip: tripId, name, createdAt: iso(NOW), ...(k == null ? {} : { day: day(k) }), ...extra });
-  const travel = {
-    trips: [
-      { id: tripId, name: "Kyoto", start: day(0), end: day(3), createdAt: iso(NOW) },
-      { id: id(), name: "Lisbon", start: ymd(daysAgo(38)), end: ymd(daysAgo(34)), createdAt: iso(daysAgo(60)) },
-    ],
-    places: [
-      place("Fushimi Inari Taisha", 0, { time: "07:30", lat: 34.9671, lng: 135.7727, address: "Fukakusa Yabunouchicho, Fushimi Ward, Kyoto", order: 0 }),
-      place("Nishiki Market", 0, { time: "12:00", endTime: "13:30", lat: 35.005, lng: 135.7649, address: "Nakagyo Ward, Kyoto", order: 1 }),
-      place("Gion evening walk", 0, { lat: 35.0037, lng: 135.7788, address: "Gion, Higashiyama Ward, Kyoto", order: 2 }),
-      place("Arashiyama Bamboo Grove", 1, { time: "08:00", lat: 35.017, lng: 135.6713, address: "Sagaogurayama, Ukyo Ward, Kyoto", order: 0 }),
-      place("Tenryu-ji", 1, { lat: 35.0156, lng: 135.6738, address: "Saga Tenryuji, Ukyo Ward, Kyoto", order: 1 }),
-      place("Kinkaku-ji", 2, { time: "09:00", lat: 35.0394, lng: 135.7292, address: "Kinkakujicho, Kita Ward, Kyoto", order: 0 }),
-      place("Philosopher's Path", 2, { lat: 35.0268, lng: 135.7944, address: "Sakyo Ward, Kyoto", order: 1 }),
-      place("Nara Park", 3, { lat: 34.685, lng: 135.843, address: "Nara", order: 0 }),
-      place("Kiyomizu-dera", null, { lat: 34.9949, lng: 135.785, address: "Higashiyama Ward, Kyoto" }),
-      place("Ippodo Tea", null, { lat: 35.0136, lng: 135.7672, address: "Nakagyo Ward, Kyoto" }),
-    ],
-  };
-
   const T = (x, y, text, fs = 22) => ({ id: id(), t: "text", x, y, text, fs, c: "ink", sw: 2 });
   const boards = {
     boards: [{
@@ -271,7 +249,7 @@ function buildData() {
   const B = (sym, ago, units, extra) => ({ id: id(), date: ymd(daysAgo(ago)), units, price: closeOn(sym, ymd(daysAgo(ago))), createdAt: iso(daysAgo(ago)), updatedAt: iso(daysAgo(ago)), ...extra });
   watch[0].buys = [B("ACME", 290, 4), B("ACME", 200, 2.5, { note: "Monthly autobuy" }), B("ACME", 170, 3, { note: "The spring dip" }), B("ACME", 60, 2.5, { note: "Monthly autobuy" }), B("ACME", 30, 2, { sell: true })];
   watch[1].buys = [B("NOVA", 120, 3)];
-  return { data, travel, boards, invest, prices };
+  return { data, boards, invest, prices };
 }
 
 // ---------- the shots ----------
@@ -342,7 +320,6 @@ const SHOTS = [
   // than the setup card; nothing is asked of Tiingo.
   { name: "ledger-investments", ui: { view: "finance", financeMode: "invest" },
     settings: { mediaKeys: { tiingo: "demo" }, steam: { proxyUrl: "https://proxy.example" } } },
-  { name: "travel", ui: { view: "travel", travelMode: "time" }, visual: { disabledViews: [] } },
   { name: "search", ui: { view: "backlog", backlogMode: "entries" }, noScroll: true,
     go: async (page) => { await page.click("#search"); await page.keyboard.type("lantern", { delay: 40 }); } },
   // The import review (2026-11): an Obsidian folder of made-up notes, one
@@ -406,21 +383,20 @@ async function toWebp(page, png) {
   return Buffer.from(b64, "base64");
 }
 
-async function seedIdb(page, travel, boards, invest, prices) {
-  await page.evaluate(({ travel, boards, invest, prices }) => new Promise((resolve, reject) => {
+async function seedIdb(page, boards, invest, prices) {
+  await page.evaluate(({ boards, invest, prices }) => new Promise((resolve, reject) => {
     const q = indexedDB.open("lifelog");
     q.onerror = () => reject(q.error);
     q.onsuccess = () => {
       const db = q.result;
       const tx = db.transaction("handles", "readwrite");
-      tx.objectStore("handles").put(travel, "travelCache");
       tx.objectStore("handles").put(boards, "boardsCache");
       tx.objectStore("handles").put(invest, "investCache");
       tx.objectStore("handles").put(prices, "device:investPrices");
       tx.oncomplete = () => { db.close(); resolve(); };
       tx.onerror = () => reject(tx.error);
     };
-  }), { travel, boards, invest, prices });
+  }), { boards, invest, prices });
 }
 
 async function main() {
@@ -429,7 +405,7 @@ async function main() {
   const server = spawn(process.execPath, [path.join(ROOT, "server.js")], { env: { ...process.env, PORT: String(port) }, stdio: "ignore" });
   const BASE = "http://localhost:" + port;
   await new Promise((r) => setTimeout(r, 600));
-  const { data, travel, boards, invest, prices } = buildData();
+  const { data, boards, invest, prices } = buildData();
   const browser = await chromium.launch();
   const errors = [];
   const encoder = await browser.newPage();
@@ -441,7 +417,7 @@ async function main() {
         const page = await ctx.newPage();
         page.on("pageerror", (e) => errors.push(shot.name + "/" + size.tag + ": " + e.message));
         await page.goto(BASE + "/", { waitUntil: "networkidle" });
-        await seedIdb(page, travel, boards, invest, prices);
+        await seedIdb(page, boards, invest, prices);
         await page.evaluate(({ data, ui, visual }) => {
           localStorage.setItem("lifelog-cache-v1", JSON.stringify(data));
           localStorage.setItem("lifelog-ui-v1", JSON.stringify(ui));
