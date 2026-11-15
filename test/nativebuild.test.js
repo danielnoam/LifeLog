@@ -316,9 +316,10 @@ test("the page asks the plugin only for what the plugin has", () => {
 });
 
 test("the app loads the plugin by the name the page calls it", () => {
-  const name = (javaSrc.match(/@CapacitorPlugin\(\s*name = "(\w+)"/) || [])[1];
-  assert.strictEqual(name, "Widgets");
+  const names = [...javaSrc.matchAll(/@CapacitorPlugin\(\s*name = "(\w+)"/g)].map((m) => m[1]).sort();
+  assert.deepStrictEqual(names, ["Drive", "Widgets"]);
   assert.ok(/plugin\("Widgets"\)/.test(fs.readFileSync(path.join(__dirname, "..", "src", "widgets.js"), "utf8")));
+  assert.ok(/Plugins\.Drive\b/.test(fs.readFileSync(path.join(__dirname, "..", "src", "drive.js"), "utf8")));
   const pkg = require("../package.json");
   assert.strictEqual(pkg.devDependencies["lifelog-widgets"], "file:native/widgets");
 });

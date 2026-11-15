@@ -12,6 +12,7 @@ use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 
 mod datafolder;
+mod oauth;
 mod toast;
 
 // Start at login (Settings → Notifications) launches with this, straight
@@ -83,6 +84,19 @@ fn remove_old_data_copy(state: State<Folder>) -> Result<(), String> {
     f.as_mut().ok_or("Not on this computer")?.remove_old()
 }
 
+// Google Drive's sign-in (src/oauth.rs): a port on 127.0.0.1 to come back
+// to, then the one answer that comes there.
+#[tauri::command]
+fn oauth_listen(state: State<oauth::Loopback>) -> Result<u16, String> {
+    oauth::listen(&state)
+}
+
+#[tauri::command]
+async fn oauth_wait(state: State<'_, oauth::Loopback>) -> Result<String, String> {
+    let l = oauth::take(&state)?;
+    tauri::async_runtime::spawn_blocking(move || oauth::wait(l)).await.map_err(|e| e.to_string())?
+}
+
 // A Windows toast clicked while LifeLog wasn't running (src/toast.rs): the
 // page asks for it once it's ready.
 struct LaunchAction(Mutex<Option<String>>);
@@ -125,6 +139,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(CloseToTray(AtomicBool::new(true)))
+        .manage(oauth::Loopback(Mutex::new(None)))
         .manage(LaunchedHidden(std::env::args().any(|a| a == HIDDEN_ARG)))
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
@@ -136,7 +151,9 @@ fn main() {
             data_folder,
             choose_data_folder,
             open_data_folder,
-            remove_old_data_copy
+            remove_old_data_copy,
+            oauth_listen,
+            oauth_wait
         ])
         .setup(|app| {
             let local = app.path().app_local_data_dir()?;
