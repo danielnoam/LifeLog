@@ -525,6 +525,45 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_sync_space",
+    description: "How much of the GitHub data repo's room is used and left, and what takes it (notes, timeline, backlog, ledger, habits, settings, boards, investments, pictures, history), as Settings → Sync → Space on GitHub shows it. GitHub's size covers the whole repo against the 5 GB it asks a repo to stay under, and updates a while after a push.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const st = storeOf();
+      if (!st.space) return `Not syncing through GitHub (data from ${st.where()}), so there's no repo size to show.`;
+      const used = await st.space();
+      if (used == null) return "GitHub didn't say how big the repo is.";
+      const ALL = 5e9;
+      const size = (b) => b >= 9.995e8 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB" : b >= 9.995e5 ? (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+      const out = [`${size(Math.max(0, ALL - used))} left: ${size(Math.max(used, 1000))} of ${size(ALL)} used (${Math.round(Math.min(1, used / ALL) * 100)}%), in ${st.where()}.`];
+      // What takes it, as Settings → Sync → Space on GitHub lists it.
+      const d = await readData();
+      const bytes = (v) => Buffer.byteLength(JSON.stringify(v, null, 2));
+      const PARTS = [["Notes", ["notes", "noteCategories", "todos", "todoCategories"]], ["Timeline", ["entries", "categories", "accomplishments"]], ["Backlog", ["backlog"]],
+        ["Ledger", ["financeEntries", "recurringExpenses", "financeCategories", "projects"]], ["Habits", ["habits"]], ["Settings", ["settings"]]];
+      const rows = [];
+      let counted = 0;
+      for (const [name, keys] of PARTS) {
+        const pick = {};
+        for (const k of keys) if (d[k] != null) pick[k] = d[k];
+        const b = bytes(pick);
+        counted += b;
+        rows.push([name, b]);
+      }
+      rows.push(["Everything else in lifelog.json", Math.max(0, bytes(d) - counted)]);
+      for (const [name, file] of [["Boards", "boards"], ["Investments", "invest"]]) {
+        try { rows.push([name, Buffer.byteLength(JSON.stringify((await storeOf(file).read()).data))]); } catch (e) { /* not there */ }
+      }
+      let pics = null;
+      try { pics = await st.images.sizes(); rows.push([`Pictures (${pics.count})`, pics.bytes]); } catch (e) { out.push("Couldn't count the pictures."); }
+      const now = rows.reduce((t, r) => t + r[1], 0);
+      if (pics) rows.push(["History (earlier saves and removed pictures; rough, GitHub packs what it stores)", Math.max(0, used - now)]);
+      out.push("What takes it, largest first:", ...rows.filter((r) => r[1] >= 200).sort((a, b) => b[1] - a[1]).map(([n, b]) => `- ${n}: ${size(Math.max(b, 1000))}`));
+      return out.join("\n");
+    },
+  },
+  {
     name: "lifelog_search",
     description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments and drawing boards. An item matches when every word of the query appears somewhere in it, in any order. Narrow it with collection, category and subcategory. Returns what each hit is, its category and its id. To list or review everything in a category or subcategory, don't run repeated searches: use lifelog_expenses (category and subcategory filters), lifelog_spending with group_by subcategory, lifelog_timeline, lifelog_backlog or lifelog_notes (category filter).",
     readOnly: true,

@@ -422,6 +422,7 @@
       // unnoticed (0.259.2).
       let info = null;
       try { info = await r.json(); } catch (e) {}
+      tookSize(info, false); // saved with the rest once connecting succeeds
       if (info && info.private === false) throw new Error(`The repo ${gh.owner}/${gh.repo} is public — your log would be visible to everyone. Make it private on GitHub, or pick another repo.`);
       return gh.branch;
     }
@@ -607,6 +608,29 @@
     }
   }
 
+  // How much the data repo holds (2026-11), as Waypage shows it: GitHub's
+  // size for the whole repo in KB, history and the pictures branch too,
+  // which it updates a while after a push. There's no hard cap; GitHub asks
+  // that a repo stay under 5 GB.
+  const GH_SPACE = 5e9;
+  function tookSize(info, save = true) {
+    if (!gh || !info || typeof info.size !== "number" || info.size < 0) return;
+    gh.size = info.size; gh.sizeAt = Date.now();
+    if (save) saveGhCfg();
+  }
+  let askingSize = null;
+  function ghSpace() {
+    if (!gh || !gh.token || askingSize || (gh.sizeAt && Date.now() - gh.sizeAt < 10 * 60 * 1000)) return askingSize || Promise.resolve(false);
+    askingSize = (async () => {
+      const r = await fetch(API + "/repos/" + gh.owner + "/" + gh.repo, { headers: ghHeaders(), cache: "no-store" });
+      if (!r.ok) return false;
+      const was = gh.size;
+      tookSize(await r.json());
+      return gh.size !== was;
+    })().catch(() => false).finally(() => { askingSize = null; });
+    return askingSize;
+  }
+
   // ---- pictures in notes (0.297.0) ----
   // One file per picture, images/<id>, on a branch of their own in the same
   // repo: the token and the repo are the ones already given, and lifelog.json's
@@ -686,6 +710,15 @@
     if (r.status === 404) return null;
     if (!r.ok) throw ghErr(r.status, await r.text(), r);
     return r.blob();
+  }
+  // How many pictures the branch holds now and their bytes, for Space on
+  // GitHub. Removed ones still count in GitHub's total until Clean up.
+  async function ghImageSizes() {
+    const head = await imgHead();
+    if (!head) return { count: 0, bytes: 0 };
+    const listing = await ghJson("GET", "git/trees/" + head.tree + "?recursive=1");
+    const files = listing.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/"));
+    return { count: files.length, bytes: files.reduce((t, e) => t + (e.size || 0), 0), partial: !!listing.truncated };
   }
   // Keeps the pictures `keep` names, drops the rest, and starts the branch's
   // history over. The kept files are the same blobs, so nothing uploads again.
@@ -837,6 +870,12 @@
           }
         }
       },
+      // Bytes this device's copy of the file takes as JSON (Settings →
+      // Sync → Space on GitHub), 0 when it has none.
+      async cachedSize() {
+        const d = await idbGetSafe(cacheKey);
+        return d ? new Blob([JSON.stringify(pick(d))]).size : 0;
+      },
       async forget() {
         await idbDel(cacheKey).catch(() => {});
         await idbDel(baseKey).catch(() => {});
@@ -967,7 +1006,14 @@
       get: (id) => ghGetImage(id),
       list: () => ghListImages(),
       cleanUp: (keep) => ghCleanUpImages(keep),
+      sizes: () => ghImageSizes(),
     },
+
+    // Bytes the repo holds (null until GitHub has said), and a promise that
+    // asks again at most every 10 minutes, true when the number changed.
+    GITHUB_SPACE: GH_SPACE,
+    get githubUsed() { return gh && gh.token && typeof gh.size === "number" ? gh.size * 1024 : null; },
+    githubSpace: () => ghSpace(),
 
     get githubInfo() {
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch, tokenKind: tokenKind(gh.token) } : null;

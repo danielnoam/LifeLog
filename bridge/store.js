@@ -107,6 +107,15 @@ function githubImages(cfg, prepare) {
     }
   }
   return {
+    // How many pictures the branch holds now, and their bytes.
+    async sizes() {
+      await prepare();
+      const h = await head();
+      if (!h) return { count: 0, bytes: 0 };
+      const t = await gh(cfg, "GET", `${repo()}/git/trees/${h.tree}?recursive=1`);
+      const files = t.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/"));
+      return { count: files.length, bytes: files.reduce((n, e) => n + (e.size || 0), 0) };
+    },
     async get(id) {
       await prepare();
       const res = await fetch(`${API}${repo()}/contents/images/${encodeURIComponent(id)}?ref=${IMG_BRANCH}`, {
@@ -163,6 +172,13 @@ function githubStore(cfg, file, empty) {
     where: () => `GitHub ${cfg.owner || "?"}/${cfg.repo}/${repoPath}`,
     sibling: (name, emptyDoc) => githubStore(cfg, name, emptyDoc),
     images: githubImages(cfg, prepare),
+    // Bytes the data repo holds as GitHub counts it (history and the
+    // pictures branch too), as Settings → Sync shows it.
+    async space() {
+      await prepare();
+      const j = await gh(cfg, "GET", `/repos/${cfg.owner}/${cfg.repo}`);
+      return typeof j.size === "number" ? j.size * 1024 : null;
+    },
     async read() {
       await prepare();
       let meta;
