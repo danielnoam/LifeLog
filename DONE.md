@@ -313,4 +313,5 @@ Every release that adds a feature adds its line here in the same commit.
 - Keyboard reach for chips, labels on icon buttons, focus rings (0.86.0, 0.87.0)
 - Screen reader and keyboard pass (0.254.0)
 - Reduce motion turns off every animation (0.136.0)
+- Settings → Appearance → Animations: off stops every slide, spring and fade on this device; springs from keel's motion engine, without overshoot with a mouse on a big screen (next release)
 - Consistent type and spacing scales (0.223.0)
