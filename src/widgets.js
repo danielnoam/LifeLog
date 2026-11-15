@@ -82,7 +82,25 @@
       .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)) || String(a.title).localeCompare(String(b.title)))
       .slice(0, BACKLOG_ROWS)
       .map((b) => ({ id: b.id, title: b.title, category: b.category, color: colorOf(b.category), startedAt: b.startedAt, startedText: Dates().day(b.startedAt, { year: b.startedAt.slice(0, 4) !== today.slice(0, 4) }), length: b.length || "" }));
-    return { upcoming, inProgress };
+    return { upcoming: withTasks(upcoming, data, today), inProgress };
+  }
+  // Dated open tasks join the Upcoming widget (0.317.0), as Home's Coming
+  // up has them: overdue ones first, then by day among the releases, up to
+  // a fortnight ahead. `kind: "task"` tells the widget to keep an overdue
+  // one rather than drop it as past, and to word its day itself.
+  const TASK_DAYS = 14;
+  function withTasks(upcoming, data, today) {
+    const T = typeof window !== "undefined" && window.LifeLogTasks;
+    if (!T) return upcoming;
+    const tasks = T.dueTasks(data, addDays(today, TASK_DAYS)).map((r) => {
+      const t = { id: r.item.id, kind: "task", title: r.item.text, list: r.note.text || "", day: r.day,
+        dayText: Dates().day(r.day, { year: r.day.slice(0, 4) !== today.slice(0, 4) }) };
+      if (r.item.time) t.time = r.item.time;
+      if (r.item.priority) t.priority = r.item.priority;
+      return t;
+    });
+    return [...tasks, ...upcoming].sort((a, b) => a.day.localeCompare(b.day) || (a.kind === "task" ? -1 : 0) - (b.kind === "task" ? -1 : 0))
+      .slice(0, BACKLOG_ROWS);
   }
 
   function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "", currencySymbol = "" } = {}) {
@@ -156,19 +174,24 @@
       const name = k > 1 ? `${base} (${k})` : base;
       const color = n.category ? colorOf(n.category) : "";
       listsOut.push({ id: n.id, name, color });
-      // Tasks (tasks.js): a subtask stays off the widget, its task says how
-      // many are done, and a date rides along in the words, since the
-      // widget only draws text.
-      const T = window.LifeLogTasks;
+      // Tasks (tasks.js): a subtask stays off the widget, and a task's
+      // second line (0.317.0) is its date, then repeats and subtasks done.
+      // The date goes as a day, not words: the widget words it by the
+      // phone's clock ("Overdue", "Today 18:00"), since this snapshot can be
+      // days old by the time it's read. `dateText` is for a day further off.
       const all = n.items || [];
       const ids = new Set(all.map((it) => it.id));
-      const words = (it) => {
-        if (!T) return it.text;
+      const row = (it) => {
+        const out = { id: it.id, text: it.text, category: name, list: n.id, color, done: !!it.done };
+        if (it.done) return out;
         const kids = all.filter((c) => c.parent === it.id);
-        return [it.text, it.date && !it.done ? T.shortDay(it.date, today) + (it.time ? " " + it.time : "") : "",
-          kids.length ? kids.filter((c) => c.done).length + "/" + kids.length : ""].filter(Boolean).join(" · ");
+        const meta = [it.repeat ? "repeats" : "", kids.length ? kids.filter((c) => c.done).length + "/" + kids.length + " subtasks" : ""].filter(Boolean).join(" · ");
+        if (it.date) { out.date = it.date; out.dateText = Dates().day(it.date, { year: it.date.slice(0, 4) !== today.slice(0, 4) }); }
+        if (it.time && it.date) out.time = it.time;
+        if (meta) out.meta = meta;
+        if (it.priority) out.priority = it.priority;
+        return out;
       };
-      const row = (it) => ({ id: it.id, text: words(it), category: name, list: n.id, color, done: !!it.done });
       const items = all.filter((it) => !it.parent || !ids.has(it.parent));
       const open = items.filter((it) => !it.done);
       const done = items.filter((it) => it.done).sort(byNewestDone);

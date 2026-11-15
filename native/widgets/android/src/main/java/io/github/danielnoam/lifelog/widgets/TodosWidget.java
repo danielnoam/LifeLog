@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.RemoteViews;
+import java.util.List;
 import org.json.JSONObject;
 
 /**
@@ -122,9 +123,11 @@ public class TodosWidget extends AppWidgetProvider {
         JSONObject snap = WidgetStore.snapshot(c);
         boolean loaded = snap != null;
         JSONObject one = WidgetStore.singleList(snap, WidgetStore.listsOf(WidgetStore.config(c, widgetId)));
-        int open = WidgetStore.openTodoCount(WidgetStore.todoRows(c, widgetId));
+        List<WidgetStore.Row> rows = WidgetStore.todoRows(c, widgetId);
+        int open = WidgetStore.openTodoCount(rows);
+        int late = WidgetStore.overdueCount(rows, WidgetStore.today());
         String subtitle = !loaded || !WidgetStore.flag(WidgetStore.config(c, widgetId), "count") ? null
-            : open == 0 ? "All done" : open + " to do";
+            : open == 0 ? "All done" : open + " to do" + (late > 0 ? " · " + late + " overdue" : "");
         String pending = WidgetStore.pendingNote(c);
         if (pending != null) subtitle = subtitle == null ? pending : subtitle + " · " + pending;
         String empty = !loaded ? "Open LifeLog once to bring your list here"

@@ -65,6 +65,29 @@ final class WidgetStore {
         boolean minutes;
         /** How much of the period (or today, for a daily one) is done. */
         int amount;
+        /** A task (0.317.0): its day and time, the app's words for that day, what else it has, its priority 1-3 or 0. */
+        String date = "";
+        String time = "";
+        String dateText = "";
+        String meta = "";
+        int priority;
+    }
+
+    /** A task's day in words, by this phone's clock: "Overdue", "Yesterday", "Today 18:00", "Tomorrow", "Tue", else the app's date. */
+    static String taskWhen(String date, String time, String dateText, String today) {
+        if (date == null || date.isEmpty()) return "";
+        int d = BacklogWidgets.daysBetween(today, date);
+        String words;
+        if (d == Integer.MIN_VALUE) words = dateText.isEmpty() ? date : dateText;
+        else if (d < -1) words = "Overdue";
+        else if (d == -1) words = "Yesterday";
+        else if (d == 0) words = "Today";
+        else if (d == 1) words = "Tomorrow";
+        else if (d < 7) {
+            Calendar cal = dayOf(date);
+            words = new java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault()).format(cal.getTime());
+        } else words = dateText.isEmpty() ? BacklogWidgets.shortDay(date) : dateText;
+        return time == null || time.isEmpty() || d < 0 ? words : words + " " + time;
     }
 
     private WidgetStore() {}
@@ -602,6 +625,11 @@ final class WidgetStore {
                 r.type = ROW_TODO;
                 r.id = str(t, "id");
                 r.text = str(t, "text");
+                r.date = str(t, "date");
+                r.time = str(t, "time");
+                r.dateText = str(t, "dateText");
+                r.meta = str(t, "meta");
+                r.priority = t.optInt("priority");
                 color = parseColor(str(t, "color"), 0);
                 boolean saved = t.optBoolean("done");
                 int at = queuedAt(q, r.id);
@@ -669,6 +697,13 @@ final class WidgetStore {
     static int rank(List<String> order, String id) {
         int at = id == null ? -1 : order.indexOf(id);
         return at < 0 ? order.size() : at;
+    }
+
+    /** Open tasks dated before `today` (0.317.0), for the widget's "N overdue". */
+    static int overdueCount(List<Row> rows, String today) {
+        int n = 0;
+        for (Row r : rows) if (r.type == ROW_TODO && !r.done && !r.date.isEmpty() && r.date.compareTo(today) < 0) n++;
+        return n;
     }
 
     static int openTodoCount(List<Row> rows) {

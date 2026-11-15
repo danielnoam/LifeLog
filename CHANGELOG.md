@@ -12,7 +12,8 @@ always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 - Subtasks, one level deep: add them in a task's sheet, open them the same way, drag them by the handle. The chevron on the card folds them away. Ticking a task ticks its open subtasks.
 - Tasks with a date show on Home's Coming up, with an Overdue group on top; tick them right there.
 - Task reminders on Android and in the Windows app, with their own switch in Settings → Notifications and their own Android notification channel. A reminder opens its task.
-- The Tasks widget shows a task's date and how many subtasks are done, and keeps subtasks off its rows. A repeating task ticked there moves on.
+- The Tasks widget: each task has a second line with its day (red when overdue, green for today, worded by the phone's own clock), whether it repeats and how many subtasks are done; its tick takes the priority's colour, and the header counts what's overdue. Subtasks stay off its rows, and a repeating task ticked there moves on.
+- The Upcoming widget also lists your dated tasks for the next two weeks, overdue ones first, among the releases.
 - The Timeline's calendar shows open tasks on their day: by name on a computer, a ring in the corner on a phone, and the picked day's tasks under its entries, to tick or open.
 - Log as entry, in a task's ⋯: the Add entry sheet opens with the task's words, description and (when the Timeline has one by that name) category. The task itself stays as it is.
 - On Android, a task's reminder has a Done button: it ticks the task without opening the app (a repeating one moves to its next date).

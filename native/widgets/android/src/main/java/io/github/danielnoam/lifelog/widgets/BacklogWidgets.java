@@ -91,8 +91,23 @@ final class BacklogWidgets {
         for (int i = 0; note == null && rows != null && i < rows.length() && shown < max; i++) {
             JSONObject r = rows.optJSONObject(i);
             if (r == null) continue;
-            if (upcoming && WidgetStore.str(r, "day").compareTo(today) < 0) continue;
+            // A task (0.317.0) stays when it's overdue, and words its own day.
+            boolean task = upcoming && "task".equals(WidgetStore.str(r, "kind"));
+            if (upcoming && !task && WidgetStore.str(r, "day").compareTo(today) < 0) continue;
             RemoteViews row = new RemoteViews(c.getPackageName(), R.layout.widget_row_when);
+            if (task) {
+                int p = r.optInt("priority");
+                String day = WidgetStore.str(r, "day");
+                int d = daysBetween(today, day);
+                row.setTextViewText(R.id.row_dot, "○");
+                row.setTextColor(R.id.row_dot, p > 0 ? ListService.priorityColor(c, p) : c.getResources().getColor(R.color.widget_muted, null));
+                row.setTextViewText(R.id.row_text, WidgetStore.str(r, "title"));
+                row.setTextViewText(R.id.row_when, WidgetStore.taskWhen(day, WidgetStore.str(r, "time"), WidgetStore.str(r, "dayText"), today));
+                if (d < 0 || d == 0) row.setTextColor(R.id.row_when, c.getResources().getColor(d < 0 ? R.color.widget_down : R.color.widget_up, null));
+                v.addView(R.id.backlog_rows, row);
+                shown++;
+                continue;
+            }
             row.setTextColor(R.id.row_dot, WidgetStore.parseColor(WidgetStore.str(r, "color"), 0xFF7A8A99));
             row.setTextViewText(R.id.row_text, (upcoming && r.optBoolean("starred") ? "★ " : "") + WidgetStore.str(r, "title"));
             row.setTextViewText(R.id.row_when, upcoming ? upcomingWords(r, today) : progressWords(r, today));
