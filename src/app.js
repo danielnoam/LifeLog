@@ -5954,11 +5954,10 @@
     if (!build || !build.repo) return;
     Platform.clearOldUpdates(APP_VERSION, isNewerVersion);
     try {
-      const r = await fetch("https://api.github.com/repos/" + build.repo + "/releases/latest", { cache: "no-store" });
-      if (!r.ok) return;
-      const tag = String((await r.json()).tag_name || "");
-      const latest = tag.replace(/^app-v/, "");
-      if (!/^\d+\.\d+\.\d+$/.test(latest) || latest === APP_VERSION) return;
+      // keel's releases.js reads /releases/latest, which skips pre-releases.
+      const got = await window.LifeLogTestBuilds.releases.latest();
+      const latest = got && got.version;
+      if (!latest || latest === APP_VERSION) return;
       if (window.LifeLogMerge.maxVersion(latest, APP_VERSION) !== latest) return;
       if (latest === offeredUpdate) return;
       offerUpdate(latest);
