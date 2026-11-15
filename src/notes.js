@@ -40,8 +40,10 @@
   //   plain text   no `kind` — every note written before there were kinds.
   //                May have a `title` (0.199.0), shown above the text.
   //   "list"       `text` is the title, `items` the checklist: { id, text,
-  //                done?, doneAt? }. Items have ids so two devices ticking
-  //                different ones merge (merge.js mergeNotes).
+  //                done?, doneAt?, updatedAt? }. Items have ids so two devices
+  //                ticking different ones merge (merge.js mergeNotes), and
+  //                their own updatedAt so an item both changed goes to the
+  //                newer edit.
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
@@ -66,9 +68,17 @@
       for (const k of ["author", "source"]) { const v = String(n[k] == null ? "" : n[k]).trim(); if (v) out[k] = v; }
     }
     if (out.kind === "list") {
+      // An item keeps the fields this build doesn't know: tasks (dates,
+      // priority, subtasks) are coming, and a device still on this build
+      // must not strip them from a list it saves.
+      // Built over a copy so the keys keep the order they came in: the
+      // merge compares items as JSON, and a tick drained on top of a
+      // sanitized item would otherwise read as an edit from elsewhere.
       out.items = (Array.isArray(n.items) ? n.items : []).map((it) => {
-        const item = { id: (it && it.id) || uid(), text: String(it && it.text != null ? it.text : "").trim() };
-        if (it && it.done) { item.done = true; item.doneAt = it.doneAt || out.updatedAt; }
+        const src = it && typeof it === "object" ? it : {};
+        const item = { ...src, id: src.id || uid(), text: String(src.text != null ? src.text : "").trim() };
+        if (src.done) { item.done = true; item.doneAt = src.doneAt || out.updatedAt; } else { delete item.done; delete item.doneAt; }
+        if (!item.updatedAt) delete item.updatedAt;
         return item;
       }).filter((it) => it.text);
     }

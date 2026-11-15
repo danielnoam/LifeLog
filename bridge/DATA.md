@@ -169,8 +169,9 @@ Newest first. Three kinds:
 
 - `kind` absent: a text note. `text` is Markdown, `title` optional.
 - `kind: "list"`: a checklist. `items` is a list of
-  `{ id, text, done?, doneAt? }`. `text` on the note is unused, and a list
-  has no `title`.
+  `{ id, text, done?, doneAt?, updatedAt? }`. `text` on the note is unused,
+  and a list has no `title`. An item keeps any other field it carries, so
+  write back an item as you read it.
 - `kind: "quote"`: `text` is the quote, with optional `author` and `source`.
 
 Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last

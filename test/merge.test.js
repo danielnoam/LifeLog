@@ -537,6 +537,19 @@ test("a list reordered on one device keeps that order when the other added an it
   // …and the other way round: the reorder came from the other device.
   assert.deepStrictEqual(Merge.mergeNotes(base, [listNote(ids(["a", "b", "c"]))], [listNote(ids(["b", "a", "c"]))])[0].items.map((i) => i.id), ["b", "a", "c"]);
 });
+test("an item both devices changed goes to the newer edit", () => {
+  const base = [listNote([{ id: "a", text: "Milk" }])];
+  const local = [listNote([{ id: "a", text: "Oat milk", updatedAt: "2026-01-02" }])];
+  const remote = [listNote([{ id: "a", text: "Milk", date: "2026-01-09", updatedAt: "2026-01-03" }])];
+  assert.deepStrictEqual(Merge.mergeNotes(base, local, remote)[0].items, remote[0].items);
+  assert.deepStrictEqual(Merge.mergeNotes(base, remote, local)[0].items, remote[0].items);
+});
+test("stampChangedItems stamps a checklist's changed items and leaves the rest alone", () => {
+  const prev = { notes: [listNote([{ id: "a", text: "Milk", updatedAt: "old" }, { id: "b", text: "Eggs", updatedAt: "old" }])] };
+  const next = { notes: [listNote([{ id: "a", text: "Milk", updatedAt: "old" }, { id: "b", text: "Eggs", done: true, doneAt: "t", updatedAt: "old" }, { id: "c", text: "Bread" }])] };
+  stampChangedItems(prev, next, "now");
+  assert.deepStrictEqual(next.notes[0].items.map((i) => i.updatedAt), ["old", "now", "now"]);
+});
 test("plain notes still merge exactly as before", () => {
   const out = Merge.mergeNotes([], [{ id: "n", text: "mine", updatedAt: "2" }], [{ id: "n", text: "theirs", updatedAt: "1" }]);
   assert.deepStrictEqual(out, [{ id: "n", text: "mine", updatedAt: "2" }]);

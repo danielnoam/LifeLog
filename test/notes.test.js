@@ -53,6 +53,16 @@ test("sanitizeNote coerces a non-string body instead of throwing on it", () => {
   assert.strictEqual(sanitizeNote({}).text, "");
 });
 
+test("sanitizeNote keeps a checklist item's fields it doesn't know about", () => {
+  const out = sanitizeNote({ kind: "list", text: "Trip", items: [
+    { id: "a", text: " Book ", date: "2026-11-20", priority: 1, updatedAt: "2026-11-15T10:00:00.000Z" },
+    { id: "b", text: "Deposit", parent: "a", done: true, doneAt: "2026-11-14T10:00:00.000Z" },
+  ] });
+  assert.deepStrictEqual(out.items, [
+    { id: "a", text: "Book", updatedAt: "2026-11-15T10:00:00.000Z", date: "2026-11-20", priority: 1 },
+    { id: "b", text: "Deposit", done: true, doneAt: "2026-11-14T10:00:00.000Z", parent: "a" },
+  ]);
+});
 test("sanitizeNote carries through a field it doesn't know about", () => {
   // Same forward-compatibility contract as every other collection: a build
   // older than the data must not delete a field newer than itself.
