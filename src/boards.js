@@ -260,9 +260,18 @@
   // A picture's fields hold only what they're for: an id of images.js's
   // shape, an https address, a file name. Nothing else is ever drawn.
   const PIC_ID = /^[a-z0-9]{8,40}\.(jpg|png|gif|webp)$/;
+  // A picture's and a board's own fields are checked; anything else rides
+  // along untouched, so a device on an older build doesn't strip what a
+  // newer one added (tags are coming to boards) when it saves.
+  const KNOWN_PICTURE_KEYS = new Set(["id", "t", "x", "y", "w", "h", "a", "img", "url", "miss", "cr"]);
+  const KNOWN_BOARD_KEYS = new Set(["id", "name", "createdAt", "updatedAt", "elements", "category", "fav", "scratch"]);
+  const keepOthers = (src, out, known) => {
+    for (const k of Object.keys(src || {})) if (!known.has(k)) out[k] = src[k];
+    return out;
+  };
   function cleanPicture(e) {
     if (e.t !== "img") return e;
-    const out = { id: e.id, t: "img", x: +e.x || 0, y: +e.y || 0, w: Math.max(1, +e.w || 1), h: Math.max(1, +e.h || 1) };
+    const out = keepOthers(e, { id: e.id, t: "img", x: +e.x || 0, y: +e.y || 0, w: Math.max(1, +e.w || 1), h: Math.max(1, +e.h || 1) }, KNOWN_PICTURE_KEYS);
     if (e.a) out.a = +e.a || 0;
     if (PIC_ID.test(String(e.img || ""))) out.img = e.img;
     if (/^https:\/\/[^\s"<>]+$/i.test(String(e.url || "")) && e.url.length <= 2000) out.url = e.url;
@@ -290,7 +299,7 @@
     // Home's scratchpad in Board mode: kept out of the Boards list and the
     // feed until Save to Notebook files it.
     if (b.scratch) out.scratch = true;
-    return out;
+    return keepOthers(b, out, KNOWN_BOARD_KEYS);
   }
 
   // ---------- the document ----------

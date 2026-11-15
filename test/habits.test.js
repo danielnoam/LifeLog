@@ -33,6 +33,7 @@ console.log("\nthe model");
 test("a habit is daily unless it names days, and junk days fall back to daily", () => {
   assert.strictEqual(habit({}).cadence, "daily");
   assert.deepStrictEqual(habit({ cadence: { days: [1, 3, 5] } }).cadence, { days: [1, 3, 5] });
+  assert.deepStrictEqual(habit({ cadence: { days: [1, 3, 5], every: 2 } }).cadence, { days: [1, 3, 5], every: 2 });
   // A habit due on no day is not a habit, it is a thing you can never keep.
   assert.strictEqual(habit({ cadence: { days: [] } }).cadence, "daily");
   assert.strictEqual(habit({ cadence: { days: [9, -2] } }).cadence, "daily");

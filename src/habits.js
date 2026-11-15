@@ -114,7 +114,8 @@
     const period = PERIODS.includes(h.period) ? h.period : null;
     // Certain weekdays only mean something for a daily target: three times a
     // week is any three days, which is the whole point of it.
-    if (days && days.length && days.length < 7 && !period) out.cadence = { days };
+    // The rest of a cadence object rides along for a newer build's sake.
+    if (days && days.length && days.length < 7 && !period) out.cadence = { ...h.cadence, days };
     if (period) out.period = period;
     if (h.unit === "min") out.unit = "min";
     if (isDateStr(h.archivedAt)) out.archivedAt = h.archivedAt;

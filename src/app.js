@@ -174,7 +174,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.316.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.316.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2689,9 +2689,14 @@
   // Kept as an object rather than a list so it reads the same as it stores;
   // dropped entirely when nothing is ticked, so an item that has never used
   // the foldout stays byte-identical to how it saved before this existed.
+  // A ticked key this build doesn't list (a newer build's field) stays too,
+  // so an older device saving the item doesn't untick it.
   function sanitizeOverrides(overrides, keys) {
     const out = {};
     for (const key of keys) if (overrides && overrides[key]) out[key] = true;
+    if (overrides && typeof overrides === "object") {
+      for (const key of Object.keys(overrides)) if (!keys.includes(key) && overrides[key] === true) out[key] = true;
+    }
     return Object.keys(out).length ? out : null;
   }
 
