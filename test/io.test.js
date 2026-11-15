@@ -137,6 +137,12 @@ test("a file of nothing but tasks is a list, ticks kept", () => {
   assert.strictEqual(n.text, "Packing");
   assert.deepStrictEqual(n.items, [{ text: "Passport" }, { text: "Charger", done: true }, { text: "Socks", done: true }]);
 });
+test("indented tasks come in as subtasks of the task above (0.317.0)", () => {
+  const n = parseMarkdownNote("- [ ] Trip\n  - [x] Passport\n\t- [ ] Charger\n      - [ ] Cable\n- [ ] Home", "t.md", 0);
+  assert.deepStrictEqual(n.items.map((i) => [i.text, !!i.done, i.parent ? n.items.find((p) => p.id === i.parent).text : ""]),
+    [["Trip", false, ""], ["Passport", true, "Trip"], ["Charger", false, "Trip"], ["Cable", false, "Trip"], ["Home", false, ""]]);
+  assert.strictEqual(new Set(n.items.map((i) => i.id)).size, 5);
+});
 test("a file of nothing but a blockquote is a quote, with its author", () => {
   const n = parseMarkdownNote("> Stay hungry.\n> Stay foolish.\n> — Steve Jobs", "q.md", 0);
   assert.strictEqual(n.kind, "quote");

@@ -783,8 +783,22 @@
     const note = { createdAt: isNaN(when) ? null : when.toISOString() };
     if (meta.category) note.category = meta.category;
     if (filled.length && filled.every((l) => MD_TASK.test(l))) {
-      return { ...note, kind: "list", text: title,
-        items: filled.map((l) => { const m = MD_TASK.exec(l); return m[1] === " " ? { text: m[2].trim() } : { text: m[2].trim(), done: true }; }) };
+      // An indented task is a subtask of the last unindented one above it
+      // (0.317.0); deeper levels fold into that one too, since subtasks go
+      // one level deep. Ids only when there's a parent to point at.
+      const indent = (l) => /^\s*/.exec(l)[0].replace(/\t/g, "    ").length;
+      const nested = filled.some((l) => indent(l) > indent(filled[0]));
+      let top = null, n = 0;
+      const items = filled.map((l) => {
+        const m = MD_TASK.exec(l);
+        const it = nested ? { id: uid ? uid() : "md" + (n++) } : {};
+        it.text = m[2].trim();
+        if (m[1] !== " ") it.done = true;
+        if (top && indent(l) > indent(top.line)) it.parent = top.it.id;
+        else top = { line: l, it };
+        return it;
+      });
+      return { ...note, kind: "list", text: title, items };
     }
     if (filled.length && filled.every((l) => /^\s*>/.test(l))) {
       const quoted = filled.map((l) => l.replace(/^\s*>\s?/, ""));
