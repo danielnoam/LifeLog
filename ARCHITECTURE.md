@@ -30,6 +30,7 @@ src/images.js       images in notes: shrunk, kept on the device, synced
 src/jobs.js         Activity: the work that takes a while
 src/share.js        what other apps share into LifeLog
 src/storage.js      persistence: GitHub, local file, IndexedDB
+src/drive.js        Google Drive backups: sign-in on each platform, the files in Drive
 src/merge.js        the three-way merge between devices
 src/reconcile.js    keyed list updates in place
 src/settings.js     the Settings sheet

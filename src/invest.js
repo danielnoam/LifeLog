@@ -329,6 +329,18 @@
     await saving;
     if (changedSince) scheduleSave(800);
   }
+  // A Google Drive restore: the watchlist and pins as the backup has them,
+  // stamped now so a merge with another device's copy keeps them.
+  async function replaceDoc(d) {
+    await ensureLoaded();
+    const at = new Date().toISOString();
+    const next = sanitizeDoc(d);
+    next.watchlist = next.watchlist.map((w) => ({ ...w, updatedAt: at }));
+    doc = next;
+    changed();
+    await flush();
+    if (isOpen()) render({ keepSnapshots: true });
+  }
   const isOpen = () => state.view === "finance" && state.financeMode === "invest";
   const onHome = () => state.view === "home";
 
@@ -1528,7 +1540,7 @@
   }
 
   const api = {
-    init, wire, renderInvest, buildRangeFilter, ensureLoaded, flush, addTicker,
+    init, wire, renderInvest, buildRangeFilter, ensureLoaded, flush, addTicker, replaceDoc,
     openWatchModal, closeWatchModal, openPinModal, closePinModal, openBuyModal, closeBuyModal,
     checkTargets, select, widgetSnapshot, homeGlance, homeSpark, openTicker,
     // pure, for tests and the bridge

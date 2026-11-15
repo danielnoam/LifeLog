@@ -1324,7 +1324,7 @@
            per setting with its label on the left and its control on the
            right. .sitem is a row; .sitem-stack puts a text field under its
            label; .sitem-go is an action, drawn as a row with a chevron. -->
-      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval">
+      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval google drive restore">
       <h2 class="settings-page-title">Sync</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -1398,6 +1398,39 @@
           </div>
         </div>
         <p class="hint">The link contains your access token — only share it with your own devices.</p>
+      </section>
+
+      <!-- Google Drive backups (src/drive.js): dated copies beside GitHub
+           sync, not a second sync. Shown where there's a way to sign in. -->
+      <section class="sgroup" id="driveSection" hidden>
+        <h3 class="sgroup-label">Google Drive backups</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Google Drive</span><span class="sitem-sub" id="driveInfo"></span></span>
+          </div>
+          <button type="button" class="sitem sitem-go" id="driveConnectBtn">Connect Google Drive</button>
+          <button type="button" class="sitem sitem-go" id="driveBackupBtn" hidden>Back up now</button>
+          <label class="sitem toggle-label" id="driveAutoRow" hidden>
+            <span class="sitem-text"><span class="sitem-title">Back up automatically</span><span class="sitem-sub">When LifeLog is open and one is due</span></span>
+            <input type="checkbox" class="switch" id="driveAuto" />
+          </label>
+          <label class="sitem" id="driveEveryRow" hidden>
+            <span class="sitem-text"><span class="sitem-title">How often</span></span>
+            <select id="driveEvery">
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="14">Every 2 weeks</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+        </div>
+        <div class="sgroup-card drive-list" id="driveList" hidden></div>
+        <div class="sgroup-card drive-list" id="driveOffCard" hidden>
+          <button type="button" class="sitem sitem-go sitem-danger" id="driveDisconnectBtn">Disconnect Google Drive</button>
+        </div>
+        <p class="hint" id="driveHintOff">Keeps dated copies of everything in your Drive, apart from GitHub. LifeLog can see only the files it makes there, nothing else in your Drive.</p>
+        <p class="hint" id="driveHintOn" hidden>A copy of everything goes to a LifeLog folder in your Drive: entries, notes, boards and the watchlist, without your API keys. The last three are kept, plus one a week old when backups run more often. LifeLog can see only the files it made there. Restore replaces your data with the backup's as a new save, so History can undo it.</p>
       </section>
 
       <!-- The Android app's own backup (0.215.0), where the local file below
@@ -2196,6 +2229,7 @@
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Frankfurter</span><span class="sitem-sub">Exchange rates for expenses in another currency</span></span></a>
           <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">The New York Times Books API</span><span class="sitem-sub">Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></a>
           <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Tiingo</span><span class="sitem-sub">Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></a>
+          <a class="sitem sitem-go" href="https://developers.google.com/drive" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Google Drive</span><span class="sitem-sub">Where backups go, when you connect it in Sync</span></span></a>
         </div>
       </section>
       </div>

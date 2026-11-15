@@ -472,6 +472,17 @@
     return JSON.parse(JSON.stringify(boards()));
   }
 
+  // A Google Drive restore: every board as the backup has it, stamped now
+  // so a merge with another device's copy keeps them.
+  async function replaceAll(list) {
+    await ensureLoaded();
+    const at = new Date().toISOString();
+    doc.boards = list.map((b) => ({ ...sanitizeBoard(b), updatedAt: at }));
+    changedSince++;
+    await flush();
+    if (isBoardsMode()) render();
+  }
+
   // ---------- history (Settings → History → Boards) ----------
   // Versions of boards.json, this device's and GitHub's. Opening one lists
   // its boards against what you have now; any that changed or has gone can
@@ -1653,7 +1664,7 @@
     renderBoards, newBoard, nextName, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     thumbnail: (b, opts) => boardSvg(b.elements, { thumb: true, ...(opts || {}) }), isLoaded: () => !!doc,
     allBoards: () => (doc ? boards() : null), missingPictures, linkPictures,
-    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => listed(), toggleFav,
+    ensureLoaded, flush, addBoards, boardsForExport, replaceAll, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn,
     // pure helpers (test/boards.test.js)
     parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,

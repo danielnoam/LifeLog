@@ -401,6 +401,28 @@
     return out;
   }
 
+  // The other way round, for a restore from a backup: the backup's
+  // document with this device's keys put back where it has them blank.
+  function withSecretsFrom(doc, from) {
+    if (!doc || !doc.settings || !from || !from.settings) return doc;
+    const st = from.settings;
+    const out = { ...doc, settings: { ...doc.settings } };
+    const o = out.settings;
+    const fill = (a, b) => (a || b || "");
+    if (st.mediaKeys && typeof st.mediaKeys === "object") {
+      o.mediaKeys = { ...(o.mediaKeys || {}) };
+      for (const k of Object.keys(st.mediaKeys)) o.mediaKeys[k] = fill(o.mediaKeys[k], st.mediaKeys[k]);
+    }
+    if (st.steam) o.steam = { ...(o.steam || {}), apiKey: fill(o.steam && o.steam.apiKey, st.steam.apiKey) };
+    if (st.anilist) o.anilist = { ...(o.anilist || {}), token: fill(o.anilist && o.anilist.token, st.anilist.token) };
+    if (st.stremio) {
+      o.stremio = { ...(o.stremio || {}), authKey: fill(o.stremio && o.stremio.authKey, st.stremio.authKey) };
+      if (st.stremio.upNext && o.stremio.upNext) o.stremio.upNext = { ...o.stremio.upNext, key: fill(o.stremio.upNext.key, st.stremio.upNext.key) };
+    }
+    if (st.waypage) o.waypage = { ...(o.waypage || {}), token: fill(o.waypage && o.waypage.token, st.waypage.token) };
+    return out;
+  }
+
   // The login the token belongs to (so the user only has to supply a token).
   async function ghWhoAmI() {
     const r = await fetch(API + "/user", { headers: ghHeaders(), cache: "no-store" });
@@ -1019,6 +1041,7 @@
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch, tokenKind: tokenKind(gh.token) } : null;
     },
     withoutSecrets,
+    withSecretsFrom,
 
     // Returns one of:
     //   { data, source }   source: 'github' | 'file' | 'cache' | 'seed' | 'empty'
