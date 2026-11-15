@@ -199,8 +199,8 @@ final class Reminders {
         // A task's reminder (0.317.0) can be ticked from here: "open-task:<note>:<item>",
         // and its id ends in the date it was due, so a Done pressed after the
         // task has moved on to its next round ticks nothing.
-        String[] task = "task".equals(kind) ? action.split(":", 3) : null;
-        if (task != null && task.length == 3 && "open-task".equals(task[0])) {
+        String[] task = "task".equals(kind) && action.startsWith("open-task:") ? action.split(":", 3) : null;
+        if (task != null && task.length == 3) {
             Intent done = new Intent(c, ReminderReceiver.class);
             done.setAction(ACTION_TASK_DONE);
             done.setData(android.net.Uri.parse("lifelog-task-done:" + id));

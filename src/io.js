@@ -663,7 +663,7 @@
     count("achievement", "achievement", "achievements");
     count("backlog", "backlog item", "backlog items");
     count("note", "note", "notes");
-    count("todo", "checklist item", "checklist items");
+    count("todo", "task", "tasks");
     count("habit", "habit", "habits");
     count("board", "board", "boards");
     count("finance", "finance entry", "finance entries");
@@ -1279,7 +1279,7 @@
       }
       if (e.category) row.appendChild(el("span", "ecat", e.category));
       // A plain note says nothing by being one; a list or a quote does.
-      const tag = item.kind === "note" ? e.kind : { todo: "checklist item", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
+      const tag = item.kind === "note" ? e.kind : { todo: "task", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
       if (tag) row.appendChild(el("span", "dup-tag", tag));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));
@@ -1542,7 +1542,7 @@
   };
   let pickerKeysWired = false, pickerKeyHandler = null;
 
-  const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["checklist item", "checklist items"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
+  const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["task", "tasks"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
   const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
   function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold, previewImage }) {
     const sorted = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));

@@ -18,7 +18,7 @@ import android.widget.RemoteViews;
 public class QuickAddWidget extends AppWidgetProvider {
 
     static final String[] ACTIONS = { "add-entry", "add-expense", "add-backlog", "add-note", "add-todo" };
-    static final String[] LABELS = { "Entry", "Expense", "Backlog", "Note", "Checklist" };
+    static final String[] LABELS = { "Entry", "Expense", "Backlog", "Note", "Task" };
     // The app's own Lucide drawings (0.269.0), from tools/widget-icons.js.
     static final int[] ICONS = { R.drawable.widget_ico_circle_dot, R.drawable.widget_ico_banknote, R.drawable.widget_ico_star,
         R.drawable.widget_ico_pencil, R.drawable.widget_ico_list_checks };

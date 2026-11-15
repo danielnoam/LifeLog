@@ -73,7 +73,7 @@ struct TickHabitIntent: AppIntent {
 }
 
 struct TickTodoIntent: AppIntent {
-    static var title: LocalizedStringResource = "Tick a checklist item"
+    static var title: LocalizedStringResource = "Tick a task"
     @Parameter(title: "Item") var itemId: String
     init() {}
     init(itemId: String) { self.itemId = itemId }
@@ -180,7 +180,7 @@ struct TodosView: View {
         VStack(alignment: .leading, spacing: 5) {
             if entry.snap == nil { Empty(text: "Open LifeLog once") }
             else if panels.isEmpty {
-                Text("Checklist").font(.headline).foregroundStyle(.white)
+                Text("Tasks").font(.headline).foregroundStyle(.white)
                 Empty(text: "Nothing left to do")
             } else {
                 ForEach(layout(panels, budget)) { slice in
@@ -232,8 +232,8 @@ struct TodosWidget: Widget {
         StaticConfiguration(kind: "LifeLogTodos", provider: LLProvider()) { entry in
             TodosView(entry: entry).containerBackground(bgColor, for: .widget)
         }
-        .configurationDisplayName("Checklist")
-        .description("Your checklists' open items. Tap the circle when one's done.")
+        .configurationDisplayName("Tasks")
+        .description("Your open tasks. Tap the circle when one's done.")
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
@@ -242,7 +242,7 @@ struct TodosWidget: Widget {
 // SF Symbols nearest the app's Lucide icons for each (0.269.0).
 private let actionLabels: [String: (String, String)] = [
     "add-note": ("Note", "pencil"),
-    "add-todo": ("Checklist", "checklist"),
+    "add-todo": ("Task", "checklist"),
     "add-entry": ("Entry", "smallcircle.filled.circle"),
     "add-expense": ("Expense", "banknote"),
     "add-backlog": ("Backlog", "star"),
@@ -278,7 +278,7 @@ struct QuickAddWidget: Widget {
             QuickAddView(entry: entry).containerBackground(bgColor, for: .widget)
         }
         .configurationDisplayName("Quick add")
-        .description("Open LifeLog straight onto a new note, checklist item, entry or expense.")
+        .description("Open LifeLog straight onto a new note, task, entry or expense.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
