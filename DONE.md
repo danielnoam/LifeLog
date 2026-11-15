@@ -171,6 +171,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Notebook → View: line numbers in the editor, text size, open notes to read or edit (0.304.0)
 - Checklist items move in the edit sheet by a drag handle or the arrow keys (0.304.0)
 - Copy text and Favourite in a note's ⋯ menu, Read and Edit; on a phone a sideways swipe flips Read and Edit (0.309.0)
+- Checklist items are tasks: description, own category, priority, date with time, repeat (from its date or from the tick), reminder and deadline behind one Date button, one level of subtasks that fold away; tap the words to open a task; dated tasks on Home's Coming up with an Overdue group; task reminders; bridge tools lifelog_add_task, lifelog_update_task, lifelog_tasks (0.317.0)
 - A screen per kind from the + menu (Note, Checklist, Quote, Board), no kind switch in the sheet or ⋯; a new board asks its name and category first and opens on a tap of the blank board; the Favourite star sits beside ⋯ in Read and Edit (0.314.0)
 
 ## Notebook (Habits)

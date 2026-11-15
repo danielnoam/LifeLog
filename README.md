@@ -74,8 +74,11 @@ hand-drawn look, which can hold pictures (the Image button, a paste or a
 drop). Each kind has its own line in the + menu (Note, Checklist, Quote,
 Board) and keeps that kind; a new board takes a name and a category first,
 then a tap on the blank board opens it to draw. Note categories, favourites,
-and collections that open their notes as pages. A checklist's items tick, reorder by long press (or
-by their handles while editing) and merge item by item between devices. A
+and collections that open their notes as pages. A checklist's items are tasks: they tick, reorder by long press (or
+by their handles while editing) and merge item by item between devices,
+and tapping one opens it for a description, a category, a priority, a date
+(with a time, a repeat, a reminder and a deadline) and subtasks. Dated
+tasks show on Home's Coming up. A
 note can become a Timeline entry.
 
 <table><tr>

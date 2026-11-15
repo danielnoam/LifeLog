@@ -270,6 +270,38 @@ test("notes: a checklist is made, ticked, added to and pruned by item text or id
   await refused("lifelog_update_list", { note: "Plan", check: ["x"] }, /isn't a checklist/);
 });
 
+test("tasks: added with their fields and under a task, changed, ticked on, moved, listed", async () => {
+  reset();
+  const tomorrow = Finance.addDaysStr(today, 1);
+  await ok("lifelog_add_task", { list: "no2", text: "Book the campsite", priority: 1, date: today, time: "18:00", remind: 30, note: "Lake site", category: "ideas" });
+  let list = data().notes.find((n) => n.id === "no2");
+  const book = list.items.find((i) => i.text === "Book the campsite");
+  assert.deepStrictEqual([book.priority, book.date, book.time, book.remind, book.note, book.category], [1, today, "18:00", 30, "Lake site", "Ideas"]);
+  await ok("lifelog_add_task", { list: "no2", text: "Pay the deposit", parent: "campsite" });
+  list = data().notes.find((n) => n.id === "no2");
+  assert.strictEqual(list.items.find((i) => i.text === "Pay the deposit").parent, book.id);
+  await refused("lifelog_add_task", { list: "no2", text: "Deeper", parent: "deposit" }, /one level/);
+  await refused("lifelog_add_task", { list: "no2", text: "x", time: "09:00" }, /needs a date/);
+  await ok("lifelog_update_task", { list: "no2", task: "Milk", date: today, repeat: "every 3 days" });
+  const t = await ok("lifelog_update_task", { list: "no2", task: "Milk", done: true });
+  assert.match(t, /next/);
+  const milk = data().notes.find((n) => n.id === "no2").items.find((i) => i.text === "Milk");
+  assert.strictEqual(milk.done, undefined);
+  assert.strictEqual(milk.date, Finance.addDaysStr(today, 3));
+  assert.strictEqual(milk.ticks.length, 1);
+  const due = await ok("lifelog_tasks", { when: "today" });
+  assert.match(due, /Book the campsite/);
+  assert.doesNotMatch(due, /Milk/);
+  await refused("lifelog_update_task", { list: "no2", task: "Book the campsite", move_to: "Plan" }, /isn't a checklist/);
+  await ok("lifelog_add_note", { text: "Errands", list_items: ["Stamps"] });
+  await ok("lifelog_update_task", { list: "no2", task: "Book the campsite", priority: 0, deadline: tomorrow, move_to: "Errands" });
+  const errands = data().notes.find((n) => n.text === "Errands");
+  assert.deepStrictEqual(errands.items.map((i) => i.text), ["Stamps", "Book the campsite", "Pay the deposit"]);
+  assert.strictEqual(errands.items[1].priority, undefined);
+  assert.strictEqual(errands.items[1].deadline, tomorrow);
+  assert.ok(!data().notes.find((n) => n.id === "no2").items.some((i) => i.text === "Pay the deposit"));
+});
+
 test("a habit is marked for today, or cleared, and the streak follows", async () => {
   reset();
   const t = await ok("lifelog_mark_habit", { habit: "read" });

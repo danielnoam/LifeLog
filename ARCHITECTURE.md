@@ -12,6 +12,7 @@ src/app.js          shell: state, tabs and modes, filters, shared helpers
 src/journal.js      Timeline: Log, Stats, the entry sheet, accomplishments
 src/backlog.js      Backlog: List, Next releases, Discover, the item sheet
 src/notes.js        Notes: the feed, the sheet, lists and quotes
+src/tasks.js        Tasks: a checklist item's fields, repeats, the task and Date sheets
 src/boards.js       drawing boards (boards.json)
 src/habits.js       Habits
 src/finance.js      Ledger: expenses, recurring bills, Summary

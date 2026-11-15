@@ -6,6 +6,7 @@
 (function () {
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const Tasks = () => window.LifeLogTasks || require("./tasks.js");
 
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
@@ -79,8 +80,9 @@
         const item = { ...src, id: src.id || uid(), text: String(src.text != null ? src.text : "").trim() };
         if (src.done) { item.done = true; item.doneAt = src.doneAt || out.updatedAt; } else { delete item.done; delete item.doneAt; }
         if (!item.updatedAt) delete item.updatedAt;
-        return item;
+        return Tasks().cleanItem(item);
       }).filter((it) => it.text);
+      Tasks().cleanParents(out.items);
     }
     return keepUnknown(n, out, KNOWN_NOTE_KEYS);
   }
@@ -164,7 +166,7 @@
   // Everything a search should find, whatever the kind.
   // A picture's address isn't something you'd search for; its alt text is.
   const IMG_REF = /!\[([^\]]*)\]\(lifelog-img:[^)]*\)/g;
-  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)]
+  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.author, n.source, n.category, ...(n.items || []).flatMap((i) => [i.text, i.note])]
     .filter(Boolean).join("\n").toLowerCase();
 
   // A note with no createdAt at all (hand-edited JSON, a bad import) still
@@ -211,7 +213,8 @@
     return pool.filter((n) => {
       // A collection is by name, not by when: the year chips don't reach it.
       if (yf.size && !openCollections() && !yf.has(noteYear(n))) return false;
-      if (cf.size && !cf.has(n.category || "")) return false;
+      // A list is found through a task filed under the category too.
+      if (cf.size && !cf.has(n.category || "") && !(n.items || []).some((i) => i.category && cf.has(i.category))) return false;
       if (kinds.size && !kinds.has(kindOf(n))) return false;
       if (feedOnly() && isCollection(n.category)) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
@@ -477,10 +480,35 @@
   const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
   const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Its items are tasks (tasks.js): a subtask sits under its task, folded
+  // away by the chevron (per device), and moves with it.
+  const FOLDS_KEY = "lifelog-task-folds-v1";
+  let folds = null;
+  function foldSet() {
+    if (folds) return folds;
+    try { folds = new Set(JSON.parse(localStorage.getItem(FOLDS_KEY) || "[]")); } catch (e) { folds = new Set(); }
+    return folds;
+  }
+  function toggleFold(itemId) {
+    const f = foldSet();
+    if (f.has(itemId)) f.delete(itemId); else f.add(itemId);
+    try { localStorage.setItem(FOLDS_KEY, JSON.stringify([...f])); } catch (e) {}
+    render();
+  }
+  // The top-level rows, each with its subtasks.
+  function taskTree(items) {
+    const ids = new Set(items.map((i) => i.id));
+    const top = items.filter((i) => !i.parent || !ids.has(i.parent));
+    const kids = new Map(top.map((i) => [i.id, items.filter((c) => c.parent === i.id)]));
+    return { top, kids };
+  }
+
   function listPanel(card, n) {
     const items = n.items || [];
-    const open = items.filter((i) => !i.done), done = items.filter((i) => i.done).sort(byNewestDone);
-    const reordering = listReorderId === n.id && open.length > 1;
+    const { top, kids } = taskTree(items);
+    const open = items.filter((i) => !i.done);
+    const openTop = top.filter((i) => !i.done), done = top.filter((i) => i.done).sort(byNewestDone);
+    const reordering = listReorderId === n.id && openTop.length > 1;
     card.classList.toggle("is-reordering", reordering);
 
     const h = el("h3", "note-list-head");
@@ -509,14 +537,19 @@
 
     const rows = el("div", "note-list-rows");
     if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
-    else if (!open.length) rows.appendChild(el("p", "dsc-note", "All done."));
-    for (const it of open) rows.appendChild(reordering ? reorderRow(n, it, rows) : itemRow(n, it));
+    else if (!openTop.length) rows.appendChild(el("p", "dsc-note", "All done."));
+    const withKids = (it) => {
+      const sub = kids.get(it.id) || [];
+      rows.appendChild(itemRow(n, it, { sub: false, kids: sub }));
+      if (!foldSet().has(it.id)) for (const c of sub) rows.appendChild(itemRow(n, c, { sub: true }));
+    };
+    for (const it of openTop) { if (reordering) rows.appendChild(reorderRow(n, it, rows)); else withKids(it); }
     // The finished rows and the add line stay while reordering (greyed and
     // hidden, not removed): the card keeping its height is what keeps the
     // page from scrolling under a finger that is already holding a row.
     if (done.length) {
       rows.appendChild(el("div", "todo-done-sep", done.length + " done"));
-      for (const it of done) rows.appendChild(itemRow(n, it));
+      for (const it of done) withKids(it);
     }
     card.appendChild(rows);
     card.appendChild(listCompose(n));
@@ -558,34 +591,38 @@
     return node;
   };
 
-  function itemRow(n, it) {
-    const row = own(el("div", "todo-row" + (it.done ? " is-done" : "")));
+  // A task's row: its tick (ringed in its priority's colour), its words
+  // with one quiet line of what's set under them, and the ✕. Tapping the
+  // words opens the task sheet (tasks.js), where it's renamed too.
+  function itemRow(n, it, { sub = false, kids = [] } = {}) {
+    const T = Tasks();
+    const row = own(el("div", "todo-row" + (sub ? " is-sub" : "") + (it.done ? " is-done" : "")));
     row.dataset.item = it.id;
     const cb = document.createElement("input");
     cb.type = "checkbox";
-    cb.className = "todo-check";
+    cb.className = "todo-check" + (it.priority ? " is-p" + it.priority : "");
     cb.checked = !!it.done;
     cb.setAttribute("aria-label", (it.done ? "Mark as not done: " : "Mark as done: ") + it.text);
     cb.onchange = () => tickItem(n.id, it.id, cb.checked);
     row.appendChild(cb);
-    const text = el("span", "todo-text", it.text);
-    text.onclick = () => {
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "todo-edit";
-      input.value = it.text;
-      let closed = false;
-      const commit = () => { if (closed) return; closed = true; editItem(n.id, it.id, input.value); };
-      input.onkeydown = (ev) => {
-        if (ev.key === "Enter") { ev.preventDefault(); commit(); }
-        else if (ev.key === "Escape") { closed = true; render(); }
-      };
-      input.onblur = commit;
-      text.replaceWith(input);
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-    };
-    row.appendChild(text);
+    const body = el("button", "todo-body");
+    body.type = "button";
+    body.appendChild(el("span", "todo-text", it.text));
+    const meta = taskMeta(n, it, kids);
+    if (meta) { body.appendChild(meta); row.classList.add("has-meta"); }
+    body.setAttribute("aria-label", "Open " + it.text);
+    body.onclick = () => T.openTask(n.id, it.id);
+    row.appendChild(body);
+    if (kids.length) {
+      const shut = foldSet().has(it.id);
+      const fold = el("button", "todo-fold");
+      fold.type = "button";
+      fold.appendChild(ico(shut ? "chevron-right" : "chevron-down"));
+      fold.setAttribute("aria-label", (shut ? "Show subtasks of " : "Hide subtasks of ") + it.text);
+      fold.setAttribute("aria-expanded", String(!shut));
+      fold.onclick = () => toggleFold(it.id);
+      row.appendChild(fold);
+    }
     const del = el("button", "todo-del");
     del.appendChild(ico("x"));
     del.type = "button";
@@ -593,8 +630,41 @@
     del.setAttribute("aria-label", "Delete: " + it.text);
     del.onclick = () => deleteItem(n.id, it.id);
     row.appendChild(del);
-    if (!it.done) attachLongPressReorder(row, n.id);
+    if (!it.done && !sub) attachLongPressReorder(row, n.id);
     return row;
+  }
+  // What's set on a task, in one line under it; null for a plain item.
+  function taskMeta(n, it, kids) {
+    const T = Tasks();
+    const today = T.today();
+    const bits = [];
+    const bit = (icon, text, cls) => {
+      const b = el("span", cls || "");
+      b.appendChild(ico(icon));
+      if (text) b.appendChild(document.createTextNode(text));
+      bits.push(b);
+      return b;
+    };
+    if (it.category && it.category !== n.category) {
+      const b = el("span", "");
+      const dot = el("span", "dot");
+      dot.style.background = catColor(it.category);
+      b.append(dot, document.createTextNode(it.category));
+      bits.push(b);
+    }
+    if (it.date) {
+      const late = !it.done && it.date < today;
+      bit("calendar", T.shortDay(it.date, today) + (it.time ? " " + it.time : ""), late ? "is-late" : it.date === today && !it.done ? "is-today" : "");
+    }
+    if (it.remind != null && it.date) bit("bell", "").setAttribute("aria-label", "Reminder: " + T.remindText(it));
+    if (it.repeat) bit("repeat", T.repeatText(it.repeat));
+    if (it.deadline) bit("hourglass", "Deadline " + T.shortDay(it.deadline, today), !it.done && it.deadline < today ? "is-late" : "");
+    if (it.note) bit("text", "").setAttribute("aria-label", "Has a description");
+    if (kids && kids.length) bit("list-tree", kids.filter((c) => c.done).length + "/" + kids.length);
+    if (!bits.length) return null;
+    const line = el("span", "todo-meta");
+    line.append(...bits);
+    return line;
   }
 
   function listCompose(n) {
@@ -655,7 +725,17 @@
     const n = findList(noteId);
     const it = n && (n.items || []).find((i) => i.id === itemId);
     if (!it) return;
-    if (done) { it.done = true; it.doneAt = new Date().toISOString(); } else { delete it.done; delete it.doneAt; }
+    const before = (n.items || []).map((i) => ({ ...i }));
+    const r = Tasks().tick(n, itemId, done);
+    await saveList(n, false);
+    // A repeating task moved on rather than finishing: say where to, with
+    // a way back for a tick that wasn't meant.
+    if (r && r.next) toast("Next: " + Tasks().shortDay(r.next, Tasks().today()), false, { label: "Undo", onClick: () => restoreItems(noteId, before) });
+  }
+  async function restoreItems(noteId, items) {
+    const n = findList(noteId);
+    if (!n) return;
+    n.items = items;
     await saveList(n, false);
   }
   async function addItem(noteId, text) {
@@ -677,11 +757,16 @@
     it.text = text;
     await saveList(n, true);
   }
-  async function deleteItem(noteId, itemId) {
+  // A task goes with its subtasks. Only a task with something to lose
+  // (subtasks or a description) offers Undo; a plain row went as before.
+  async function deleteItem(noteId, itemId, { always = false } = {}) {
     const n = findList(noteId);
     if (!n) return;
-    n.items = (n.items || []).filter((i) => i.id !== itemId);
+    const before = (n.items || []).map((i) => ({ ...i }));
+    const it = before.find((i) => i.id === itemId);
+    n.items = (n.items || []).filter((i) => i.id !== itemId && i.parent !== itemId);
     await saveList(n, true);
+    if (it && (always || it.note || n.items.length < before.length - 1)) toast("Task deleted", false, { label: "Undo", onClick: () => restoreItems(noteId, before) });
   }
   async function clearDoneItems(noteId) {
     const n = findList(noteId);
@@ -1501,7 +1586,7 @@
   // checklist comes out as Markdown task lines, a quote with who said it.
   function noteAsText({ kind, title, text, author, source, items }) {
     if (kind === "list") {
-      const lines = (items || []).filter((i) => (i.text || "").trim()).map((i) => `- [${i.done ? "x" : " "}] ${i.text.trim()}`);
+      const lines = Tasks().listLines(items, Tasks().today());
       return [String(title || "").trim(), lines.join("\n")].filter(Boolean).join("\n\n");
     }
     if (kind === "quote") {
@@ -2033,6 +2118,7 @@
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection, openNote, applyNoteView,
     openNoteModal, closeNoteModal, leaveNoteModal, updateImagesSetting,
     pinnedCard, togglePinned, // the Home tab (home.js)
+    tickItem, deleteItem, copyText, // the task sheet (tasks.js)
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens
     searchable: () => state.data.notes.concat(boardItems()),

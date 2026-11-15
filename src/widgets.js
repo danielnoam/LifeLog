@@ -156,8 +156,20 @@
       const name = k > 1 ? `${base} (${k})` : base;
       const color = n.category ? colorOf(n.category) : "";
       listsOut.push({ id: n.id, name, color });
-      const row = (it) => ({ id: it.id, text: it.text, category: name, list: n.id, color, done: !!it.done });
-      const items = n.items || [];
+      // Tasks (tasks.js): a subtask stays off the widget, its task says how
+      // many are done, and a date rides along in the words, since the
+      // widget only draws text.
+      const T = window.LifeLogTasks;
+      const all = n.items || [];
+      const ids = new Set(all.map((it) => it.id));
+      const words = (it) => {
+        if (!T) return it.text;
+        const kids = all.filter((c) => c.parent === it.id);
+        return [it.text, it.date && !it.done ? T.shortDay(it.date, today) + (it.time ? " " + it.time : "") : "",
+          kids.length ? kids.filter((c) => c.done).length + "/" + kids.length : ""].filter(Boolean).join(" · ");
+      };
+      const row = (it) => ({ id: it.id, text: words(it), category: name, list: n.id, color, done: !!it.done });
+      const items = all.filter((it) => !it.parent || !ids.has(it.parent));
       const open = items.filter((it) => !it.done);
       const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
@@ -246,7 +258,11 @@
           if (t) break;
         }
         if (!t || !!t.done === !!it.done) continue;
-        if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
+        // Through tasks.js where it's loaded, so a repeating task ticked on
+        // the widget moves to its next date and a task's subtasks tick too.
+        const list = (data.notes || []).find((n) => n.kind === "list" && (n.items || []).includes(t));
+        if (window.LifeLogTasks && list) window.LifeLogTasks.tick(list, t.id, !!it.done, it.at ? new Date(it.at) : new Date());
+        else if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
         else { delete t.done; delete t.doneAt; }
         changed++;
       } else if (it.kind === "expense") {
