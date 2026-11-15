@@ -128,9 +128,12 @@ function buildData() {
   ];
   const note = (ago, extra) => ({ id: id(), createdAt: iso(daysAgo(ago)), editedAt: iso(daysAgo(ago)), ...extra });
   const notes = [
-    note(9, { kind: "list", category: "Ideas", items: [
-      { id: id(), text: "Book the campsite" }, { id: id(), text: "Fix the bike's back brake", done: true, doneAt: iso(daysAgo(1)) },
-      { id: id(), text: "Return library books" }, { id: id(), text: "Call about the internet plan" }] }),
+    note(9, { kind: "list", text: "Weekend trip", category: "Ideas", items: [
+      { id: "task1", text: "Book the campsite", priority: 1, date: ymd(NOW), time: "18:00", remind: 30, note: "The lake site, two nights" },
+      { id: id(), text: "Check the weather", parent: "task1", done: true, doneAt: iso(daysAgo(1)) }, { id: id(), text: "Pay the deposit", parent: "task1" },
+      { id: id(), text: "Fix the bike's back brake", done: true, doneAt: iso(daysAgo(1)) },
+      { id: id(), text: "Return library books", date: ymd(daysAgo(1)) }, { id: id(), text: "Water the plants", date: ymd(daysAgo(-2)), repeat: { every: 3, unit: "day" } },
+      { id: id(), text: "Call about the internet plan" }] }),
     note(1, { title: "Weekend loaf", category: "Recipes", fav: true, pinned: true, text: "500 g flour, 350 g water, 10 g salt, 100 g starter.\n\n- Mix, rest an hour\n- Four folds, 30 minutes apart\n- Overnight in the fridge, bake at 250 °C" }),
     note(2, { kind: "quote", text: "The best time to plant a tree was twenty years ago. The second best time is now.", author: "Proverb", category: "Reading" }),
     note(3, { title: "Game night ideas", category: "Ideas", pinned: true, text: "Co-op only this month. **Cobalt Run** looks right for four players; check whether it has drop-in." }),
