@@ -62,6 +62,7 @@
     $("#ghDisconnectSection").hidden = !on;
     $(".gh-how").hidden = on;
     $("#ghClassicWarn").hidden = !(on && gi.tokenKind === "classic");
+    updateGithubSpace();
     if (on) {
       info.textContent = "Connected: " + gi.owner + "/" + gi.repo + " (" + gi.path + " on " + gi.branch + "), auto-syncing.";
       conn.textContent = "Update connection";
@@ -91,6 +92,29 @@
       disc.hidden = true;
       share.hidden = true;
     }
+  }
+
+  // How much room the data repo has left (2026-11), as Waypage shows it,
+  // against the 5 GB GitHub asks a repo to stay under. Asks GitHub again
+  // at most every 10 minutes, and redraws when the number moved.
+  const formatSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB"
+    : b >= 1e6 ? (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+  function updateGithubSpace(ask = true) {
+    const row = $("#ghSpace");
+    const used = Storage.githubConnected ? Storage.githubUsed : null;
+    row.hidden = used == null;
+    if (ask && Storage.githubConnected) Storage.githubSpace().then((changed) => { if (changed) updateGithubSpace(false); });
+    if (used == null) return;
+    const all = Storage.GITHUB_SPACE;
+    const part = Math.min(1, used / all);
+    row.classList.toggle("full", part > 0.9);
+    $("#ghSpaceLeft").textContent = formatSize(Math.max(0, all - used)) + " left";
+    const sub = $("#ghSpaceUsed");
+    sub.textContent = formatSize(Math.max(used, 1000)) + " of " + formatSize(all) + " used, history and pictures included";
+    sub.classList.toggle("tb-warn", part > 0.9);
+    const bar = row.querySelector(".space-bar");
+    bar.setAttribute("aria-valuenow", String(Math.round(part * 100)));
+    bar.firstChild.style.transform = "scaleX(" + part + ")";
   }
 
   // ---------- version history (Settings → History) ----------

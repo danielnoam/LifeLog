@@ -587,6 +587,21 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_sync_space",
+    description: "How much of the GitHub data repo's room is used and left, as Settings → Sync shows it: GitHub's size for the whole repo (history and pictures included) against the 5 GB it asks a repo to stay under. GitHub updates the number a while after a push.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const st = storeOf();
+      if (!st.space) return `Not syncing through GitHub (data from ${st.where()}), so there's no repo size to show.`;
+      const used = await st.space();
+      if (used == null) return "GitHub didn't say how big the repo is.";
+      const ALL = 5e9;
+      const size = (b) => b >= 1e9 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+      return `${size(Math.max(0, ALL - used))} left: ${size(Math.max(used, 1000))} of ${size(ALL)} used (${Math.round(Math.min(1, used / ALL) * 100)}%), in ${st.where()}.`;
+    },
+  },
+  {
     name: "lifelog_search",
     description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments, drawing boards and trips. An item matches when every word of the query appears somewhere in it, in any order. Narrow it with collection, category and subcategory. Returns what each hit is, its category and its id. To list or review everything in a category or subcategory, don't run repeated searches: use lifelog_expenses (category and subcategory filters), lifelog_spending with group_by subcategory, lifelog_timeline, lifelog_backlog or lifelog_notes (category filter).",
     readOnly: true,

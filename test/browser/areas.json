@@ -65,7 +65,7 @@
     },
     "settings": {
       "files": ["src/settings.js", "src/keys.js", "src/testbuilds.js", "src/qr.js"],
-      "suites": ["bridgehistory", "datesettings", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "tabio", "tabmenu"]
+      "suites": ["bridgehistory", "datesettings", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu"]
     },
     "search": {
       "files": ["src/search.js"],

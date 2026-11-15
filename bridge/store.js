@@ -163,6 +163,13 @@ function githubStore(cfg, file, empty) {
     where: () => `GitHub ${cfg.owner || "?"}/${cfg.repo}/${repoPath}`,
     sibling: (name, emptyDoc) => githubStore(cfg, name, emptyDoc),
     images: githubImages(cfg, prepare),
+    // Bytes the data repo holds as GitHub counts it (history and the
+    // pictures branch too), as Settings → Sync shows it.
+    async space() {
+      await prepare();
+      const j = await gh(cfg, "GET", `/repos/${cfg.owner}/${cfg.repo}`);
+      return typeof j.size === "number" ? j.size * 1024 : null;
+    },
     async read() {
       await prepare();
       let meta;

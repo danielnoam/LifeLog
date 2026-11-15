@@ -420,6 +420,7 @@
       // unnoticed (0.259.2).
       let info = null;
       try { info = await r.json(); } catch (e) {}
+      tookSize(info, false); // saved with the rest once connecting succeeds
       if (info && info.private === false) throw new Error(`The repo ${gh.owner}/${gh.repo} is public — your log would be visible to everyone. Make it private on GitHub, or pick another repo.`);
       return gh.branch;
     }
@@ -603,6 +604,29 @@
         if ((e.status !== 409 && e.status !== 422) || tries >= 3) throw e;
       }
     }
+  }
+
+  // How much the data repo holds (2026-11), as Waypage shows it: GitHub's
+  // size for the whole repo in KB, history and the pictures branch too,
+  // which it updates a while after a push. There's no hard cap; GitHub asks
+  // that a repo stay under 5 GB.
+  const GH_SPACE = 5e9;
+  function tookSize(info, save = true) {
+    if (!gh || !info || typeof info.size !== "number" || info.size < 0) return;
+    gh.size = info.size; gh.sizeAt = Date.now();
+    if (save) saveGhCfg();
+  }
+  let askingSize = null;
+  function ghSpace() {
+    if (!gh || !gh.token || askingSize || (gh.sizeAt && Date.now() - gh.sizeAt < 10 * 60 * 1000)) return askingSize || Promise.resolve(false);
+    askingSize = (async () => {
+      const r = await fetch(API + "/repos/" + gh.owner + "/" + gh.repo, { headers: ghHeaders(), cache: "no-store" });
+      if (!r.ok) return false;
+      const was = gh.size;
+      tookSize(await r.json());
+      return gh.size !== was;
+    })().catch(() => false).finally(() => { askingSize = null; });
+    return askingSize;
   }
 
   // ---- pictures in notes (0.297.0) ----
@@ -974,6 +998,12 @@
       list: () => ghListImages(),
       cleanUp: (keep) => ghCleanUpImages(keep),
     },
+
+    // Bytes the repo holds (null until GitHub has said), and a promise that
+    // asks again at most every 10 minutes, true when the number changed.
+    GITHUB_SPACE: GH_SPACE,
+    get githubUsed() { return gh && gh.token && typeof gh.size === "number" ? gh.size * 1024 : null; },
+    githubSpace: () => ghSpace(),
 
     get githubInfo() {
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch, tokenKind: tokenKind(gh.token) } : null;

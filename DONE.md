@@ -237,6 +237,7 @@ Every release that adds a feature adds its line here in the same commit.
 - This device's copy in IndexedDB (0.268.0)
 - Setup link to add another device (0.174.0)
 - Restore settings from a backup (0.194.0)
+- Settings → Sync shows how much room the GitHub repo has left of its 5 GB, with a bar that turns yellow past 90%; bridge tool lifelog_sync_space (next release)
 
 ## Privacy and security
 
