@@ -6254,6 +6254,11 @@
       if (!incoming) return;
       incoming.addEventListener("statechange", () => {
         if (incoming.state === "installed" && navigator.serviceWorker.controller) {
+          // Closing it waits for the next build: this one is already active,
+          // so the next launch picks it up anyway.
+          const close = $("#updateCloseBtn");
+          close.hidden = false;
+          close.onclick = () => { $("#updateBar").hidden = true; };
           $("#updateBar").hidden = false;
         }
       });

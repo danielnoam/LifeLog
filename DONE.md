@@ -39,7 +39,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Lucide icons everywhere, no emoji in the UI, and the timeline-pin app icon (0.247.0)
 - Right-click menus on a computer: Timeline, In progress, Backlog, Ledger, notes, boards and habits rows have their own actions, Select starts selecting, and with items selected it acts on all of them (0.305.0)
 - Dropdowns open the app's own list in every theme: a menu under the field on a computer, a sheet from the bottom on a phone, arrow keys and type-to-jump included (0.307.0)
-- "New version ready" with a Reload button (0.118.0)
+- "New version ready" with a Reload button (0.118.0) and a close button (next release)
 - Activity: everything that takes a while in one list, with a ring or pill while it runs (0.244.0)
 - Work on the same site waits its turn; different sites run side by side (0.244.0)
 - Work the app was closed on is offered again (0.245.0)
