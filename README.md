@@ -418,6 +418,12 @@ every target connected in **Settings → Sync**:
   repo's `lifelog-images` branch.
 - **Local file** (desktop Chrome and Edge): a `.json` file you pick, for
   example in your Google Drive folder.
+- **Google Drive backups** (browser, Android and the Windows app): dated
+  copies of everything, without your API keys, in a LifeLog folder in your
+  Drive, made when you tap Back up now or on a schedule while the app is
+  open. The last three are kept. Restore puts one back as a new save.
+  LifeLog asks for Drive's narrowest access (`drive.file`), so it sees
+  only the files it made. Backups don't sync: GitHub stays the sync.
 
 With both, GitHub is the live source and the file a backup that mirrors
 every save. With neither, the log stays in the browser; Export JSON and CSV

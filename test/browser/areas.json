@@ -60,8 +60,8 @@
       "suites": ["anilist", "connections", "excalidraw", "gametimes", "gametimesfail", "hardcover", "igdbtimes", "importedit", "importkinds", "importmodes", "importreview", "importundo", "letterboxd", "mdimport", "nextseries", "pricealert", "steamowned", "stremio", "tabio", "v151", "waypage"]
     },
     "settings": {
-      "files": ["src/settings.js", "src/keys.js", "src/testbuilds.js", "src/keel/releases.js", "src/keel/qr.js"],
-      "suites": ["bridgehistory", "datafolder", "datesettings", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu"]
+      "files": ["src/settings.js", "src/drive.js", "src/keel/drive.js", "src/keys.js", "src/testbuilds.js", "src/keel/releases.js", "src/keel/qr.js"],
+      "suites": ["bridgehistory", "datafolder", "datesettings", "drivebackup", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu"]
     },
     "search": {
       "files": ["src/search.js"],

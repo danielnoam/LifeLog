@@ -519,9 +519,180 @@
     }
   }
 
+  // ---------- Google Drive backups (src/drive.js) ----------
+  // Dated copies beside GitHub sync, not a second sync: a backup never
+  // merges, so there's nothing to conflict. A restore replaces the data
+  // with the backup's as one save, which History can undo.
+  const Drive = () => window.LifeLogDrive;
+  let driveBackups = null, driveBusy = false;
+  const deviceName = () => { const P = window.LifeLogPlatform || {}; return P.android ? "Android" : P.ios ? "iPhone" : P.windows ? "Windows" : P.linux ? "Linux" : "Browser"; };
+  const mb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
+
+  async function driveBackupText() {
+    const B = window.LifeLogBoards, I = window.LifeLogInvest;
+    const boards = B ? await B.boardsForExport() : undefined;
+    const invest = I ? await I.ensureLoaded().then((d) => JSON.parse(JSON.stringify(d))).catch(() => null) : null;
+    return JSON.stringify({ ...Storage.withoutSecrets(state.data), boards, ...(invest ? { watchlist: invest.watchlist, pins: invest.pins } : {}),
+      backupOf: "lifelog", backedUpAt: new Date().toISOString() });
+  }
+
+  function renderDrive() {
+    const D = Drive();
+    const sec = $("#driveSection");
+    if (!D || !D.available) { sec.hidden = true; return; }
+    sec.hidden = false;
+    const on = D.on;
+    $("#driveConnectBtn").hidden = on;
+    for (const id of ["#driveBackupBtn", "#driveAutoRow", "#driveEveryRow", "#driveOffCard", "#driveHintOn"]) $(id).hidden = !on;
+    $("#driveHintOff").hidden = on;
+    $("#driveBackupBtn").disabled = driveBusy;
+    if (!on) { $("#driveInfo").textContent = "Off"; $("#driveList").hidden = true; driveBackups = null; return; }
+    $("#driveAuto").checked = D.auto;
+    $("#driveEvery").value = String(D.every);
+    $("#driveEveryRow").hidden = !D.auto;
+    const last = D.last;
+    $("#driveInfo").textContent = [D.email, driveBusy ? "backing up…" : last ? "last backup " + window.LifeLogDates.dateTime(last.at) : "no backup yet"].filter(Boolean).join(" · ");
+    renderDriveList();
+  }
+
+  function renderDriveList() {
+    const box = $("#driveList");
+    if (!driveBackups || !driveBackups.length) { box.hidden = true; box.replaceChildren(); return; }
+    box.hidden = false;
+    box.replaceChildren(...driveBackups.map((f) => {
+      const row = el("div", "sitem drive-row");
+      const text = row.appendChild(el("span", "sitem-text"));
+      text.appendChild(el("span", "sitem-title", window.LifeLogDates.dateTime(f.at)));
+      text.appendChild(el("span", "sitem-sub", [mb(f.size), f.from && "from " + f.from].filter(Boolean).join(" · ")));
+      const btns = row.appendChild(el("span", "sitem-btns"));
+      const restore = btns.appendChild(el("button", "btn btn-small", "Restore"));
+      restore.type = "button";
+      restore.onclick = () => restoreDrive(f);
+      const del = btns.appendChild(el("button", "btn btn-small", "Delete"));
+      del.type = "button";
+      del.setAttribute("aria-label", "Delete the backup from " + window.LifeLogDates.dateTime(f.at));
+      del.onclick = () => deleteDrive(f);
+      return row;
+    }));
+  }
+
+  // The list, when there's a token at hand without asking (a browser's
+  // lasts an hour); otherwise it waits for the next tap.
+  async function loadDriveList(ask) {
+    const D = Drive();
+    if (!D || !D.on || (!ask && !D.signedIn)) return;
+    try {
+      if (ask) await D.getToken(true);
+      driveBackups = await D.list();
+    } catch (e) { if (ask) driveError(e); }
+    renderDrive();
+  }
+
+  function driveError(e) {
+    if (e && e.code === "cancelled") return;
+    toast((e && e.message) || "Google Drive didn't answer. Try again.", true);
+  }
+
+  async function connectDrive() {
+    try {
+      const email = await Drive().connect();
+      toast("Google Drive connected" + (email ? " as " + email : ""));
+      await loadDriveList(false);
+    } catch (e) { driveError(e); }
+    renderDrive();
+    updateStatuses();
+  }
+
+  // `quiet`: the automatic one, which says something only when it fails.
+  async function backupToDrive(quiet) {
+    const D = Drive();
+    if (!D || !D.on || driveBusy || !state.data) return;
+    driveBusy = true;
+    renderDrive();
+    try {
+      if (!quiet) await D.getToken(true, "backup");
+      await D.upload(await driveBackupText(), deviceName());
+      driveBackups = await D.list().catch(() => driveBackups);
+      if (!quiet) toast("Backed up to Google Drive");
+    } catch (e) {
+      if (!quiet || e.code !== "signin") driveError(e);
+    } finally {
+      driveBusy = false;
+      renderDrive();
+    }
+  }
+
+  // Checked a little after the app opens and each time it comes back:
+  // a backup that's due goes up when a token is at hand without asking.
+  function maybeAutoBackup() {
+    const D = Drive();
+    const P = window.LifeLogPlatform || {};
+    if (!D || P.headless || !D.on || !D.due || !D.signedIn || document.visibilityState !== "visible") return;
+    backupToDrive(true);
+  }
+
+  async function restoreDrive(f) {
+    const when = window.LifeLogDates.dateTime(f.at);
+    if (!confirm("Restore the backup from " + when + "?\n\nYour entries, notes, boards and watchlist are replaced with the backup's. " +
+      "It becomes a new save, so History can undo it. Your API keys stay as they are.")) return;
+    try {
+      setSyncing("Restoring…");
+      const got = await Drive().download(f.id);
+      if (!got || got.backupOf !== "lifelog" || !Array.isArray(got.entries)) throw new Error("That file isn't a LifeLog backup.");
+      const { boards, watchlist, pins, backupOf, backedUpAt, ...data } = got;
+      state.data = normalize(Storage.withSecretsFrom(data, state.data));
+      afterDataChange();
+      await persist();
+      if (Array.isArray(boards) && window.LifeLogBoards) await window.LifeLogBoards.replaceAll(boards);
+      if (Array.isArray(watchlist) && window.LifeLogInvest) await window.LifeLogInvest.replaceDoc({ watchlist, pins: pins || [] });
+      refreshHistoryList().catch(() => {});
+      toast("Restored the backup from " + when);
+    } catch (e) {
+      toast("Restore failed: " + (e.message || e), true);
+      refreshStorageStatus();
+    }
+  }
+
+  async function deleteDrive(f) {
+    if (!confirm("Delete the backup from " + window.LifeLogDates.dateTime(f.at) + " from Google Drive? It can't be brought back.")) return;
+    try {
+      await Drive().remove(f.id);
+      driveBackups = (driveBackups || []).filter((x) => x.id !== f.id);
+      toast("Backup deleted");
+    } catch (e) { driveError(e); }
+    renderDrive();
+  }
+
+  async function disconnectDrive() {
+    if (!confirm("Disconnect Google Drive? Backups stop. The ones already there stay in your Drive's LifeLog folder.")) return;
+    await Drive().disconnect();
+    driveBackups = null;
+    renderDrive();
+    updateStatuses();
+    toast("Google Drive disconnected");
+  }
+
+  function wireDrive() {
+    const D = Drive();
+    if (!D) return;
+    // The sign-in window's own copy of the app only hands the token over.
+    if (D.closing) return;
+    $("#driveConnectBtn").onclick = connectDrive;
+    $("#driveBackupBtn").onclick = () => backupToDrive(false);
+    $("#driveAuto").onchange = (e) => { Drive().auto = e.target.checked; renderDrive(); };
+    $("#driveEvery").onchange = (e) => { Drive().every = Number(e.target.value); renderDrive(); };
+    $("#driveDisconnectBtn").onclick = disconnectDrive;
+    // A browser that had to leave for Google's page comes back here.
+    if (D.resume === "connect") setTimeout(connectDrive, 1500);
+    else if (D.resume === "backup") setTimeout(() => backupToDrive(false), 3000);
+    setTimeout(maybeAutoBackup, 20000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(maybeAutoBackup, 5000); });
+  }
+
   function updateFileInfo() {
     updateBoardsFileInfo();
     updatePhoneBackupInfo();
+    renderDrive();
     const info = $("#fileInfo");
     const connect = $("#connectFileBtn");
     const recon = $("#reconnectFileBtn");
@@ -664,6 +835,7 @@
   function showPage(name) {
     if (name === "keyboard" && window.LifeLogKeys) window.LifeLogKeys.renderPage();
     if (name === "sync-space") { spacePictures = null; renderSpacePage(); }
+    if (name === "sync") { renderDrive(); loadDriveList(false); }
     if (name === "media") KEY_KINDS.forEach(checkMediaKey);
     if (name === "about") {
       const P = window.LifeLogPlatform;
@@ -771,7 +943,7 @@
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   function statusOf(page) {
-    if (page === "sync" && !Storage.githubConnected && !Storage.phoneBackup.on) {
+    if (page === "sync" && !Storage.githubConnected && !Storage.phoneBackup.on && !(window.LifeLogDrive && window.LifeLogDrive.on)) {
       if (Storage.fileName && Storage.needsReconnect) return { text: "The backup file needs permission again", tone: "warn" };
       if (!Storage.fileName) return { text: "Not synced — on this device only", tone: "warn" };
     }
@@ -1761,6 +1933,7 @@
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#phoneBackupSwitch").onchange = (e) => setPhoneBackup(e.target.checked);
+    wireDrive();
     $("#connectBoardsFileBtn").onclick = connectBoardsFile;
     $("#reconnectBoardsFileBtn").onclick = async () => {
       if (await Storage.boards.reconnectFile()) { await window.LifeLogBoards.flush(); toast("Reconnected"); } else toast("Permission denied", true);
