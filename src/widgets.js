@@ -258,6 +258,9 @@
           if (t) break;
         }
         if (!t || !!t.done === !!it.done) continue;
+        // A reminder's Done (0.317.0) is for the date it rang about; a
+        // repeating task ticked since has moved on, and stays as it is.
+        if (it.due && t.date && t.date !== it.due) continue;
         // Through tasks.js where it's loaded, so a repeating task ticked on
         // the widget moves to its next date and a task's subtasks tick too.
         const list = (data.notes || []).find((n) => n.kind === "list" && (n.items || []).includes(t));

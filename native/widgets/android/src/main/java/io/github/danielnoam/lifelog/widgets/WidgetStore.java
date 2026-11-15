@@ -702,6 +702,26 @@ final class WidgetStore {
         }
     }
 
+    /**
+     * A task reminder's Done (0.317.0): queued as a to-do tick, whether or not
+     * the task is on a widget (a subtask never is). `due` is the date the
+     * reminder was for; the app skips the tick if the task has moved on since.
+     */
+    static void queueTaskDone(Context c, String id, String due) {
+        if (id == null || id.isEmpty()) return;
+        try {
+            JSONObject item = new JSONObject();
+            item.put("kind", "todo");
+            item.put("id", id);
+            item.put("done", true);
+            item.put("at", nowIso());
+            if (due != null && !due.isEmpty()) item.put("due", due);
+            enqueue(c, item);
+        } catch (JSONException e) {
+            // Nothing to queue.
+        }
+    }
+
     // ---- notes (0.199.0) ----
 
     /** The notes the app sent, or null from an app older than the note widgets. */

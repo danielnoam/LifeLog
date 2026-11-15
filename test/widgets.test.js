@@ -187,6 +187,16 @@ test("a to-do ticked on the widget is done as of when it was ticked", () => {
   assert.strictEqual(t.doneAt, "2026-09-24T08:00:00.000Z");
 });
 
+test("a task reminder's Done ticks only the round it rang for (0.317.0)", () => {
+  const d = data();
+  const t = allItems(d).find((x) => x.id === "t1");
+  t.date = "2026-09-25";
+  assert.strictEqual(W.applyQueue(d, [{ kind: "todo", id: "t1", done: true, due: "2026-09-24" }]), 0);
+  assert.ok(!t.done);
+  assert.strictEqual(W.applyQueue(d, [{ kind: "todo", id: "t1", done: true, due: "2026-09-25" }]), 1);
+  assert.strictEqual(t.done, true);
+});
+
 test("unticking a to-do clears it the way the app does", () => {
   const d = data();
   W.applyQueue(d, [{ kind: "todo", id: "t3", done: false }]);

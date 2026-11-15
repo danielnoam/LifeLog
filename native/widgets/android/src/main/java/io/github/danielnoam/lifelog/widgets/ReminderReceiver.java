@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-/** The reminder alarm, a reminder's Done, and the moments alarms are lost. */
+/** The reminder alarm, a habit's or task's Done, and the moments alarms are lost. */
 public class ReminderReceiver extends BroadcastReceiver {
 
     @Override
@@ -15,6 +15,13 @@ public class ReminderReceiver extends BroadcastReceiver {
         } else if (Reminders.ACTION_DONE.equals(action)) {
             WidgetStore.finishHabit(c, intent.getStringExtra(ListWidget.EXTRA_ID));
             // Clears the notification too, now that the habit reads as kept.
+            WidgetStore.refreshAll(c);
+            WidgetsPlugin.onQueued();
+        } else if (Reminders.ACTION_TASK_DONE.equals(action)) {
+            WidgetStore.queueTaskDone(c, intent.getStringExtra(ListWidget.EXTRA_ID), intent.getStringExtra(Reminders.EXTRA_DUE));
+            android.app.NotificationManager nm = (android.app.NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+            String alert = intent.getStringExtra(Reminders.EXTRA_ALERT);
+            if (nm != null && alert != null) nm.cancel(Reminders.TAG_ALERT, Reminders.idOf(alert));
             WidgetStore.refreshAll(c);
             WidgetsPlugin.onQueued();
         } else {
