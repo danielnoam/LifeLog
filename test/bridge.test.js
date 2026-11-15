@@ -670,6 +670,34 @@ test("boards are listed with their text, renamed, filed, starred and deleted, an
   assert.match(await ok("lifelog_boards", {}), /^0 boards/);
 });
 
+test("tags (Nov 2026): added, listed, filtered, set for a category's new notes, renamed into one and deleted everywhere, and undone", async () => {
+  reset();
+  assert.match(await ok("lifelog_tags", {}), /No tags yet/);
+  await ok("lifelog_category_tags", { category: "ideas", tags: ["Someday"] });
+  assert.match(await ok("lifelog_add_note", { text: "Cabin by the lake", category: "Ideas", tags: ["#Travel", "lake"] }), /#Someday #Travel #lake/);
+  await ok("lifelog_add_note", { kind: "list", text: "Trip", list_items: ["Book", "Pack"] });
+  await ok("lifelog_tag", { note: "Trip", task: "Book", add: ["trip", "kids"] });
+  await ok("lifelog_tag", { note: "Trip", task: "Book", remove: ["KIDS"] });
+  await ok("lifelog_tag", { board: "Doodle", set: ["trip"] });
+  await ok("lifelog_update_board", { board: "Kitchen plan", tags: ["home"] });
+  const list = data().notes.find((n) => n.text === "Trip");
+  assert.deepStrictEqual(list.items.find((i) => i.text === "Book").tags, ["trip"]);
+  assert.deepStrictEqual(boards().find((b) => b.id === "bd2").tags, ["trip"]);
+  assert.match(await ok("lifelog_tags", {}), /- trip: 1 task · 1 board[\s\S]*Ideas: Someday/);
+  assert.match(await ok("lifelog_notes", { tag: "TRIP" }), /^1 note/);
+  assert.match(await ok("lifelog_boards", { tag: "home" }), /Kitchen plan \[Ideas\] #home/);
+  await ok("lifelog_rename_tag", { tag: "travel", new_name: "trip" });
+  assert.deepStrictEqual(data().notes.find((n) => /Cabin/.test(n.text)).tags, ["Someday", "trip", "lake"]);
+  await ok("lifelog_delete_tag", { tag: "trip" });
+  assert.ok(!boards().find((b) => b.id === "bd2").tags, "the board's tag went too");
+  assert.ok(!data().notes.find((n) => n.text === "Trip").items[0].tags);
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual(boards().find((b) => b.id === "bd2").tags, ["trip"]);
+  assert.deepStrictEqual(data().notes.find((n) => n.text === "Trip").items.find((i) => i.text === "Book").tags, ["trip"]);
+  await refused("lifelog_delete_tag", { tag: "nothing" }, /No note, task or board has the tag/);
+  await refused("lifelog_tag", { note: "Trip", board: "Doodle", add: ["x"] }, /not both/);
+});
+
 test("an old travel.json is left alone, and an old trip change leaves the undo list instead of blocking it", async () => {
   reset();
   const old = JSON.stringify({ trips: [{ id: "t1", name: "Rome", createdAt: T, updatedAt: T }], places: [] });

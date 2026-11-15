@@ -503,6 +503,7 @@
     // Notes' category chips ("" = no category, as above) and the kinds the
     // Notes mode is showing (none = all; "board" alone is the Boards page).
     noteActiveCats: new Set(),
+    noteActiveTags: new Set(), // tag chips (Nov 2026), by the tag's name
     noteKinds: new Set(),
     // The Backlog's Show chips (0.285.0): "starred", "bought", "unbought",
     // "alert". They stack.
@@ -3522,10 +3523,10 @@
     // The Ledger's Investments mode has one row too, its Range (invest.js):
     // a ticker is filed under no year or category.
     const invest = state.view === "finance" && state.financeMode === "invest";
-    if (invest) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
+    if (invest) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#tagFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
     if (!invest) $("#rangeFilterGroup").hidden = true;
     bar.hidden = invest ? $("#rangeFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
-      && $("#kindFilterGroup").hidden && $("#showFilterGroup").hidden && $("#projFilterGroup").hidden);
+      && $("#kindFilterGroup").hidden && $("#tagFilterGroup").hidden && $("#showFilterGroup").hidden && $("#projFilterGroup").hidden);
   }
 
   // A second axis beside the categories, and only in the Ledger, where
@@ -3635,6 +3636,58 @@
     equalizeChipWidths($("#kindFilter"));
   }
 
+  // Tags (Nov 2026): a row under Types, any number on at once and anything
+  // with any of them shown, as the categories do (Daniel, 2026-11-15). The
+  // most used ones, every one that's on, and All tags for the rest and for
+  // renaming and deleting. The label clears.
+  const TAG_CHIPS = 8;
+  function clearTags() {
+    if (!state.noteActiveTags.size) return;
+    state.noteActiveTags.clear();
+    buildCatFilter();
+    render();
+  }
+  function buildTagFilter() {
+    const group = $("#tagFilterGroup");
+    if (!group) return;
+    const counts = state.view === "notes" && state.notesMode === "notes" ? Notes.tagCounts() : [];
+    const T = window.LifeLogTags;
+    // A tag that's on but no longer carried by anything (deleted on another
+    // device) lets go.
+    for (const t of [...state.noteActiveTags]) if (!counts.some((c) => c.key === T.key(t))) state.noteActiveTags.delete(t);
+    group.hidden = !counts.length;
+    if (!counts.length) return;
+    const on = new Set([...state.noteActiveTags].map(T.key));
+    // Fewer on a phone, where each row of chips is a line of the screen.
+    const room = typeof matchMedia === "function" && matchMedia("(max-width: 720px)").matches ? 5 : TAG_CHIPS;
+    const shown = counts.filter((c, i) => i < room || on.has(c.key));
+    const chips = shown.map((c) => ({ key: c.key, name: c.name, n: c.total }));
+    chips.push({ key: "\u0000all", all: true, more: counts.length - shown.length });
+    reconcile($("#tagFilter"), chips, {
+      keyOf: (item) => item.key,
+      create: (item) => {
+        const chip = el("span", "cat-chip tag-chip");
+        if (item.all) activatable(chip, () => Notes.openTagsModal());
+        else activatable(chip, () => Notes.toggleTagFilter(chip.dataset.name));
+        return chip;
+      },
+      update: (chip, item) => {
+        if (item.all) {
+          const k = el("span", "kind-ico");
+          k.appendChild(ico("tags"));
+          chip.replaceChildren(k, document.createTextNode(item.more ? `All tags (${item.more} more)` : "All tags"));
+          chip.title = "Every tag: rename, merge or delete";
+          return;
+        }
+        chip.dataset.name = item.name;
+        const lit = on.has(item.key);
+        chip.classList.toggle("on", lit);
+        chip.setAttribute("aria-pressed", String(lit));
+        chip.replaceChildren(document.createTextNode(item.name), el("span", "tag-chip-n", String(item.n)));
+      },
+    });
+  }
+
   // The Backlog's second row (0.285.0): narrow the list to what's starred,
   // bought, not bought or watched for a price. Not in Discover, which lists
   // things you don't have. Built from the same chips as Types, but these
@@ -3709,6 +3762,7 @@
     const noCats = state.view === "notes" && !note;
     // The type and show rows change with the same things the category row does.
     buildKindFilter();
+    buildTagFilter();
     buildShowFilter();
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
@@ -4353,7 +4407,7 @@
   // journal.js for what absent means.
   // subs (0.288.0) are an expense category's subcategories; see
   // sanitizeSubs.
-  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor", "showProgress", "subs"]);
+  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor", "showProgress", "subs", "tags"]);
   function sanitizeCategory(c) {
     const out = {
       id: c.id || uid(),
@@ -4368,6 +4422,9 @@
     if (typeof c.showProgress === "boolean") out.showProgress = c.showProgress;
     const subs = sanitizeSubs(c.subs);
     if (subs.length) out.subs = subs;
+    // A note category's tags for new notes (Nov 2026; tags.js).
+    const tags = (window.LifeLogTags || require("./tags.js")).clean(c.tags);
+    if (tags.length) out.tags = tags;
     return keepUnknown(c, out, KNOWN_CATEGORY_KEYS);
   }
   // An expense names its sub by name, under its parent, so two subs of one
@@ -4942,6 +4999,7 @@
     $("#catFilterLabel").onclick = toggleAllCats;
     $("#kindFilterLabel").onclick = toggleAllKinds;
     $("#showFilterLabel").onclick = clearShows;
+    $("#tagFilterLabel").onclick = clearTags;
     $("#projFilterLabel").onclick = clearProjectFilter;
 
     const addMenu = $("#addMenu");
@@ -5141,7 +5199,9 @@
         if (SettingsUI.settingsBack()) return;
         // A task's sheets step back one at a time: the Date sheet, then a
         // subtask back to its task, then out.
+        if (window.LifeLogTags.closeSheet()) return;
         if (Tasks.handleEscape()) return;
+        if (Notes.handleTagsEscape()) return;
         // Stops the search: clears it and lets go of the box, so the next
         // F or number key is a shortcut again rather than a letter typed.
         const inSearch = document.activeElement === $("#search");

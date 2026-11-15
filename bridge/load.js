@@ -30,6 +30,7 @@ function load() {
   src("finance.js");
   src("journal.js");
   src("backlog.js");
+  src("tags.js");
   src("tasks.js");
   src("notes.js");
   src("habits.js");
@@ -56,6 +57,7 @@ function load() {
     Backlog: window.LifeLogBacklog,
     Notes: window.LifeLogNotes,
     Tasks: window.LifeLogTasks,
+    Tags: window.LifeLogTags,
     Habits: window.LifeLogHabits,
     Widgets: window.LifeLogWidgets,
     Boards: window.LifeLogBoards,

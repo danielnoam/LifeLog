@@ -7,6 +7,7 @@
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const Tasks = () => window.LifeLogTasks || require("./tasks.js");
+  const Tags = () => window.LifeLogTags || require("./tags.js");
 
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
@@ -48,7 +49,7 @@
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
-  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned"]);
+  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned", "tags"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -65,6 +66,9 @@
     if (title && !out.kind) out.title = title;
     const cat = String(n.category == null ? "" : n.category).trim();
     if (cat) out.category = cat;
+    // Tags (Nov 2026), across every kind; see tags.js.
+    const tags = Tags().clean(n.tags);
+    if (tags.length) out.tags = tags;
     if (out.kind === "quote") {
       for (const k of ["author", "source"]) { const v = String(n[k] == null ? "" : n[k]).trim(); if (v) out[k] = v; }
     }
@@ -166,7 +170,7 @@
   // Everything a search should find, whatever the kind.
   // A picture's address isn't something you'd search for; its alt text is.
   const IMG_REF = /!\[([^\]]*)\]\(lifelog-img:[^)]*\)/g;
-  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.author, n.source, n.category, ...(n.items || []).flatMap((i) => [i.text, i.note])]
+  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.author, n.source, n.category, ...(n.tags || []), ...(n.items || []).flatMap((i) => [i.text, i.note, ...(i.tags || [])])]
     .filter(Boolean).join("\n").toLowerCase();
 
   // A note with no createdAt at all (hand-edited JSON, a bad import) still
@@ -198,7 +202,7 @@
       return [];
     }
     return B.boardsNow().map((b) => ({
-      id: BOARD + b.id, kind: "board", text: b.name, category: b.category,
+      id: BOARD + b.id, kind: "board", text: b.name, category: b.category, ...(b.tags ? { tags: b.tags } : {}),
       createdAt: b.createdAt || b.updatedAt, updatedAt: b.updatedAt, board: b, ...(b.fav ? { fav: true } : {}),
     }));
   }
@@ -206,8 +210,18 @@
   // Years, categories and types (the chip rows) and
   // the shared search box all narrow this. A category chip keyed "" is the
   // notes with none, as in the to-do list.
+  // A tag chip, or #tag in the search box, keeps whatever carries any of
+  // the tags, as category chips do (Daniel, 2026-11-15). A list counts when
+  // one of its tasks carries one.
+  const tagKeys = () => {
+    const T = Tags();
+    return new Set([...(state.noteActiveTags || []), ...T.parseQuery(state.search).tags].map(T.key));
+  };
+  const tagged = (n, keys) => Tags().hasAny(n.tags, keys) || (n.items || []).some((i) => Tags().hasAny(i.tags, keys));
   function getFilteredNotes() {
-    const q = state.search.trim().toLowerCase();
+    const { text: words } = Tags().parseQuery(state.search);
+    const q = words.toLowerCase();
+    const tf = tagKeys();
     const yf = state.activeYears, cf = state.noteActiveCats, kinds = state.noteKinds;
     const pool = !kinds.size || kinds.has("board") ? state.data.notes.concat(boardItems()) : state.data.notes;
     return pool.filter((n) => {
@@ -216,6 +230,7 @@
       // A list is found through a task filed under the category too.
       if (cf.size && !cf.has(n.category || "") && !(n.items || []).some((i) => i.category && cf.has(i.category))) return false;
       if (kinds.size && !kinds.has(kindOf(n))) return false;
+      if (tf.size && !tagged(n, tf)) return false;
       if (feedOnly() && isCollection(n.category)) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
@@ -266,10 +281,12 @@
   }
   // The feed proper: no category picked, no search, and showing all notes or
   // plain ones. That's where collections' notes stand aside.
-  const feedOnly = () => !state.noteActiveCats.size && !state.search.trim() && (!state.noteKinds.size || state.noteKinds.has("text"));
+  const feedOnly = () => !state.noteActiveCats.size && !(state.noteActiveTags && state.noteActiveTags.size) && !state.search.trim() && (!state.noteKinds.size || state.noteKinds.has("text"));
   // Boards on their own are the Boards page; beside anything else, cards.
   const boardsPage = () => state.noteKinds.size === 1 && state.noteKinds.has("board");
   let catSaved = null; // what to do with a category made from the note sheet
+  let catTags = [], catTagField = null; // the sheet's Tags for new notes
+  const catTagsOf = (name) => ((noteCats().find((c) => c.name === name) || {}).tags || []);
   function openNoteCatModal(cat, onSaved) {
     const editing = !!cat;
     catSaved = onSaved || null;
@@ -278,12 +295,16 @@
     $("#noteCatName").value = editing ? cat.name : "";
     $("#noteCatColorInput").value = editing ? cat.color : CATEGORY_PALETTE[noteCats().length % CATEGORY_PALETTE.length];
     $("#noteCatCollection").checked = !!(editing && cat.layout === "collection");
+    // How many use it, beside the title (Daniel, 2026-11-15: it sat above
+    // the buttons, where it read as part of them).
     const uses = $("#noteCatUses");
     if (editing) {
       const n = state.data.notes.filter((x) => x.category === cat.name).length;
-      uses.textContent = n + (n === 1 ? " note uses this" : " notes use this");
+      uses.textContent = n + (n === 1 ? " note" : " notes");
       uses.hidden = false;
     } else uses.hidden = true;
+    catTags = editing ? (cat.tags || []).slice() : [];
+    catTagField = Tags().field($("#noteCatTags"), { get: () => catTags, set: (v) => { catTags = v; }, known: tagCounts, label: "Tags for new notes" });
     $("#deleteNoteCatBtn").hidden = !editing;
     $("#noteCatModal").hidden = false;
     $("#noteCatName").focus();
@@ -301,13 +322,16 @@
     const after = catSaved;
     if (!orig) {
       if (cats.some(clash)) { toast("That category already exists", true); return; }
-      cats.push({ id: uid(), name, color, ...(layout ? { layout } : {}), updatedAt: new Date().toISOString() });
+      const fresh = { id: uid(), name, color, ...(layout ? { layout } : {}), updatedAt: new Date().toISOString() };
+      Tags().setOn(fresh, catTags);
+      cats.push(fresh);
     } else {
       const cat = cats.find((c) => c.name === orig);
       if (!cat) return;
       if (name !== cat.name && cats.some((c) => c !== cat && clash(c))) { toast("A category with that name already exists", true); return; }
       cat.color = color;
       if (layout) cat.layout = layout; else delete cat.layout;
+      Tags().setOn(cat, catTags);
       if (name !== cat.name) {
         // The id is the category's sync identity; only its name moves, and
         // every note holding the old one follows it.
@@ -412,13 +436,16 @@
       cat.append(dot, document.createTextNode(n.category));
       stamp.appendChild(cat);
     }
+    // A list's tags sit in its header, by its title.
+    if (n.tags && (n.kind !== "list" || state.bulk.active)) stamp.appendChild(tagPills(n.tags));
     // ★ keeps a note at the top, above the years (0.196.0) — a board too (0.208.0).
-    // First in the line so it floats at the end of the first row, not under a wrapped one.
-    if (!state.bulk.active) stamp.prepend(favButton(n));
+    // At the card's top right since tags (Daniel, 2026-11-15), floated so
+    // the first line runs beside it; a list's is in its header.
+    const kind = kindOf(n);
+    if (!state.bulk.active && kind !== "list") card.appendChild(favButton(n));
     if (isBoardItem(n)) return boardCard(card, n, stamp);
     // textContent, never innerHTML: a note is whatever you typed, and the
     // white-space CSS is what keeps your line breaks.
-    const kind = kindOf(n);
     card.classList.toggle("is-quote", kind === "quote");
     card.classList.toggle("is-list", kind === "list");
     if (kind === "quote") {
@@ -449,6 +476,39 @@
     fav.setAttribute("aria-pressed", String(!!n.fav));
     fav.onclick = () => (isBoardItem(n) ? window.LifeLogBoards.toggleFav(n.board.id) : toggleFav(n.id));
     return fav;
+  }
+
+  // A card's tags: quiet outlined pills, each a way to show everything
+  // with that tag (one that's on is filled in the accent).
+  function tagPills(tags, { buttons = true } = {}) {
+    const wrap = el("span", "tag-pills");
+    const on = new Set([...(state.noteActiveTags || [])].map(Tags().key));
+    for (const t of tags) {
+      const lit = on.has(Tags().key(t));
+      if (!buttons) { wrap.appendChild(el("span", "tag-pill" + (lit ? " on" : ""), t)); continue; }
+      const b = own(el("button", "tag-pill" + (lit ? " on" : ""), t));
+      b.type = "button";
+      b.title = lit ? `Stop showing only “${t}”` : `Show everything tagged “${t}”`;
+      b.setAttribute("aria-pressed", String(lit));
+      b.onclick = () => toggleTagFilter(t);
+      wrap.appendChild(b);
+    }
+    return wrap;
+  }
+  function toggleTagFilter(t) {
+    const set = state.noteActiveTags;
+    const k = Tags().key(t);
+    const had = [...set].find((x) => Tags().key(x) === k);
+    if (had) set.delete(had); else set.add(t);
+    buildCatFilter();
+    render();
+  }
+  // Everything's tags with their counts, for the chips, the All tags sheet
+  // and the tag field's suggestions. Boards count once they've loaded.
+  function tagCounts() {
+    const B = window.LifeLogBoards;
+    const boards = B && B.isLoaded && B.isLoaded() ? B.boardsNow() : [];
+    return Tags().count(state.data.notes, boards);
   }
 
   // A board in the feed: its name, its picture, then its stamp and category.
@@ -515,8 +575,10 @@
     const left = el("span", "mc-left");
     if (n.category) { const dot = el("span", "dot"); dot.style.background = catColor(n.category); left.appendChild(dot); }
     left.appendChild(el("span", "note-list-title", reordering ? "Drag to reorder" : (n.text || "Untitled list")));
+    if (n.tags && !reordering) left.appendChild(tagPills(n.tags));
     h.appendChild(left);
     const right = el("span", "mc-right");
+    if (!reordering) right.appendChild(favButton(n));
     if (reordering) {
       const btn = el("button", "btn btn-sm btn-primary", "Done");
       btn.type = "button";
@@ -661,6 +723,8 @@
     if (it.deadline) bit("hourglass", "Deadline " + T.shortDay(it.deadline, today), !it.done && it.deadline < today ? "is-late" : "");
     if (it.note) bit("text", "").setAttribute("aria-label", "Has a description");
     if (kids && kids.length) bit("list-tree", kids.filter((c) => c.done).length + "/" + kids.length);
+    // Spans, not buttons: the whole line is inside the row's button.
+    if (it.tags) bits.push(tagPills(it.tags, { buttons: false }));
     if (!bits.length) return null;
     const line = el("span", "todo-meta");
     line.append(...bits);
@@ -1369,6 +1433,9 @@
     cat.hidden = !n.category;
     cat.lastElementChild.textContent = n.category || "";
     setCatChip(cat, n.category);
+    const rt = $("#noteReaderTags");
+    rt.hidden = !n.tags;
+    rt.replaceChildren(...(n.tags ? [tagPills(n.tags, { buttons: false })] : []));
     const meta = ["Written " + formatStamp(noteDate(n)), n.editedAt ? "edited " + formatEdited(n.editedAt) : ""]
       .filter(Boolean).join(" · ");
     $("#noteReaderMeta").textContent = meta;
@@ -1392,6 +1459,127 @@
     $("#noteReader").hidden = false;
   }
   function closeNoteReader() { $("#noteReader").hidden = true; readingId = ""; }
+
+  // ---------- All tags (Nov 2026) ----------
+  // Every tag in use with what carries it. A tap on a tag's name shows
+  // only that; the pencil renames it everywhere (onto a tag that exists,
+  // the two become one) and the bin takes it off everything. Nothing but
+  // the tag itself is ever deleted.
+  let renaming = "";
+  async function openTagsModal() {
+    renaming = "";
+    $("#tagsFind").value = "";
+    const B = window.LifeLogBoards;
+    if (B && !B.isLoaded()) { try { await B.ensureLoaded(); } catch (e) { /* boards just don't count */ } }
+    drawTagsList();
+    $("#tagsModal").hidden = false;
+  }
+  function closeTagsModal() { $("#tagsModal").hidden = true; renaming = ""; }
+  function drawTagsList() {
+    const list = $("#tagsList");
+    const q = Tags().key($("#tagsFind").value.trim());
+    const all = tagCounts();
+    const rows = all.filter((c) => !q || c.key.includes(q));
+    list.replaceChildren();
+    if (!all.length) { list.appendChild(el("p", "muted tags-empty", "No tags yet. Add one from a note's, a task's or a board's sheet.")); return; }
+    if (!rows.length) { list.appendChild(el("p", "muted tags-empty", "No tag is called that.")); return; }
+    for (const c of rows) {
+      const row = el("div", "tags-row");
+      if (renaming === c.key) {
+        const input = el("input", "tags-rename");
+        input.type = "text";
+        input.value = c.name;
+        input.maxLength = Tags().MAX_LEN;
+        input.setAttribute("aria-label", "New name for " + c.name);
+        const ok = el("button", "btn btn-icon");
+        ok.type = "button";
+        ok.title = "Rename";
+        ok.setAttribute("aria-label", "Rename");
+        ok.appendChild(ico("check"));
+        const warn = el("p", "tags-warn");
+        warn.hidden = true;
+        const check = () => {
+          const to = Tags().cleanOne(input.value);
+          const other = to && Tags().key(to) !== c.key && all.find((x) => x.key === Tags().key(to));
+          warn.hidden = !other;
+          if (other) warn.textContent = `“${other.name}” is already a tag: renaming puts ${c.name} into it.`;
+        };
+        const go = () => renameTag(c.name, input.value);
+        input.oninput = check;
+        input.onkeydown = (ev) => {
+          if (ev.key === "Enter") { ev.preventDefault(); go(); }
+          else if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); renaming = ""; drawTagsList(); }
+        };
+        ok.onclick = go;
+        row.classList.add("is-renaming");
+        row.append(input, ok);
+        list.append(row, warn);
+        check();
+        setTimeout(() => { input.focus(); input.select(); });
+        continue;
+      }
+      const name = el("button", "tags-name");
+      name.type = "button";
+      name.title = `Show everything tagged “${c.name}”`;
+      name.append(el("span", "tags-name-text", c.name), el("span", "tags-count", Tags().summary(c)));
+      name.onclick = () => {
+        state.noteActiveTags.clear();
+        state.noteActiveTags.add(c.name);
+        closeTagsModal();
+        buildCatFilter();
+        render();
+      };
+      const ren = el("button", "btn btn-icon");
+      ren.type = "button";
+      ren.title = "Rename " + c.name;
+      ren.setAttribute("aria-label", ren.title);
+      ren.appendChild(ico("pencil"));
+      ren.onclick = () => { renaming = c.key; drawTagsList(); };
+      const del = el("button", "btn btn-icon");
+      del.type = "button";
+      del.title = "Delete tag " + c.name;
+      del.setAttribute("aria-label", del.title);
+      del.appendChild(ico("trash"));
+      del.onclick = () => deleteTag(c);
+      row.append(name, ren, del);
+      list.appendChild(row);
+    }
+  }
+  // Over the notes and their tasks, the categories' tags for new notes and
+  // the boards (their own file). `to` empty deletes. The filter follows.
+  async function renameTag(from, to) {
+    const T = Tags();
+    to = T.cleanOne(to);
+    if (to === from) { renaming = ""; drawTagsList(); return; }
+    const hit = T.renameIn({ notes: state.data.notes, cats: noteCats() }, from, to);
+    const B = window.LifeLogBoards;
+    if (B) await B.renameTag(from, to);
+    const set = state.noteActiveTags;
+    const was = [...set].find((x) => T.key(x) === T.key(from));
+    if (was) { set.delete(was); if (to && ![...set].some((x) => T.key(x) === T.key(to))) set.add(to); }
+    renaming = "";
+    if (!$("#tagsModal").hidden) drawTagsList();
+    buildCatFilter();
+    render();
+    if (hit.notes.size || hit.cats.length) await persist();
+  }
+  async function deleteTag(c) {
+    if (!confirm(`Take the tag “${c.name}” off ${Tags().summary(c)}? Nothing else is deleted.`)) return;
+    await renameTag(c.name, "");
+    toast("Tag deleted");
+  }
+  function wireTags() {
+    $("#closeTagsBtn").onclick = closeTagsModal;
+    $("#tagsFind").oninput = () => { renaming = ""; drawTagsList(); };
+    $("#tagsModal").addEventListener("click", (ev) => { if (ev.target === $("#tagsModal")) closeTagsModal(); });
+  }
+  // Escape and phone Back: the rename first, then the sheet.
+  function handleTagsEscape() {
+    if ($("#tagsModal").hidden) return false;
+    if (renaming) { renaming = ""; drawTagsList(); return true; }
+    closeTagsModal();
+    return true;
+  }
 
   // ---------- bulk actions ----------
   // Move (0.195.0) and Delete. Syncing needs media, and turning a pile of
@@ -1506,6 +1694,22 @@
   let sheetKind = "text";
   let boardAfter = null; // what the add menu wants done once a board is made
   let sheetItems = []; // the checklist being edited: { id, text, done?, doneAt? }
+  // The sheet's tags, and which of them a new note took from its category:
+  // picking another category before it's saved swaps those for the new
+  // one's, and leaves the ones you typed.
+  let sheetTags = [], fromCat = [], sheetTagField = null;
+  function syncSheetTags() {
+    if (sheetTagField) sheetTagField.refresh();
+  }
+  function catDefaults(name) {
+    if (editingNoteId) return;
+    const T = Tags();
+    const old = new Set(fromCat.map(T.key));
+    const mine = sheetTags.filter((t) => !old.has(T.key(t)));
+    fromCat = catTagsOf(name).filter((t) => !T.has(mine, t));
+    sheetTags = T.clean([...fromCat, ...mine]);
+    syncSheetTags();
+  }
 
   function setSheetKind(kind) {
     sheetKind = KINDS.includes(kind) || kind === "board" ? kind : "text";
@@ -1857,6 +2061,10 @@
     sheetItems = note && note.items ? note.items.map((i) => ({ ...i })) : [];
     renderSheetItems();
     fillCategorySelect(note ? note.category : ([...state.noteActiveCats].find(Boolean) || ""));
+    sheetTags = note && note.tags ? note.tags.slice() : [];
+    fromCat = [];
+    if (!note) catDefaults($("#nCategory").value);
+    syncSheetTags();
     $("#deleteNoteBtn").hidden = !note;
     const stamp = $("#noteStampLine");
     $("#noteFoot").hidden = !note;
@@ -1894,7 +2102,7 @@
   // empty, it just closes.
   let openedAs = "";
   const sheetNow = () => JSON.stringify([sheetKind, $("#nTitle").value, $("#nText").value, $("#nAuthor").value,
-    $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems]);
+    $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems, sheetTags]);
   async function leaveNoteModal() {
     if ($("#noteModal").hidden) return;
     if (sheetKind === "board") { closeNoteModal(); return; }
@@ -1923,7 +2131,7 @@
     boardAfter = null;
     closeNoteModal();
     if (after) after();
-    await window.LifeLogBoards.newBoard({ name, category });
+    await window.LifeLogBoards.newBoard({ name, category, tags: sheetTags });
   }
   // Saves what's in the sheet and closes it; false when there's nothing to
   // save yet (the toast says what's missing) and the sheet stays.
@@ -1941,6 +2149,7 @@
     if (kind === "quote") { fields.author = $("#nAuthor").value.trim(); fields.source = $("#nSource").value.trim(); }
     if (kind === "list") fields.items = items;
     const category = $("#nCategory").value === NEW_CATEGORY ? "" : $("#nCategory").value;
+    fields.tags = sheetTags;
     const now = new Date().toISOString();
     if (editingNoteId) {
       const n = state.data.notes.find((x) => x.id === editingNoteId);
@@ -1951,7 +2160,7 @@
         const said = (x) => JSON.stringify([kindOf(x), x.title || "", x.text, x.author || "", x.source || "", (x.items || []).map((i) => i.text)]);
         const before = said(n);
         const next = sanitizeNote({ ...n, ...fields, category });
-        for (const k of ["kind", "title", "author", "source", "items", "category"]) delete n[k];
+        for (const k of ["kind", "title", "author", "source", "items", "category", "tags"]) delete n[k];
         Object.assign(n, next);
         if (said(n) !== before) n.editedAt = now;
       }
@@ -1977,6 +2186,8 @@
 
   function wire() {
     $("#noteForm").onsubmit = saveNoteFromForm;
+    sheetTagField = Tags().field($("#nTags"), { get: () => sheetTags, set: (v) => { sheetTags = v; syncSheetTags(); }, known: tagCounts });
+    wireTags();
     $("#closeNoteReaderBtn").onclick = closeNoteReader;
     $("#editNoteReaderBtn").onclick = () => {
       const n = findList(readingId);
@@ -2068,11 +2279,11 @@
     };
     $("#nCategory").onchange = () => {
       const sel = $("#nCategory");
-      if (sel.value !== NEW_CATEGORY) { sel.dataset.prev = sel.value; setCatChip(sel.closest(".nv-cat"), sel.value); return; }
+      if (sel.value !== NEW_CATEGORY) { sel.dataset.prev = sel.value; setCatChip(sel.closest(".nv-cat"), sel.value); catDefaults(sel.value); return; }
       // Back to where it was until the new one exists: cancelling the
       // category sheet must not leave "New category…" chosen.
       sel.value = sel.dataset.prev || "";
-      openNoteCatModal(null, (name) => { fillCategorySelect(name); });
+      openNoteCatModal(null, (name) => { fillCategorySelect(name); catDefaults(name); });
     };
     $("#noteCatForm").onsubmit = saveNoteCatFromForm;
     $("#cancelNoteCatBtn").onclick = closeNoteCatModal;
@@ -2113,6 +2324,7 @@
 
   window.LifeLogNotes = {
     init, wire,
+    tagCounts, toggleTagFilter, openTagsModal, closeTagsModal, handleTagsEscape, renameTag, catTagsOf, tagPills,
     sanitizeNote, renameNoteCategory, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection, openNote, applyNoteView,

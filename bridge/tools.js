@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks, Tags } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -438,11 +438,16 @@ function habitLine(h, t) {
   return `- ${h.name}${h.avoid ? " (avoiding)" : ""} [${h.avoid ? Habits.cadenceLabel(h) : Habits.goalLabel(h)}]: ${state}; streak ${Habits.streakOf(h, t)}${unit}, best ${Habits.bestStreakOf(h, t)}; last 14 days ${days.join("")}  (${h.id})`;
 }
 
+// " #weekend #camping", or nothing.
+const tagsText = (tags) => (tags && tags.length ? " " + tags.map((t) => "#" + t).join(" ") : "");
+// Tags as a tool takes them: a list, or one string split at commas.
+const tagsArg = (v) => Tags.clean(Array.isArray(v) ? v : String(v == null ? "" : v).split(","));
+const TAGS_ARG = { type: "array", items: { type: "string" }, description: "Tags (replaces the ones it has; [] for none)" };
 function noteText(n, max) {
-  const items = n.kind === "list" ? (n.items || []).map((i) => `\n    [${i.done ? "x" : " "}] ${i.text}  (${i.id})`).join("") : "";
+  const items = n.kind === "list" ? (n.items || []).map((i) => `\n    [${i.done ? "x" : " "}] ${i.text}${tagsText(i.tags)}  (${i.id})`).join("") : "";
   const by = n.kind === "quote" ? [n.author, n.source].filter(Boolean).join(", ") : "";
   return `${n.title || (n.kind === "list" ? "List" : n.kind === "quote" ? "Quote" : "Note")}`
-    + `${n.category ? " [" + n.category + "]" : ""}${n.fav ? " ★" : ""}${n.pinned ? " (pinned to Home)" : ""} (${String(n.createdAt || "").slice(0, 10)}, ${n.id})`
+    + `${n.category ? " [" + n.category + "]" : ""}${tagsText(n.tags)}${n.fav ? " ★" : ""}${n.pinned ? " (pinned to Home)" : ""} (${String(n.createdAt || "").slice(0, 10)}, ${n.id})`
     + (n.text ? ": " + cut(n.text, max) : "") + (by ? " — " + by : "") + items;
 }
 
@@ -488,6 +493,7 @@ const TASK_FIELDS = {
   remind: S.int("Minutes before its date and time to remind (an all-day task counts from 09:00 that day, so 0 is 09:00 on the day and 1440 the day before); -1 for none"),
   deadline: S.date("The day it must be done by"),
   category: S.str("A note category of its own (none = its list's)"),
+  tags: TAGS_ARG,
 };
 function pickTask(items, ref) {
   const r = lower(ref);
@@ -523,6 +529,7 @@ function applyTaskFields(d, it, a) {
   if (a.remind != null) { const m = Math.round(+a.remind); if (m < 0 || clear(a.remind)) delete it.remind; else it.remind = m; }
   if (a.deadline != null) { if (clear(a.deadline)) delete it.deadline; else it.deadline = requireDate(a.deadline, "deadline"); }
   if (a.category != null) { if (clear(a.category) || !String(a.category).trim()) delete it.category; else it.category = nameIn(d, "noteCategories", a.category, "note category"); }
+  if (a.tags != null) Tags.setOn(it, tagsArg(a.tags));
   if ((it.time || it.repeat || it.remind != null) && !it.date) fail("A time, repeat or reminder needs a date.");
 }
 // One line of what's set on a task.
@@ -536,7 +543,32 @@ function taskLine(it) {
   if (it.deadline) bits.push("deadline " + it.deadline);
   if (it.category) bits.push("category " + it.category);
   if (it.note) bits.push("has a description");
+  if (it.tags) bits.push("tags " + it.tags.join(", "));
   return bits.join(", ") || "plain";
+}
+// A tag renamed (or deleted, `to` empty) over lifelog.json and boards.json,
+// saved as one undoable step, as lifelog_rename_category does a category.
+async function renameTagEverywhere(from, to) {
+  const tag = Tags.cleanOne(from);
+  if (!tag) fail("Give the tag.");
+  to = to == null ? "" : String(to);
+  if (to && !Tags.cleanOne(to)) fail("new_name can't be empty; lifelog_delete_tag takes a tag off.");
+  const summary = to ? `rename tag "${tag}" to "${Tags.cleanOne(to)}"` : `delete tag "${tag}"`;
+  const main = await commit("data", summary, (d) => {
+    const hit = Tags.renameIn({ notes: d.notes || [], cats: d.noteCategories || [] }, tag, to);
+    return { text: "", touched: [...[...hit.notes].map((n) => ["notes", n.id]), ...hit.cats.map((c) => ["noteCategories", c.id])] };
+  });
+  // boards.json only when a board carries it, so nothing is written for nothing.
+  const onBoards = (await readBoards()).some((b) => Tags.has(b.tags, tag));
+  const boards = onBoards ? await commit("boards", summary, (doc) => {
+    const hit = Boards.renameTagIn(doc.boards || [], tag, to);
+    return { text: "", touched: hit.map((b) => ["boards", b.id]) };
+  }) : { items: [] };
+  const items = main.items.concat(boards.items);
+  if (!items.length) fail(`No note, task or board has the tag "${tag}". lifelog_tags lists them.`);
+  undoLog(cfg).push({ summary, at: main.at, items });
+  return to ? `Renamed the tag "${tag}" to "${Tags.cleanOne(to)}" on ${items.length} thing${items.length === 1 ? "" : "s"} (a checklist counts once for its tasks).`
+    : `Took the tag "${tag}" off ${items.length} thing${items.length === 1 ? "" : "s"}. Nothing else was deleted.`;
 }
 const COLL_ENUM = Object.keys(COLLECTIONS);
 const SEARCH_COLLS = ["entries", "backlog", "notes", "financeEntries", "recurringExpenses", "habits", "accomplishments", "boards"];
@@ -787,6 +819,7 @@ const TOOLS = [
     readOnly: true,
     input: {
       query: S.str("Text anywhere in the note"), category: S.str("A note category"),
+      tag: S.str("Only notes with this tag (a checklist counts when one of its tasks has it)"),
       kind: S.str("Only this kind", { enum: ["text", "list", "quote"] }),
       full: S.bool("Whole text instead of the first 500 characters"), limit: S.limit,
     },
@@ -795,6 +828,7 @@ const TOOLS = [
       const q = lower(a.query);
       const rows = (d.notes || []).filter((n) => (!q || lower([n.title, n.text, n.author, n.source, ...(n.items || []).map((i) => i.text)].join(" ")).includes(q))
         && (!a.category || lower(n.category) === lower(a.category))
+        && (!a.tag || Tags.has(n.tags, a.tag) || (n.items || []).some((i) => Tags.has(i.tags, a.tag)))
         && (!a.kind || (n.kind || "text") === a.kind))
         .sort((x, y) => String(y.createdAt || "").localeCompare(String(x.createdAt || "")));
       const lim = limitOf(a, 20);
@@ -998,22 +1032,22 @@ const TOOLS = [
     name: "lifelog_boards",
     description: "The drawing boards (Notes → Boards): name, category, how many pictures, and the text written on each. Give board for one board's text in full. Drawings themselves aren't described; lifelog_board_images sends a board's pictures.",
     readOnly: true,
-    input: { board: S.str("One board's id or name"), query: S.str("Text in a board's name or its written text"), category: S.str("A note category"), limit: S.limit },
+    input: { board: S.str("One board's id or name"), query: S.str("Text in a board's name or its written text"), category: S.str("A note category"), tag: S.str("Only boards with this tag"), limit: S.limit },
     async run(a) {
       const list = await readBoards();
       if (a.board) {
         const b = findBoard(list, a.board);
         const texts = boardTexts(b);
-        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements${picturesNote(b)}, last changed ${String(b.updatedAt).slice(0, 10)}.`,
+        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${tagsText(b.tags)}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements${picturesNote(b)}, last changed ${String(b.updatedAt).slice(0, 10)}.`,
           texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it."].join("\n");
       }
       const q = lower(a.query);
-      const rows = list.filter((b) => (!q || lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) && (!a.category || lower(b.category) === lower(a.category)))
+      const rows = list.filter((b) => (!q || lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) && (!a.category || lower(b.category) === lower(a.category)) && (!a.tag || Tags.has(b.tags, a.tag)))
         .sort((x, y) => (y.fav ? 1 : 0) - (x.fav ? 1 : 0) || String(y.updatedAt).localeCompare(String(x.updatedAt)));
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), "boards"), ...rows.slice(0, lim).map((b) => {
         const texts = boardTexts(b);
-        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board, not in the Boards list)" : ""}: ${b.elements.length} elements${picturesNote(b)}, changed ${String(b.updatedAt).slice(0, 10)}`
+        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${tagsText(b.tags)}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board, not in the Boards list)" : ""}: ${b.elements.length} elements${picturesNote(b)}, changed ${String(b.updatedAt).slice(0, 10)}`
           + (texts.length ? `; text: ${cut(texts.join(" / "), 160)}` : "") + `  (${b.id})`;
       })].join("\n");
     },
@@ -1373,10 +1407,11 @@ const TOOLS = [
   },
   {
     name: "lifelog_add_note",
-    description: "Save a note. With list_items it's a checklist; with kind 'quote' a quote (author and source optional).",
+    description: "Save a note. With list_items it's a checklist; with kind 'quote' a quote (author and source optional). It starts with its category's tags for new notes, as in the app, plus any given.",
     input: {
       text: S.str("The note's text (Markdown)"), title: S.str("Optional, text notes only"),
       category: S.str("A note category, optional"), kind: S.str("Kind", { enum: ["text", "list", "quote"] }),
+      tags: { type: "array", items: { type: "string" }, description: "Tags, optional" },
       list_items: { type: "array", items: { type: "string" }, description: "Checklist items" },
       author: S.str("For a quote"), source: S.str("For a quote"),
     },
@@ -1390,11 +1425,13 @@ const TOOLS = [
         if (kind === "list") item.items = items.map((text) => ({ id: L.uid(), text }));
         if (a.title && !kind) item.title = String(a.title).trim();
         if (a.category) item.category = a.category;
+        const catTags = ((d.noteCategories || []).find((c) => lower(c.name) === lower(a.category || "")) || {}).tags || [];
+        Tags.setOn(item, [...catTags, ...tagsArg(a.tags)]);
         if (kind === "quote") { if (a.author) item.author = a.author; if (a.source) item.source = a.source; }
         const n = addItem(d, "notes", item);
         // Newest first, the way the app adds them.
         d.notes = [n, ...d.notes.filter((x) => x !== n)];
-        return { text: `Saved the ${kind || "note"}${a.title ? ` "${a.title}"` : ""}. id ${n.id}`, touched: [["notes", n.id]] };
+        return { text: `Saved the ${kind || "note"}${a.title ? ` "${a.title}"` : ""}${tagsText(n.tags)}. id ${n.id}`, touched: [["notes", n.id]] };
       });
     },
   },
@@ -2112,6 +2149,96 @@ const TOOLS = [
       });
     },
   },
+  // ---------- tags (Nov 2026) ----------
+  {
+    name: "lifelog_tags",
+    description: "Every tag in use on notes, quotes, checklists, tasks and drawing boards, most used first, with how many of each kind carry it; and each note category's tags for new notes. Tags cut across categories and kinds: a thing has any number. To see what has a tag, use lifelog_notes or lifelog_boards with tag.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      let boards = [];
+      try { boards = await readBoards(); } catch (e) { /* no boards file */ }
+      const rows = Tags.count(d.notes || [], boards);
+      const cats = (d.noteCategories || []).filter((c) => c.tags && c.tags.length);
+      return [rows.length ? `${rows.length} tag${rows.length === 1 ? "" : "s"}:` : "No tags yet.",
+        ...rows.map((c) => `- ${c.name}: ${Tags.summary(c)}`),
+        ...(cats.length ? ["Tags for new notes, by category:", ...cats.map((c) => `- ${c.name}: ${c.tags.join(", ")}`)] : [])].join("\n");
+    },
+  },
+  {
+    name: "lifelog_tag",
+    description: "Add or take off tags on one note, quote, checklist, task or drawing board. Give note (with task for a task in that checklist) or board. add and remove leave its other tags as they are; set replaces them all.",
+    input: {
+      note: S.str("A note's or checklist's id or title"), task: S.str("With note: a task in that checklist, by id or text"),
+      board: S.str("A drawing board's id or name"),
+      add: { type: "array", items: { type: "string" }, description: "Tags to add" },
+      remove: { type: "array", items: { type: "string" }, description: "Tags to take off" },
+      set: { type: "array", items: { type: "string" }, description: "Its tags, replacing all ([] for none)" },
+    },
+    async run(a) {
+      if (!a.note === !a.board) fail("Give note (and task for a task) or board, not both.");
+      if (a.add == null && a.remove == null && a.set == null) fail("Nothing to change: give add, remove or set.");
+      const next = (list) => {
+        if (a.set != null) return tagsArg(a.set);
+        const rm = new Set(tagsArg(a.remove || []).map(Tags.key));
+        return Tags.clean([...(list || []).filter((t) => !rm.has(Tags.key(t))), ...tagsArg(a.add || [])]);
+      };
+      if (a.board) {
+        return change(`tags on board "${a.board}"`, (doc) => {
+          const b = findBoard((doc.boards || []).map(Boards.sanitizeBoard), a.board);
+          const out = { ...(doc.boards.find((x) => x.id === b.id)) };
+          Tags.setOn(out, next(out.tags));
+          replaceItem(doc, "boards", Boards.sanitizeBoard(out));
+          return { text: `The board "${b.name}" has ${out.tags ? "the tags " + out.tags.join(", ") : "no tags"}.`, touched: [["boards", b.id]] };
+        }, { file: "boards" });
+      }
+      return change(`tags on "${a.task || a.note}"`, (d) => {
+        const n = findItem(d, "notes", a.note);
+        if (a.task) {
+          if (n.kind !== "list") fail(`"${cut(n.title || n.text, 40)}" isn't a checklist.`);
+          const items = (n.items || []).map((i) => ({ ...i }));
+          const it = pickTask(items, a.task);
+          Tags.setOn(it, next(it.tags));
+          replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items }));
+          return { text: `The task "${it.text}" has ${it.tags ? "the tags " + it.tags.join(", ") : "no tags"}.`, touched: [["notes", n.id]] };
+        }
+        const out = { ...n };
+        Tags.setOn(out, next(n.tags));
+        replaceItem(d, "notes", cleanItem(d, "notes", out));
+        return { text: `"${cut(n.title || n.text, 40)}" has ${out.tags ? "the tags " + out.tags.join(", ") : "no tags"}.`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_rename_tag",
+    description: "Rename a tag everywhere: notes, quotes, checklists, tasks, drawing boards and the categories' tags for new notes, as Notebook → All tags does. Renaming onto a tag that exists merges the two. Undoable with lifelog_undo.",
+    input: { tag: S.str("The tag"), new_name: S.str("Its new name") },
+    required: ["tag", "new_name"],
+    async run(a) { return renameTagEverywhere(a.tag, a.new_name); },
+  },
+  {
+    name: "lifelog_delete_tag",
+    description: "Take a tag off everything that carries it (notes, tasks, boards, categories' tags for new notes). Nothing else is deleted. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { tag: S.str("The tag") },
+    required: ["tag"],
+    async run(a) { return renameTagEverywhere(a.tag, ""); },
+  },
+  {
+    name: "lifelog_category_tags",
+    description: "Set a note category's tags for new notes: a note, checklist, quote or board made in that category starts with them (moving one in later doesn't add them). [] for none.",
+    input: { category: S.str("A note category"), tags: { type: "array", items: { type: "string" }, description: "Its tags for new notes" } },
+    required: ["category", "tags"],
+    async run(a) {
+      return change(`tags for new notes in "${a.category}"`, (d) => {
+        const name = nameIn(d, "noteCategories", a.category, "note category");
+        const cat = d.noteCategories.find((c) => c.name === name);
+        Tags.setOn(cat, tagsArg(a.tags));
+        return { text: cat.tags ? `New notes in ${name} start with ${cat.tags.join(", ")}.` : `New notes in ${name} start with no tags.`, touched: [["noteCategories", cat.id]] };
+      });
+    },
+  },
   {
     name: "lifelog_rename_category",
     description: "Rename a category or project, or change its colour. Every item filed under it follows, as when renaming in the app (a note category's boards too). A timeline category also takes the switches for what its items show (In progress, Bought, Author, Episode count).",
@@ -2253,11 +2380,11 @@ const TOOLS = [
   },
   {
     name: "lifelog_update_board",
-    description: "Rename a drawing board, file it under a note category, or star it. keep files Home's scratch board as an ordinary board, as Home's Save to Notebook does. Its drawing isn't touched.",
-    input: { board: S.str("Its id or name"), name: S.str("New name"), category: S.str("A note category; empty for none"), fav: S.bool("Starred"), keep: S.bool("Home's scratch board only: file it in the Boards list (Home starts a blank one)") },
+    description: "Rename a drawing board, file it under a note category, set its tags, or star it. keep files Home's scratch board as an ordinary board, as Home's Save to Notebook does. Its drawing isn't touched.",
+    input: { board: S.str("Its id or name"), name: S.str("New name"), category: S.str("A note category; empty for none"), tags: TAGS_ARG, fav: S.bool("Starred"), keep: S.bool("Home's scratch board only: file it in the Boards list (Home starts a blank one)") },
     required: ["board"],
     async run(a) {
-      if (a.name == null && a.category == null && a.fav == null && !a.keep) fail("Nothing to change: give name, category, fav or keep.");
+      if (a.name == null && a.category == null && a.tags == null && a.fav == null && !a.keep) fail("Nothing to change: give name, category, tags, fav or keep.");
       if (a.name != null && !String(a.name).trim()) fail("A board needs a name.");
       const d = a.category ? await readData() : null;
       const category = a.category ? nameIn(d, "noteCategories", a.category, "note category") : "";
@@ -2267,12 +2394,13 @@ const TOOLS = [
         if (a.name != null) next.name = String(a.name).trim();
         if (a.category != null) { if (category) next.category = category; else delete next.category; }
         if (a.fav != null) { if (a.fav) next.fav = true; else delete next.fav; }
+        if (a.tags != null) Tags.setOn(next, tagsArg(a.tags));
         if (a.keep) {
           if (!next.scratch) fail(`"${b.name}" is already in the Boards list; keep is for Home's scratch board.`);
           delete next.scratch;
         }
         replaceItem(doc, "boards", Boards.sanitizeBoard(next));
-        return { text: `Updated the board ${b.id}: "${next.name}"${next.category ? " [" + next.category + "]" : ""}${next.fav ? " ★" : ""}.`, touched: [["boards", b.id]] };
+        return { text: `Updated the board ${b.id}: "${next.name}"${next.category ? " [" + next.category + "]" : ""}${tagsText(next.tags)}${next.fav ? " ★" : ""}.`, touched: [["boards", b.id]] };
       }, { file: "boards" });
     },
   },

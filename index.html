@@ -185,6 +185,10 @@
         <label id="kindFilterLabel" class="filter-label" title="Click to select/deselect all">Types</label>
         <div class="cats" id="kindFilter"></div>
       </div>
+      <div class="filter-group" id="tagFilterGroup" hidden>
+        <label id="tagFilterLabel" class="filter-label" title="Click to clear">Tags</label>
+        <div class="cats" id="tagFilter"></div>
+      </div>
       <div class="filter-group" id="showFilterGroup" hidden>
         <label id="showFilterLabel" class="filter-label" title="Click to clear">Show</label>
         <div class="cats" id="showFilter"></div>
@@ -356,6 +360,7 @@
           <label class="nv-cat" title="Category"><span class="dot" id="nCatDot"></span><span class="sr-only">Category</span>
             <select id="nCategory"></select>
           </label>
+          <div id="nTags"></div>
           <button type="button" class="nv-board" id="nBoardPad" hidden><span id="nBoardPadText">Tap to start drawing</span></button>
           <div id="nQuoteFields" class="note-quote-fields" hidden>
             <label>Author
@@ -410,6 +415,7 @@
         <div class="nv-col">
           <h2 id="noteReaderTitle" class="nv-title"></h2>
           <p class="nv-cat nv-cat-static" id="noteReaderCat" hidden><span class="dot"></span><span></span></p>
+          <p class="nv-tags" id="noteReaderTags" hidden></p>
           <div class="md" id="noteReaderBody"></div>
         </div>
       </div>
@@ -461,12 +467,14 @@
                 <option value="3">Low</option>
               </select>
             </label>
+            <div class="task-field task-tags"><span data-ico="tag"></span><span class="task-field-label" id="taskTagsLabel">Tags</span>
+              <div id="taskTags"></div>
+            </div>
           </div>
           <div class="task-subs-wrap" id="taskSubs">
             <p class="task-subs-head" id="taskSubsHead">Subtasks</p>
             <div class="task-subs" id="taskSubList"></div>
             <div class="note-list-new task-sub-new"><span aria-hidden="true">+</span><input id="taskNewSub" type="text" autocomplete="off" placeholder="Add a subtask" aria-label="New subtask" /></div>
-            <p class="nv-hint" id="taskSubHint" hidden>Drag the handle to move a subtask</p>
           </div>
         </div>
       </div>
@@ -531,7 +539,7 @@
 
   <div class="modal-overlay" id="noteCatModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="noteCatModalTitle">
-      <h2 id="noteCatModalTitle">Add note category</h2>
+      <h2 class="note-cat-head"><span id="noteCatModalTitle">Add note category</span><span class="note-cat-uses" id="noteCatUses" hidden></span></h2>
       <form id="noteCatForm">
         <input type="hidden" id="noteCatOrigName" />
         <label>Name
@@ -540,9 +548,11 @@
         <label>Colour
           <input id="noteCatColorInput" type="color" />
         </label>
-        <label class="toggle-label"><input type="checkbox" id="noteCatCollection" /> A collection — kept by name, not by date</label>
-        <p class="hint">For notes you look things up in, like recipes or how-tos. They leave the dated feed, their chip opens them as a page of cards, and each opens as a page you read.</p>
-        <p class="muted" id="noteCatUses"></p>
+        <label class="toggle-label" title="For notes you look things up in, like recipes or how-tos: they leave the dated feed, and the category's chip opens them as a page of cards."><input type="checkbox" id="noteCatCollection" /> A collection — kept by name, not by date</label>
+        <div class="note-cat-tags">
+          <span class="note-cat-tags-label" id="noteCatTagsLabel">Tags for new notes</span>
+          <div id="noteCatTags" title="A note, list, quote or board made in this category starts with these. Moving one in doesn't add them."></div>
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteNoteCatBtn">Delete</button>
           <span class="spacer"></span>
@@ -550,6 +560,33 @@
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- All tags (src/notes.js): every tag with what carries it; a tap on
+       one shows those, the pencil renames (onto one that exists merges
+       them) and the bin takes it off everything. -->
+  <div class="modal-overlay" id="tagsModal" hidden>
+    <div class="modal tags-sheet" role="dialog" aria-modal="true" aria-labelledby="tagsModalTitle">
+      <div class="modal-head">
+        <h2 id="tagsModalTitle"><span data-ico="tags"></span> Tags</h2>
+        <button type="button" class="btn btn-icon" id="closeTagsBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
+      </div>
+      <input type="text" id="tagsFind" class="tags-find" autocomplete="off" placeholder="Find a tag" aria-label="Find a tag" />
+      <div class="tags-list" id="tagsList"></div>
+    </div>
+  </div>
+
+  <!-- One thing's tags, from Tags… in a note's, task's or board's ⋯
+       (src/tags.js, sheet()). -->
+  <div class="modal-overlay tag-sheet" id="tagSheet" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tagSheetTitle">
+      <h2 id="tagSheetTitle">Tags</h2>
+      <div id="tagSheetField"></div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary" id="tagSheetDone">Done</button>
+      </div>
     </div>
   </div>
 
@@ -2922,6 +2959,7 @@
       <button type="button" class="board-back" id="boardBack" aria-label="Back to boards"><span class="settings-back-chev" aria-hidden="true">‹</span><span class="board-back-label">Boards</span></button>
       <input type="text" id="boardName" class="board-name-input" aria-label="Board name" maxlength="80" />
       <select id="boardCategory" class="board-cat-select" aria-label="Category" title="Category"></select>
+      <button type="button" class="btn btn-icon board-tags-btn" id="boardTagsBtn" title="Tags" aria-label="Tags"><span data-ico="tag"></span><span class="board-tags-n" id="boardTagsN"></span></button>
       <div class="board-top-btns">
         <button type="button" class="btn btn-icon" id="boardUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><span data-ico="undo-2"></span></button>
         <button type="button" class="btn btn-icon" id="boardRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><span data-ico="redo-2"></span></button>
@@ -2934,6 +2972,8 @@
         </div>
         <button type="button" class="btn btn-icon" id="boardMenuBtn" title="More" aria-label="More"><span data-ico="ellipsis"></span></button>
         <div class="menu-pop board-menu" id="boardMenu" hidden>
+          <button type="button" id="boardTagsItem">Tags…</button>
+          <div class="menu-pop-divider" role="separator"></div>
           <button type="button" id="boardExportPng">Export PNG</button>
           <button type="button" id="boardExportSvg">Export SVG</button>
           <div class="menu-pop-divider" role="separator"></div>
@@ -2986,6 +3026,7 @@
   <script defer src="src/journal.js?v=0.317.0"></script>
   <script defer src="src/markdown.js?v=0.317.0"></script>
   <script defer src="src/images.js?v=0.317.0"></script>
+  <script defer src="src/tags.js?v=0.317.0"></script>
   <script defer src="src/tasks.js?v=0.317.0"></script>
   <script defer src="src/notes.js?v=0.317.0"></script>
   <script defer src="src/docimport.js?v=0.317.0"></script>

@@ -27,6 +27,7 @@
 (function () {
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const Tags = () => window.LifeLogTags || require("./tags.js");
 
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, toast, uid, emptyState, download, Storage, render, bulkCheckbox, toggleBulkItem, attachLongPressSelect;
@@ -264,7 +265,7 @@
   // along untouched, so a device on an older build doesn't strip what a
   // newer one added (tags are coming to boards) when it saves.
   const KNOWN_PICTURE_KEYS = new Set(["id", "t", "x", "y", "w", "h", "a", "img", "url", "miss", "cr"]);
-  const KNOWN_BOARD_KEYS = new Set(["id", "name", "createdAt", "updatedAt", "elements", "category", "fav", "scratch"]);
+  const KNOWN_BOARD_KEYS = new Set(["id", "name", "createdAt", "updatedAt", "elements", "category", "fav", "scratch", "tags"]);
   const keepOthers = (src, out, known) => {
     for (const k of Object.keys(src || {})) if (!known.has(k)) out[k] = src[k];
     return out;
@@ -294,6 +295,9 @@
     // collection beside the notes it belongs with.
     const cat = String(b.category == null ? "" : b.category).trim();
     if (cat) out.category = cat;
+    // Tags (Nov 2026), shared with notes and tasks; see tags.js.
+    const tags = Tags().clean(b.tags);
+    if (tags.length) out.tags = tags;
     // ★, as a note has (0.208.0): first on the Boards page and in Favourites.
     if (b.fav) out.fav = true;
     // Home's scratchpad in Board mode: kept out of the Boards list and the
@@ -440,6 +444,24 @@
     for (const b of hit) { if (to) b.category = to; else delete b.category; }
     return hit;
   }
+  // A tag renamed, or deleted (`to` empty), from All tags: the boards
+  // carrying it follow. Pure on a list for the bridge, like renameCategoryIn.
+  function renameTagIn(list, from, to) {
+    const hit = [];
+    for (const b of list) {
+      const r = Tags().renamed(b.tags, from, to);
+      if (!r) continue;
+      if (r.length) b.tags = r; else delete b.tags;
+      hit.push(b);
+    }
+    return hit;
+  }
+  async function renameTag(from, to) {
+    try { await ensureLoaded(); } catch (e) { return; }
+    const hit = renameTagIn(boards(), from, to);
+    hit.forEach(changed);
+    if (hit.length) await flush();
+  }
   async function renameCategory(from, to) {
     try { await ensureLoaded(); } catch (e) { return; }
     const hit = renameCategoryIn(boards(), from, to);
@@ -496,7 +518,7 @@
   // Versions of boards.json, this device's and GitHub's. Opening one lists
   // its boards against what you have now; any that changed or has gone can
   // be brought back on its own, without rolling the other boards back.
-  const sameBoard = (a, b) => a && b && a.name === b.name && (a.category || "") === (b.category || "") && !!a.fav === !!b.fav && JSON.stringify(a.elements) === JSON.stringify(b.elements);
+  const sameBoard = (a, b) => a && b && a.name === b.name && (a.category || "") === (b.category || "") && !!a.fav === !!b.fav && JSON.stringify(a.tags || []) === JSON.stringify(b.tags || []) && JSON.stringify(a.elements) === JSON.stringify(b.elements);
   async function renderHistory(list, status) {
     status.hidden = false;
     status.textContent = "Loading…";
@@ -587,10 +609,15 @@
       ensureLoaded(true).then(() => { if (isBoardsMode() && !editing) render({ keepSnapshots: true }); });
     }
     fontReady().then((fresh) => { if (fresh && isBoardsMode() && !editing) render({ keepSnapshots: true }); });
-    const q = (state.search || "").trim().toLowerCase();
+    // #tag in the search asks for a tag, as in the feed.
+    const parsed = Tags().parseQuery(state.search || "");
+    const q = parsed.text.toLowerCase();
     // The note category chips narrow boards too (0.207.0); "" is no category.
     const cf = state.noteActiveCats;
-    const list = listed().filter((b) => (!q || b.name.toLowerCase().includes(q)) && (!cf || !cf.size || cf.has(b.category || "")))
+    // So do the tag chips (Nov 2026): any of them.
+    const tf = new Set([...(state.noteActiveTags || []), ...parsed.tags].map(Tags().key));
+    const list = listed().filter((b) => (!q || b.name.toLowerCase().includes(q) || (b.tags || []).some((t) => t.toLowerCase().includes(q)))
+      && (!cf || !cf.size || cf.has(b.category || "")) && (!tf.size || Tags().hasAny(b.tags, tf)))
       .sort((a, b) => (!!b.fav - !!a.fav) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
     if (!listed().length) {
       root.appendChild(emptyState({
@@ -637,13 +664,14 @@
         tag.append(dot, document.createTextNode(b.category));
         meta.appendChild(tag);
       }
+      if (b.tags) meta.appendChild(window.LifeLogNotes.tagPills(b.tags));
       meta.appendChild(el("span", "board-when", when(b.updatedAt)));
       card.appendChild(meta);
       if (!bulk) card.appendChild(favButton(b));
       card.onclick = activate;
       grid.appendChild(card);
     }
-    if (!list.length) root.appendChild(el("p", "muted", q ? "No board is called that." : "No boards in that category."));
+    if (!list.length) root.appendChild(el("p", "muted", q ? "No board is called that." : tf.size ? "No boards with that tag." : "No boards in that category."));
     root.appendChild(grid);
   }
   function favButton(b) {
@@ -668,10 +696,10 @@
   // tapping the blank board there makes it.
   const askNewBoard = () => window.LifeLogNotes.openNoteModal(null, "board");
   const nextName = () => "Board " + (listed().length + 1);
-  async function newBoard({ name, category } = {}) {
+  async function newBoard({ name, category, tags } = {}) {
     await ensureLoaded();
     const now = new Date().toISOString();
-    const b = sanitizeBoard({ id: uid(), name: name || nextName(), category, createdAt: now, updatedAt: now, elements: [] });
+    const b = sanitizeBoard({ id: uid(), name: name || nextName(), category, tags, createdAt: now, updatedAt: now, elements: [] });
     doc.boards.push(b);
     changed(b);
     openBoard(b.id);
@@ -877,6 +905,7 @@
     selection = new Set(); undoStack = []; redoStack = []; op = null; pointers.clear(); pinch = null;
     $("#boardName").value = b.name;
     fillCategory(b.category || "");
+    syncTagsBtn();
     const ov = $("#boardEditor");
     ov.hidden = false;
     fitView();
@@ -912,8 +941,27 @@
     for (const c of state.data.noteCategories || []) opt(c.name, c.name);
     sel.value = (state.data.noteCategories || []).some((c) => c.name === value) ? value : "";
   }
+  // The board's tags: a tag button in the top bar, with how many it has,
+  // opening the Tags… sheet.
+  function syncTagsBtn() {
+    const n = editing && editing.tags ? editing.tags.length : 0;
+    $("#boardTagsN").textContent = n ? String(n) : "";
+    $("#boardTagsBtn").title = n ? "Tags: " + editing.tags.join(", ") : "Tags";
+    $("#boardTagsItem").textContent = Tags().itemLabel(editing && editing.tags);
+  }
+  function openBoardTags() {
+    if (!editing) return;
+    Tags().sheet({
+      title: "Board tags",
+      get: () => (editing && editing.tags) || [],
+      set: (v) => { if (editing && Tags().setOn(editing, v)) { changed(editing); syncTagsBtn(); } },
+      known: () => window.LifeLogNotes.tagCounts(),
+    });
+  }
+  const closeBoardTags = () => Tags().closeSheet();
   function closeBoard() {
     if (!editing) return;
+    closeBoardTags();
     commitText();
     const name = $("#boardName").value.trim() || "Untitled board";
     if (name !== editing.name) { editing.name = name; changed(editing); }
@@ -1451,13 +1499,14 @@
     if (e.key === "Escape") {
       e.preventDefault();
       const menus = ["#boardMenu", "#boardZoomMenu"].map((m) => $(m)).filter((m) => !m.hidden);
-      if (menus.length) menus.forEach((m) => { m.hidden = true; });
+      if (closeBoardTags()) { /* the tags sheet first */ }
+      else if (menus.length) menus.forEach((m) => { m.hidden = true; });
       else if (textEditing) commitText();
       else if (selection.size) { selection = new Set(); redraw(); }
       else closeBoard();
       return true;
     }
-    if (typing || document.activeElement === $("#boardName")) return true;
+    if (typing || document.activeElement === $("#boardName") || !$("#tagSheet").hidden) return true;
     const mod = e.ctrlKey || e.metaKey;
     const letter = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (mod && letter === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return true; }
@@ -1651,6 +1700,8 @@
       const name = $("#boardName").value.trim() || "Untitled board";
       if (name !== editing.name) { editing.name = name; changed(editing); }
     });
+    $("#boardTagsBtn").onclick = openBoardTags;
+    $("#boardTagsItem").onclick = () => { $("#boardMenu").hidden = true; openBoardTags(); };
     $("#boardCategory").addEventListener("change", () => {
       if (!editing) return;
       const cat = $("#boardCategory").value;
@@ -1674,7 +1725,7 @@
     thumbnail: (b, opts) => boardSvg(b.elements, { thumb: true, ...(opts || {}) }), isLoaded: () => !!doc,
     allBoards: () => (doc ? boards() : null), missingPictures, linkPictures,
     ensureLoaded, flush, addBoards, boardsForExport, replaceAll, sanitizeBoard, boardsNow: () => listed(), toggleFav,
-    scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn,
+    scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn, renameTag, renameTagIn, closeBoardTags,
     // pure helpers (test/boards.test.js)
     parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };
