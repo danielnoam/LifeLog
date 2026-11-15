@@ -19,10 +19,15 @@ always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 - On Android, a task's reminder has a Done button: it ticks the task without opening the app (a repeating one moves to its next date).
 - Importing Markdown files: indented `- [ ]` lines come in as subtasks of the task above them.
 - Bridge: lifelog_add_task, lifelog_update_task and lifelog_tasks (what's overdue, today or this week); lifelog_home lists tasks in Coming up, and lifelog_update_list ticks a repeating task the app's way.
+- Tags: free words on a note, a quote, a tasks list, a task (or subtask) and a board, across every category. Add them in the note's sheet, a task's sheet or a board's ⋯ → Tags; typing suggests the tags you already use. They show as small pills on cards and in the reader.
+- The Notebook's filter bar has a Tags row: pick one or more and you see everything carrying any of them, boards too. "All tags" lists every tag with what uses it, to rename (renaming onto one that exists merges them) or delete. `#tag` in the search box asks for a tag.
+- A note category can give tags to what's made in it: "Tags for new notes" on its Edit sheet. Only on making a note, never on moving one in.
+- Bridge: lifelog_tags, lifelog_tag, lifelog_rename_tag, lifelog_delete_tag and lifelog_category_tags; lifelog_notes and lifelog_boards take a tag, and lifelog_add_note, lifelog_add_task, lifelog_update_task and lifelog_update_board take tags.
 
 ### Changed
 - Checklists are called Tasks now: the + menu, the Notebook filter, the widget, and "tasks" in imports, recaps and sync messages.
 - A task's tick is a round one now. Deleting a task with subtasks or a description offers Undo. Copy text indents subtasks and puts dates in brackets, and search finds task descriptions.
+- A note's favourite star sits in its card's top right corner in the feed (a tasks list keeps it in its header). A task's sheet drops the "Drag the handle to move a subtask" line. The Edit note category sheet drops its hints, and how many notes use the category sits beside its title.
 
 ## [0.316.1] - 2026-11-15
 

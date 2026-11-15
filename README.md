@@ -81,6 +81,13 @@ and tapping one opens it for a description, a category, a priority, a date
 tasks show on Home's Coming up. A
 note can become a Timeline entry.
 
+Tags work across every kind and category: give a note, a quote, a tasks
+list, a task or a board a few words in its sheet (a board's in ⋯ → Tags),
+and the Notebook's Tags row shows everything carrying any tag you pick.
+**All tags** renames, merges and deletes them, `#tag` in the search box
+asks for one, and a note category can give its tags to every note made in
+it.
+
 <table><tr>
 <td><img src="docs/screenshots/notes-desktop.webp" alt="Notes on a computer" width="620"></td>
 <td><img src="docs/screenshots/notes-phone.webp" alt="Notes on a phone" width="200"></td>

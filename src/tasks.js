@@ -17,6 +17,7 @@
 //   parent     the id of the task it sits under: one level, never deeper
 //   category   a note category of its own; none means its task's, then
 //              its list's
+//   tags       its tags (tags.js); a subtask has its own, never its task's
 //   ticks      when a repeating task was ticked, oldest first. Kept and
 //              not shown (Daniel, 15 Nov 2026), so anything wanting the
 //              history later has it.
@@ -30,6 +31,7 @@
 (function () {
   const Dates = () => (typeof window !== "undefined" && window.LifeLogDates) || require("./dates.js");
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
+  const Tags = () => (typeof window !== "undefined" && window.LifeLogTags) || require("./tags.js");
 
   // ---------- data ----------
   const isDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + "T00:00:00").getTime());
@@ -78,6 +80,7 @@
     if (it.deadline != null && !isDay(it.deadline)) drop("deadline");
     if (it.parent != null) { const p = String(it.parent); if (p && p !== it.id) it.parent = p; else drop("parent"); }
     if (it.category != null) { const c = String(it.category).trim(); if (c) it.category = c; else drop("category"); }
+    if (it.tags != null) { const t = Tags().clean(it.tags); if (t.length) it.tags = t; else drop("tags"); }
     if (it.ticks != null) {
       const t = Array.isArray(it.ticks) ? it.ticks.filter((x) => typeof x === "string" && x) : [];
       if (t.length) it.ticks = t.slice(-MAX_TICKS); else drop("ticks");
@@ -96,7 +99,7 @@
     }
     return items;
   }
-  const isTask = (it) => ["note", "priority", "date", "deadline", "parent", "category"].some((k) => it[k] != null);
+  const isTask = (it) => ["note", "priority", "date", "deadline", "parent", "category", "tags"].some((k) => it[k] != null);
   const childrenOf = (items, id) => (items || []).filter((i) => i.parent === id);
 
   // ---------- repeats ----------
@@ -255,6 +258,7 @@
   const catColor = (name) => ((Notes().noteCats() || []).find((c) => c.name === name) || {}).color || "";
   const isOpen = () => !$("#taskModal").hidden;
 
+  let tagField = null;
   function openTask(noteId, itemId) {
     cur = { noteId, itemId };
     if (!current().it) { cur = null; return; }
@@ -293,6 +297,7 @@
     if (document.activeElement !== $("#taskNote")) $("#taskNote").value = it.note || "";
     fillCategory(n, it, parent);
     $("#taskPriority").value = it.priority ? String(it.priority) : "";
+    if (tagField) tagField.refresh();
     const when = dateSummary(it, today);
     const val = $("#taskDateValue");
     val.textContent = when || "Add";
@@ -366,7 +371,6 @@
       row.append(grip, cb, body);
       wrap.appendChild(row);
     });
-    $("#taskSubHint").hidden = kids.length < 2;
   }
   function wireGrip(grip, row, i) {
     const wrap = $("#taskSubList");
@@ -674,6 +678,12 @@
     $("#taskNote").oninput = fitText;
     $("#taskNote").onblur = () => commitText();
     $("#taskCategory").onchange = () => change((it) => { const v = $("#taskCategory").value; if (v) it.category = v; else delete it.category; }, { edited: false });
+    tagField = Tags().field($("#taskTags"), {
+      get: () => (current().it && current().it.tags) || [],
+      set: (v) => { change((it) => { if (!Tags().setOn(it, v)) return false; }, { edited: false }); },
+      known: () => Notes().tagCounts(),
+      placeholder: "Add",
+    });
     $("#taskPriority").onchange = () => change((it) => { const v = +$("#taskPriority").value; if (v) it.priority = v; else delete it.priority; }, { edited: false });
     $("#taskDateBtn").onclick = () => { commitText(); openDate(); };
     const sub = $("#taskNewSub");

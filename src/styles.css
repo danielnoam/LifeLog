@@ -5392,3 +5392,112 @@ html.force-mobile .modal.task-date { width: 100%; }
 html.force-mobile .task-field select, html.force-mobile .task-field input, html.force-mobile .task-sub-new input,
 html.force-mobile .task-repeat-custom input { font-size: var(--fs-lg); }
 html.force-mobile #taskModal .task-note { font-size: var(--fs-lg); }
+
+/* ---------- Tags (Nov 2026; src/tags.js) ----------
+   Quiet outlined pills, no colour of their own: a category is the coloured
+   dot, a tag is a word in a ring, so the two never read as one thing. */
+.tag-pills { display: inline-flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; vertical-align: middle; margin-left: var(--space-8); }
+.tag-pill {
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: 2px 7px; border: 1px solid var(--border);
+  border-radius: var(--r-pill); background: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-2xs);
+  line-height: 1.3; white-space: nowrap; max-width: 16em; overflow: hidden; text-overflow: ellipsis;
+}
+button.tag-pill { cursor: pointer; position: relative; -webkit-tap-highlight-color: transparent; }
+button.tag-pill::after { content: ""; position: absolute; inset: -8px -2px; }
+button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); }
+.tag-pill.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.todo-meta .tag-pills { margin-left: 0; }
+.note-list-head .tag-pills { margin-left: var(--space-4); flex-wrap: nowrap; overflow: hidden; font-weight: 500; }
+/* The star sits at the card's top right since tags (Daniel, 2026-11-15);
+   floated, so the first line runs beside it. In a list's header it's a
+   button in the row. */
+.note-card > .note-fav { margin: -4px -6px 0 6px; }
+.note-list-head .note-fav { float: none; margin: 0; padding: 2px 4px; }
+.board-meta .tag-pills { margin-left: 0; flex: 1 0 100%; }
+.nv-tags { margin: var(--space-6) 0 0; }
+.nv-tags .tag-pills { margin-left: 0; }
+.nv-tags .tag-pill { font-size: var(--fs-xs); padding: 3px 9px; }
+
+/* The tag field: pills with ×, then a box to type in, then suggestions. */
+.tag-field { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); min-width: 0; cursor: text; }
+.tag-field-ico { display: flex; color: var(--text-dim); }
+.tag-field-ico .ico { width: 15px; height: 15px; }
+.tag-field-pills { display: contents; }
+.tag-field .tag-pill { font-size: var(--fs-xs); padding: 3px 4px 3px 9px; color: var(--text); }
+.tag-pill-x {
+  display: inline-flex; align-items: center; justify-content: center; position: relative; width: 18px; height: 18px; margin: 0; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--text-dim); cursor: pointer;
+}
+.tag-pill-x::after { content: ""; position: absolute; inset: -12px -6px; }
+.tag-pill-x:hover { color: var(--text); background: var(--bg-elev-2); }
+.tag-pill-x .ico { width: 12px; height: 12px; }
+.modal .tag-field-input, .tag-field-input {
+  flex: 1 1 90px; min-width: 90px; width: auto; margin: 0; padding: var(--space-6) var(--space-2); border: 0; background: none;
+  color: var(--text); font: inherit; font-size: var(--fs-sm); text-align: left; min-height: 32px;
+}
+.modal .tag-field-input:focus, .tag-field-input:focus { outline: none; box-shadow: none; }
+.tag-field-input::placeholder { color: var(--text-dim); }
+.tag-suggest {
+  position: absolute; left: 0; top: calc(100% + 4px); z-index: 5; min-width: 220px; max-width: 100%; padding: var(--space-4);
+  background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-md); box-shadow: var(--shadow);
+}
+.tag-suggest[hidden] { display: none; }
+.tag-suggest-row {
+  display: flex; justify-content: space-between; gap: var(--space-16); align-items: center; min-height: 36px; padding: 0 var(--space-10);
+  border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--text); cursor: pointer;
+}
+.tag-suggest-row:hover, .tag-suggest-row.is-hi { background: var(--accent-soft); }
+.tag-suggest-n { color: var(--text-dim); font-size: var(--fs-xs); }
+#nTags { margin: var(--space-8) 0 0; }
+/* In the task sheet the field is the row's value, after its label. */
+.task-field.task-tags { cursor: text; flex-wrap: nowrap; padding-top: var(--space-6); padding-bottom: var(--space-6); }
+.task-field.task-tags .task-field-label { flex: 0 0 auto; }
+.task-field.task-tags .tag-field { flex: 1; justify-content: flex-end; }
+.task-field.task-tags .tag-field-ico { display: none; }
+.task-field.task-tags .tag-field-input { flex: 0 1 70px; min-width: 60px; max-width: none; text-align: right; color: var(--text); padding: var(--space-6) 0; }
+.task-field.task-tags .tag-suggest { left: auto; right: 0; }
+/* The category sheet: the count by the title, Tags for new notes as a boxed field. */
+.note-cat-head { display: flex; align-items: baseline; gap: var(--space-10); flex-wrap: wrap; }
+.note-cat-uses { font-size: var(--fs-sm); font-weight: 400; color: var(--text-dim); }
+.note-cat-uses[hidden] { display: none; }
+.note-cat-tags { margin: var(--space-12) 0 var(--space-4); }
+.note-cat-tags-label { display: block; margin-bottom: var(--space-6); font-size: var(--fs-sm); color: var(--text-dim); }
+#noteCatTags, #tagSheetField { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--space-4) var(--space-8); background: var(--bg); }
+#noteCatTags:focus-within, #tagSheetField:focus-within { border-color: var(--accent); }
+/* The tag chips' counts, after the name. */
+.tag-chip-n { margin-left: var(--space-4); font-size: var(--fs-2xs); color: var(--text-dim); }
+.cat-chip.on .tag-chip-n { color: inherit; opacity: .8; }
+/* All tags. */
+.tags-sheet { max-width: 460px; }
+.tags-sheet h2 { display: flex; align-items: center; gap: var(--space-8); }
+.tags-sheet h2 .ico { width: 18px; height: 18px; }
+.modal .tags-find, .tags-find, .modal .tags-rename, .tags-rename {
+  display: block; width: 100%; box-sizing: border-box; margin: var(--space-8) 0 var(--space-6); background-color: var(--bg);
+  border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: var(--r-md); font: inherit; font-size: var(--fs-md);
+}
+.tags-find:focus, .tags-rename:focus { outline: none; border-color: var(--accent); }
+.tags-list { max-height: min(60vh, 520px); overflow: auto; margin: 0 calc(-1 * var(--space-4)); }
+.tags-row { display: flex; align-items: center; gap: var(--space-4); min-height: 52px; padding: 0 var(--space-4); }
+.tags-row + .tags-row { border-top: 1px solid var(--border); }
+.tags-name {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--space-8) var(--space-4);
+  border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm);
+}
+.tags-name:hover .tags-name-text { color: var(--accent); }
+.tags-name-text { font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tags-count { font-size: var(--fs-xs); color: var(--text-dim); }
+.tags-row.is-renaming { background: var(--bg); }
+.tags-row .tags-rename { flex: 1; min-width: 0; margin: var(--space-6) 0; }
+.tags-warn { margin: 0; padding: 0 var(--space-8) var(--space-10); font-size: var(--fs-xs); color: var(--warning); background: var(--bg); }
+.tags-warn[hidden] { display: none; }
+.tags-empty { padding: var(--space-12) var(--space-4); }
+/* A board's tags: its button in the editor's top bar, and the sheet over the editor. */
+.board-tags-btn { position: relative; flex: 0 0 auto; }
+.board-tags-n { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: var(--r-pill);
+  background: var(--accent-fill); color: var(--text-on-accent); font-size: var(--fs-3xs); line-height: 14px; text-align: center; }
+.board-tags-n:empty { display: none; }
+.modal-overlay.tag-sheet { z-index: 70; }
+/* The suggestions hang below the field, past a short sheet's edge. */
+.tag-sheet .modal, #noteCatModal .modal { overflow: visible; }
+/* A phone's top bar has no room for it beside the name: there it's in ⋯. */
+@media (max-width: 720px) { .board-tags-btn { display: none; } }

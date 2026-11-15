@@ -154,6 +154,9 @@ backlog, `financeCategories` for expenses and recurring bills,
   two of the same name fold into the older. Change them with
   `lifelog_add_subcategory`, `lifelog_rename_subcategory` and
   `lifelog_delete_subcategory`, not by editing `subs`.
+- A note category (`noteCategories` only) can hold `tags`: the tags a
+  note, checklist, quote or board made in it starts with (only when it's
+  made; moving one in later adds none). `lifelog_category_tags` sets them.
 
 Renaming one renames it on every item that uses it: a timeline category on
 entries and backlog items (and its lookup source in
@@ -178,7 +181,8 @@ Newest first. Three kinds:
   (minutes before the date and time; an all-day task counts from 09:00),
   `deadline` (YYYY-MM-DD), `parent` (the id of the task it sits under, one
   level deep: a subtask's subtasks come back to the top), `category` (a
-  note category; none means its task's, then its list's), `ticks` (when a
+  note category; none means its task's, then its list's), `tags` (see
+  Tags below; a subtask's are its own, never its task's), `ticks` (when a
   repeating task was ticked, kept for later and not shown). Ticking a
   repeating task doesn't finish it: its date moves to the next one, its
   deadline with it, and its subtasks untick. `lifelog_add_task`,
@@ -191,7 +195,21 @@ Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last
 changed), `kind`, `text`, `title`, `category` (optional, from
 `noteCategories`), `fav` (true when favourited), `pinned` (true when pinned
 to the Home tab; it stays in the Notebook too, `lifelog_pin_note`), `items`,
-`author`, `source`.
+`author`, `source`, `tags`.
+
+### Tags
+
+`tags` is a list of words on a note of any kind, a task, or a board
+(`boards.json`), absent when empty. Tags cut across categories and kinds;
+a thing has any number (up to 30, each up to 40 characters, no commas, no
+leading `#`). Two tags that differ only in case are the same tag; the first
+spelling is kept. There's no list of tags of its own: a tag exists while
+something carries it. In the Notebook a tag chip (or `#tag` in the search
+box) shows everything with any of the chosen tags; a checklist shows when
+one of its tasks has one. `lifelog_tags` lists them, `lifelog_tag` adds or
+takes them off one thing, `lifelog_rename_tag` (onto an existing tag merges
+them) and `lifelog_delete_tag` work everywhere at once, and
+`lifelog_notes`/`lifelog_boards` take `tag`.
 
 Images (0.297.0) are never inside the data. A text note shows one as a line
 of its own in `text`: `![alt](lifelog-img:<id>)`, where `<id>` is the file
@@ -413,8 +431,8 @@ to their place in the bar ("Digit1" for the leftmost). The bridge doesn't use it
 The Notes tab's drawing boards, in a file of their own beside
 `lifelog.json` (so drawing never slows a save), written compact:
 `{ "boards": [ ... ] }`. Each board has `id`, `name`, `createdAt`,
-`updatedAt`, `elements`, and optionally `category` (a note category's name)
-and `fav` (starred). `scratch: true` marks the Home scratchpad's board in
+`updatedAt`, `elements`, and optionally `category` (a note category's name),
+`tags` (see Notes → Tags) and `fav` (starred). `scratch: true` marks the Home scratchpad's board in
 Board mode: the app keeps it out of the Boards list and the feed until Keep
 as a board removes the flag (`lifelog_update_board` with `keep`). Elements are strokes, shapes and text
 (`{ id, t: "text", text, x, y, ... }`); a filled shape has `f`, and one
