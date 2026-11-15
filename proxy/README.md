@@ -11,10 +11,9 @@ when a new source needs a route here. `node test/proxy.test.js` runs it.
 
 The one route that keeps anything: `/upnext` stores the row LifeLog sends
 (IMDb ids, titles, poster addresses) in a KV namespace bound as `UPNEXT`,
-and serves it to Stremio as a catalog add-on. Once: Cloudflare → Storage &
-Databases → KV → Create a namespace (`lifelog-upnext`), copy its ID into
-`wrangler.toml`'s commented `[[kv_namespaces]]` block, uncomment it and
-push. Until then those routes answer 501 and nothing else changes.
+and serves it to Stremio as a catalog add-on. The namespace was made with
+`wrangler kv namespace create UPNEXT` (2026-11-15) and is bound in
+`wrangler.toml`; without that binding the routes answer 501.
 
 ### Git-connected deploys (already set up)
 
