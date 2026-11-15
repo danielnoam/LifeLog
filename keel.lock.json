@@ -3,7 +3,7 @@
   "files": {
     "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
     "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
-    "src/keel/github.js": "b2078b158cab542395b788e559fb53d259a77a350d178d3fc8abfdc210986351",
+    "src/keel/github.js": "d4b224ae152a7ec7719a0cb1c4c136137cb8fda689f495e0b527030cf4cae9e2",
     "tools/release.js": "cde945173156ec316d7fff3f117f063665bb1549aac5d4b01e2ba30007bb3414",
     "tools/android-version.js": "70f2cb0950e023cb33301f39012f5c9aaa96ad0695a01e0150751bc8a41c5ce1",
     "tools/keel-sync.js": "7e2737238adb20c52390cc9435e0de493008110c026fc6b9f2ba2c4c3fe7d4c3",

@@ -89,8 +89,10 @@
       }
     }
     async function ok(r) {
-      if (!r.ok) throw httpError(r.status, await r.text(), r);
-      return r;
+      if (r.ok) return r;
+      let text = "";
+      try { text = await r.text(); } catch (e) { try { text = JSON.stringify(await r.json()); } catch (e2) { /* no body */ } }
+      throw httpError(r.status, text, r);
     }
     // JSON from anywhere under the repo (`rest` like "git/trees"), null for
     // a GET that's 404.
@@ -127,7 +129,13 @@
       if (res.status === 404) return null;
       const j = await (await ok(res)).json();
       const b64 = j.content ? j.content : j.size ? await blob(j.sha) : "";
-      return { text: b64 ? b64decode(b64) : "", sha: j.sha, etag: res.headers.get("ETag") || "" };
+      return { text: b64 ? b64decode(b64) : "", sha: j.sha, etag: (res.headers && res.headers.get && res.headers.get("ETag")) || "" };
+    }
+    // Just the file's sha (no bytes, no blob past 1 MB), or null.
+    async function shaOf(path, { ref: r } = {}) {
+      const res = await request(contents(path) + ref(r), { accept: "application/vnd.github.object+json" });
+      if (res.status === 404) return null;
+      return (await (await ok(res)).json()).sha;
     }
     // { data, sha } or null; an empty file is null too.
     async function getJson(path, opts) {
@@ -178,11 +186,11 @@
         if (!conflict(e)) throw e;
       }
       for (let n = 1; ; n++) {
-        const cur = await getFile(path);
+        const cur = onConflict ? await getFile(path) : { sha: await shaOf(path) };
         const next = onConflict ? await onConflict(cur) : (bytes ? { bytes } : { text });
         const out = typeof next === "string" ? { text: next } : next;
         try {
-          return { sha: await putFile(path, { ...out, sha: cur ? cur.sha : null, message }), conflicted: true };
+          return { sha: await putFile(path, { ...out, sha: (cur && cur.sha) || null, message }), conflicted: true };
         } catch (e) {
           if (!conflict(e) || n >= tries) throw e;
         }
@@ -241,7 +249,7 @@
     }
 
     return {
-      request, json, me, repoInfo, createRepo, getFile, getJson, getRaw, peekSha,
+      request, json, me, repoInfo, createRepo, getFile, getJson, getRaw, shaOf, peekSha,
       putFile, saveFile, removeFile, createBlob, commitFiles, listCommits, blob,
     };
   }
