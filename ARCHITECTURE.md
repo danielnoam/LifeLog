@@ -48,7 +48,9 @@ src/keel/errlog.js  the errors this device has hit (from keel; set up by its tag
 src/wheel.js        the Spin wheel
 src/keel/           from keel (danielnoam/keel): the setup link's QR codes,
                     github.js, the GitHub calls storage.js makes, errlog.js,
-                    the errors this device hit, and drive.js (not loaded yet)
+                    the errors this device hit, releases.js, the update check's
+                    and Test builds' look at the releases (sw-preview.js is
+                    sw.js's half), and drive.js (not loaded yet)
 src/vendor/         rough.js and the Virgil font (boards)
 src/styles.css      every style and the four themes
 native/             Android and iOS widgets, reminders, share extension
@@ -74,7 +76,8 @@ keel.lock.json      (danielnoam/keel): see below
 ```
 
 The files listed in `keel.lock.json` (server.js, src/keel/qr.js,
-src/keel/github.js, src/keel/drive.js, src/keel/errlog.js,
+src/keel/github.js, src/keel/drive.js, src/keel/errlog.js, src/keel/releases.js,
+src/keel/sw-preview.js,
 tools/release.js, tools/android-version.js, tools/keel-sync.js,
 test/keel.test.js, the github-pages skill) come from keel. Don't edit
 them here: `test/keel.test.js` fails. Change them in keel, tag a

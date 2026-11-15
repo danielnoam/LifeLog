@@ -86,18 +86,17 @@ test("release.js writes the entry from changes/ and deletes the notes", () => {
 test("a test build is a pre-release the updater never sees", () => {
   const sh = fs.readFileSync(path.join(ROOT, "tools/test-build.sh"), "utf8");
   assert.ok(sh.includes("--prerelease") && sh.includes('gh pr list --head "$BRANCH" --state open'));
-  const app = fs.readFileSync(path.join(ROOT, "src/app.js"), "utf8");
-  assert.ok(app.includes('"/releases/latest"'), "the updater must keep reading releases/latest, which skips pre-releases");
+  const keel = fs.readFileSync(path.join(ROOT, "src/keel/releases.js"), "utf8");
+  assert.ok(keel.includes('"/releases/latest"'), "the updater must keep reading releases/latest, which skips pre-releases");
   const yml = fs.readFileSync(path.join(ROOT, ".github/workflows/android.yml"), "utf8");
   assert.ok(/needs\.gate\.outputs\.test == 'true'\) && secrets\.ANDROID_KEYSTORE_B64/.test(yml), "the release key signs main and labelled test builds only");
 });
 
 test("Test builds lists only test- pre-releases, reading the notes' first lines", () => {
-  global.window = { LifeLogPlatform: { native: false } };
-  global.document = { querySelector: () => null };
-  global.location = { hostname: "localhost", pathname: "/" };
-  require("../src/testbuilds.js");
-  const T = window.LifeLogTestBuilds;
+  global.window = {};
+  require("../src/keel/releases.js");
+  const K = window.Keel.releases;
+  const T = { notesOf: K.notesOf, parse: (r) => K.parse(r, "LifeLog") };
   const body = "version: 0.299.0\nbranch: feature/x\ncommit: abcdef1234567\npr: 31\n\nA test build of pull request #31.";
   assert.deepStrictEqual(T.notesOf(body), { version: "0.299.0", branch: "feature/x", commit: "abcdef1234567", pr: "31" });
   const r = T.parse([
@@ -114,9 +113,8 @@ test("Test builds lists only test- pre-releases, reading the notes' first lines"
 test("sw.js serves a browser's test build from its commit and keeps the release's cache apart", () => {
   const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
   assert.ok(sw.includes('const PREVIEW = "lifelog-preview"'));
-  assert.ok(sw.includes("https://raw.githubusercontent.com/"));
+  assert.ok(sw.includes('importScripts("src/keel/sw-preview.js")') && sw.includes("self.KeelPreview.create(PREVIEW)"));
   assert.ok(sw.includes('!k.startsWith(PREVIEW)'), "activate must not drop the preview cache");
-  assert.ok(sw.includes('url.searchParams.has("release")'), "./?release leaves the preview");
   assert.ok(sw.includes('"./src/testbuilds.js"'));
 });
 
