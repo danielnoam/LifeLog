@@ -1710,7 +1710,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="appearance" data-title="Appearance" data-keywords="theme dark light colour color font typeface layout phone computer desktop mobile date format week start sunday monday saturday calendar day month year">
+      <div class="settings-page" hidden data-page="appearance" data-title="Appearance" data-keywords="theme dark light colour color font typeface animations motion movement layout phone computer desktop mobile date format week start sunday monday saturday calendar day month year">
       <h2 class="settings-page-title">Appearance</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -1739,6 +1739,10 @@
               <option value="mobile">Always the phone layout</option>
               <option value="pc">Always the computer layout</option>
             </select>
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Animations</span><span class="sitem-sub">Off stops every slide, spring and fade</span></span>
+            <input type="checkbox" class="switch" id="motionSwitch" />
           </label>
         </div>
         <p class="hint">This device only. Cover art, month cards and each list's options are on that tab's <strong>View</strong> button.</p>
@@ -2844,6 +2848,8 @@
   <script defer src="src/headless.js?v=0.316.0"></script>
   <script defer src="src/keel/platform.js?v=0.316.0"></script>
   <script defer src="src/platform.js?v=0.316.0"></script>
+  <script defer src="src/keel/motion.js?v=0.316.0"></script>
+  <script defer src="src/motion.js?v=0.316.0"></script>
   <script defer src="src/desktop.js?v=0.316.0"></script>
   <script defer src="src/dates.js?v=0.316.0"></script>
   <script defer src="src/datefield.js?v=0.316.0"></script>
