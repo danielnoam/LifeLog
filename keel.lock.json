@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "files": {
     "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
     "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
@@ -7,6 +7,7 @@
     "src/keel/drive.js": "3859b1c7ebb5cbba1c18827e6245095bad54691c0bbec53c6ef527223f69357d",
     "src/keel/errlog.js": "d25c1074c3f7163c8c1f66359c8cc4e9f923efeab2907d585d071302da1876e0",
     "src/keel/platform.js": "a3a178f83d9cd661a29a99eae4abbd62bfcc056f3831a9761cf012177e26e998",
+    "src/keel/motion.js": "5e844b6eecb33eb1a37ba792936c4ace61129776989e31ade5159814991af0b4",
     "src/keel/releases.js": "0cbd8bc150ad8201d9bac653d6737f3912a6371d12af954825082b7ed6be359c",
     "src/keel/sw-preview.js": "3c55e81926300b26d8038c27e3b97f85e9e29d78f195bbd9e1a86823db871c4c",
     "tools/release.js": "cde945173156ec316d7fff3f117f063665bb1549aac5d4b01e2ba30007bb3414",

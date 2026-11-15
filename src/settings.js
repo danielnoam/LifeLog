@@ -14,7 +14,7 @@
   let state, $, el, toast, persist, render, normalize, afterDataChange,
     setSyncing, refreshStorageStatus, versionBehind, APP_VERSION, schedulePoll,
     saveVisualSettings, savePrivacySettings, attachSwipe,
-    applyMonthLayout, applyFont, applyTheme, applyForceLayout,
+    applyMonthLayout, applyFont, applyTheme, applyForceLayout, applyMotion,
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
     applyPrivacyScreen, widgetsChanged,
     isMobileLayout, switchToView,
@@ -28,7 +28,7 @@
     ({ state, $, el, toast, persist, render, normalize, afterDataChange,
       setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
       saveVisualSettings, savePrivacySettings, attachSwipe,
-      applyMonthLayout, applyFont, applyTheme, applyForceLayout,
+      applyMonthLayout, applyFont, applyTheme, applyForceLayout, applyMotion,
       prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
       applyPrivacyScreen, widgetsChanged,
       isMobileLayout, switchToView,
@@ -1564,6 +1564,7 @@
     fillDateSettings();
     $("#themeSelect").value = state.visual.theme || "default";
     $("#forceLayout").value = state.visual.forceLayout || "none";
+    $("#motionSwitch").checked = state.visual.motion !== "off";
     fillViewOptions();
     renderTabToggles();
     updateMediaSettings();
@@ -1649,6 +1650,11 @@
     state.visual.forceLayout = $("#forceLayout").value;
     saveVisualSettings(state.visual);
     applyForceLayout();
+  }
+  function onMotionChange() {
+    state.visual.motion = $("#motionSwitch").checked ? "on" : "off";
+    saveVisualSettings(state.visual);
+    applyMotion();
   }
   // Week start and date format (0.301.0) sync, unlike the rest of the page:
   // a week that starts on a different day on the phone would count a
@@ -1974,6 +1980,7 @@
     $("#weekStart").onchange = onDateSettingChange;
     $("#dateFormat").onchange = onDateSettingChange;
     $("#forceLayout").onchange = onForceLayoutChange;
+    $("#motionSwitch").onchange = onMotionChange;
     $("#timelineLayout").onchange = onLayoutChange;
     $("#backlogLayout").onchange = onLayoutChange;
     $("#timelineCoverSize").onchange = onTimelineCoverSizeChange;

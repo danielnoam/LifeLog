@@ -216,7 +216,8 @@ lists. It's expensive in the Android WebView.
 | `--ll-move-dur` | .3s | rows moving to a new place (`reconcile.js`, `animate: true`) |
 | `--ease` | `cubic-bezier(.4,0,.2,1)` | leaving, closing, color |
 | `--ll-move-ease` | `cubic-bezier(.22,1,.36,1)` | **settle**: arriving, opening, moving |
-| press spring | `cubic-bezier(.34,1.56,.64,1)` | the release overshoot in `wirePressFeedback()` |
+| `--spring-snappy` / `-ms` | from `src/motion.js` | small things that answer a finger, the release in `wirePressFeedback()` |
+| `--spring-soft` / `-ms` | from `src/motion.js` | sheets, the swipe-down spring-back |
 
 ### Rules (Now)
 
@@ -224,8 +225,9 @@ lists. It's expensive in the Android WebView.
   against .2–.24s in).
 - Sheets **translate**, never scale: scaling throws off anything that
   measures itself on open, such as the wheel.
-- **Presses are interruptible.** `wirePressFeedback()` animates `scale` with
-  the Web Animations API and springs back from wherever the press was. Any
+- **Presses are interruptible.** `wirePressFeedback()` hands `PRESSABLE` to
+  keel's `press()`, which animates `scale` with the Web Animations API and
+  springs back from wherever the press was. Any
   new pressable joins `PRESSABLE`; don't write a second mechanism.
 - Lists move with `reconcile.js` and its `.ll-enter`, which owns `opacity` on
   rows. Don't animate a row's opacity anywhere else.
@@ -233,19 +235,28 @@ lists. It's expensive in the Android WebView.
   `::details-content` (0.284.1). Chromium only; elsewhere they snap.
 - **Every** transition and animation has a `prefers-reduced-motion: reduce`
   answer next to it. Reduced motion means no movement; a plain fade is fine.
+- **Animations off** (Settings → Appearance, this device only) sets
+  `data-motion="off"` on `<html>`: one rule in styles.css stops every
+  transition and animation, keel's engine stops its moves, and
+  `prefersReducedMotion()` says yes. Nothing new needs its own answer to it.
 - Nothing animates on load, on a timer, or in a loop. The one exception is
   the syncing LED, which is a status.
 
-### Springs (Now, 0.222.0)
+### Springs (Now, 0.222.0; made by keel's engine since keel 0.8.0)
 
-`--spring-snappy` (~12% overshoot, for ~.35s) and `--spring-soft` (~1.5%,
-for ~.4s) are damped springs sampled into CSS `linear()`, so a plain
-transition can overshoot and settle. They're tied to the duration they were
-sampled for; don't stretch them. Swipe-down on sheets (`wireSheetSwipe` in
-app.js) follows the finger with plain touch events and springs back with
-`--spring-soft`: no physics library. Bring one in (Motion's plain-JS
-`animate()`, copied into `src/vendor`) only if a gesture needs to carry its
-speed into the settle, which nothing does yet.
+`--spring-snappy` (~12% overshoot) and `--spring-soft` (~1.5%) are damped
+springs sampled into CSS `linear()`, so a plain transition can overshoot
+and settle. They're made by LifeLog's motion engine (`src/motion.js`, a
+`Keel.motion.create()` with LifeLog's springs: soft is the sheet spring,
+stiffness 155 and damping 19; snappy the control spring, 450 and 22),
+fitted to the curves they used to be pasted as. Each runs for its own
+duration, `--spring-snappy-ms` and `--spring-soft-ms`: always use the pair,
+never a duration of your own. With a mouse on a screen 1024px or wider
+both run critically damped, quicker and with no overshoot. Swipe-down on
+sheets (`wireSheetSwipe` in app.js) follows the finger with plain touch
+events and springs back with `--spring-soft`. `window.LifeLogMotion` has
+keel's other moves too (DESIGN rules above still decide which LifeLog
+uses: sheets translate, never scale).
 
 ---
 

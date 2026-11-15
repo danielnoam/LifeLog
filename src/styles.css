@@ -66,10 +66,14 @@
   /* Springs (0.222.0): a damped spring sampled into linear() stops, so a
      plain transition can overshoot and settle. Snappy for small things
      that answer a finger (~12% over); soft for sheets (~1.5%). Unlike the
-     cubic-beziers above they need the duration they were sampled for:
-     snappy ~.35s, soft ~.4s. */
-  --spring-snappy: linear(0, 0.05, 0.173, 0.336, 0.511, 0.678, 0.823, 0.94, 1.026, 1.083, 1.115, 1.126, 1.122, 1.108, 1.088, 1.066, 1.044, 1.025, 1.01, 0.998, 0.99, 0.986, 0.984, 0.984, 1);
-  --spring-soft: linear(0, 0.021, 0.076, 0.152, 0.239, 0.332, 0.424, 0.512, 0.594, 0.668, 0.733, 0.79, 0.839, 0.879, 0.913, 0.94, 0.961, 0.978, 0.991, 1, 1.007, 1.011, 1.014, 1.015, 1);
+     cubic-beziers above they need their own duration, so each comes with
+     its -ms. Both are made by LifeLog's motion engine (src/motion.js, on
+     keel's), critically damped with a mouse on a big screen; the
+     fallbacks are the curves they used to be pasted as. */
+  --spring-snappy: var(--ll-spring-control, linear(0, 0.05, 0.173, 0.336, 0.511, 0.678, 0.823, 0.94, 1.026, 1.083, 1.115, 1.126, 1.122, 1.108, 1.088, 1.066, 1.044, 1.025, 1.01, 0.998, 0.99, 0.986, 0.984, 0.984, 1));
+  --spring-snappy-ms: var(--ll-spring-control-ms, .35s);
+  --spring-soft: var(--ll-spring-sheet, linear(0, 0.021, 0.076, 0.152, 0.239, 0.332, 0.424, 0.512, 0.594, 0.668, 0.733, 0.79, 0.839, 0.879, 0.913, 0.94, 0.961, 0.978, 0.991, 1, 1.007, 1.011, 1.014, 1.015, 1));
+  --spring-soft-ms: var(--ll-spring-sheet-ms, .4s);
 
   /* Scales (0.222.0, DESIGN.md §3–4). Font sizes and radii use these;
      spacing is still written as px, on the same steps, and moves onto
@@ -252,6 +256,15 @@ html { -webkit-tap-highlight-color: transparent; }
   .note-card, .coll-card { transition: none; }
   :is(.note-card, .coll-card):active { scale: none; }
 }
+/* Animations turned off in Settings → Appearance: nothing moves at all,
+   not even the fades reduced motion keeps. The engine's own moves check
+   the same attribute (src/keel/motion.js). */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+:root[data-motion="off"] ::details-content { transition: none !important; }
 html, body {
   margin: 0;
   background: var(--bg);
@@ -2549,7 +2562,7 @@ a.game-times:hover .game-time-value { text-decoration: underline; }
    little to read as flicking past rather than as a page that keeps
    reloading. The landing settles in. */
 .pick-card.is-shuffling .pick-art, .pick-card.is-shuffling .pick-title { opacity: .55; }
-.pick-card.is-landed .pick-art { animation: pick-land .32s var(--spring-snappy); }
+.pick-card.is-landed .pick-art { animation: pick-land var(--spring-snappy-ms) var(--spring-snappy); }
 .pick-card.is-landed .pick-body { animation: pick-body-in .24s var(--ll-move-ease); }
 @keyframes pick-land { from { scale: .94; } to { scale: 1; } }
 @keyframes pick-body-in { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }

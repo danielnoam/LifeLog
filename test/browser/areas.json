@@ -2,7 +2,7 @@
   "_about": "Which browser suites a pull request runs, by the files it changes. See test/browser/affected.js. Releases, main and hand-run workflows always run every suite.",
   "everything": [
     "index.html", "sw.js", "manifest.json",
-    "src/app.js", "src/styles.css", "src/storage.js", "src/keel/github.js", "src/platform.js",
+    "src/app.js", "src/styles.css", "src/storage.js", "src/keel/github.js", "src/platform.js", "src/motion.js", "src/keel/motion.js",
     "src/merge.js", "src/reconcile.js", "src/icons.js", "src/select.js",
     "src/jobs.js", "src/keel/errlog.js", "src/dates.js", "src/datefield.js",
     "src/vendor/",
@@ -20,7 +20,7 @@
   "always": [
     "a11y", "activity", "bootcache", "btnaudit", "bulkselect", "contextmenu",
     "dropdowns", "everymode", "ghlarge", "hiddenaudit", "home", "modeswipe",
-    "pollpeek", "press", "realloop", "savecoalesce", "search", "synctoast", "tabtoggle"
+    "pollpeek", "motion", "press", "realloop", "savecoalesce", "search", "synctoast", "tabtoggle"
   ],
   "areas": {
     "notes": {

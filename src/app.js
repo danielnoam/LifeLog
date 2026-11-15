@@ -58,7 +58,7 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", motion: "on", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
     // The Home tab's sections, in order, and the ones turned off (home.js).
     homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], homeScratchMode: "note", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
@@ -524,6 +524,7 @@
   applyFont();
   applyTheme();
   applyForceLayout();
+  applyMotion();
 
   function emptyData() {
     return {
@@ -578,8 +579,11 @@
   // ---------- motion: count-up numbers + view fade-in ----------
   // Mirrors the design system's AnimatedNumber/FadeIn: short, eased-out,
   // no bounce, and skipped entirely under prefers-reduced-motion.
+  // Animations off in Settings → Appearance counts as reduced motion too
+  // (src/motion.js turns it on and off).
   const prefersReducedMotion = () =>
-    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.documentElement.dataset.motion === "off" ||
+    !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   const numberAnimCache = new Map();
   // Tweens `node`'s text from the previously-seen value under `key` to `value`
@@ -4591,6 +4595,7 @@
     applyFont();
     applyTheme();
     applyForceLayout();
+    applyMotion();
     buildYearFilter();
     buildCatFilter();
     buildProjectFilter();
@@ -4654,6 +4659,13 @@
     const fit = (meta.content.match(/viewport-fit=[\w-]+/) || [""])[0];
     const width = s.forceLayout === "mobile" ? "width=400" : s.forceLayout === "pc" ? "width=1280" : "width=device-width";
     meta.content = width + ", initial-scale=1.0" + (fit ? ", " + fit : "");
+  }
+
+  // Animations off (Settings → Appearance): keel's engine stops its moves
+  // and styles.css every transition, on this device only.
+  function applyMotion() {
+    const s = state.visual || DEFAULT_VISUAL;
+    if (window.LifeLogMotion) window.LifeLogMotion.setStill(s.motion === "off");
   }
 
   // ---------- events ----------
@@ -5206,32 +5218,13 @@
   // let go (0.211.0) — the dim in styles.css alone was a flat, instant step.
   // One delegated listener rather than CSS: :active can animate in, but the
   // way back out takes whatever transition the control's own rule declares,
-  // and dozens of them declare one without `scale`. By a few pixels rather
-  // than a fixed ratio, so a chip dips visibly and a full-width row barely
-  // moves. `scale`, the property, composes with any transform already there.
+  // and dozens of them declare one without `scale`. keel's press() does it
+  // (src/keel/motion.js): by a few pixels rather than a fixed ratio, so a
+  // chip dips visibly and a full-width row barely moves, back on the snappy
+  // spring, and not at all under reduced motion or Animations off.
   const PRESSABLE = 'button, [role="button"], summary, .tab, .cat-chip, .chip-edit, .filter-label, .toggle-label, .jump-item';
   function wirePressFeedback() {
-    let held = null;
-    const release = () => {
-      if (!held) return;
-      const { node, anim, to } = held;
-      held = null;
-      const p = anim.effect.getComputedTiming().progress || 0;
-      const from = 1 + (to - 1) * p;
-      anim.cancel();
-      node.animate([{ scale: from }, { scale: 1 }], { duration: 260, easing: "cubic-bezier(.34, 1.56, .64, 1)" });
-    };
-    document.addEventListener("pointerdown", (e) => {
-      release();
-      if (e.button > 0 || prefersReducedMotion()) return;
-      const node = e.target.closest && e.target.closest(PRESSABLE);
-      if (!node || node.disabled || node.closest(".board-svg")) return;
-      const r = node.getBoundingClientRect();
-      const to = 1 - Math.min(0.1, 4 / Math.max(r.width, r.height, 1));
-      const anim = node.animate([{ scale: 1 }, { scale: to }], { duration: 90, easing: "ease-out", fill: "forwards" });
-      held = { node, anim, to };
-    }, true);
-    for (const t of ["pointerup", "pointercancel", "blur"]) window.addEventListener(t, release, true);
+    if (window.LifeLogMotion) window.LifeLogMotion.press(PRESSABLE, { skip: (node) => !!node.closest(".board-svg") });
   }
 
   // The More… menu at the foot of the entry and backlog sheets (0.220.0):
@@ -5323,11 +5316,12 @@
         d.ov.style.opacity = "0";
         setTimeout(() => { d.ov.dispatchEvent(new MouseEvent("click", { bubbles: true })); reset(d); }, still ? 0 : 200);
       } else {
-        d.sheet.style.transition = still ? "none" : "translate .4s var(--spring-soft)";
+        const ms = window.LifeLogMotion ? window.LifeLogMotion.timing("sheet").duration : 400;
+        d.sheet.style.transition = still ? "none" : "translate var(--spring-soft-ms) var(--spring-soft)";
         d.ov.style.transition = still ? "none" : "opacity .2s var(--ease)";
         d.sheet.style.translate = "";
         d.ov.style.opacity = "";
-        setTimeout(() => reset(d), still ? 0 : 400);
+        setTimeout(() => reset(d), still ? 0 : ms);
       }
     };
     document.addEventListener("touchend", end);
@@ -6310,7 +6304,7 @@
     state, $, el, toast, persist, render, normalize, afterDataChange,
     setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
     saveVisualSettings, savePrivacySettings, attachSwipe,
-    applyMonthLayout, applyFont, applyTheme, applyForceLayout,
+    applyMonthLayout, applyFont, applyTheme, applyForceLayout, applyMotion,
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
     applyPrivacyScreen, widgetsChanged: () => Widgets.changed(),
     isMobileLayout, switchToView,
