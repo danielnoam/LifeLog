@@ -25,7 +25,7 @@
   "areas": {
     "notes": {
       "files": ["src/notes.js", "src/tasks.js", "src/markdown.js", "src/images.js", "src/docimport.js"],
-      "suites": ["collections", "datefaces", "mdimport", "noteimages", "notekinds", "notemenu", "noteopen", "notesheet", "renames", "todomigrate"]
+      "suites": ["collections", "datefaces", "mdimport", "noteimages", "notekinds", "notemenu", "noteopen", "notesheet", "renames", "tasks", "todomigrate"]
     },
     "boards": {
       "files": ["src/boards.js"],
@@ -53,7 +53,7 @@
     },
     "home": {
       "files": ["src/home.js"],
-      "suites": ["homeinvest"]
+      "suites": ["homeinvest", "tasks"]
     },
     "imports": {
       "files": ["src/io.js", "src/sync.js", "src/letterboxd.js", "src/stremio.js", "src/connections.js", "src/hardcover.js", "src/waypage.js"],
