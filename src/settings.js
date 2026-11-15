@@ -80,8 +80,9 @@
         $("#ghLocalWarn").hidden = !localOnly;
         // render QR (hidden when local-only or text too long for a v1-9 code)
         const qr = $("#ghQr");
-        const tooLong = !localOnly && window.LifeLogQR && !window.LifeLogQR.fits(link);
-        const svg = (!localOnly && window.LifeLogQR && !tooLong) ? window.LifeLogQR.svg(link, { size: 200 }) : null;
+        const encoder = window.Keel && window.Keel.qr;
+        const tooLong = !localOnly && encoder && !encoder.fits(link);
+        const svg = (!localOnly && encoder && !tooLong) ? encoder.svg(link, { size: 200 }) : null;
         if (svg) { qr.innerHTML = svg; qr.hidden = false; } else { qr.innerHTML = ""; qr.hidden = true; }
         $("#ghQrTooLong").hidden = !tooLong;
         share.hidden = false;
