@@ -73,6 +73,17 @@
         if (!before || !sameContent(before, item)) item.updatedAt = now;
       }
     }
+    // A checklist's items merge one by one (mergeNotes), so each carries a
+    // stamp of its own: an item both devices changed goes to the newer edit.
+    const prevNotes = byId(prev.notes);
+    for (const n of next.notes || []) {
+      if (!Array.isArray(n.items)) continue;
+      const prevItems = byId((prevNotes.get(n.id) || {}).items);
+      for (const x of n.items) {
+        const before = prevItems.get(x.id);
+        if (!before || !sameContent(before, x)) x.updatedAt = now;
+      }
+    }
     // A category's subs merge one by one (mergeFinanceCategories), so each
     // carries a stamp of its own too.
     const prevCats = byId(prev.financeCategories);

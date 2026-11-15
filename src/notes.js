@@ -40,12 +40,15 @@
   //   plain text   no `kind` — every note written before there were kinds.
   //                May have a `title` (0.199.0), shown above the text.
   //   "list"       `text` is the title, `items` the checklist: { id, text,
-  //                done?, doneAt? }. Items have ids so two devices ticking
-  //                different ones merge (merge.js mergeNotes).
+  //                done?, doneAt?, updatedAt? }. Items have ids so two devices
+  //                ticking different ones merge (merge.js mergeNotes), and
+  //                their own updatedAt so an item both changed goes to the
+  //                newer edit.
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
   const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned"]);
+  const KNOWN_ITEM_KEYS = new Set(["id", "text", "done", "doneAt", "updatedAt"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -66,10 +69,14 @@
       for (const k of ["author", "source"]) { const v = String(n[k] == null ? "" : n[k]).trim(); if (v) out[k] = v; }
     }
     if (out.kind === "list") {
+      // An item keeps the fields this build doesn't know: tasks (dates,
+      // priority, subtasks) are coming, and a device still on this build
+      // must not strip them from a list it saves.
       out.items = (Array.isArray(n.items) ? n.items : []).map((it) => {
         const item = { id: (it && it.id) || uid(), text: String(it && it.text != null ? it.text : "").trim() };
         if (it && it.done) { item.done = true; item.doneAt = it.doneAt || out.updatedAt; }
-        return item;
+        if (it && it.updatedAt) item.updatedAt = it.updatedAt;
+        return it && typeof it === "object" ? keepUnknown(it, item, KNOWN_ITEM_KEYS) : item;
       }).filter((it) => it.text);
     }
     return keepUnknown(n, out, KNOWN_NOTE_KEYS);
