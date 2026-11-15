@@ -26,7 +26,9 @@
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const K = window.Keel.releases;
   const native = () => !!(P() && P().native);
-  const R = K.create({ name: "LifeLog", repo: () => (native() ? (P().build && P().build.repo) || null : null) });
+  // The app's build names its repo (phones and computers); a browser's comes
+  // from its GitHub Pages address.
+  const R = K.create({ name: "LifeLog", repo: () => (P() && P().build && P().build.repo) || null });
   const available = () => (native() ? !!R.repo() : R.webReady);
   const newer = K.newer;
 
