@@ -3,6 +3,31 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.316.0] - 2026-11-15
+
+### Added
+- Google Drive backups, in Settings → Sync beside GitHub: connect your Google account, then Back up now or let LifeLog back up on its own every day, 3 days, week, 2 weeks or month while it's open. Each backup is a copy of everything (entries, notes, boards and the watchlist, without your API keys) in a LifeLog folder in your Drive; the last three are kept, plus one a week old when backups run more often. Restore puts a backup's data back as a new save, so History can undo it, and keeps this device's keys. LifeLog can see only the files it made in your Drive. Works in the browser, the Android app and the Windows app, and appears once LifeLog's Google sign-in is set up (not yet in this version).
+- Windows app: choose where LifeLog keeps its data in Settings → Desktop → Data folder: the LifeLog folder beside the app (the new default), AppData, or a folder you pick. Changing it restarts LifeLog and copies everything over; the old copy stays until you remove it there.
+- Windows app: uninstalling with "Delete the application data" ticked now also removes the data from the folder you chose. In a folder you picked, only LifeLog's own data goes, never anything else in it.
+- Settings → Sync shows how much room your GitHub data repo has left, as Waypage does: what's left and what's used of the 5 GB GitHub asks a repo to stay under (history and pictures count too), with a bar that turns yellow past 90%. GitHub updates the number a while after a save, and LifeLog asks at most every 10 minutes.
+- Tap it for Space on GitHub: what takes the room, largest first. Notes, Timeline, Backlog, Ledger, Habits, Settings, boards and investments as this device holds them, pictures with how many and Clean up, and History (earlier saves and removed pictures) as a rough figure.
+- AI bridge: `lifelog_sync_space` tells an AI the same, breakdown included.
+
+### Changed
+- Errors on this device now uses keel's shared error log, the same as Waypage's. Copied errors have addresses cut to their pages and anything that looks like a token or key removed, so they're safe to paste into a bug report.
+- GitHub sync's requests now go through keel's shared GitHub code, the same as Waypage's.
+- Where the app runs, and links to other sites opening in the device's browser, now come from keel's shared code, the same as Waypage's. Only web and mail addresses open outside now, as in Waypage.
+- The update check, Settings → About → Test builds and test builds in the browser now go through keel's shared code, the same as Waypage's.
+- The shared build tools, local server and setup-link QR code now come from keel, one copy kept with Waypage instead of two.
+- Windows app: on its first start, this version copies your data from AppData into `LifeLog\data` beside the app. The AppData copy is kept, renamed `EBWebView-old`, until you remove it in Settings → Desktop.
+
+### Fixed
+- The "New version ready" bar in the browser has a close button, like the phone and computer apps. Closing it hides it until the next new version.
+
+### Removed
+- The Travel tab is gone: trips, places, the maps, the Google Maps import, Google place details and the Places key, and the trips' history and file backup in Settings. Your trips aren't deleted: `travel.json` stays in your GitHub data repo exactly as it was, and this device's copy stays until you reset it. The AI bridge loses its trip and Google Maps tools.
+- Sharing a Google Maps link into LifeLog now asks Backlog or Note like any other link.
+
 ## [0.315.0] - 2026-11-14
 
 ### Added
