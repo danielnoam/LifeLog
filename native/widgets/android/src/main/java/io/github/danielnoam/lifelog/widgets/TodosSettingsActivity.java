@@ -29,7 +29,7 @@ public class TodosSettingsActivity extends SettingsScreen {
     @Override
     protected void build() {
         setTitle("Tasks widget");
-        heading("Task lists");
+        heading("Lists");
         Set<String> chosen = WidgetStore.listsOf(was);
         JSONObject snap = WidgetStore.snapshot(this);
         JSONArray all = snap == null ? null : snap.optJSONArray("lists");
@@ -41,8 +41,8 @@ public class TodosSettingsActivity extends SettingsScreen {
         List<String> order = WidgetStore.orderOf(was);
         if (order != null) Collections.sort(shown, (a, b) -> WidgetStore.rank(order, WidgetStore.str(a, "id")) - WidgetStore.rank(order, WidgetStore.str(b, "id")));
         hint(shown.size() > 1
-            ? "Choose one and the widget's + adds to it. With more, tap a task list's name on the widget to add to it. None ticked shows every task list. Hold one and drag to change the order."
-            : "Choose one and the widget's + adds to it. With more, tap a task list's name on the widget to add to it. None ticked shows every task list.");
+            ? "Choose one and the widget's + adds to it. With more, tap a list's name on the widget to add to it. None ticked shows every list. Hold one and drag to change the order."
+            : "Choose one and the widget's + adds to it. With more, tap a list's name on the widget to add to it. None ticked shows every list.");
         for (JSONObject l : shown) {
             String id = WidgetStore.str(l, "id");
             lists.add(id, WidgetStore.str(l, "name"), chosen != null && chosen.contains(id), shown.size() > 1);
@@ -50,8 +50,8 @@ public class TodosSettingsActivity extends SettingsScreen {
         if (shown.isEmpty()) {
             TextView none = new TextView(this);
             none.setText(all == null
-                ? "Open LifeLog once to bring your task lists here. Until then the widget shows every task list."
-                : "No task lists yet. The widget shows every task list you make.");
+                ? "Open LifeLog once to bring your lists here. Until then the widget shows every list."
+                : "No tasks yet. The widget shows every list you make.");
             box.addView(none);
         }
         heading("Show");

@@ -21,8 +21,8 @@ always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 - Bridge: lifelog_add_task, lifelog_update_task and lifelog_tasks (what's overdue, today or this week); lifelog_home lists tasks in Coming up, and lifelog_update_list ticks a repeating task the app's way.
 
 ### Changed
-- Checklists are called task lists now: the + menu's Task list, the Task lists filter, the Tasks widget, and "tasks" in imports, recaps and sync messages.
-- A task list's tick is a round one now. Deleting a task with subtasks or a description offers Undo. Copy text indents subtasks and puts dates in brackets, and search finds task descriptions.
+- Checklists are called Tasks now: the + menu, the Notebook filter, the widget, and "tasks" in imports, recaps and sync messages.
+- A task's tick is a round one now. Deleting a task with subtasks or a description offers Undo. Copy text indents subtasks and puts dates in brackets, and search finds task descriptions.
 
 ## [0.316.1] - 2026-11-15
 

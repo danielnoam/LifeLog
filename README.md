@@ -69,12 +69,12 @@ Settings → Tabs turns Home off.
 
 ### Notes
 
-Plain notes (Markdown), task lists and quotes, plus drawing boards with a
+Plain notes (Markdown), tasks and quotes, plus drawing boards with a
 hand-drawn look, which can hold pictures (the Image button, a paste or a
-drop). Each kind has its own line in the + menu (Note, Task list, Quote,
+drop). Each kind has its own line in the + menu (Note, Tasks, Quote,
 Board) and keeps that kind; a new board takes a name and a category first,
 then a tap on the blank board opens it to draw. Note categories, favourites,
-and collections that open their notes as pages. A task list's items are tasks: they tick, reorder by long press (or
+and collections that open their notes as pages. Tasks tick, reorder by long press (or
 by their handles while editing) and merge item by item between devices,
 and tapping one opens it for a description, a category, a priority, a date
 (with a time, a repeat, a reminder and a deadline) and subtasks. Dated
