@@ -52,13 +52,6 @@ Suggested on 2026-10-21: save or share a Recap slide as a PNG. Daniel said
 no. The Recap is DOM, so this would be a canvas redraw of each slide; not
 worth it until he actually wants to show one to someone.
 
-## Due dates on list items
-
-Suggested on 2026-10-21: a due date on a checklist item, with a reminder
-through the habit/charge alerts. Daniel said no — lists are checklists,
-not a task manager, and this was the one that pushed the Notebook that
-way. Would come back only if he starts keeping dated to-dos in LifeLog.
-
 ## A TMDB watchlist import
 
 Offered on 2026-10-10 alongside the AniList Watching and Completed sync
