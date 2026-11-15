@@ -401,7 +401,7 @@ list gets the window too, its map beside the list.
 - **Bulk actions**: long-press to select, then move, sync or delete.
 - **Sync and history**: GitHub and a local file, merged between devices,
   every save in Settings → History to restore or undo, Recently deleted,
-  and how much room the GitHub repo has left.
+  and how much room the GitHub repo has left, with what takes it.
 - **App lock**: a PIN, with fingerprint or face where the device has it.
 - **Widgets**: on Android, checklist, habits, quick add, spending, note,
   random note, upcoming, in progress and investments, with an optional background

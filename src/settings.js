@@ -97,24 +97,102 @@
   // How much room the data repo has left (2026-11), as Waypage shows it,
   // against the 5 GB GitHub asks a repo to stay under. Asks GitHub again
   // at most every 10 minutes, and redraws when the number moved.
-  const formatSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB"
-    : b >= 1e6 ? (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
-  function updateGithubSpace(ask = true) {
-    const row = $("#ghSpace");
-    const used = Storage.githubConnected ? Storage.githubUsed : null;
-    row.hidden = used == null;
-    if (ask && Storage.githubConnected) Storage.githubSpace().then((changed) => { if (changed) updateGithubSpace(false); });
-    if (used == null) return;
-    const all = Storage.GITHUB_SPACE;
+  const formatSize = (b) => b >= 9.995e8 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB"
+    : b >= 9.995e5 ? (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+  function paintSpaceRow(row, used, all) {
     const part = Math.min(1, used / all);
     row.classList.toggle("full", part > 0.9);
-    $("#ghSpaceLeft").textContent = formatSize(Math.max(0, all - used)) + " left";
-    const sub = $("#ghSpaceUsed");
+    row.querySelector(".sitem-title").textContent = formatSize(Math.max(0, all - used)) + " left";
+    const sub = row.querySelector(".sitem-sub");
     sub.textContent = formatSize(Math.max(used, 1000)) + " of " + formatSize(all) + " used, history and pictures included";
     sub.classList.toggle("tb-warn", part > 0.9);
     const bar = row.querySelector(".space-bar");
     bar.setAttribute("aria-valuenow", String(Math.round(part * 100)));
     bar.firstChild.style.transform = "scaleX(" + part + ")";
+  }
+  function updateGithubSpace(ask = true) {
+    const row = $("#ghSpace");
+    const used = Storage.githubConnected ? Storage.githubUsed : null;
+    row.hidden = used == null;
+    if (ask && Storage.githubConnected) Storage.githubSpace().then((changed) => {
+      if (!changed) return;
+      updateGithubSpace(false);
+      if (currentPage === "sync-space") renderSpacePage();
+    });
+    if (used != null) paintSpaceRow(row, used, Storage.GITHUB_SPACE);
+  }
+
+  // Settings → Sync → Space on GitHub (2026-11): what the room goes on.
+  // lifelog.json's parts and the files beside it are measured from this
+  // device's copy, the pictures from the branch's listing (one request), and
+  // History is GitHub's total less all that. GitHub packs what it stores, so
+  // that last one is rough, and the page says so.
+  const SPACE_PARTS = [
+    ["Notes", "notebook-pen", ["notes", "noteCategories", "todos", "todoCategories"]],
+    ["Timeline", "clock", ["entries", "categories", "accomplishments"]],
+    ["Backlog", "star", ["backlog"]],
+    ["Ledger", "receipt", ["financeEntries", "recurringExpenses", "financeCategories", "projects"]],
+    ["Habits", "repeat", ["habits"]],
+    ["Settings", "settings", ["settings"]],
+  ];
+  let spacePictures = null, spaceAsking = null;
+  const bytesOf = (v) => new Blob([JSON.stringify(v, null, 2)]).size;
+  async function renderSpacePage() {
+    const used = Storage.githubUsed;
+    const total = $("#spaceTotal");
+    total.hidden = used == null;
+    if (used != null) paintSpaceRow(total, used, Storage.GITHUB_SPACE);
+    const d = state.data || {};
+    const parts = [];
+    let counted = 0;
+    for (const [name, icon, keys] of SPACE_PARTS) {
+      const pick = {};
+      for (const k of keys) if (d[k] != null) pick[k] = d[k];
+      const b = keys.some((k) => d[k] != null) ? bytesOf(pick) : 0;
+      counted += b;
+      parts.push({ name, icon, bytes: b });
+    }
+    parts.push({ name: "Everything else in lifelog.json", icon: "archive", bytes: Math.max(0, bytesOf(d) - counted) });
+    const files = [["Boards", "presentation", Storage.boards], ["Trips", "map", Storage.travel], ["Investments", "trending-up", Storage.invest]];
+    for (const [name, icon, st] of files) parts.push({ name, icon, bytes: st && st.cachedSize ? await st.cachedSize().catch(() => 0) : 0 });
+    if (!spacePictures && !spaceAsking && Storage.images.connected()) {
+      spaceAsking = Storage.images.sizes().then((p) => { spacePictures = p; }).catch(() => { spacePictures = { failed: true }; })
+        .finally(() => { spaceAsking = null; if (currentPage === "sync-space") renderSpacePage(); });
+    }
+    const pics = spacePictures;
+    parts.push({ name: "Pictures", icon: "image", bytes: pics && !pics.failed ? pics.bytes : 0, pictures: true,
+      note: !pics ? "Counting…" : pics.failed ? "Couldn't count them — GitHub didn't answer" : pics.count ? pics.count + (pics.count === 1 ? " picture" : " pictures") + (pics.partial ? " or more" : "") : "None yet" });
+    const now = parts.reduce((t, p) => t + p.bytes, 0);
+    if (used != null && pics && !pics.failed) parts.push({ name: "History", icon: "history", bytes: Math.max(0, used - now), note: "Earlier saves and removed pictures, a rough figure" });
+    // An empty list is a few bytes of brackets: not worth a row.
+    const shown = parts.filter((p) => p.bytes >= 200 || p.note).sort((a, b) => b.bytes - a.bytes);
+    const most = Math.max(1, ...shown.map((p) => p.bytes));
+    const list = $("#spaceParts");
+    list.replaceChildren(...shown.map((p) => {
+      const row = el("div", "sitem space-part");
+      const ic = el("span", "srow-ic");
+      ic.appendChild(ico(p.icon));
+      const text = el("span", "sitem-text");
+      text.appendChild(el("span", "sitem-title", p.name));
+      text.appendChild(el("span", "sitem-sub", (p.bytes || !p.note ? formatSize(Math.max(p.bytes, 1000)) : "") + (p.bytes && p.note ? " · " : "") + (p.note || "")));
+      const bar = el("span", "space-bar");
+      bar.setAttribute("aria-hidden", "true");
+      const fill = el("span", "space-fill");
+      fill.style.transform = "scaleX(" + p.bytes / most + ")";
+      bar.appendChild(fill);
+      text.appendChild(bar);
+      row.append(ic, text);
+      if (p.pictures && pics && pics.count) {
+        const btns = el("span", "sitem-btns");
+        const b = el("button", "btn btn-small", "Clean up");
+        b.type = "button";
+        // The same Clean up as Settings → Import & export → Images in notes.
+        b.onclick = () => { const go = $("#cleanUpImagesBtn"); if (go) { spacePictures = null; go.click(); } };
+        btns.appendChild(b);
+        row.appendChild(btns);
+      }
+      return row;
+    }));
   }
 
   // ---------- version history (Settings → History) ----------
@@ -616,6 +694,7 @@
 
   function showPage(name) {
     if (name === "keyboard" && window.LifeLogKeys) window.LifeLogKeys.renderPage();
+    if (name === "sync-space") { spacePictures = null; renderSpacePage(); }
     if (name === "media") KEY_KINDS.forEach(checkMediaKey);
     if (name === "about") {
       const P = window.LifeLogPlatform;
@@ -1688,6 +1767,7 @@
       threshold: 60,
       requireHorizontal: true,
     });
+    $("#ghSpace").onclick = () => showPage("sync-space");
     $("#ghEditBtn").onclick = () => { ghEditing = true; updateGithubInfo(); $("#ghToken").focus(); };
     $("#viewOptionsBtn").onclick = () => openViewOptions();
     $("#closeViewOptionsBtn").onclick = closeViewOptions;

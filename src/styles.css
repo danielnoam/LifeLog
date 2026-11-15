@@ -3055,7 +3055,8 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 /* Settings → Sync: room left in the data repo (2026-11). */
 .space-bar { display: block; height: 4px; margin-top: var(--space-4); border-radius: var(--r-hair); background: var(--border); overflow: hidden; }
 .space-fill { display: block; height: 100%; background: var(--accent); transform-origin: left; }
-#ghSpace.full .space-fill { background: var(--warning); }
+.space-row.full .space-fill { background: var(--warning); }
+#spaceParts .sitem-btns { align-self: center; }
 .sitem-sub a { color: var(--accent); display: inline-block; padding: 12px 0; margin: -12px 0; }
 /* A key's status beside its title (Settings → Media lookups). The words stay
    --text-dim; only the icon carries the colour. */

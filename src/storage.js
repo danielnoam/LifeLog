@@ -709,6 +709,15 @@
     if (!r.ok) throw ghErr(r.status, await r.text(), r);
     return r.blob();
   }
+  // How many pictures the branch holds now and their bytes, for Space on
+  // GitHub. Removed ones still count in GitHub's total until Clean up.
+  async function ghImageSizes() {
+    const head = await imgHead();
+    if (!head) return { count: 0, bytes: 0 };
+    const listing = await ghJson("GET", "git/trees/" + head.tree + "?recursive=1");
+    const files = listing.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/"));
+    return { count: files.length, bytes: files.reduce((t, e) => t + (e.size || 0), 0), partial: !!listing.truncated };
+  }
   // Keeps the pictures `keep` names, drops the rest, and starts the branch's
   // history over. The kept files are the same blobs, so nothing uploads again.
   async function ghCleanUpImages(keep) {
@@ -857,6 +866,12 @@
           }
         }
       },
+      // Bytes this device's copy of the file takes as JSON (Settings →
+      // Sync → Space on GitHub), 0 when it has none.
+      async cachedSize() {
+        const d = await idbGetSafe(cacheKey);
+        return d ? new Blob([JSON.stringify(pick(d))]).size : 0;
+      },
       async forget() {
         await idbDel(cacheKey).catch(() => {});
         await idbDel(baseKey).catch(() => {});
@@ -997,6 +1012,7 @@
       get: (id) => ghGetImage(id),
       list: () => ghListImages(),
       cleanUp: (keep) => ghCleanUpImages(keep),
+      sizes: () => ghImageSizes(),
     },
 
     // Bytes the repo holds (null until GitHub has said), and a promise that

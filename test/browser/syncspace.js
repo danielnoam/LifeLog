@@ -21,6 +21,14 @@ async function openApp(browser, { connect = true, sizeKb, saved }) {
     const url = route.request().url();
     const say = (status, body) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (/\/repos\/someone\/lifelog-data$/.test(url)) { asked.repo++; return say(200, { default_branch: "main", private: true, size: sizeKb }); }
+    if (/\/git\/ref\/heads\/lifelog-images$/.test(url)) return say(200, { object: { sha: "img-head" } });
+    if (/\/git\/commits\/img-head$/.test(url)) return say(200, { tree: { sha: "img-tree" } });
+    if (/\/git\/trees\/img-tree/.test(url)) return say(200, { truncated: false, tree: [
+      { path: "README.md", type: "blob", size: 120 },
+      { path: "images", type: "tree" },
+      { path: "images/a", type: "blob", size: 300000000 },
+      { path: "images/b", type: "blob", size: 200000000 },
+    ] });
     if (/\/commits/.test(url)) return say(200, []);
     if (/\/contents\//.test(url)) return say(200, { sha: "sha-remote", encoding: "base64", content: Buffer.from(JSON.stringify(doc)).toString("base64") });
     return say(404, { message: "Not Found" });
@@ -64,6 +72,20 @@ const row = (page) => page.evaluate(() => {
     await a.page.evaluate(() => window.LifeLogSettings.openSettings("sync"));
     await a.page.waitForTimeout(300);
     check("opening Sync again soon doesn't ask GitHub again", a.asked.repo === before, { before, after: a.asked.repo });
+
+    // The breakdown, a tap away.
+    await a.page.click("#ghSpace");
+    await a.page.waitForFunction(() => /pictures/.test(document.querySelector("#spaceParts").textContent), null, { timeout: 6000 });
+    const parts = await a.page.evaluate(() => [...document.querySelectorAll("#spaceParts .space-part")].map((r) => ({
+      name: r.querySelector(".sitem-title").textContent, sub: r.querySelector(".sitem-sub").textContent, btn: !!r.querySelector("button") })));
+    check("Space on GitHub opens from the row", await a.page.evaluate(() => !document.querySelector('.settings-page[data-page="sync-space"]').hidden));
+    check("it shows the total too", await a.page.evaluate(() => document.querySelector("#spaceTotalLeft").textContent) === "3.8 GB left");
+    const pics = parts.find((p) => p.name === "Pictures");
+    check("pictures counted from the branch, with Clean up", pics && pics.sub === "500 MB · 2 pictures" && pics.btn, parts);
+    const hist = parts.find((p) => p.name === "History");
+    check("History is the rest of GitHub's total", hist && /^700 MB · /.test(hist.sub), parts);
+    check("largest first", parts[0].name === "History" && parts[1].name === "Pictures", parts.map((p) => p.name));
+    check("the data's parts are listed", parts.some((p) => p.name === "Settings"), parts.map((p) => p.name));
     errs.push(...a.errs);
     await a.ctx.close();
 

@@ -107,6 +107,15 @@ function githubImages(cfg, prepare) {
     }
   }
   return {
+    // How many pictures the branch holds now, and their bytes.
+    async sizes() {
+      await prepare();
+      const h = await head();
+      if (!h) return { count: 0, bytes: 0 };
+      const t = await gh(cfg, "GET", `${repo()}/git/trees/${h.tree}?recursive=1`);
+      const files = t.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/"));
+      return { count: files.length, bytes: files.reduce((n, e) => n + (e.size || 0), 0) };
+    },
     async get(id) {
       await prepare();
       const res = await fetch(`${API}${repo()}/contents/images/${encodeURIComponent(id)}?ref=${IMG_BRANCH}`, {
