@@ -131,9 +131,15 @@ const SEED = {
   check("dragging reorders it", (await items()).filter((i) => !i.done)[0].text === "Toothbrush", (await items()).map((i) => i.text));
   await page.locator(`${L} .note-list-head button`, { hasText: "Done" }).click();
   await page.waitForTimeout(200);
-  await page.locator(`${L} .note-list-head button`, { hasText: "Clear" }).click();
+  check("the card has no Clear button (it's in the list's ⋯)", !(await page.locator(`${L} .note-list-head button`, { hasText: "Clear" }).count()));
+  await page.locator(`${L} .note-list-title`).click();
   await page.waitForTimeout(300);
-  check("Clear takes the finished items away", !(await items()).some((i) => i.done));
+  await page.click("#noteMoreBtn");
+  await page.click("#noteClearDoneBtn");
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  check("Clear finished, in the list's ⋯, takes the finished items away", !(await items()).some((i) => i.done));
   await page.locator(`${L} .note-list-title`).click();
   await page.waitForTimeout(200);
   check("its header opens the note", await page.evaluate(() => !document.querySelector("#noteModal").hidden));

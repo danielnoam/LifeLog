@@ -586,13 +586,6 @@
       right.appendChild(btn);
     } else {
       right.appendChild(el("span", "mc", String(open.length)));
-      if (done.length) {
-        const btn = el("button", "btn btn-sm", "Clear");
-        btn.type = "button";
-        btn.title = "Delete this list's finished items";
-        btn.onclick = (ev) => { ev.stopPropagation(); clearDoneItems(n.id); };
-        right.appendChild(btn);
-      }
     }
     h.appendChild(right);
     card.appendChild(h);
@@ -832,14 +825,21 @@
     await saveList(n, true);
     if (it && (always || it.note || n.items.length < before.length - 1)) toast("Task deleted", false, { label: "Undo", onClick: () => restoreItems(noteId, before) });
   }
-  async function clearDoneItems(noteId) {
-    const n = findList(noteId);
-    if (!n) return;
-    const count = (n.items || []).filter((i) => i.done).length;
-    if (!count || !confirm(`Clear ${count} finished item${count === 1 ? "" : "s"} from ${n.text ? "“" + n.text + "”" : "this list"}?`)) return;
-    n.items = n.items.filter((i) => !i.done);
-    await saveList(n, true);
-    toast(`Cleared ${count}`);
+  // Clear finished, in a list's ⋯ (Daniel, 2026-11-16: not on the card).
+  // Takes the ticked rows off the page; saved with the rest when it closes.
+  function clearDoneSheetItems() {
+    const done = sheetItems.filter((i) => i.done);
+    if (!done.length) return;
+    const ids = new Set(done.map((i) => i.id));
+    if (!confirm(`Clear ${done.length} finished item${done.length === 1 ? "" : "s"}?`)) return;
+    sheetItems = sheetItems.filter((i) => !ids.has(i.id) && !ids.has(i.parent));
+    renderSheetItems();
+    syncClearDone();
+    toast(`Cleared ${done.length}`);
+  }
+  function syncClearDone() {
+    const b = $("#noteClearDoneBtn");
+    if (b) b.hidden = sheetKind !== "list" || !sheetItems.some((i) => i.done);
   }
 
   // ---------- quick add (0.197.0) ----------
@@ -1734,7 +1734,8 @@
     const images = sheetKind === "text";
     $("#nAddImageBtn").hidden = !images;
     $("#noteImageRule").hidden = !images || !editing;
-    $("#noteMoreBtn").hidden = !editing && !images;
+    syncClearDone();
+    $("#noteMoreBtn").hidden = !editing && !images && $("#noteClearDoneBtn").hidden;
     // Reading is for what's written; a checklist is its own page.
     $("#noteModeSeg").hidden = !editing || sheetKind === "list";
     fitText();
@@ -1876,7 +1877,7 @@
       words.appendChild(input);
       const saved = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
       const meta = taskMeta(saved || { category: $("#nCategory").value }, it, sheetItems.filter((c) => c.parent === it.id));
-      if (meta) { meta.onclick = () => openSheetTask(i); words.appendChild(meta); }
+      if (meta) { meta.onclick = () => openSheetTask(i); words.appendChild(meta); words.classList.add("has-meta"); }
       const open = el("button", "note-list-open");
       open.type = "button";
       open.appendChild(ico("pencil"));
@@ -1886,6 +1887,7 @@
       row.append(grip, words, open, del);
       wrap.appendChild(row);
     });
+    syncClearDone();
   }
   // A task opened from its list's page: the page is saved first so the
   // task sheet works on the stored list, and takes the list back when the
@@ -2280,6 +2282,7 @@
       new ResizeObserver(() => { const now = $("#nText").clientWidth; if (now !== w) { w = now; fitText(); } }).observe($("#nText"));
     }
     $("#deleteNoteBtn").onclick = () => deleteNote();
+    $("#noteClearDoneBtn").onclick = () => clearDoneSheetItems();
     $("#noteToEntryBtn").onclick = () => makeEntryFromNote();
     // The sheet as it stands, so unsaved words copy too.
     $("#noteCopyBtn").onclick = () => copyText(noteAsText({

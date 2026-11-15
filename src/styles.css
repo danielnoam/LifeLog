@@ -4618,7 +4618,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-list-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
 .note-list-row input[type="text"] { flex: 1; min-width: 0; margin: 0; }
 .note-list-words { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.note-list-words .todo-meta { padding: 0 var(--space-12) var(--space-8); cursor: pointer; }
+.note-list-words .todo-meta { padding: 0 var(--space-12) var(--space-10); cursor: pointer; }
+.note-list-words.has-meta input[type="text"] { padding-bottom: var(--space-2); }
 .note-list-row.is-sub { padding-left: var(--space-24); }
 .note-list-open { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--text-faint); cursor: pointer; }
 .note-list-open:hover { color: var(--text); }
