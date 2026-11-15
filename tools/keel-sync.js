@@ -76,7 +76,7 @@ function sync(from, { root = ROOT, force = false } = {}) {
 // this machine already has to the private repo.
 function fetchTag(tag, source) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "keel-"));
-  execFileSync("git", ["clone", "--quiet", "--depth", "1", "--branch", tag, source, dir], { stdio: ["ignore", "ignore", "inherit"] });
+  execFileSync("git", ["-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1", "--branch", tag, source, dir], { stdio: ["ignore", "ignore", "inherit"] });
   return dir;
 }
 

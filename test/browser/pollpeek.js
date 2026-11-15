@@ -88,13 +88,13 @@ const stub = () => {
   // ---- the error log ----
   await page.evaluate(() => { setTimeout(() => { throw new Error("pollpeek test error"); }, 0); });
   await page.waitForTimeout(200);
-  const logged = await page.evaluate(() => window.LifeLogErrors.list());
+  const logged = await page.evaluate(() => window.Keel.errlog.list());
   check("an uncaught error is recorded", logged.length === 1 && logged[0].msg.includes("pollpeek test error"), logged);
   check("with the build it happened on", /^\d+\.\d+\.\d+$/.test(logged[0] && logged[0].v), logged);
   check("and the stack it came from", /\bat\b/.test((logged[0] && logged[0].where) || ""), logged);
   await page.evaluate(() => { setTimeout(() => { throw new Error("pollpeek test error"); }, 0); });
   await page.waitForTimeout(200);
-  const again = await page.evaluate(() => window.LifeLogErrors.list());
+  const again = await page.evaluate(() => window.Keel.errlog.list());
   check("the same error twice is one row, counted", again.length === 1 && again[0].n === 2, again);
 
   await page.click("#settingsBtn").catch(() => {});
@@ -111,7 +111,7 @@ const stub = () => {
   check("with Copy and Clear", shown.actions, shown);
   await page.click("#errLogClearBtn");
   await page.waitForTimeout(200);
-  check("Clear empties it", await page.evaluate(() => window.LifeLogErrors.list().length === 0 && document.querySelector("#errLogCopyBtn").hidden && /None/.test(document.querySelector("#errLogHint").textContent)));
+  check("Clear empties it", await page.evaluate(() => window.Keel.errlog.list().length === 0 && document.querySelector("#errLogCopyBtn").hidden && /None/.test(document.querySelector("#errLogHint").textContent)));
 
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);
