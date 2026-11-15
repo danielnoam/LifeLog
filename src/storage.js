@@ -25,7 +25,6 @@
   const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
 
   const fsSupported = "showSaveFilePicker" in window;
-  const API = "https://api.github.com";
 
   // ---- tiny IndexedDB helpers (persist the FileSystemFileHandle, and the
   // local-first history log) ----
@@ -317,25 +316,14 @@
   }
   function saveGhCfg() { localStorage.setItem(GH_KEY, JSON.stringify(gh)); }
 
-  // base64 that survives non-ASCII characters
-  function b64encode(str) { return btoa(unescape(encodeURIComponent(str))); }
-  function b64decode(b64) { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
+  // The GitHub calls themselves come from keel (src/keel/github.js),
+  // shared with Waypage; what goes in the repo and how saves merge stay here.
+  const ghc = () => window.Keel.github.client(() => gh);
   // URL-safe base64 for the device-setup link (carries the connection config)
   function b64urlDecode(s) {
     s = s.replace(/-/g, "+").replace(/_/g, "/");
     while (s.length % 4) s += "=";
     return decodeURIComponent(escape(atob(s)));
-  }
-
-  function ghHeaders() {
-    return {
-      "Authorization": "Bearer " + gh.token,
-      "Accept": "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    };
-  }
-  function ghContentsUrl(path) {
-    return `${API}/repos/${gh.owner}/${gh.repo}/contents/${path || gh.path}`;
   }
 
   // Every GitHub failure carries a kind, because the status line has to say
@@ -345,24 +333,12 @@
   // minute), and the second is not true of anything except being offline — a
   // data file that had grown past 1MB failed every read, said "offline" to
   // someone who was online, and never recovered.
-  function ghErr(status, text, response) {
-    let message = "";
-    try { message = JSON.parse(text).message || ""; } catch (e) { message = String(text || ""); }
-    const e = new Error("GitHub " + status + ": " + String(text || "").slice(0, 200));
-    e.status = status;
-    e.detail = message.slice(0, 160);
-    const limited = /rate limit/i.test(message) ||
-      (response && response.headers && response.headers.get("x-ratelimit-remaining") === "0");
-    e.kind = status === 401 ? "auth"
-      : (status === 403 || status === 429) ? (limited ? "ratelimit" : "auth")
-      : status >= 500 ? "server"
-      : "other";
-    return e;
-  }
+  // (keel's github.js now gives each error its kind: offline, auth,
+  // ratelimit, server or other.)
 
   // What went wrong, in terms the status line can act on. A fetch that never
-  // reached GitHub throws a TypeError before any status exists — that, and
-  // only that, is "offline".
+  // reached GitHub has kind "offline" (keel); a TypeError from anywhere
+  // else is read the same way.
   function describeGhError(e) {
     if (!e) return null;
     if (e.kind) return { kind: e.kind, detail: e.detail || "" };
@@ -403,46 +379,34 @@
 
   // The login the token belongs to (so the user only has to supply a token).
   async function ghWhoAmI() {
-    const r = await fetch(API + "/user", { headers: ghHeaders(), cache: "no-store" });
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    return (await r.json()).login;
+    return ghc().me();
   }
 
   // Make sure the data repo exists; create it (private) if missing.
   // Returns the branch to use (the new repo's default branch when we create it).
   async function ghEnsureRepo() {
-    const r = await fetch(API + "/repos/" + gh.owner + "/" + gh.repo, {
-      headers: ghHeaders(), cache: "no-store",
-    });
-    if (r.ok) {
+    const info = await ghc().repoInfo();
+    if (info) {
       // The log, its finances and the API keys in settings go into this
       // repo in plain JSON on every save; a public one would publish them.
       // Only a new repo was ever checked (created private, below), so a
       // repo pointed at through Advanced, or one flipped public later, went
       // unnoticed (0.259.2).
-      let info = null;
-      try { info = await r.json(); } catch (e) {}
       tookSize(info, false); // saved with the rest once connecting succeeds
       if (info && info.private === false) throw new Error(`The repo ${gh.owner}/${gh.repo} is public — your log would be visible to everyone. Make it private on GitHub, or pick another repo.`);
       return gh.branch;
     }
-    if (r.status !== 404) throw ghErr(r.status, await r.text(), r);
     // A token limited to one repo answers 404 for a repo it wasn't given,
     // whether or not the repo exists, and can't create one. Say what to do
     // rather than "GitHub 403" (0.260.0).
     const limited = (msg) => new Error(`This token can't reach ${gh.owner}/${gh.repo}. Create that private repo on GitHub if it doesn't exist yet, and give the token access to it (Only select repositories) — then Connect again.` + (msg ? ` GitHub said: ${msg}` : ""));
     if (tokenKind(gh.token) === "fine") throw limited("");
-    const cr = await fetch(API + "/user/repos", {
-      method: "POST",
-      headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders()),
-      body: JSON.stringify({ name: gh.repo, private: true, auto_init: true, description: "LifeLog data" }),
-    });
-    if (!cr.ok) {
-      const err = ghErr(cr.status, await cr.text(), cr);
-      if (cr.status === 403 || cr.status === 404 || cr.status === 422) throw limited(err.detail);
+    let created;
+    try { created = await ghc().createRepo(gh.repo, "LifeLog data"); }
+    catch (err) {
+      if (err.status === 403 || err.status === 404 || err.status === 422) throw limited(err.detail);
       throw err;
     }
-    const created = await cr.json();
     return created.default_branch || gh.branch; // honour main/master the repo actually used
   }
 
@@ -458,30 +422,12 @@
   // from the same answer, so the data and the sha a later save writes against
   // can't come from two different versions of the file.
   async function ghGetFile(ref, path) {
-    const r = await fetch(ghContentsUrl(path) + "?ref=" + encodeURIComponent(ref || gh.branch), {
-      // Asked for explicitly: "object" is the type documented to answer large
-      // files with metadata rather than a refusal.
-      headers: Object.assign(ghHeaders(), { "Accept": "application/vnd.github.object+json" }),
-      cache: "no-store",
-    });
-    if (r.status === 404) return null;
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    const j = await r.json();
-    if (j.size === 0) return null; // an empty file holds nothing to merge
-    // The content when it came, the blob when it didn't. Keyed on the content
-    // itself rather than `encoding`, so an answer that leaves the field out
-    // isn't mistaken for a large file.
-    const b64 = j.content ? j.content : await ghGetBlob(j.sha);
-    return { data: JSON.parse(b64decode(b64)), sha: j.sha };
-  }
-
-  async function ghGetBlob(sha) {
-    const r = await fetch(`${API}/repos/${gh.owner}/${gh.repo}/git/blobs/${encodeURIComponent(sha)}`, {
-      headers: ghHeaders(), cache: "no-store",
-    });
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    const j = await r.json();
-    return j.content;
+    // keel asks with the "object" type, documented to answer large files
+    // with metadata rather than a refusal, and fetches the blob by the sha
+    // from that same answer.
+    const f = await ghc().getFile(path || gh.path, { ref });
+    if (!f || !f.text) return null; // an empty file holds nothing to merge
+    return { data: JSON.parse(f.text), sha: f.sha };
   }
 
   // The data file's current sha, from a listing of its folder: a few hundred
@@ -489,18 +435,7 @@
   // for the poll to find nothing changed. undefined when the listing didn't
   // answer, so the caller reads the file and reports whatever went wrong.
   async function ghPeekSha() {
-    const slash = gh.path.lastIndexOf("/");
-    const dir = slash < 0 ? "" : "/" + gh.path.slice(0, slash);
-    try {
-      const r = await fetch(`${API}/repos/${gh.owner}/${gh.repo}/contents${dir}?ref=${encodeURIComponent(gh.branch)}`, {
-        headers: ghHeaders(), cache: "no-store",
-      });
-      if (!r.ok) return undefined;
-      const list = await r.json();
-      if (!Array.isArray(list)) return undefined;
-      const hit = list.find((f) => f.path === gh.path);
-      return hit ? hit.sha : undefined;
-    } catch (e) { return undefined; }
+    return ghc().peekSha(gh.path);
   }
 
   // One retry on a transient failure. A single blip on the load fetch was
@@ -522,17 +457,7 @@
   // this is a rollback aid, not a full audit log, but the AI bridge's saves
   // are only listed from here, and each device's save is a commit too.
   async function ghListCommits(path) {
-    const url = `${API}/repos/${gh.owner}/${gh.repo}/commits` +
-      `?path=${encodeURIComponent(path || gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=50`;
-    const r = await fetch(url, { headers: ghHeaders(), cache: "no-store" });
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    const j = await r.json();
-    return j.map((c) => ({
-      sha: c.sha,
-      date: (c.commit.author && c.commit.author.date) || (c.commit.committer && c.commit.committer.date) || null,
-      message: (c.commit.message || "").split("\n")[0],
-      parent: (c.parents && c.parents[0] && c.parents[0].sha) || null,
-    }));
+    return ghc().listCommits(path || gh.path, { perPage: 50 });
   }
 
   // Historical content of the data file at a specific commit — ghGetFile at
@@ -552,20 +477,10 @@
   // which are written compact: boards.json is mostly numbers, and indenting
   // them would double its size.
   async function ghPut(data, sha, path, pretty = true, label = "lifelog") {
-    const body = {
-      message: "Update " + label + " (" + new Date().toISOString() + ")",
-      content: b64encode(pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data)),
-      branch: gh.branch,
-    };
-    if (sha) body.sha = sha;
-    const r = await fetch(ghContentsUrl(path), {
-      method: "PUT",
-      headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders()),
-      body: JSON.stringify(body),
+    return ghc().putFile(path || gh.path, {
+      text: pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data),
+      sha, message: "Update " + label + " (" + new Date().toISOString() + ")",
     });
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    const j = await r.json();
-    return j.content.sha;
   }
 
   // Resolves true when another device had saved first and what went out was
@@ -622,10 +537,10 @@
   function ghSpace() {
     if (!gh || !gh.token || askingSize || (gh.sizeAt && Date.now() - gh.sizeAt < 10 * 60 * 1000)) return askingSize || Promise.resolve(false);
     askingSize = (async () => {
-      const r = await fetch(API + "/repos/" + gh.owner + "/" + gh.repo, { headers: ghHeaders(), cache: "no-store" });
-      if (!r.ok) return false;
+      const info = await ghc().repoInfo();
+      if (!info) return false;
       const was = gh.size;
-      tookSize(await r.json());
+      tookSize(info);
       return gh.size !== was;
     })().catch(() => false).finally(() => { askingSize = null; });
     return askingSize;
@@ -640,18 +555,7 @@
   // lives there. GitHub frees what that drops on its own schedule.
   const IMG_BRANCH = "lifelog-images";
   const IMG_README = "Pictures in LifeLog notes, one file each under images/. The app writes this branch; Settings → Notes → Clean up pictures replaces it with one commit of the pictures still in use.\n";
-  const imgUrl = (rest) => `${API}/repos/${gh.owner}/${gh.repo}/${rest}`;
-  async function ghJson(method, rest, body) {
-    const init = { method, headers: ghHeaders(), cache: "no-store" };
-    if (body !== undefined) {
-      init.headers = Object.assign({ "Content-Type": "application/json" }, init.headers);
-      init.body = JSON.stringify(body);
-    }
-    const r = await fetch(imgUrl(rest), init);
-    if (method === "GET" && r.status === 404) return null;
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    return r.json();
-  }
+  const ghJson = (method, rest, body) => ghc().json(method, rest, body);
   function blobToB64(blob) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader();
@@ -676,24 +580,12 @@
     return ghJson("POST", "git/commits", { message, tree: tree.sha, parents: [] });
   }
   async function ghPutImages(list) {
-    const entries = [];
-    for (const it of list) {
-      const b = await ghJson("POST", "git/blobs", { content: await blobToB64(it.blob), encoding: "base64" });
-      entries.push({ path: "images/" + it.id, mode: "100644", type: "blob", sha: b.sha });
-    }
+    const files = [];
+    for (const it of list) files.push({ path: "images/" + it.id, sha: await ghc().createBlob(await blobToB64(it.blob), "base64") });
     const message = "Add " + list.length + (list.length === 1 ? " picture" : " pictures") + " (" + new Date().toISOString() + ")";
-    for (let tries = 1; ; tries++) {
-      const head = await imgHead();
-      if (!head) {
-        const c = await imgRootCommit(entries, message);
-        try { await ghJson("POST", "git/refs", { ref: "refs/heads/" + IMG_BRANCH, sha: c.sha }); return; }
-        catch (e) { if (e.status !== 422 || tries >= 3) throw e; continue; } // another device made it first
-      }
-      const tree = await ghJson("POST", "git/trees", { base_tree: head.tree, tree: entries });
-      const c = await ghJson("POST", "git/commits", { message, tree: tree.sha, parents: [head.commit] });
-      try { await ghJson("PATCH", "git/refs/heads/" + IMG_BRANCH, { sha: c.sha, force: false }); return; }
-      catch (e) { if (e.status !== 422 || tries >= 3) throw e; } // moved meanwhile: on top of the new head
-    }
+    // No branch yet: started with the readme, as Clean up starts it.
+    const root = async () => [{ path: "README.md", sha: await ghc().createBlob(IMG_README) }];
+    await ghc().commitFiles(files, message, { branch: IMG_BRANCH, root });
   }
   // The ids of every picture on the branch.
   async function ghListImages() {
@@ -703,13 +595,7 @@
     return new Set(listing.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/")).map((e) => e.path.slice(7)));
   }
   async function ghGetImage(id) {
-    const r = await fetch(ghContentsUrl("images/" + id) + "?ref=" + IMG_BRANCH, {
-      headers: Object.assign(ghHeaders(), { "Accept": "application/vnd.github.raw" }),
-      cache: "no-store",
-    });
-    if (r.status === 404) return null;
-    if (!r.ok) throw ghErr(r.status, await r.text(), r);
-    return r.blob();
+    return ghc().getRaw("images/" + id, { ref: IMG_BRANCH, as: "blob" });
   }
   // How many pictures the branch holds now and their bytes, for Space on
   // GitHub. Removed ones still count in GitHub's total until Clean up.
