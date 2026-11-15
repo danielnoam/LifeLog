@@ -1,10 +1,13 @@
-// Settings → Sync → Google Drive backups (src/drive.js). With no client ID
-// in this copy the section isn't there. With Drive standing in (a fake
+// Settings → Sync → Google Drive backups (src/drive.js). A browser (here
+// on localhost) is offered Connect. With Drive standing in (a fake
 // LifeLogDrive, so no Google), Back up now sends the data without its keys,
 // the list shows each backup with Restore and Delete, and Restore puts the
 // backup's data back while this device's keys stay.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
+// Google only takes a browser's sign-in from https or localhost, so this
+// opens the app at localhost even when the run serves it on 127.0.0.1.
+const HERE = BASE.replace("//127.0.0.1", "//localhost");
 
 const doc = {
   categories: [{ name: "Games", kind: "games" }], entries: [{ id: "e-now", title: "Today's entry", date: "2026-11-15", category: "Games" }],
@@ -26,7 +29,7 @@ const backup = {
     page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
     page.on("dialog", (d) => d.accept());
     await ctx.route(/^https?:\/\/(?!localhost[:/]|127\.0\.0\.1[:/])/, (r) => r.abort());
-    await page.goto(BASE + "/", { waitUntil: "networkidle" });
+    await page.goto(HERE + "/", { waitUntil: "networkidle" });
     await forgetCopy(page);
     await page.evaluate((d) => { localStorage.clear(); localStorage.setItem("lifelog-cache-v1", JSON.stringify(d)); }, doc);
     await page.reload({ waitUntil: "networkidle" });
@@ -34,7 +37,9 @@ const backup = {
 
     await page.evaluate(() => window.LifeLogSettings.openSettings("sync"));
     await page.waitForSelector("#settingsModal:not([hidden])", { timeout: 6000 });
-    check("with no client ID the section isn't there", await page.evaluate(() => document.querySelector("#driveSection").hidden));
+    await page.waitForFunction(() => !document.querySelector("#driveSection").hidden, null, { timeout: 4000 }).catch(() => {});
+    check("a browser with the Web client is offered Drive, not yet connected", await page.evaluate(() =>
+      !document.querySelector("#driveSection").hidden && !document.querySelector("#driveConnectBtn").hidden && document.querySelector("#driveInfo").textContent === "Off"));
 
     // Drive, standing in.
     await page.evaluate((backup) => {

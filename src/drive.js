@@ -11,12 +11,12 @@
 // a browser through Google's popup, the Windows and Linux app through the
 // browser and a one-off 127.0.0.1 address (src-tauri/src/oauth.rs).
 (function () {
-  // From the LifeLog Google Cloud project's clients. Neither is a secret:
+  // From the LifeLog Google Cloud project's clients (lifelog-514817). Neither is a secret:
   // the Desktop client's "secret" is one Google says can't be kept in an
   // app and isn't treated as one. Empty means Drive isn't offered there.
-  const WEB_CLIENT = "";
-  const DESKTOP_CLIENT = "";
-  const DESKTOP_SECRET = "";
+  const WEB_CLIENT = "475402488283-cdhuke98k7u66h2vapg6dgntssi9hbsi.apps.googleusercontent.com";
+  const DESKTOP_CLIENT = "475402488283-9d4mh32vbj09031jb78pjj8d19pikioh.apps.googleusercontent.com";
+  const DESKTOP_SECRET = "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";
 
   const Keel = window.Keel && window.Keel.drive;
   if (!Keel) return;
