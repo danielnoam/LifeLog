@@ -211,6 +211,28 @@
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (e) { /* this session only */ }
     if (key === "closeToTray") invoke("set_close_to_tray", { on: !!value }).catch(() => {});
   }
+  // ---------- the data folder (Windows) ----------
+  // src-tauri/src/datafolder.rs: where the WebView keeps everything. The
+  // shell reads the choice at start, so a change is a restart away.
+  // Null where there's no choice (Linux, or an app older than this).
+  async function dataFolder() {
+    try { return (await invoke("data_folder")) || null; } catch (e) { return null; }
+  }
+  // Resolves to false when it's already there; otherwise restarts.
+  async function chooseDataFolder(mode, custom = "") {
+    if (!(await invoke("choose_data_folder", { mode, custom }))) return false;
+    await T().process.relaunch();
+    return true;
+  }
+  async function pickFolder() {
+    const D = T() && T().dialog;
+    if (!D) return null;
+    const p = await D.open({ directory: true, multiple: false, title: "Keep LifeLog's data in" });
+    return typeof p === "string" ? p : null;
+  }
+  const openDataFolder = () => invoke("open_data_folder");
+  const removeOldDataCopy = () => invoke("remove_old_data_copy");
+
   async function applyPrefs() {
     const p = prefs();
     try { await invoke("set_close_to_tray", { on: p.closeToTray }); } catch (e) { /* the shell's default: hide */ }
@@ -267,5 +289,6 @@
     notifier, start, tick, dueNow, keptSince, notifyId, ringTest,
     startsAtLogin, setStartsAtLogin, findUpdate, installUpdate,
     prefs, setPref, FIRED_KEY, PREFS_KEY,
+    dataFolder, chooseDataFolder, pickFolder, openDataFolder, removeOldDataCopy,
   };
 })();

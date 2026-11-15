@@ -17,6 +17,7 @@
 "connections": 17,
 "contextmenu": 17,
 "coverless": 4,
+"datafolder": 5,
 "datefaces": 4,
 "datesettings": 7,
 "desktopkeys": 3,
@@ -97,9 +98,6 @@
 "tabtoggle": 34,
 "timelinecal": 5,
 "todomigrate": 8,
-"travel": 6,
-"travelmap": 23,
-"travelmore": 5,
 "v151": 4,
 "waypage": 5
 }

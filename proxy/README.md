@@ -3,8 +3,7 @@
 A tiny Cloudflare Worker that unblocks the endpoints confirmed
 CORS-blocked directly from the browser: Steam's wishlist, owned-games and app-details
 data, SteamGridDB, IGDB (and its Twitch sign-in), Hardcover, Stremio (only when
-Stremio turns the browser away), Tiingo, GG.deals, Augmented Steam (game times and review scores), and Google Maps share links and saved
-lists (Travel's import). See `worker.js` for what it does and why, and
+Stremio turns the browser away), Tiingo, GG.deals, and Augmented Steam (game times and review scores). See `worker.js` for what it does and why, and
 CONTRIBUTING.md ("Every outside service works in a browser too") for
 when a new source needs a route here. `node test/proxy.test.js` runs it.
 

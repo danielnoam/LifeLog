@@ -11,6 +11,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 
+mod datafolder;
 mod toast;
 
 // Start at login (Settings → Notifications) launches with this, straight
@@ -51,6 +52,35 @@ fn launched_hidden(state: State<LaunchedHidden>) -> bool {
 #[tauri::command]
 fn show_main(app: AppHandle) {
     show(&app);
+}
+
+// Settings → Desktop's Data folder (src/datafolder.rs). Windows only: on
+// Linux this is None and the WebView keeps its own default.
+struct Folder(Mutex<Option<datafolder::DataFolder>>);
+
+#[tauri::command]
+fn data_folder(state: State<Folder>) -> serde_json::Value {
+    state.0.lock().ok().and_then(|f| f.as_ref().map(|f| f.describe())).unwrap_or(serde_json::Value::Null)
+}
+
+// The page restarts the app when this says the folder changed.
+#[tauri::command]
+fn choose_data_folder(mode: String, custom: String, state: State<Folder>) -> Result<bool, String> {
+    let mut f = state.0.lock().map_err(|e| e.to_string())?;
+    f.as_mut().ok_or("Not on this computer")?.choose(&mode, &custom)
+}
+
+#[tauri::command]
+fn open_data_folder(app: AppHandle, state: State<Folder>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = state.0.lock().ok().and_then(|f| f.as_ref().map(|f| f.dir.clone())).ok_or("Not on this computer")?;
+    app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_old_data_copy(state: State<Folder>) -> Result<(), String> {
+    let mut f = state.0.lock().map_err(|e| e.to_string())?;
+    f.as_mut().ok_or("Not on this computer")?.remove_old()
 }
 
 // A Windows toast clicked while LifeLog wasn't running (src/toast.rs): the
@@ -102,12 +132,30 @@ fn main() {
             show_main,
             take_launch_action,
             toast::toast,
-            toast::clear_toast
+            toast::clear_toast,
+            data_folder,
+            choose_data_folder,
+            open_data_folder,
+            remove_old_data_copy
         ])
         .setup(|app| {
-            if let Ok(dir) = app.path().app_local_data_dir() {
-                toast::init(&dir);
-            }
+            let local = app.path().app_local_data_dir()?;
+            toast::init(&local);
+
+            // The window is made here rather than from tauri.conf.json, so
+            // its data folder can be chosen first.
+            let window = tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?;
+            #[cfg(windows)]
+            let window = {
+                let f = datafolder::resolve(&local);
+                let w = window.data_directory(f.dir.clone());
+                app.manage(Folder(Mutex::new(Some(f))));
+                w
+            };
+            #[cfg(not(windows))]
+            app.manage(Folder(Mutex::new(None)));
+            window.build()?;
+
             let args: Vec<String> = std::env::args().collect();
             let launch = toast::launch_action(&args);
             let quiet = launch.as_deref().is_some_and(toast::is_quiet);

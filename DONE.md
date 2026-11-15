@@ -11,7 +11,7 @@ Every release that adds a feature adds its line here in the same commit.
 
 ## The app as a whole
 
-- Six tabs: Home, and Notebook, Timeline, Backlog, Ledger, Travel, each with modes (0.126.0, Travel 0.241.0, Home 0.306.0)
+- Five tabs: Home, and Notebook, Timeline, Backlog, Ledger, each with modes (0.126.0, Home 0.306.0; Travel taken out, next release)
 - Home in the middle of the bar, where a fresh start opens: In progress covers, Coming up for two weeks (releases and episodes known to the day, recurring charges, habits left), a synced scratchpad with Make a note, notes pinned from a note's ⋯ menu; sections ordered and hidden under View (0.306.0)
 - On a computer, Home sections next to each other (Coming up, Scratchpad, Pinned notes) share one row, two or three across (0.307.0)
 - Home scratchpad Note / Board switch: a scratch board (boards.json, `scratch`) kept out of the Boards list, opened in the editor, Keep as a board; switch per device (0.307.0); slimmer switch, board as tall as the note, Save to Notebook (0.307.1)
@@ -43,7 +43,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Activity: everything that takes a while in one list, with a ring or pill while it runs (0.244.0)
 - Work on the same site waits its turn; different sites run side by side (0.244.0)
 - Work the app was closed on is offered again (0.245.0)
-- Share into LifeLog from other apps: titles to the Backlog, Maps links to a trip, the rest as a note (0.250.0)
+- Share into LifeLog from other apps: titles to the Backlog, the rest as an item or a note (0.250.0)
 - PWA: installable, works offline, app-icon shortcuts for Add entry and Add expense (0.83.0)
 
 ## Timeline (Log)
@@ -146,12 +146,11 @@ Every release that adds a feature adds its line here in the same commit.
 - Letterboxd import (0.252.0)
 - Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (0.313.0)
 - Stremio in a browser: straight to Stremio, through your proxy when it turns the browser away; a test runs the proxy and checks it has every route the apps have
-- Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
 - Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)
 - Excalidraw drawings (Obsidian's `.excalidraw.md`, compressed or not, and `.excalidraw` files) come in as boards with the Markdown import; images and frames left out and counted (0.309.0); their pictures come in too, vault files when picked, web ones shown from their address (0.310.0)
 - One review screen for every import: pick rows, edit a row, see what an update writes (0.24.0, 0.258.0)
-- The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; Google Maps lists get the map beside the list; "Note:" titles named by their first sentence (0.304.0)
+- The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; "Note:" titles named by their first sentence (0.304.0)
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
@@ -213,14 +212,6 @@ Every release that adds a feature adds its line here in the same commit.
 - Investments mode: a watchlist of US stocks and ETFs with Tiingo prices (your own key), a chart over 1M to Max, a target and a note per ticker, and date pins with the change between them (0.310.0)
 - Investments holdings: buys and sales per ticker (fractional shares) with shares, average cost, value, gain and what sales made, marks and an average-cost line on the chart, a "You hold" total (0.312.0)
 - Investments: Compare any two pins (or a pin and the latest close), a held day to measure a drag from, target notifications, ticker chips on a phone (0.312.0)
-
-## Travel
-
-- Travel tab with trips, off by default (0.241.0, 0.248.0)
-- By time, By area and Map modes, and Arrange (0.242.0, 0.243.0)
-- Areas named after their town (0.245.0)
-- Google rating, opening hours and reviews on a place, with your Places key (0.245.0)
-- Trips have history and the file backup (0.245.0)
 
 ## Sync and data
 
@@ -292,12 +283,12 @@ Every release that adds a feature adds its line here in the same commit.
 - Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (next release)
+- Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (next release)
 
 ## The AI bridge
 
 - An MCP server and command line for other AIs to read and change LifeLog (0.239.0, 0.240.0)
 - Connects with the app's setup link (0.239.1)
-- Trips: read a plan, add, move, schedule and remove places, read Google Maps lists (0.241.0, 0.242.0)
 - Its changes in History, tagged with the AI's name, each undoable on any device (0.284.0)
 - Add habits, recurring bills, categories and projects; delete categories; stats, habit insights, upcoming releases; batch changes as one save (0.284.0)
 - Search by every word in any order, narrowed by collection, category or subcategory, with categories shown on each hit (0.292.4)

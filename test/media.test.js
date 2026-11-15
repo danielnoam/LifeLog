@@ -460,12 +460,6 @@ atest("checkKey: a refused key, in the service's own words", async () => {
   assert.match(r.detail, /Invalid API key/);
 });
 
-atest("checkKey: Google's 400 about the key is a refused key, and the check stays on the free tier", async () => {
-  const calls = stubStatus(400, { error: { message: "API key not valid. Please pass a valid API key." } });
-  assert.strictEqual((await Media.checkKey("googlePlaces", "bad")).state, "bad");
-  assert.strictEqual(calls[0].init.headers["X-Goog-FieldMask"], "id");
-});
-
 atest("checkKey: GG.deals answering success:false is a refused key", async () => {
   stubStatus(200, { success: false });
   assert.strictEqual((await Media.checkKey("ggdeals", "bad", "https://p.test")).state, "bad");

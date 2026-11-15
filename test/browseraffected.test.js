@@ -32,14 +32,14 @@ test("every src file is in an area or runs everything", () => {
 });
 
 test("an area's file runs its suites and the always ones, not the rest", () => {
-  const r = pick(["src/travel.js"]);
+  const r = pick(["src/invest.js"]);
   assert.ok(Array.isArray(r));
-  for (const s of ["travel", "travelmap", "travelmore", ...AREAS.always]) assert.ok(r.includes(s), s);
+  for (const s of ["homeinvest", "invest", "investsearch", ...AREAS.always]) assert.ok(r.includes(s), s);
   assert.ok(!r.includes("boards"));
 });
 
 test("a shared file runs everything", () => {
-  assert.strictEqual(pick(["src/travel.js", "src/app.js"]), "all");
+  assert.strictEqual(pick(["src/invest.js", "src/app.js"]), "all");
   assert.strictEqual(pick(["src/styles.css"]), "all");
   assert.strictEqual(pick(["index.html"]), "all");
 });
@@ -55,7 +55,7 @@ test("docs, the bridge and unit tests run no browser suites", () => {
 
 test("a changed suite runs itself", () => {
   const r = pick(["test/browser/boards.js"]);
-  assert.ok(r.includes("boards") && r.includes("a11y") && !r.includes("travel"));
+  assert.ok(r.includes("boards") && r.includes("a11y") && !r.includes("invest"));
 });
 
 console.log(`${passed} test(s) passed.`);

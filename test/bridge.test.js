@@ -14,6 +14,8 @@ const { spawn } = require("child_process");
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lifelog-bridge-"));
 const FILE = path.join(dir, "lifelog.json");
 const BOARDS = path.join(dir, "boards.json");
+// Travel moved out of LifeLog (2026-11): a travel.json beside the data is
+// someone's old trips, and nothing here may touch it.
 const TRAVEL = path.join(dir, "travel.json");
 const INVEST = path.join(dir, "investments.json");
 process.env.LIFELOG_LOCAL_FILE = FILE;
@@ -83,7 +85,7 @@ const reset = () => {
 };
 const data = () => JSON.parse(fs.readFileSync(FILE, "utf8"));
 const boards = () => JSON.parse(fs.readFileSync(BOARDS, "utf8")).boards;
-const travel = () => JSON.parse(fs.readFileSync(TRAVEL, "utf8"));
+const invest = () => JSON.parse(fs.readFileSync(INVEST, "utf8"));
 const call = async (name, args) => B.callTool(name, args);
 const ok = async (name, args) => {
   const r = await call(name, args);
@@ -106,8 +108,7 @@ test("every read tool answers, and none of them ever shows an API key", async ()
   // lifelog_compare_pins needs two pins' ids: the watchlist test runs it.
   for (const t of B.TOOLS.filter((x) => x.readOnly && x.name !== "lifelog_compare_pins")) {
     const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
-      : t.name === "lifelog_note_images" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" }
-      : t.name === "lifelog_google_list" ? { link: "https://www.google.com/maps/place/Pantheon/@41.8986,12.4769,17z" } : {};
+      : t.name === "lifelog_note_images" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" } : {};
     const text = await ok(t.name, args);
     assert.ok(!/SECRET/.test(text), t.name + " leaked a secret");
   }
@@ -637,42 +638,24 @@ test("boards are listed with their text, renamed, filed, starred and deleted, an
   assert.match(await ok("lifelog_boards", {}), /^0 boards/);
 });
 
-test("trips: planned day by day, places moved and scheduled, a trip deleted with its places and undone", async () => {
+test("an old travel.json is left alone, and an old trip change leaves the undo list instead of blocking it", async () => {
   reset();
-  assert.match(await ok("lifelog_trips", {}), /No trips yet/);
-  await ok("lifelog_add_trip", { name: "Rome", start: "2027-04-10", end: "2027-04-12" });
-  assert.ok(!/\n/.test(fs.readFileSync(TRAVEL, "utf8")), "travel.json is written compact, as the app writes it");
-  await ok("lifelog_add_place", { trip: "rome", name: "Trastevere walk", day: "2027-04-11" });
-  await ok("lifelog_add_place", { trip: "Rome", name: "Colosseum", day: "2027-04-11", time: "10:00", endTime: "11:30" });
-  await ok("lifelog_add_place", { trip: "Rome", name: "Giolitti", note: "gelato" });
-  await refused("lifelog_add_place", { trip: "Rome", name: "Vatican", time: "09:00" }, /A time needs a day/);
-  await refused("lifelog_add_place", { trip: "Paris", name: "Louvre" }, /No trip matches "Paris"/);
-  const plan = await ok("lifelog_trips", { trip: "Rome" });
-  assert.match(plan, /Sat 10 Apr \(2027-04-10\): nothing planned/);
-  assert.match(plan, /Sun 11 Apr \(2027-04-11\)\n- 10:00–11:30 Colosseum .*\n- Trastevere walk/, "a scheduled place comes first");
-  assert.match(plan, /No day yet\n- Giolitti — gelato/);
-  assert.match(await ok("lifelog_trips", {}), /Rome: 10–12 Apr 2027, 3 places/);
-
-  await ok("lifelog_update_place", { place: "giolitti", day: "2027-04-12", time: "16:00", visited: true });
-  let g = travel().places.find((p) => p.name === "Giolitti");
-  assert.deepStrictEqual([g.day, g.time, g.visited], ["2027-04-12", "16:00", true]);
-  assert.notStrictEqual(g.updatedAt, g.createdAt);
-  await ok("lifelog_update_place", { place: "Giolitti", day: "", visited: false });
-  g = travel().places.find((p) => p.name === "Giolitti");
-  assert.ok(!g.day && !g.time && !g.visited, "no day takes the time with it");
-  await ok("lifelog_update_trip", { trip: "Rome", name: "Rome in spring", end: "2027-04-13" });
-  assert.deepStrictEqual([travel().trips[0].name, travel().trips[0].end], ["Rome in spring", "2027-04-13"]);
-  assert.match(await ok("lifelog_search", { query: "colos" }), /place in Rome in spring: Colosseum/);
-
-  await ok("lifelog_delete_trip", { trip: "Rome in spring" });
-  assert.deepStrictEqual([travel().trips.length, travel().places.length], [0, 0]);
+  const old = JSON.stringify({ trips: [{ id: "t1", name: "Rome", createdAt: T, updatedAt: T }], places: [] });
+  fs.writeFileSync(TRAVEL, old);
+  assert.ok(!B.TOOLS.some((t) => /trip|place|google/.test(t.name)), "no travel tools");
+  await ok("lifelog_add_expense", { amount: 12, category: "Food", note: "Tea" });
+  const { undoLog } = require("../bridge/store.js");
+  undoLog({ stateDir: process.env.LIFELOG_STATE_DIR }).push({ summary: 'add trip "Rome"', at: T, items: [{ file: "travel", coll: "trips", id: "t1", before: null, after: T }] });
+  assert.match(await ok("lifelog_undo", {}), /Can't undo "add trip \"Rome\"": LifeLog doesn't keep that any more/);
   await ok("lifelog_undo", {});
-  assert.deepStrictEqual([travel().trips.length, travel().places.length], [1, 3], "one undo brings back the trip and its places");
+  assert.ok(!data().financeEntries.some((f) => f.note === "Tea"), "the change under it undoes as usual");
+  await ok("lifelog_search", { query: "rome" });
+  assert.strictEqual(fs.readFileSync(TRAVEL, "utf8"), old);
+  assert.ok(!("trips" in data()), "nothing of travel lands in lifelog.json");
 });
 
 test("the watchlist: tickers, targets and pins in investments.json, prices from Tiingo with the app's key", async () => {
   reset();
-  const invest = () => JSON.parse(fs.readFileSync(INVEST, "utf8"));
   assert.match(await ok("lifelog_watchlist", {}), /Nothing on the watchlist yet/);
   await ok("lifelog_watch_ticker", { symbol: "voo", name: "Vanguard S&P 500 ETF", target: 550, note: "Buy under the target" });
   assert.ok(!/\n/.test(fs.readFileSync(INVEST, "utf8")), "investments.json is written compact, as the app writes it");
@@ -744,43 +727,6 @@ test("the watchlist: tickers, targets and pins in investments.json, prices from 
   assert.deepStrictEqual([invest().watchlist.length, invest().pins.length], [1, 1], "one undo brings back the ticker and its pin");
 });
 
-test("a Google Maps list: read straight from Google, then picked into a trip without doubles", async () => {
-  reset();
-  const { googleList, LIST_ID } = require("./fixtures/google-list.js");
-  const realFetch = global.fetch;
-  const asked = [];
-  global.fetch = async (url, init) => {
-    asked.push(String(url));
-    if (String(url).startsWith("https://maps.app.goo.gl/")) {
-      assert.strictEqual(init && init.redirect, "manual", "the short link's redirect is read, not followed");
-      return new Response(null, { status: 302, headers: { location: `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` } });
-    }
-    return new Response(googleList(), { status: 200 });
-  };
-  try {
-    const listed = await ok("lifelog_google_list", { link: "https://maps.app.goo.gl/Code1?g_st=ac" });
-    assert.match(listed, /^Italy: 5 places/);
-    assert.match(listed, /\nMilano\n- Duomo di Milano — P\.za del Duomo/);
-    assert.ok(asked[1].includes("!1s" + LIST_ID), "the list is fetched by the id the link led to");
-    assert.ok(!/Someone/.test(listed), "the list's owner never reaches the AI");
-
-    await ok("lifelog_add_trip", { name: "Milan" });
-    const out = await ok("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "milano" });
-    assert.match(out, /Added 2 places from "Italy" to Milan, no day yet/);
-    let ps = travel().places;
-    assert.deepStrictEqual(ps.map((p) => [p.name, p.gid, p.source, p.order]), [
-      ["Duomo di Milano", "0x1334f4aad1240001:0x2a", LIST_ID, 0], ["Sforzesco Castle", "0x1334f4aad1240002:0x2b", LIST_ID, 1]]);
-    assert.match(await ok("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "milano" }), /Nothing to add: all 2 places are already in Milan/);
-    assert.match(await ok("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "duomo, colosseo" }), /Added 1 place .*; 1 already there/);
-    await refused("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "paris" }, /None of the 5 places/);
-    await refused("lifelog_google_list", { link: "https://example.com/x" }, /isn't a Google Maps list or place/);
-    await ok("lifelog_undo", {});
-    assert.strictEqual(travel().places.length, 2, "an import is undone in one step");
-  } finally {
-    global.fetch = realFetch;
-  }
-});
-
 test("on GitHub: read with the sha, a big file through its blob, save on top, and a stale sha is retried", async () => {
   const { openStore } = require("../bridge/store.js");
   const calls = [];
@@ -846,7 +792,6 @@ test("every field the app's sanitizers keep is described in DATA.md", () => {
     "## Habits (`habits`)": [["habits.js", "KNOWN_HABIT_KEYS"]],
     "## Accomplishments (`accomplishments`)": [["app.js", "KNOWN_ACCOMPLISHMENT_KEYS"]],
     "## Settings (`settings`)": [["app.js", "KNOWN_SETTINGS_KEYS"]],
-    "## Trips (`travel.json`)": [["travel.js", "KNOWN_TRIP_KEYS"], ["travel.js", "KNOWN_PLACE_KEYS"]],
     "## Watchlist (`investments.json`)": [["invest.js", "KNOWN_WATCH_KEYS"], ["invest.js", "KNOWN_PIN_KEYS"]],
   };
   const missing = [];
@@ -1070,16 +1015,15 @@ test("a batch is saved as one change, refused whole, and undone whole", async ()
   const t = await ok("lifelog_batch", { steps: [
     { tool: "lifelog_update_item", args: { collection: "entries", item: "Hades", set: { rating: 4 } } },
     { tool: "add_expense", args: { amount: 12, category: "Food", note: "Tea" } },
-    { tool: "lifelog_add_trip", args: { name: "Rome" } },
+    { tool: "lifelog_watch_ticker", args: { symbol: "VOO" } },
   ] });
   assert.match(t, /^3 changes:\nUpdated the timeline entry e1/);
-  assert.match(t, /Started|Rome/);
   assert.strictEqual(data().entries[0].rating, 4);
-  assert.ok(travel().trips.some((x) => x.name === "Rome"));
+  assert.ok(invest().watchlist.some((x) => x.symbol === "VOO"));
   await ok("lifelog_undo", {});
   assert.strictEqual(data().entries[0].rating, 5);
   assert.ok(!data().financeEntries.some((f) => f.note === "Tea"));
-  assert.ok(!travel().trips.some((x) => x.name === "Rome"));
+  assert.ok(!invest().watchlist.some((x) => x.symbol === "VOO"));
   const before = fs.readFileSync(FILE, "utf8");
   await refused("lifelog_batch", { steps: [
     { tool: "lifelog_add_expense", args: { amount: 12, category: "Food" } },

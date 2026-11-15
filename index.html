@@ -91,7 +91,6 @@
         <button class="tab" role="tab" aria-selected="false" data-view="home"><span class="tab-ico" data-ico="house"></span>Home</button>
         <button class="tab" role="tab" aria-selected="false" data-view="backlog"><span class="tab-ico" data-ico="star"></span>Backlog</button>
         <button class="tab" role="tab" aria-selected="false" data-view="finance"><span class="tab-ico" data-ico="receipt"></span>Ledger</button>
-        <button class="tab" role="tab" aria-selected="false" data-view="travel"><span class="tab-ico" data-ico="plane"></span>Travel</button>
         <span class="tab-underline" id="tabUnderline" aria-hidden="true" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
@@ -153,12 +152,6 @@
         <button type="button" data-add="recurring" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="repeat"></span>Recurring expense</button>
         <button type="button" data-add="ticker" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="trending-up"></span>Ticker to watch</button>
       </div>
-      <div class="add-group" data-view="travel">
-        <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="trip" data-view="travel"><span class="add-ico" aria-hidden="true" data-ico="plane"></span>Trip</button>
-        <button type="button" data-add="place" data-view="travel"><span class="add-ico" aria-hidden="true" data-ico="map-pin"></span>Place</button>
-        <button type="button" data-add="import-places" data-view="travel"><span class="add-ico" aria-hidden="true" data-ico="download"></span>From Google Maps</button>
-      </div>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
   </div>
@@ -199,10 +192,6 @@
       <div class="filter-group" id="projFilterGroup" hidden>
         <label id="projFilterLabel" class="filter-label" title="Click to clear">Show</label>
         <div class="cats" id="projFilter"></div>
-      </div>
-      <div class="filter-group" id="tripFilterGroup" hidden>
-        <label class="filter-label">Trips</label>
-        <div class="cats" id="tripFilter"></div>
       </div>
       <div class="filter-group" id="rangeFilterGroup" hidden>
         <label class="filter-label">Range</label>
@@ -1015,75 +1004,6 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="tripModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tripModalTitle">
-      <h2 id="tripModalTitle">New trip</h2>
-      <form id="tripForm">
-        <label>Name
-          <input id="tripName" type="text" required autocomplete="off" placeholder="e.g. Rome in spring" />
-        </label>
-        <div class="field-row row-dates">
-          <label>Starts
-            <input id="tripStart" type="date" />
-          </label>
-          <label>Ends
-            <input id="tripEnd" type="date" />
-          </label>
-        </div>
-        <p class="hint">Dates are optional. With them, every day of the trip gets its own place in the plan.</p>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="deleteTripBtn" hidden>Delete</button>
-          <span class="spacer"></span>
-          <button type="button" class="btn" id="cancelTripBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="placeModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="placeModalTitle">
-      <h2 id="placeModalTitle">Add a place</h2>
-      <p class="muted place-modal-trip" id="placeTripName"></p>
-      <form id="placeForm">
-        <label>Name
-          <input id="placeName" type="text" required autocomplete="off" placeholder="e.g. Trevi Fountain" />
-        </label>
-        <label>Day
-          <input id="placeDay" type="date" />
-        </label>
-        <div class="field-row">
-          <label>From
-            <input id="placeTime" type="time" />
-          </label>
-          <label>Until
-            <input id="placeEndTime" type="time" />
-          </label>
-        </div>
-        <p class="hint" id="placeTimeHint">Pick a day to give it a time. Without one it's somewhere you'll get to sometime this trip.</p>
-        <label>Address
-          <input id="placeAddress" type="text" autocomplete="off" />
-        </label>
-        <label>Google Maps link
-          <input id="placeUrl" type="url" inputmode="url" autocomplete="off" placeholder="Paste it from Share in Google Maps" />
-        </label>
-        <label>Note
-          <textarea id="placeNote" rows="2" placeholder="Book ahead, try the cacio e pepe…"></textarea>
-        </label>
-        <label class="toggle-label"><input type="checkbox" id="placeVisited" /> Been there</label>
-        <!-- From Google (0.245.0): fetched each time the sheet opens, with
-             your Places key. Google's terms don't allow keeping it. -->
-        <section class="place-google" id="placeGoogle" hidden aria-live="polite"></section>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="deletePlaceBtn" hidden>Delete</button>
-          <span class="spacer"></span>
-          <button type="button" class="btn" id="cancelPlaceBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- The Ledger's watchlist (invest.js): a ticker's sheet and a pin's. -->
   <div class="modal-overlay" id="watchModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="watchModalTitle">
@@ -1163,26 +1083,6 @@
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelInvestBuyBtn">Cancel</button>
           <button type="submit" class="btn btn-primary" id="investBuySaveBtn">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="importPlacesModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importPlacesTitle">
-      <h2 id="importPlacesTitle">Import from Google Maps</h2>
-      <p class="muted place-modal-trip" id="importTripName"></p>
-      <form id="importPlacesForm">
-        <label>A saved list or a place
-          <input id="importLink" type="url" inputmode="url" autocomplete="off" placeholder="Share → Copy link, in Google Maps" />
-        </label>
-        <p class="hint" id="importHint">A list brings all its places to choose from. A place brings just that one.</p>
-        <div class="trip-map import-map no-swipe" id="importMap" role="region" aria-label="Map of the list's places: tap a pin to pick it" hidden></div>
-        <div class="import-pick" id="importPick" hidden></div>
-        <div class="modal-actions">
-          <span class="spacer"></span>
-          <button type="button" class="btn" id="cancelImportBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="importGoBtn">Find places</button>
         </div>
       </form>
     </div>
@@ -1531,15 +1431,7 @@
           <button type="button" class="sitem sitem-go" id="reconnectBoardsFileBtn" hidden>Reconnect boards file</button>
           <button type="button" class="sitem sitem-go sitem-danger" id="disconnectBoardsFileBtn" hidden>Disconnect</button>
         </div>
-        <div class="sgroup-card" id="travelFileCard" hidden>
-          <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Trips file</span><span class="sitem-sub" id="travelFileInfo"></span></span>
-          </div>
-          <button type="button" class="sitem sitem-go" id="connectTravelFileBtn">Choose trips file…</button>
-          <button type="button" class="sitem sitem-go" id="reconnectTravelFileBtn" hidden>Reconnect trips file</button>
-          <button type="button" class="sitem sitem-go sitem-danger" id="disconnectTravelFileBtn" hidden>Disconnect</button>
-        </div>
-        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Boards and trips are files of their own; put <code>boards.json</code> and <code>travel.json</code> beside the data file. Chrome and Edge on a computer only.</p>
+        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Boards are a file of their own; put <code>boards.json</code> beside the data file. Chrome and Edge on a computer only.</p>
       </section>
 
       <section class="sgroup" id="ghDisconnectSection" hidden>
@@ -1694,15 +1586,6 @@
         <p class="hint">Boards keep their own history. Open a version to see its boards and bring back any that have changed or gone since.</p>
         <p class="muted" id="boardHistoryStatus" hidden></p>
         <div class="sgroup-card history-card" id="boardHistoryList" hidden></div>
-      </section>
-      <section class="sgroup">
-        <div class="sgroup-head">
-          <h3 class="sgroup-label">Trips</h3>
-          <button class="btn btn-small" id="travelHistoryBtn" type="button">Show versions</button>
-        </div>
-        <p class="hint">Trips keep their own history too. Open a version to see its trips and bring back any that have changed or gone since, with their places.</p>
-        <p class="muted" id="travelHistoryStatus" hidden></p>
-        <div class="sgroup-card history-card" id="travelHistoryList" hidden></div>
       </section>
       </div>
 
@@ -1888,10 +1771,6 @@
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title key-title">Hardcover token<span class="key-status" data-key-status="hardcover" role="status" hidden></span></span><span class="sitem-sub">Books, with their series — free at <a href="https://hardcover.app/account/api" target="_blank" rel="noopener">hardcover.app, Settings → Hardcover API</a>; it expires when you chose; needs the proxy in a browser</span></span>
             <input id="hardcoverKey" type="password" placeholder="Paste your Hardcover API token…" autocomplete="off" spellcheck="false" />
-          </label>
-          <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title key-title">Google Places key<span class="key-status" data-key-status="googlePlaces" role="status" hidden></span></span><span class="sitem-sub">A Travel place's rating, opening hours and reviews — <a href="https://console.cloud.google.com/apis/library/places.googleapis.com" target="_blank" rel="noopener">console.cloud.google.com</a>, with Places API (New) turned on; billing must be on, though personal use stays inside the free monthly allowance</span></span>
-            <input id="googlePlacesKey" type="password" placeholder="Paste your Google Places API key…" autocomplete="off" spellcheck="false" />
           </label>
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title key-title">New York Times key<span class="key-status" data-key-status="nyt" role="status" hidden></span></span><span class="sitem-sub">The bestseller lists in Discover, for a books category — free at <a href="https://developer.nytimes.com/my-apps" target="_blank" rel="noopener">developer.nytimes.com</a>, with the Books API turned on</span></span>
@@ -2290,8 +2169,6 @@
         <div class="sgroup-label">Built with</div>
         <div class="sgroup-card">
           <a class="sitem sitem-go" href="https://lucide.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Lucide</span><span class="sitem-sub">Every icon in the app · ISC</span></span></a>
-          <a class="sitem sitem-go" href="https://leafletjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Leaflet</span><span class="sitem-sub">The Travel maps · BSD 2-Clause</span></span></a>
-          <a class="sitem sitem-go" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">OpenStreetMap contributors and CARTO</span><span class="sitem-sub">Map tiles, and town names through Nominatim · ODbL</span></span></a>
           <a class="sitem sitem-go" href="https://capacitorjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Capacitor</span><span class="sitem-sub">The Android and iOS apps around the web app · MIT</span></span></a>
           <a class="sitem sitem-go" href="https://tauri.app" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Tauri</span><span class="sitem-sub">The Windows and Linux app around the web app · MIT or Apache 2.0</span></span></a>
         </div>
@@ -2317,7 +2194,6 @@
           <a class="sitem sitem-go" href="https://hardcover.app" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Hardcover</span><span class="sitem-sub">Books, their series and what's trending, with your own token</span></span></a>
           <a class="sitem sitem-go" href="https://musicbrainz.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">MusicBrainz and the Cover Art Archive</span><span class="sitem-sub">Albums and covers</span></span></a>
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Frankfurter</span><span class="sitem-sub">Exchange rates for expenses in another currency</span></span></a>
-          <a class="sitem sitem-go" href="https://developers.google.com/maps/documentation/places/web-service" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Google Places</span><span class="sitem-sub">Place details in Travel, with your own key</span></span></a>
           <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">The New York Times Books API</span><span class="sitem-sub">Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></a>
           <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Tiingo</span><span class="sitem-sub">Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></a>
         </div>
@@ -2370,7 +2246,7 @@
       </section>
       <div class="kb-foot"><button type="button" class="btn" id="kbResetAll">Reset all</button></div>
       </div>
-      <div class="settings-page" hidden data-page="desktop" data-title="Desktop" data-keywords="windows linux computer desktop app start at login startup boot sign in tray close quit minimise minimize window">
+      <div class="settings-page" hidden data-page="desktop" data-title="Desktop" data-keywords="windows linux computer desktop app start at login startup boot sign in tray close quit minimise minimize window data folder location save appdata storage move uninstall">
       <h2 class="settings-page-title">Desktop</h2>
       <p class="hint page-lede">How LifeLog runs on this computer.</p>
       <section class="sgroup">
@@ -2392,6 +2268,29 @@
           </label>
         </div>
         <p class="hint">Quit in the tray's menu always stops it. Anything due while it wasn't running rings when it opens again, if it's under an hour late (12 hours for the 9:00 heads-ups).</p>
+      </section>
+      <section class="sgroup" id="dataFolderGroup" hidden>
+        <h3 class="sgroup-label">Data folder</h3>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Keep data in</span><span class="sitem-sub data-folder-path" id="dataFolderPath"></span></span>
+            <select id="dataFolderMode">
+              <option value="lifelog">The LifeLog folder</option>
+              <option value="appdata">AppData</option>
+              <option value="custom">A folder you pick…</option>
+            </select>
+          </label>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Open the folder</span><span class="sitem-sub">In File Explorer</span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small" id="dataFolderOpenBtn">Open</button></span>
+          </div>
+          <div class="sitem" id="dataFolderOldRow" hidden>
+            <span class="sitem-text"><span class="sitem-title">Copy from before the move</span><span class="sitem-sub data-folder-path" id="dataFolderOldPath"></span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small btn-danger" id="dataFolderOldBtn">Remove</button></span>
+          </div>
+        </div>
+        <p class="warn" id="dataFolderNote" hidden></p>
+        <p class="hint">Everything LifeLog keeps on this computer, your GitHub token too. Changing it restarts LifeLog and copies it all over; the old copy stays until you remove it. Uninstalling asks whether to delete it. Avoid a OneDrive or Dropbox folder: syncing it while LifeLog is open can damage it, and your token would go along.</p>
       </section>
       </div>
       <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel background refresh widgets start at login tray computer desktop test action center toast">
@@ -2937,7 +2836,6 @@
   <script defer src="src/habits.js?v=0.315.0"></script>
   <script defer src="src/vendor/rough.js?v=0.315.0"></script>
   <script defer src="src/boards.js?v=0.315.0"></script>
-  <script defer src="src/travel.js?v=0.315.0"></script>
   <script defer src="src/invest.js?v=0.315.0"></script>
   <script defer src="src/waypage.js?v=0.315.0"></script>
   <script defer src="src/home.js?v=0.315.0"></script>

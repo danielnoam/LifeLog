@@ -4,10 +4,9 @@
 // what you hold and how it's doing. Prices are in dollars only.
 //
 // The watchlist and its pins live in investments.json beside lifelog.json
-// (Storage.invest), for the same reason travel.json does: a build older than
-// this one merging lifelog.json would drop a root key it doesn't know, and
-// that deletion would then win on every device. An older build never opens
-// investments.json at all.
+// (Storage.invest): a build older than this one merging lifelog.json would
+// drop a root key it doesn't know, and that deletion would then win on every
+// device. An older build never opens investments.json at all.
 //
 // Prices come from Tiingo with your own key, through the CORS proxy (or the
 // app's native one). Each ticker's daily closes are kept on this device only,

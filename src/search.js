@@ -167,25 +167,6 @@
         },
       });
     }
-    if (viewEnabled("travel")) {
-      const T = ctx.Travel;
-      out.push({
-        view: "travel", label: "Travel", icon: "map-pin", filter: null,
-        items: () => {
-          const doc = T.searchable();
-          const trips = new Map(doc.trips.map((t) => [t.id, t]));
-          return doc.trips.map((t) => ({
-            fields: [f(t.name, "title"), f(t.note, "notes")],
-            meta: ["Trip", T.rangeLabel(t.start, t.end)].filter(Boolean).join(" · "),
-            open: () => { ctx.goTo("travel"); T.showTrip(t.id); },
-          })).concat(doc.places.map((p) => ({
-            fields: [f(p.name, "title"), f(p.address, "address"), f(p.note, "notes"), f(p.town, "town")],
-            meta: [(trips.get(p.trip) || {}).name, p.town, p.day ? dateLabel(p.day) : ""].filter(Boolean).join(" · "),
-            open: () => { ctx.goTo("travel"); T.showPlace(p.id); },
-          })));
-        },
-      });
-    }
     out.push({
       view: "settings", label: "Settings", icon: "settings", filter: null,
       items: () => ctx.Settings.searchSettings(state.query).map((h) => ({

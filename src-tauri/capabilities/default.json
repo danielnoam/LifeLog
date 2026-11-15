@@ -7,6 +7,7 @@
     "core:default",
     "opener:allow-open-url",
     "dialog:allow-save",
+    "dialog:allow-open",
     "fs:allow-write-file",
     "fs:allow-write-text-file",
     "notification:default",
@@ -27,10 +28,7 @@
         { "url": "https://id.twitch.tv/oauth2/token*" },
         { "url": "https://api.hardcover.app/v1/graphql" },
         { "url": "https://api.tiingo.com/tiingo/*" },
-        { "url": "https://api.strem.io/api/*" },
-        { "url": "https://maps.app.goo.gl/*" },
-        { "url": "https://goo.gl/*" },
-        { "url": "https://www.google.com/maps/*" }
+        { "url": "https://api.strem.io/api/*" }
       ]
     }
   ]

@@ -417,48 +417,20 @@ a board's pictures;
 `lifelog_update_board` renames, files, stars or keeps one; `lifelog_delete_board`
 deletes one. Nothing draws.
 
-## Trips (`travel.json`)
+## Trips (`travel.json`): no longer read
 
-The Travel tab's trips, in a file of their own beside `lifelog.json`,
-written compact: `{ "trips": [ ... ], "places": [ ... ] }`. Kept apart
-because a build older than 0.241.0, merging `lifelog.json`, would drop a
-root key it doesn't know.
-
-- A trip has `id`, `name`, `createdAt`, `updatedAt`, and optionally `start`
-  and `end` (dates; an end before the start is swapped).
-- A place has `id`, `trip` (its trip's id), `name`, `createdAt`,
-  `updatedAt`, and optionally:
-  - `day`: the date it's planned for. Without one it's somewhere to get to
-    sometime during the trip.
-  - `time` and `endTime` (`HH:MM`): a place with a `time` is scheduled. A
-    time is only kept with a day, and an end only after the start.
-  - `order`: sorts a day's unscheduled places; scheduled ones go by time,
-    first.
-  - `address`, `note`, `url` (a Google Maps link), `lat` and `lng`,
-    `visited` (true when been there), `gid` (Google's place id, as Maps
-    writes it: `0x…:0x…`) and `source` (the id of the Google Maps list it
-    was imported from).
-  - `town`: the town it's in, looked up from where it is (OpenStreetMap)
-    for a place whose address doesn't name one. The app fills it in.
-  - `placeId`: its id in Google's Places API, saved the first time its
-    sheet looks it up with a Places key. The rating, hours and reviews that
-    come with it are never stored (Google's terms), only fetched.
-- A place whose trip is gone is dropped when the file is read; deleting a
-  trip deletes its places.
-
-`lifelog_trips` lists trips, or one trip's plan day by day.
-`lifelog_add_trip`, `lifelog_update_trip`, `lifelog_delete_trip`,
-`lifelog_add_place`, `lifelog_update_place` and `lifelog_delete_place`
-change them. `lifelog_google_list` reads a shared Google Maps list (or one
-place) and `lifelog_import_google_list` adds its places to a trip with no
-day, skipping any already there (same `gid`, or the same name within 50 m).
+The Travel tab left LifeLog in 2026-11. A `travel.json` beside
+`lifelog.json` is left exactly as it was: neither the app nor the bridge
+reads or writes it, and the trip tools (`lifelog_trips`,
+`lifelog_add_trip` and the rest) are gone.
 
 ## Watchlist (`investments.json`)
 
 The Ledger's Investments mode: US stocks and ETFs followed, in a file of
 their own beside `lifelog.json`, written compact:
-`{ "watchlist": [ ... ], "pins": [ ... ] }`. Kept apart for the same reason
-as `travel.json`. Prices are US dollars and are never stored in the file:
+`{ "watchlist": [ ... ], "pins": [ ... ] }`. Kept apart because a build
+older than it, merging `lifelog.json`, would drop a root key it doesn't
+know. Prices are US dollars and are never stored in the file:
 the app fetches daily closes from Tiingo with the key in
 `settings.mediaKeys.tiingo` and keeps them on each device only.
 
@@ -490,11 +462,6 @@ each is from its target, and the change between pins and since the last.
 the latest close. `lifelog_add_buy`, `lifelog_update_buy` and
 `lifelog_delete_buy` log what you bought and sold; `lifelog_watchlist` shows
 the holding (and, with `ticker`, every buy).
-
-The app's By area view and `lifelog_google_list` group places the same way
-(`Travel.areas`): places within 15 km of each other are one area, named
-after the town most of their places give (from the address, else `town`),
-else "Near" its most central place. Areas themselves aren't stored.
 
 ## Not in this file
 

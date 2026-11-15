@@ -34,7 +34,6 @@ function load() {
   src("habits.js");
   src("recap.js");
   src("boards.js");
-  src("travel.js");
   src("invest.js");
   src("waypage.js");
   src("widgets.js");
@@ -58,7 +57,6 @@ function load() {
     Habits: window.LifeLogHabits,
     Widgets: window.LifeLogWidgets,
     Boards: window.LifeLogBoards,
-    Travel: window.LifeLogTravel,
     Invest: window.LifeLogInvest,
     Waypage: window.LifeLogWaypage,
     Recap: window.LifeLogRecap,

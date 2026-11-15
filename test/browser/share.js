@@ -1,6 +1,6 @@
 // Share into LifeLog (0.250.0): ?title=&text=&url= from the Share sheet,
-// routed by the link — a Maps link to Travel, a title site to Backlog with
-// the lookup running, plain text to the Backlog-or-Note sheet. At phone and
+// routed by the link — a title site to Backlog with the lookup running,
+// plain text and any other link to the Backlog-or-Note sheet. At phone and
 // desktop widths.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
@@ -50,26 +50,6 @@ async function run(b, width) {
   check("a Steam link reads the title off the address" + at, await page.evaluate(() =>
     !document.querySelector("#backlogModal").hidden && document.querySelector("#bTitle").value === "ELDEN RING"));
 
-  // ---- a Google Maps place, before any trip exists ----
-  await page.route(/gmaps-link|gmaps-list/, (r) => r.fulfill({ status: 404, body: "" }));
-  await share("text=" + encodeURIComponent("Check this out\nhttps://maps.app.goo.gl/abc123"));
-  check("a Maps link with no trip yet asks for the trip first" + at, await page.evaluate(() =>
-    !document.querySelector("#tripModal").hidden && document.querySelector("#importPlacesModal").hidden && document.querySelector("#backlogModal").hidden));
-  await page.fill("#tripName", "Lisbon");
-  await page.evaluate(() => document.querySelector("#tripForm").requestSubmit());
-  await page.waitForTimeout(500);
-  check("and once the trip is saved the import opens with the link" + at, await page.evaluate(() =>
-    !document.querySelector("#importPlacesModal").hidden && document.querySelector("#importLink").value === "https://maps.app.goo.gl/abc123"
-    && document.querySelector("#importTripName").textContent === "Lisbon"));
-  await page.keyboard.press("Escape");
-  await page.evaluate(() => window.LifeLogTravel.flush());
-
-  // ---- the same link, with the trip in place but Travel not yet opened this session ----
-  await share("url=" + encodeURIComponent("https://maps.app.goo.gl/abc123"));
-  check("a Maps link goes straight into the open trip" + at, await page.evaluate(() =>
-    !document.querySelector("#importPlacesModal").hidden && document.querySelector("#importLink").value === "https://maps.app.goo.gl/abc123"));
-  await page.keyboard.press("Escape");
-
   // ---- plain text: the chooser ----
   await share("text=" + encodeURIComponent("Call the dentist"));
   check("plain text asks Backlog or Note" + at, await page.evaluate(() =>
@@ -94,11 +74,11 @@ async function run(b, width) {
   await page.keyboard.press("Escape"); await page.waitForTimeout(200);
   check("Escape closes the chooser" + at, await page.evaluate(() => document.querySelector("#shareModal").hidden));
 
-  // ---- with Travel off, a Maps link is just a link ----
-  await page.evaluate(() => localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ disabledViews: ["travel"] })));
+  // ---- a Maps link is just a link since Travel left (2026-11) ----
   await share("url=" + encodeURIComponent("https://maps.app.goo.gl/abc123"));
-  check("with Travel off a Maps link goes to the chooser" + at, await page.evaluate(() =>
-    !document.querySelector("#shareModal").hidden && document.querySelector("#importPlacesModal").hidden));
+  check("a Maps link goes to the chooser" + at, await page.evaluate(() =>
+    !document.querySelector("#shareModal").hidden && document.querySelector("#backlogModal").hidden));
+  await page.keyboard.press("Escape");
 
   check("no errors" + at, errs.length === 0, errs);
   await ctx.close();
