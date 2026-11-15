@@ -153,7 +153,7 @@ const SEED = {
 
   // ---- filters ----
   const everyCard = (await cards()).length;
-  await page.click('#kindFilter .cat-chip:has-text("Lists")');
+  await page.click('#kindFilter .cat-chip:has-text("Tasks")');
   check("the Types row narrows to lists", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());
   // Several at once, like the rows around it (0.214.0), and its label is all
   // or none.

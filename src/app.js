@@ -3594,7 +3594,7 @@
   // number at once, like the rows around it (0.214.0), and none is all; its
   // label selects every one or none. Boards on its own is the Boards page,
   // with New board; beside another kind they're cards in the feed, as in All.
-  const NOTE_KIND_CHIPS = [["text", "Notes", "notebook-text"], ["list", "Task lists", "list-checks"], ["quote", "Quotes", "quote"], ["board", "Boards", "presentation"]];
+  const NOTE_KIND_CHIPS = [["text", "Notes", "notebook-text"], ["list", "Tasks", "list-checks"], ["quote", "Quotes", "quote"], ["board", "Boards", "presentation"]];
   const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || !!window.LifeLogBoards);
   function toggleAllKinds() {
     const all = noteKindChips().map(([k]) => k);

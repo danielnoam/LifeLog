@@ -673,7 +673,7 @@
     input.type = "text";
     input.placeholder = "Add an item…";
     input.autocomplete = "off";
-    input.setAttribute("aria-label", "Add to " + (n.text || "this task list"));
+    input.setAttribute("aria-label", "Add to " + (n.text || "this list"));
     input.value = listDrafts.get(n.id) || "";
     const add = el("button", "btn btn-primary btn-sm", "Add");
     add.type = "button";
@@ -1501,7 +1501,7 @@
   // (no switching since 0.314.0). "board" is a name and a category over a
   // blank board; tapping the board makes it and opens the board editor, so
   // a board left unnamed and untouched is never made.
-  const SHEET_HEADS = { text: "New note", list: "New task list", quote: "New quote", board: "New board" };
+  const SHEET_HEADS = { text: "New note", list: "New tasks", quote: "New quote", board: "New board" };
   let editingNoteId = "";
   let sheetKind = "text";
   let boardAfter = null; // what the add menu wants done once a board is made
