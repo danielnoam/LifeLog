@@ -138,17 +138,17 @@ async function run(b, width) {
   // ---- a quote's fields ----
   await open("quote");
   check("a quote has no title" + at, await page.evaluate(() => document.querySelector("#nTitleLabel").hidden));
-  check("author and source sit side by side" + at, await page.evaluate(() => {
-    const [a, s] = [...document.querySelectorAll("#nQuoteFields label")].map((l) => l.getBoundingClientRect());
-    return Math.abs(a.top - s.top) < 2 && a.right <= s.left;
+  check("author and source are rows in the field box, under Category" + at, await page.evaluate(() => {
+    const [c, a, s] = ["#nCategory", "#nAuthorRow", "#nSourceRow"].map((q) => document.querySelector(q).closest(".task-field").getBoundingClientRect());
+    return a.top >= c.bottom - 1 && s.top >= a.bottom - 1 && Math.abs(a.left - s.left) < 2;
   }));
   await shot("quote");
   await page.click("#cancelNoteBtn");
 
   // ---- 0.304.x phone fixes ----
   await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
-  check("the whole category chip is the picker, not a label over it" + at, await page.evaluate(() => {
-    const c = document.querySelector("#noteModal .nv-cat").getBoundingClientRect();
+  check("the whole category row is the picker, not a label over it" + at, await page.evaluate(() => {
+    const c = document.querySelector("#nCategory").getBoundingClientRect();
     return [c.left + 3, c.left + c.width / 2, c.right - 3].every((x) => document.elementFromPoint(x, c.top + c.height / 2).id === "nCategory");
   }));
   check("a note has no View button of its own; Notebook's View has the options" + at,

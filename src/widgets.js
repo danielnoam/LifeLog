@@ -277,7 +277,7 @@
         // An item of a list note now (0.197.0); the widget still calls it a to-do.
         let t = null;
         for (const n of data.notes || []) {
-          if (n.kind === "list") t = (n.items || []).find((x) => x.id === it.id) || t;
+          if (n.kind === "list") t = (n.id === it.id ? n : (n.items || []).find((x) => x.id === it.id)) || t;
           if (t) break;
         }
         if (!t || !!t.done === !!it.done) continue;
@@ -286,7 +286,7 @@
         if (it.due && t.date && t.date !== it.due) continue;
         // Through tasks.js where it's loaded, so a repeating task ticked on
         // the widget moves to its next date and a task's subtasks tick too.
-        const list = (data.notes || []).find((n) => n.kind === "list" && (n.items || []).includes(t));
+        const list = (data.notes || []).find((n) => n.kind === "list" && (n === t || (n.items || []).includes(t)));
         if (window.LifeLogTasks && list) window.LifeLogTasks.tick(list, t.id, !!it.done, it.at ? new Date(it.at) : new Date());
         else if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
         else { delete t.done; delete t.doneAt; }

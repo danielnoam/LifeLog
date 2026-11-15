@@ -45,7 +45,7 @@ const SEED = {
   await openNew("list");
   check("the List kind shows a title and a checklist, not the note box or the quote's fields", await page.evaluate(() =>
     !document.querySelector("#nTitleLabel").hidden && !document.querySelector("#nListEditor").hidden &&
-    document.querySelector("#nTextLabel").hidden && getComputedStyle(document.querySelector("#nQuoteFields")).display === "none"));
+    document.querySelector("#nTextLabel").hidden && document.querySelector("#nAuthorRow").hidden && document.querySelector("#nSourceRow").hidden));
   await page.fill("#nTitle", "Packing");
   for (const t of ["Passport", "Charger", "Jacket"]) { await page.fill("#nNewItem", t); await page.press("#nNewItem", "Enter"); }
   await page.fill("#nNewItem", "Socks"); // typed, never Entered: still meant
@@ -76,7 +76,7 @@ const SEED = {
 
   // ---- ticking on the card ----
   const listId = list.id;
-  await page.locator(`.note-card[data-id="${listId}"] .todo-check`).first().click();
+  await page.locator(`.note-card[data-id="${listId}"] [data-item] .todo-check`).first().click();
   await page.waitForTimeout(250);
   d = await saved();
   const ticked = d.notes.find((n) => n.id === listId);

@@ -173,6 +173,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Copy text and Favourite in a note's ⋯ menu, Read and Edit; on a phone a sideways swipe flips Read and Edit (0.309.0)
 - Checklist items are tasks: description, own category, priority, date with time, repeat (from its date or from the tick), reminder and deadline behind one Date button, one level of subtasks that fold away; tap the words to open a task; dated tasks on Home's Coming up with an Overdue group; task reminders with a Done button on Android; open tasks on the Timeline calendar; Log as entry from a task; indented Markdown tasks import as subtasks; checklists renamed Tasks; Tasks widget with a date line, priority ticks and overdue count; dated tasks on the Upcoming widget; bridge tools lifelog_add_task, lifelog_update_task, lifelog_tasks (0.317.0)
 - Tags on notes, quotes, tasks lists, tasks and boards across every category; a Tags filter row (any of the picked ones), All tags to rename, merge or delete; `#tag` in search; category tags for new notes; favourite star in the card's corner (0.317.0)
+- A tasks list is a task itself (description, category, date, priority, tags in one box on its page; its tick ticks every row; repeats), rows are its flat subtasks with a pen to open each; the same box above the text on notes and quotes (Author and Source rows on quotes); Tags row always shown with All tags first and "+" for a new tag; Clear finished moved into the list page's ⋯; bridge lifelog_list_task (0.318.0)
 - A screen per kind from the + menu (Note, Checklist, Quote, Board), no kind switch in the sheet or ⋯; a new board asks its name and category first and opens on a tap of the blank board; the Favourite star sits beside ⋯ in Read and Edit (0.314.0)
 
 ## Notebook (Habits)
@@ -304,6 +305,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Expenses changed in bulk by filter (category, subcategory, project, with a dry run), one expense split over months, text added to a note without resending it, a timeline entry sent back to the backlog or In progress, two habits merged (0.309.0)
 - The Ledger's watchlist: tickers with their targets, notes and pins, prices straight from Tiingo with the app's key, and tools to watch, edit and unwatch tickers and add, move and delete pins (0.310.0)
 - Tags: list, add, remove, rename and delete them, a category's tags for new notes, and a tag filter on notes and boards (0.317.0)
+- A tasks list's own task fields (description, priority, date, repeat, reminder, deadline) and its tick, `lifelog_list_task` (0.318.0)
 
 ## Building and shipping
 

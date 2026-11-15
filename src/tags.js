@@ -55,7 +55,9 @@
     for (const b of boards || []) if (!b.scratch) yield { kind: "board", obj: b };
   }
   // Every tag in use, most used first: { name, key, total, text, quote, list, task, board }.
-  function count(notes, boards) {
+  // `saved`: tags made with + in the Tags row (settings.tagNames), listed
+  // with 0 until something carries them.
+  function count(notes, boards, saved) {
     const by = new Map();
     for (const h of holders(notes, boards)) {
       for (const t of h.obj.tags || []) {
@@ -66,11 +68,12 @@
         c[h.kind]++;
       }
     }
+    for (const t of clean(saved)) if (!by.has(key(t))) by.set(key(t), { name: t, key: key(t), total: 0, text: 0, quote: 0, list: 0, task: 0, board: 0 });
     return [...by.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   }
   const KIND_WORDS = [["text", "note", "notes"], ["quote", "quote", "quotes"], ["list", "list", "lists"], ["task", "task", "tasks"], ["board", "board", "boards"]];
   // "2 notes · 1 list · 1 board"
-  const summary = (c) => KIND_WORDS.filter(([k]) => c[k]).map(([k, one, many]) => c[k] + " " + (c[k] === 1 ? one : many)).join(" · ");
+  const summary = (c) => KIND_WORDS.filter(([k]) => c[k]).map(([k, one, many]) => c[k] + " " + (c[k] === 1 ? one : many)).join(" · ") || "Not used yet";
 
   // One tag renamed (or deleted, `to` empty) in a list; null when the list
   // doesn't hold it. Renaming onto a tag the list already has leaves one.
@@ -142,6 +145,7 @@
 
     const keep = (ev) => ev.preventDefault(); // pointerdown: don't take focus from the box
     function draw() {
+      root.classList.toggle("has-tags", get().length > 0);
       pills.replaceChildren();
       for (const t of get()) {
         const p = el("span", "tag-pill");

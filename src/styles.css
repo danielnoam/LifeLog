@@ -4587,6 +4587,11 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-list-head .mc-left, .note-list-head .mc-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .note-list-head .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .note-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The list's own tick and what's set on it (16 Nov 2026). */
+.note-list-head .note-list-tick { flex: 0 0 auto; margin: 0 var(--space-4) 0 0; }
+.note-list-head.is-done .note-list-title { text-decoration: line-through; }
+.note-list-head.has-meta { border-bottom: 0; padding-bottom: 2px; }
+.note-list-head-meta { margin: 0 0 4px; padding: 0 0 10px calc(22px + var(--space-10)); border-bottom: 1px solid var(--border); }
 .note-card.is-bulk .note-list-title { font-weight: 650; white-space: normal; }
 /* A list's items while selecting (bulkListPreview): read-only, so the press
    reaches the card and selects it. */
@@ -4631,9 +4636,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   color: var(--text-faint); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .note-list-del:hover { color: var(--danger); }
-.note-quote-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
-.note-quote-fields input { min-width: 0; }
-.note-quote-fields[hidden], .note-list-editor[hidden] { display: none; }
+.note-list-editor[hidden] { display: none; }
 /* The checklist's fields sit outside a label, where the modal's input style
    doesn't reach, so they take it here. */
 .note-list-editor input[type="text"] {
@@ -4796,7 +4799,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .nv-cat-static { cursor: default; padding-right: var(--space-10); }
 .nv-cat-static[hidden] { display: none; }
-#noteForm .note-quote-fields { margin-top: var(--space-16); }
 .nv-text-label { display: block; margin: var(--space-16) 0 0; }
 .nv-text-label[hidden] { display: none; }
 /* The text, with its line numbers down the side when they're on. The
@@ -5466,6 +5468,24 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
 .task-field.task-tags .tag-field-ico { display: none; }
 .task-field.task-tags .tag-field-input { flex: 0 1 70px; min-width: 60px; max-width: none; text-align: right; color: var(--text); padding: var(--space-6) 0; }
 .task-field.task-tags .tag-suggest { left: auto; right: 0; }
+/* "+" with no tags; with some, the pills sit at the right and the box
+   only opens on a tap on the row (16 Nov 2026). */
+.task-field.task-tags .tag-field-input::placeholder { color: var(--text-dim); font-size: var(--fs-read); }
+.task-field.task-tags .tag-field.has-tags .tag-field-input:not(:focus) { flex: 0 0 0; min-width: 0; width: 0; padding: 0; opacity: 0; }
+/* The note sheet's box (16 Nov 2026): category, author and source for a
+   quote, a list's date and priority, and tags, above the words. */
+.note-fields { margin: var(--space-12) 0 var(--space-16); }
+.task-field[hidden], .modal .note-fields label.task-field[hidden] { display: none; }
+.modal .note-fields label.task-field input[type="text"] { flex: 1; max-width: 65%; color: var(--text); }
+#noteModal .note-desc {
+  display: block; width: 100%; box-sizing: border-box; margin: var(--space-4) 0 0; padding: 0;
+  border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-read); line-height: 1.5;
+  resize: none; overflow: hidden; min-height: 0;
+}
+#noteModal .note-desc:focus { outline: none; box-shadow: none; color: var(--text); }
+.note-desc[hidden], #noteModal .note-desc[hidden] { display: none; }
+.note-subs-head { margin: var(--space-20) 0 var(--space-6); font-weight: 600; color: var(--text-dim); font-size: var(--fs-sm); }
+.note-subs-head[hidden] { display: none; }
 /* The category sheet: the count by the title, Tags for new notes as a boxed field. */
 .note-cat-head { display: flex; align-items: baseline; gap: var(--space-10); flex-wrap: wrap; }
 .note-cat-uses { font-size: var(--fs-sm); font-weight: 400; color: var(--text-dim); }

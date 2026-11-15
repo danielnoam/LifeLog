@@ -87,17 +87,25 @@
     }
     return it;
   }
-  // One level: a parent has to be an item in the same list that isn't
-  // itself a subtask. Anything else (its task deleted on another device, a
-  // hand edit) comes back to the top level rather than vanishing.
+  // No nesting (Daniel, 16 Nov 2026): the list is the task and its rows
+  // are its subtasks, so a row's subtasks from 0.317.0 come back to the
+  // list's level, in the same place.
   function cleanParents(items) {
-    const byId = new Map(items.map((i) => [i.id, i]));
-    for (const it of items) {
-      if (!it.parent) continue;
-      const p = byId.get(it.parent);
-      if (!p || p.parent || p === it) delete it.parent;
-    }
+    for (const it of items) delete it.parent;
     return items;
+  }
+  // The list's own task fields (16 Nov 2026), on the list note itself:
+  // `note` its description, then priority, date, time, repeat, remind,
+  // deadline and ticks as on a row, and done/doneAt. Cleaned the same way.
+  const HEAD_KEYS = ["note", "priority", "date", "time", "repeat", "remind", "deadline", "ticks"];
+  function cleanHead(n) {
+    const t = {};
+    for (const k of HEAD_KEYS) if (n[k] != null) t[k] = n[k];
+    cleanItem(t);
+    for (const k of HEAD_KEYS) { if (t[k] != null) n[k] = t[k]; else delete n[k]; }
+    if (n.done) { n.done = true; if (typeof n.doneAt !== "string") n.doneAt = n.updatedAt || new Date().toISOString(); }
+    else { delete n.done; delete n.doneAt; }
+    return n;
   }
   const isTask = (it) => ["note", "priority", "date", "deadline", "parent", "category", "tags"].some((k) => it[k] != null);
   const childrenOf = (items, id) => (items || []).filter((i) => i.parent === id);
@@ -141,8 +149,10 @@
   // subtasks untick for the next round, and the tick is kept in `ticks`.
   // Ticking a task with open subtasks ticks them too.
   // Returns { next } (the new date of a repeating one) or null.
+  // The list itself ticks by its own id: its rows are its subtasks.
   function tick(n, itemId, done, now = new Date(), today = localDay(now)) {
     const items = n.items || [];
+    if (itemId === n.id && n.id) return tickHead(n, done, now, today);
     const it = items.find((i) => i.id === itemId);
     if (!it) return null;
     const iso = now.toISOString();
@@ -161,6 +171,24 @@
     return { next: null };
   }
 
+  function tickHead(n, done, now, today) {
+    const items = n.items || [];
+    const iso = now.toISOString();
+    if (!done) { delete n.done; delete n.doneAt; return { next: null }; }
+    if (n.repeat && n.date && !n.done) {
+      const next = nextDate(n, today);
+      if (n.deadline) n.deadline = addDays(n.deadline, daysBetween(n.date, next));
+      n.date = next;
+      n.ticks = (n.ticks || []).concat(iso).slice(-MAX_TICKS);
+      for (const c of items) { delete c.done; delete c.doneAt; }
+      return { next };
+    }
+    n.done = true;
+    n.doneAt = iso;
+    for (const c of items) if (!c.done) { c.done = true; c.doneAt = iso; }
+    return { next: null };
+  }
+
   // ---------- what's due ----------
   // Every open task with a date up to `until`, overdue ones included, with
   // the list it's in and the category it shows: its own, else its task's,
@@ -174,6 +202,9 @@
     const rows = [];
     for (const n of data.notes || []) {
       if (n.kind !== "list") continue;
+      // The list itself, as one task: `item` is the note, so its title is
+      // the words and its id ticks and opens it.
+      if (!n.done && isDay(n.date) && !(until && n.date > until)) rows.push({ note: n, item: n, day: n.date, category: n.category || "", head: true });
       for (const it of n.items || []) {
         if (it.done || !isDay(it.date) || (until && it.date > until)) continue;
         rows.push({ note: n, item: it, day: it.date, category: categoryOf(n, it) });
@@ -261,6 +292,8 @@
   let tagField = null;
   let onClosed = null;
   function openTask(noteId, itemId, { onClose } = {}) {
+    // The list itself opens as its own page, where its task fields are.
+    if (noteId === itemId) { const n = findNote(noteId); if (n) Notes().openNoteModal(n); return; }
     cur = { noteId, itemId };
     onClosed = onClose || null;
     if (!current().it) { cur = null; return; }
@@ -306,8 +339,6 @@
     val.classList.toggle("is-today", it.date === today && !it.done);
     val.classList.toggle("is-late", !!it.date && it.date < today && !it.done);
     val.classList.toggle("is-empty", !when);
-    $("#taskSubs").hidden = !!parent;
-    if (!parent) fillSubs(n, it);
   }
   function fillLists(n) {
     const sel = $("#taskList");
@@ -333,101 +364,6 @@
     const shown = it.category || (from && from[0]) || "";
     $("#taskCatDot").style.background = shown ? catColor(shown) : "";
     $("#taskCatDot").hidden = !shown;
-  }
-
-  // The subtasks: tick, open, drag by the handle (arrow keys on a computer).
-  function fillSubs(n, it) {
-    const kids = childrenOf(n.items, it.id);
-    $("#taskSubsHead").textContent = kids.length ? `Subtasks ${kids.filter((c) => c.done).length}/${kids.length}` : "Subtasks";
-    const wrap = $("#taskSubList");
-    wrap.replaceChildren();
-    wrap.hidden = !kids.length;
-    const today = api.today();
-    kids.forEach((c, i) => {
-      const row = el("div", "todo-row task-sub" + (c.done ? " is-done" : ""));
-      row.dataset.item = c.id;
-      const grip = el("button", "note-list-grip");
-      grip.type = "button";
-      grip.appendChild(ico("grip-vertical"));
-      grip.setAttribute("aria-label", "Move " + c.text + " — drag, or use the arrow keys");
-      wireGrip(grip, row, i);
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.className = "todo-check" + (c.priority ? " is-p" + c.priority : "");
-      cb.checked = !!c.done;
-      cb.setAttribute("aria-label", (c.done ? "Mark as not done: " : "Mark as done: ") + c.text);
-      cb.onchange = () => tickOne(c.id, cb.checked);
-      const body = el("button", "todo-body");
-      body.type = "button";
-      body.appendChild(el("span", "todo-text", c.text));
-      const when = c.date ? shortDay(c.date, today) + (c.time ? " " + c.time : "") : "";
-      if (when || c.note) {
-        const meta = el("span", "todo-meta");
-        if (when) { const b = el("span", !c.done && c.date < today ? "is-late" : c.date === today ? "is-today" : ""); b.append(ico("calendar"), document.createTextNode(when)); meta.appendChild(b); }
-        if (c.note) { const b = el("span"); b.appendChild(ico("text")); meta.appendChild(b); }
-        body.appendChild(meta);
-        row.classList.add("has-meta");
-      }
-      body.setAttribute("aria-label", "Open " + c.text);
-      body.onclick = () => { commitText(); cur = { noteId: n.id, itemId: c.id }; fill(); $("#taskModal .nv-scroll").scrollTop = 0; fitText(); };
-      row.append(grip, cb, body);
-      wrap.appendChild(row);
-    });
-  }
-  function wireGrip(grip, row, i) {
-    const wrap = $("#taskSubList");
-    const save = () => moveSubs([...wrap.children].map((r) => r.dataset.item));
-    grip.onkeydown = (ev) => {
-      const rows = [...wrap.children];
-      const to = ev.key === "ArrowUp" ? i - 1 : ev.key === "ArrowDown" ? i + 1 : -1;
-      if (to < 0 || to >= rows.length) return;
-      ev.preventDefault();
-      wrap.insertBefore(row, to < i ? rows[to] : rows[to].nextSibling);
-      save();
-      const again = wrap.querySelector(`[data-item="${CSS.escape(row.dataset.item)}"] .note-list-grip`);
-      if (again) again.focus();
-    };
-    grip.onpointerdown = (ev) => {
-      if (ev.button > 0) return;
-      ev.preventDefault();
-      grip.setPointerCapture(ev.pointerId);
-      row.classList.add("is-dragging");
-      let startY = ev.clientY;
-      const move = (e) => {
-        const y = e.clientY;
-        const others = [...wrap.children].filter((r) => r !== row);
-        const before = others.find((r) => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
-        if ((before || null) !== row.nextElementSibling) {
-          const top = row.offsetTop;
-          row.style.transform = "";
-          wrap.insertBefore(row, before || null);
-          startY += row.offsetTop - top;
-        }
-        row.style.transform = "translateY(" + (y - startY) + "px)";
-      };
-      const end = () => {
-        grip.removeEventListener("pointermove", move);
-        grip.removeEventListener("pointerup", end);
-        grip.removeEventListener("pointercancel", end);
-        row.classList.remove("is-dragging");
-        row.style.transform = "";
-        save();
-      };
-      grip.addEventListener("pointermove", move);
-      grip.addEventListener("pointerup", end);
-      grip.addEventListener("pointercancel", end);
-    };
-  }
-  // The subtasks in their new order, each still right after its task.
-  function moveSubs(order) {
-    change((it, n) => {
-      const byId = new Map(n.items.map((i) => [i.id, i]));
-      const moved = order.map((id) => byId.get(id)).filter(Boolean);
-      if (moved.every((c, k) => c === childrenOf(n.items, it.id)[k])) return false;
-      const rest = n.items.filter((i) => !moved.includes(i));
-      rest.splice(rest.indexOf(it) + 1, 0, ...moved);
-      n.items = rest;
-    }, { onTask: "parent" });
   }
 
   // Every change goes through here: the words typed so far are kept, the
@@ -540,7 +476,19 @@
   // ---------- the Date sheet ----------
   let draft = null, month = "";
   const WEEKDAY_SET = () => [...Dates().workDays()].sort((a, b) => a - b);
+  // `target` { get, set } puts the sheet on something other than the open
+  // task: the list page's own date (notes.js), saved with that page.
+  let dateTarget = null;
+  function openDateFor(target) {
+    dateTarget = target;
+    const it = target.get();
+    draft = { date: it.date || "", time: it.time || "", repeat: it.repeat ? { ...it.repeat } : null, remind: it.remind != null ? it.remind : null, deadline: it.deadline || "" };
+    month = (draft.date || api.today()).slice(0, 7);
+    fillDate();
+    $("#taskDateModal").hidden = false;
+  }
   function openDate() {
+    dateTarget = null;
     const { it } = current();
     if (!it) return;
     draft = { date: it.date || "", time: it.time || "", repeat: it.repeat ? { ...it.repeat } : null, remind: it.remind != null ? it.remind : null, deadline: it.deadline || "" };
@@ -642,6 +590,17 @@
     const d = draft;
     draft = null;
     $("#taskDateModal").hidden = true;
+    if (dateTarget) {
+      const t = dateTarget;
+      dateTarget = null;
+      const it = { ...t.get() };
+      for (const k of ["date", "time", "repeat", "remind", "deadline"]) delete it[k];
+      if (d.date) { it.date = d.date; if (d.time) it.time = d.time; if (d.repeat) it.repeat = d.repeat; if (d.remind != null) it.remind = d.remind; }
+      if (d.deadline) it.deadline = d.deadline;
+      cleanItem(it);
+      t.set(it);
+      return;
+    }
     change((it) => {
       const before = JSON.stringify([it.date, it.time, it.repeat, it.remind, it.deadline]);
       for (const k of ["date", "time", "repeat", "remind", "deadline"]) delete it[k];
@@ -687,23 +646,11 @@
       get: () => (current().it && current().it.tags) || [],
       set: (v) => { change((it) => { if (!Tags().setOn(it, v)) return false; }, { edited: false }); },
       known: () => Notes().tagCounts(),
-      placeholder: "Add",
+      placeholder: "+",
     });
+    $("#taskTags").closest(".task-field").addEventListener("click", (ev) => { if (!ev.target.closest("button, input")) tagField.input.focus(); });
     $("#taskPriority").onchange = () => change((it) => { const v = +$("#taskPriority").value; if (v) it.priority = v; else delete it.priority; }, { edited: false });
     $("#taskDateBtn").onclick = () => { commitText(); openDate(); };
-    const sub = $("#taskNewSub");
-    sub.onkeydown = (ev) => {
-      if (ev.key !== "Enter") return;
-      ev.preventDefault();
-      const words = sub.value.trim();
-      if (!words) return;
-      sub.value = "";
-      change((it, n) => {
-        const kids = childrenOf(n.items, it.id);
-        const after = kids.length ? kids[kids.length - 1] : it;
-        n.items.splice(n.items.indexOf(after) + 1, 0, { id: uid(), text: words, parent: it.id });
-      }).then(() => sub.focus());
-    };
     $("#taskCalPrev").onclick = () => { const [y, m] = month.split("-").map(Number); month = m === 1 ? `${y - 1}-12` : `${y}-${pad(m - 1)}`; fillDate(); };
     $("#taskCalNext").onclick = () => { const [y, m] = month.split("-").map(Number); month = m === 12 ? `${y + 1}-01` : `${y}-${pad(m + 1)}`; fillDate(); };
     $("#taskTime").onchange = () => { draft.time = isTime($("#taskTime").value) ? $("#taskTime").value : ""; if (draft.remind != null && !draft.time && ![0, 1440].includes(draft.remind)) draft.remind = 0; fillDate(); };
@@ -722,8 +669,8 @@
   }
 
   const api = {
-    init, wire, openTask, closeTask, closeAll: () => closeTask({ all: true }), closeDate: applyDate, handleEscape, isOpen: () => !!cur,
-    cleanItem, cleanParents, cleanRepeat, isTask, childrenOf, nextDate, tick, dueTasks, categoryOf, remindAt,
+    init, wire, openTask, openDateFor, closeTask, closeAll: () => closeTask({ all: true }), closeDate: applyDate, handleEscape, isOpen: () => !!cur,
+    cleanItem, cleanParents, cleanHead, cleanRepeat, isTask, childrenOf, nextDate, tick, dueTasks, categoryOf, remindAt,
     today: () => localDay(new Date()), shortDay, repeatText, remindText, dateSummary, listLines, addDays, isDay, isTime, PRIORITY_NAMES,
   };
   if (typeof window !== "undefined") window.LifeLogTasks = api;

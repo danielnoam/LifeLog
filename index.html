@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.317.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.318.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -358,19 +358,37 @@
           <label id="nTitleLabel" class="nv-title-label" hidden><span id="nTitleLabelText" class="sr-only">Title</span>
             <input id="nTitle" class="nv-title" type="text" autocomplete="off" placeholder="Title" />
           </label>
-          <label class="nv-cat" title="Category"><span class="dot" id="nCatDot"></span><span class="sr-only">Category</span>
-            <select id="nCategory"></select>
-          </label>
-          <div id="nTags"></div>
-          <button type="button" class="nv-board" id="nBoardPad" hidden><span id="nBoardPadText">Tap to start drawing</span></button>
-          <div id="nQuoteFields" class="note-quote-fields" hidden>
-            <label>Author
+          <textarea id="nDesc" class="task-note note-desc" rows="1" autocomplete="off" aria-label="Description" placeholder="Add a description" hidden></textarea>
+          <!-- One box for what's set on it, above the words (16 Nov 2026):
+               a list's rows are its date and priority too; a quote's its
+               author and source. -->
+          <div class="task-fields note-fields" id="nFields">
+            <label class="task-field"><span data-ico="layers"></span><span class="task-field-label">Category</span>
+              <span class="dot" id="nCatDot"></span><select id="nCategory"></select>
+            </label>
+            <label class="task-field" id="nAuthorRow" hidden><span data-ico="user"></span><span class="task-field-label">Author</span>
               <input id="nAuthor" type="text" autocomplete="off" placeholder="Who said it" />
             </label>
-            <label>Source
+            <label class="task-field" id="nSourceRow" hidden><span data-ico="book-open"></span><span class="task-field-label">Source</span>
               <input id="nSource" type="text" autocomplete="off" placeholder="Book, film, talk…" />
             </label>
+            <button type="button" class="task-field" id="nDateBtn" hidden><span data-ico="calendar"></span><span class="task-field-label">Date</span>
+              <span class="task-field-value" id="nDateValue"></span>
+            </button>
+            <label class="task-field" id="nPriorityRow" hidden><span data-ico="flag"></span><span class="task-field-label">Priority</span>
+              <select id="nPriority">
+                <option value="">None</option>
+                <option value="1">High</option>
+                <option value="2">Medium</option>
+                <option value="3">Low</option>
+              </select>
+            </label>
+            <div class="task-field task-tags" id="nTagsRow"><span data-ico="tag"></span><span class="task-field-label">Tags</span>
+              <div id="nTags"></div>
+            </div>
           </div>
+          <button type="button" class="nv-board" id="nBoardPad" hidden><span id="nBoardPadText">Tap to start drawing</span></button>
+          <p class="note-subs-head" id="nSubsHead" hidden>Subtasks</p>
           <label id="nTextLabel" class="nv-text-label"><span id="nTextLabelText" class="sr-only">Note</span>
             <span class="nv-editor" id="nEditor">
               <span class="nv-gutter" id="nGutter" aria-hidden="true"></span>
@@ -471,11 +489,6 @@
               <div id="taskTags"></div>
             </div>
           </div>
-          <div class="task-subs-wrap" id="taskSubs">
-            <p class="task-subs-head" id="taskSubsHead">Subtasks</p>
-            <div class="task-subs" id="taskSubList"></div>
-            <div class="note-list-new task-sub-new"><span aria-hidden="true">+</span><input id="taskNewSub" type="text" autocomplete="off" placeholder="Add a subtask" aria-label="New subtask" /></div>
-          </div>
         </div>
       </div>
     </div>
@@ -572,7 +585,7 @@
         <h2 id="tagsModalTitle"><span data-ico="tags"></span> Tags</h2>
         <button type="button" class="btn btn-icon" id="closeTagsBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
       </div>
-      <input type="text" id="tagsFind" class="tags-find" autocomplete="off" placeholder="Find a tag" aria-label="Find a tag" />
+      <input type="text" id="tagsFind" class="tags-find" autocomplete="off" placeholder="Find or add a tag" aria-label="Find or add a tag" />
       <div class="tags-list" id="tagsList"></div>
     </div>
   </div>
@@ -2998,59 +3011,59 @@
     </div>
   </div>
 
-  <script defer src="src/keel/errlog.js?v=0.317.0" data-key="lifelog-errors-v1" data-keep="50"></script>
-  <script defer src="src/headless.js?v=0.317.0"></script>
-  <script defer src="src/keel/platform.js?v=0.317.0"></script>
-  <script defer src="src/platform.js?v=0.317.0"></script>
-  <script defer src="src/keel/motion.js?v=0.317.0"></script>
-  <script defer src="src/motion.js?v=0.317.0"></script>
-  <script defer src="src/desktop.js?v=0.317.0"></script>
-  <script defer src="src/dates.js?v=0.317.0"></script>
-  <script defer src="src/datefield.js?v=0.317.0"></script>
-  <script defer src="src/keys.js?v=0.317.0"></script>
-  <script defer src="src/keel/releases.js?v=0.317.0"></script>
-  <script defer src="src/testbuilds.js?v=0.317.0"></script>
-  <script defer src="src/icons.js?v=0.317.0"></script>
-  <script defer src="src/select.js?v=0.317.0"></script>
-  <script defer src="src/jobs.js?v=0.317.0"></script>
-  <script defer src="src/reconcile.js?v=0.317.0"></script>
-  <script defer src="src/keel/qr.js?v=0.317.0"></script>
-  <script defer src="src/media.js?v=0.317.0"></script>
-  <script defer src="src/merge.js?v=0.317.0"></script>
-  <script defer src="src/keel/github.js?v=0.317.0"></script>
-  <script defer src="src/storage.js?v=0.317.0"></script>
-  <script defer src="src/finance.js?v=0.317.0"></script>
-  <script defer src="src/settings.js?v=0.317.0"></script>
-  <script defer src="src/wheel.js?v=0.317.0"></script>
-  <script defer src="src/backlog.js?v=0.317.0"></script>
-  <script defer src="src/journal.js?v=0.317.0"></script>
-  <script defer src="src/markdown.js?v=0.317.0"></script>
-  <script defer src="src/images.js?v=0.317.0"></script>
-  <script defer src="src/tags.js?v=0.317.0"></script>
-  <script defer src="src/tasks.js?v=0.317.0"></script>
-  <script defer src="src/notes.js?v=0.317.0"></script>
-  <script defer src="src/docimport.js?v=0.317.0"></script>
-  <script defer src="src/io.js?v=0.317.0"></script>
-  <script defer src="src/sync.js?v=0.317.0"></script>
-  <script defer src="src/habits.js?v=0.317.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.317.0"></script>
-  <script defer src="src/boards.js?v=0.317.0"></script>
-  <script defer src="src/invest.js?v=0.317.0"></script>
-  <script defer src="src/waypage.js?v=0.317.0"></script>
-  <script defer src="src/home.js?v=0.317.0"></script>
-  <script defer src="src/recap.js?v=0.317.0"></script>
-  <script defer src="src/reminders.js?v=0.317.0"></script>
-  <script defer src="src/alerts.js?v=0.317.0"></script>
-  <script defer src="src/widgets.js?v=0.317.0"></script>
-  <script defer src="src/share.js?v=0.317.0"></script>
-  <script defer src="src/search.js?v=0.317.0"></script>
-  <script defer src="src/letterboxd.js?v=0.317.0"></script>
-  <script defer src="src/stremio.js?v=0.317.0"></script>
-  <script defer src="src/keel/drive.js?v=0.317.0"></script>
-  <script defer src="src/drive.js?v=0.317.0"></script>
-  <script defer src="src/connections.js?v=0.317.0"></script>
-  <script defer src="src/hardcover.js?v=0.317.0"></script>
-  <script defer src="src/payments.js?v=0.317.0"></script>
-  <script defer src="src/app.js?v=0.317.0"></script>
+  <script defer src="src/keel/errlog.js?v=0.318.0" data-key="lifelog-errors-v1" data-keep="50"></script>
+  <script defer src="src/headless.js?v=0.318.0"></script>
+  <script defer src="src/keel/platform.js?v=0.318.0"></script>
+  <script defer src="src/platform.js?v=0.318.0"></script>
+  <script defer src="src/keel/motion.js?v=0.318.0"></script>
+  <script defer src="src/motion.js?v=0.318.0"></script>
+  <script defer src="src/desktop.js?v=0.318.0"></script>
+  <script defer src="src/dates.js?v=0.318.0"></script>
+  <script defer src="src/datefield.js?v=0.318.0"></script>
+  <script defer src="src/keys.js?v=0.318.0"></script>
+  <script defer src="src/keel/releases.js?v=0.318.0"></script>
+  <script defer src="src/testbuilds.js?v=0.318.0"></script>
+  <script defer src="src/icons.js?v=0.318.0"></script>
+  <script defer src="src/select.js?v=0.318.0"></script>
+  <script defer src="src/jobs.js?v=0.318.0"></script>
+  <script defer src="src/reconcile.js?v=0.318.0"></script>
+  <script defer src="src/keel/qr.js?v=0.318.0"></script>
+  <script defer src="src/media.js?v=0.318.0"></script>
+  <script defer src="src/merge.js?v=0.318.0"></script>
+  <script defer src="src/keel/github.js?v=0.318.0"></script>
+  <script defer src="src/storage.js?v=0.318.0"></script>
+  <script defer src="src/finance.js?v=0.318.0"></script>
+  <script defer src="src/settings.js?v=0.318.0"></script>
+  <script defer src="src/wheel.js?v=0.318.0"></script>
+  <script defer src="src/backlog.js?v=0.318.0"></script>
+  <script defer src="src/journal.js?v=0.318.0"></script>
+  <script defer src="src/markdown.js?v=0.318.0"></script>
+  <script defer src="src/images.js?v=0.318.0"></script>
+  <script defer src="src/tags.js?v=0.318.0"></script>
+  <script defer src="src/tasks.js?v=0.318.0"></script>
+  <script defer src="src/notes.js?v=0.318.0"></script>
+  <script defer src="src/docimport.js?v=0.318.0"></script>
+  <script defer src="src/io.js?v=0.318.0"></script>
+  <script defer src="src/sync.js?v=0.318.0"></script>
+  <script defer src="src/habits.js?v=0.318.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.318.0"></script>
+  <script defer src="src/boards.js?v=0.318.0"></script>
+  <script defer src="src/invest.js?v=0.318.0"></script>
+  <script defer src="src/waypage.js?v=0.318.0"></script>
+  <script defer src="src/home.js?v=0.318.0"></script>
+  <script defer src="src/recap.js?v=0.318.0"></script>
+  <script defer src="src/reminders.js?v=0.318.0"></script>
+  <script defer src="src/alerts.js?v=0.318.0"></script>
+  <script defer src="src/widgets.js?v=0.318.0"></script>
+  <script defer src="src/share.js?v=0.318.0"></script>
+  <script defer src="src/search.js?v=0.318.0"></script>
+  <script defer src="src/letterboxd.js?v=0.318.0"></script>
+  <script defer src="src/stremio.js?v=0.318.0"></script>
+  <script defer src="src/keel/drive.js?v=0.318.0"></script>
+  <script defer src="src/drive.js?v=0.318.0"></script>
+  <script defer src="src/connections.js?v=0.318.0"></script>
+  <script defer src="src/hardcover.js?v=0.318.0"></script>
+  <script defer src="src/payments.js?v=0.318.0"></script>
+  <script defer src="src/app.js?v=0.318.0"></script>
 </body>
 </html>

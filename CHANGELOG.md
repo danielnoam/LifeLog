@@ -3,6 +3,26 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.318.0] - 2026-11-15
+
+### Added
+- A tasks list is a task itself: on its page, under the title, a description, then one box with Category, Date (time, repeat, reminder, deadline), Priority and Tags. Its rows are its subtasks. Ticking the list ticks every row; a repeating list moves to its next date and unticks them. A dated list shows on Home's Coming up, the Timeline's calendar, reminders and the widgets as one task.
+- The list's card has its own tick (in its priority's colour) and a line under the title with its date and what else is set.
+- Each row on a list's page has a pen that opens it as a task.
+- Notes and quotes get the same box above the text, with Category and Tags; a quote's also holds Author and Source.
+- The Notebook's Tags row is always there: All tags first, then your tags, then "+" to make a new one before anything carries it.
+- Bridge: lifelog_list_task sets a list's own task fields and ticks it. lifelog_add_task's `parent` now puts a task right after another one.
+
+### Changed
+- Subtasks inside a list's rows are gone: the list is the task, its rows are the subtasks. Rows nested under another row in 0.317.0 stay where they are, as rows of their own.
+- Indented `- [ ]` lines in an imported Markdown file come in as rows of their own.
+- In the box, the Tags row is just "+" with no tags; with tags, they sit on the right, and tapping the row adds another.
+- Clear (finished rows) moved off the card into the list page's ⋯ as Clear finished.
+- The task sheet's list switcher sits in the middle of the top bar; a row's words and its details line up in the middle.
+
+### Removed
+- The "Drag the handle to move an item" hint on a list's page.
+
 ## [0.317.0] - 2026-11-15
 
 ### Added

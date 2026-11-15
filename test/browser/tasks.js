@@ -1,5 +1,5 @@
 // Tasks: a checklist's items with a description, priority, date, repeat,
-// reminder and subtasks (tasks.js). Driven through the card, the task sheet
+// reminder, and the list as a task itself (tasks.js). Driven through the card, the task sheet
 // and the Date sheet on a phone-sized page, then checked in what was saved.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
@@ -72,38 +72,26 @@ const SEED = {
   await page.dispatchEvent("#taskDeadline", "change");
   await page.click("#taskDateDone");
   await page.waitForTimeout(300);
-  for (const t of ["Tent", "Chairs"]) { await page.fill("#taskNewSub", t); await page.press("#taskNewSub", "Enter"); await page.waitForTimeout(250); }
-  check("the add line keeps the focus for the next subtask", await page.evaluate(() => document.activeElement.id === "taskNewSub"));
   let p = await item("L", "p");
   check("the sheet's fields are saved", p.text === "Pack the car" && p.note === "Tent first" && p.priority === 1 && p.category === "Work"
     && p.date === day(1) && p.time === "08:30" && p.remind === 15 && p.deadline === day(5), p);
-  let items = (await saved()).notes.find((n) => n.id === "L").items;
-  check("subtasks sit right after their task", items.map((i) => i.text + (i.parent ? "<" + i.parent : "")).join() === "Water the plants,Pack the car,Tent<p,Chairs<p,Return books", items.map((i) => i.text));
-
-  await page.click('#taskSubList [data-item] .todo-body >> text=Tent');
-  await page.waitForTimeout(250);
-  check("a subtask opens in the same sheet, with its task in the crumb", /Pack the car/.test(await page.textContent("#taskCrumb")) && !(await page.isVisible("#taskSubs")));
-  await page.click("#taskCloseBtn");
-  await page.waitForTimeout(250);
-  check("its ← goes back to its task", (await page.inputValue("#taskText")) === "Pack the car");
+  check("the sheet has no subtasks of its own (the list is the task)", !(await page.$("#taskSubs")));
   await page.selectOption("#taskList", "M");
   await page.waitForTimeout(300);
   const d = await saved();
-  check("moving a task to another list takes its subtasks", d.notes.find((n) => n.id === "M").items.map((i) => i.text).join() === "Stamps,Pack the car,Tent,Chairs"
+  check("moving a task to another list takes just that row", d.notes.find((n) => n.id === "M").items.map((i) => i.text).join() === "Stamps,Pack the car"
     && !d.notes.find((n) => n.id === "L").items.some((i) => i.id === "p"));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   check("Escape closes it", await page.evaluate(() => document.querySelector("#taskModal").hidden));
 
   const M = '.note-card[data-id="M"]';
-  check("the card shows the subtask count", /0\/2/.test(await page.textContent(`${M} [data-item="p"] .todo-meta`)));
-  await page.click(`${M} [data-item="p"] .todo-fold`);
-  await page.waitForTimeout(250);
-  check("the chevron folds the subtasks away", await page.evaluate((M) => !document.querySelector(`${M} .todo-row.is-sub`), M));
-  await page.click(`${M} [data-item="p"] .todo-check`);
+  await page.click(`${M} .note-list-tick`);
   await page.waitForTimeout(300);
-  items = (await saved()).notes.find((n) => n.id === "M").items;
-  check("ticking a task ticks its subtasks", items.filter((i) => i.id === "p" || i.parent === "p").every((i) => i.done));
+  const m = (await saved()).notes.find((n) => n.id === "M");
+  check("ticking the list itself ticks all its rows", m.done === true && m.items.every((i) => i.done), m);
+  await page.click(`${M} .note-list-tick`);
+  await page.waitForTimeout(300);
 
   // Home's Coming up.
   await page.evaluate(() => { const t = [...document.querySelectorAll("nav button, .tab")].find((x) => /Home/.test(x.textContent)); t && t.click(); });

@@ -60,7 +60,7 @@ test("sanitizeNote keeps a checklist item's fields it doesn't know about", () =>
   ] });
   assert.deepStrictEqual(out.items, [
     { id: "a", text: "Book", updatedAt: "2026-11-15T10:00:00.000Z", date: "2026-11-20", priority: 1 },
-    { id: "b", text: "Deposit", done: true, doneAt: "2026-11-14T10:00:00.000Z", parent: "a" },
+    { id: "b", text: "Deposit", done: true, doneAt: "2026-11-14T10:00:00.000Z" },
   ]);
 });
 test("sanitizeNote carries through a field it doesn't know about", () => {

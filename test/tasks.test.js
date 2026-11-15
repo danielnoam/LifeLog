@@ -34,9 +34,35 @@ test("what doesn't hold up is dropped", () => {
   const n = Notes.sanitizeNote(list([{ id: "a", text: "x", priority: 7, date: "2026-13-40", time: "18:00", repeat: { unit: "day" }, remind: 5, note: "  " }]));
   assert.deepStrictEqual(n.items[0], { id: "a", text: "x" });
 });
-test("subtasks go one level deep; an orphan comes back to the top", () => {
+test("rows are the list's subtasks: 0.317.0's nested ones come back to the list, in place", () => {
   const n = Notes.sanitizeNote(list([{ id: "a", text: "A" }, { id: "b", text: "B", parent: "a" }, { id: "c", text: "C", parent: "b" }, { id: "d", text: "D", parent: "gone" }]));
-  assert.deepStrictEqual(n.items.map((i) => i.parent || ""), ["", "a", "", ""]);
+  assert.deepStrictEqual(n.items.map((i) => i.id + (i.parent || "")), ["a", "b", "c", "d"]);
+});
+test("the list itself is a task: its fields are cleaned like a row's", () => {
+  const n = Notes.sanitizeNote({ ...list([{ id: "a", text: "A" }]), note: "Car booked", priority: 1, date: "2026-11-21", time: "10:00", repeat: { every: 1, unit: "week" }, remind: 60, deadline: "nope", done: "yes" });
+  assert.strictEqual(n.note, "Car booked");
+  assert.strictEqual(n.priority, 1);
+  assert.strictEqual(n.date, "2026-11-21");
+  assert.deepStrictEqual(n.repeat, { every: 1, unit: "week" });
+  assert.strictEqual(n.remind, 60);
+  assert.strictEqual(n.deadline, undefined);
+  assert.strictEqual(n.done, true);
+  assert.strictEqual(Notes.sanitizeNote({ text: "plain", date: "2026-11-21" }).date, "2026-11-21", "a plain note keeps it as an unknown field");
+});
+test("ticking the list ticks its rows; a repeating list moves on and unticks them", () => {
+  const n = { id: "L", kind: "list", text: "Trip", items: [{ id: "a", text: "A" }, { id: "b", text: "B", done: true }] };
+  T.tick(n, "L", true, new Date("2026-11-15T12:00:00"), "2026-11-15");
+  assert.ok(n.done && n.items.every((i) => i.done));
+  const w = { id: "W", kind: "list", text: "Weekly", date: "2026-11-15", repeat: { every: 1, unit: "week" }, items: [{ id: "a", text: "A", done: true }] };
+  const r = T.tick(w, "W", true, new Date("2026-11-15T12:00:00"), "2026-11-15");
+  assert.strictEqual(r.next, "2026-11-22");
+  assert.ok(!w.done && !w.items[0].done && w.ticks.length === 1);
+});
+test("a dated list is one row in what's due, with the note as its item", () => {
+  const n = { id: "L", kind: "list", text: "Trip", date: "2026-11-16", items: [{ id: "a", text: "A", date: "2026-11-17" }] };
+  const rows = T.dueTasks({ notes: [n] }, "2026-11-30");
+  assert.deepStrictEqual(rows.map((r) => r.item.id), ["L", "a"]);
+  assert.strictEqual(rows[0].item.text, "Trip");
 });
 test("search finds a task's description", () => {
   const n = Notes.sanitizeNote(list([{ id: "a", text: "Book", note: "plate number" }]));

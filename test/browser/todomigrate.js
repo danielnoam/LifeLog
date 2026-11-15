@@ -79,7 +79,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
   // Waits for the save to reach GitHub rather than a fixed time: under a
   // loaded run it could land after 1.5s, and everything below is built on it.
   const putsBefore = gh.puts;
-  await page.locator('.note-card:has-text("Shopping") .todo-check').first().click();
+  await page.locator('.note-card:has-text("Shopping") [data-item] .todo-check').first().click();
   for (let t = 0; t < 100 && gh.puts === putsBefore; t++) await page.waitForTimeout(100);
   await page.waitForTimeout(300);
   let remote = gh.file.data;
