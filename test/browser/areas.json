@@ -61,7 +61,7 @@
     },
     "settings": {
       "files": ["src/settings.js", "src/keys.js", "src/testbuilds.js", "src/qr.js"],
-      "suites": ["bridgehistory", "datesettings", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu"]
+      "suites": ["bridgehistory", "datafolder", "datesettings", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu"]
     },
     "search": {
       "files": ["src/search.js"],
@@ -69,7 +69,7 @@
     },
     "native": {
       "files": ["src/headless.js", "src/widgets.js", "src/reminders.js", "src/alerts.js", "src/share.js", "src/desktop.js"],
-      "suites": ["desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "pricealert", "share"]
+      "suites": ["datafolder", "desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "pricealert", "share"]
     }
   }
 }

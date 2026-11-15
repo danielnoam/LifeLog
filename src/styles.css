@@ -3052,6 +3052,7 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 #testBuildsList .tb-row .sitem-title { overflow-wrap: anywhere; }
 #testBuildsList .tb-row .btn-small { flex: 0 0 auto; position: relative; }
 .sitem-sub.tb-warn { color: var(--warning); }
+.data-folder-path { overflow-wrap: anywhere; }
 /* Settings → Sync: room left in the data repo (2026-11). */
 .space-bar { display: block; height: 4px; margin-top: var(--space-4); border-radius: var(--r-hair); background: var(--border); overflow: hidden; }
 .space-fill { display: block; height: 100%; background: var(--accent); transform-origin: left; }

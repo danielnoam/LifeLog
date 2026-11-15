@@ -12,6 +12,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "LifeLog",
         "width": 1280,
         "height": 840,
@@ -37,7 +38,7 @@
     "homepage": "https://github.com/danielnoam/LifeLog",
     "createUpdaterArtifacts": false,
     "windows": {
-      "nsis": { "installMode": "currentUser" }
+      "nsis": { "installMode": "currentUser", "installerHooks": "./windows/hooks.nsh" }
     },
     "linux": {
       "deb": { "depends": [] }
