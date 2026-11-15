@@ -25,11 +25,13 @@ const SEARCH = {
     page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
     const asked = [];
     let mode = "ok";
+    let inFlight = 0;
     await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
     await page.route("https://proxy.test/**", async (r) => {
       const u = new URL(r.request().url());
       asked.push(u.pathname + u.search);
-      const send = (status, body) => r.fulfill({ status, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(body) });
+      inFlight++;
+      const send = (status, body) => { inFlight--; return r.fulfill({ status, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(body) }); };
       if (u.pathname === "/tiingo-search") {
         await new Promise((res) => setTimeout(res, 400));
         if (mode === "old-proxy") return send(404, { error: "Not found" });
@@ -55,7 +57,16 @@ const SEARCH = {
     };
     const status = () => page.$eval("#watchResults", (n) => (n.hidden ? "" : (n.querySelector(".invest-results-status") || {}).textContent || ""));
     const symbols = () => page.$$eval(".invest-result b", (n) => n.map((x) => x.textContent).join());
-    const settle = () => page.waitForTimeout(900);
+    // Past the 250ms typing pause, then until every faked call has answered
+    // (a no-match also asks the meta route), then a beat to draw. A fixed
+    // 900ms was 250ms over the happy path and failed on a busy runner.
+    const settle = async () => {
+      await page.waitForTimeout(350);
+      for (let quiet = 0, t = 0; quiet < 3 && t < 200; t++) {
+        await page.waitForTimeout(50);
+        quiet = inFlight ? 0 : quiet + 1;
+      }
+    };
     const shot = (name) => shots && page.screenshot({ path: `${shots}/${name}-${width < 720 ? "phone" : "desktop"}.png` });
 
     await boot("tk-1");

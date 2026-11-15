@@ -65,6 +65,10 @@ jobs:
     needs: scope
     if: needs.scope.outputs.suites != 'none'
     runs-on: ubuntu-24.04
+    # A shard takes about four minutes. On 2026-11-14 one hung in the apt
+    # step of the Chromium install for six hours, GitHub's own limit, and
+    # held its PR's check that long; this fails it fast so a re-run can go.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
