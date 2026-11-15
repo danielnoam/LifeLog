@@ -763,6 +763,23 @@
     return true;
   }
 
+  // Settings → Desktop → Data folder (Windows): what the shell is using
+  // now, read fresh each time the page fills.
+  let dataFolderNow = null;
+  async function fillDataFolder() {
+    const D = window.LifeLogPlatform && window.LifeLogPlatform.desktop && window.LifeLogDesktop;
+    const f = D && D.dataFolder ? await D.dataFolder() : null;
+    dataFolderNow = f;
+    $("#dataFolderGroup").hidden = !f;
+    if (!f) return;
+    $("#dataFolderMode").value = f.mode;
+    $("#dataFolderPath").textContent = f.dir;
+    $("#dataFolderOldRow").hidden = !f.old;
+    $("#dataFolderOldPath").textContent = f.old || "";
+    $("#dataFolderNote").hidden = !f.note;
+    $("#dataFolderNote").textContent = f.note || "";
+  }
+
   // ---------- the line under each row ----------
   // A few words on what the page holds, not where things stand (2026-11-13,
   // Daniel: the old status lines ran to two lines and said too much). Only
@@ -772,7 +789,7 @@
     io: "Back up or bring data in",
     history: "Undo saves, restore deleted",
     lock: "A PIN to open the app",
-    desktop: "Startup and tray",
+    desktop: "Startup, tray and data folder",
     notifications: "Reminders and alerts",
     appearance: "Theme, font and layout",
     tabs: "Show, hide and order tabs",
@@ -983,6 +1000,7 @@
       $("#loginOpens").value = D.prefs().loginOpens;
       $("#closeToTray").checked = D.prefs().closeToTray;
     }
+    fillDataFolder();
     // The background refresh (0.279.0): Android only, and only an APK
     // that has the job.
     const Wg = window.LifeLogWidgets;
@@ -1949,6 +1967,42 @@
     };
     $("#loginOpens").onchange = () => { window.LifeLogDesktop.setPref("loginOpens", $("#loginOpens").value); updateStatuses(); };
     $("#closeToTray").onchange = () => { window.LifeLogDesktop.setPref("closeToTray", $("#closeToTray").checked); updateStatuses(); };
+    $("#dataFolderMode").onchange = async () => {
+      const sel = $("#dataFolderMode");
+      const D = window.LifeLogDesktop;
+      const was = dataFolderNow;
+      if (!D || !was) return;
+      let custom = "";
+      if (sel.value === "custom") {
+        try { custom = await D.pickFolder(); } catch (e) { custom = null; }
+        if (!custom) { sel.value = was.mode; return; }
+      }
+      const where = sel.value === "custom" ? custom : sel.value === "lifelog" ? was.lifelog : was.appdata;
+      if (!confirm("Move LifeLog's data to " + where + "?\n\nLifeLog restarts and copies everything there. The copy where it is now stays until you remove it here.")) {
+        sel.value = was.mode;
+        return;
+      }
+      try {
+        if (!(await D.chooseDataFolder(sel.value, custom))) { toast("Already kept there"); fillDataFolder(); }
+      } catch (e) {
+        sel.value = was.mode;
+        toast("Couldn't move it: " + ((e && e.message) || e), true);
+      }
+    };
+    $("#dataFolderOpenBtn").onclick = () => {
+      window.LifeLogDesktop.openDataFolder().catch((e) => toast("Couldn't open the folder: " + ((e && e.message) || e), true));
+    };
+    $("#dataFolderOldBtn").onclick = async () => {
+      if (!dataFolderNow || !dataFolderNow.old) return;
+      if (!confirm("Delete the copy at " + dataFolderNow.old + "?\n\nIt's what LifeLog had before the move. Your data in " + dataFolderNow.dir + " isn't touched.")) return;
+      try {
+        await window.LifeLogDesktop.removeOldDataCopy();
+        toast("Old copy removed");
+      } catch (e) {
+        toast("Couldn't remove it: " + ((e && e.message) || e), true);
+      }
+      fillDataFolder();
+    };
     $("#testNotifBtn").onclick = async () => {
       await window.LifeLogDesktop.ringTest();
       toast("Sent. Nothing showed? Check Do not disturb and your system's notification settings");

@@ -526,6 +526,14 @@ Linux when `desktop.yml` is run by hand with **Linux too** ticked.
   kept. Settings → Notifications has Send a test notification.
 - **Settings → Desktop**: start at login, into the tray or with the
   window open, and whether closing hides it or quits.
+- **Its data folder** (Windows): everything it keeps on the computer
+  lives in `LifeLog\data` beside `LifeLog.exe` (moved there from AppData
+  on the first start of this version, the old copy kept until you remove
+  it). Settings → Desktop → Data folder switches it to AppData or a folder
+  you pick, with a restart that copies it over
+  (`src-tauri/src/datafolder.rs`). Uninstalling with "Delete the
+  application data" ticked removes it there too, but in a folder you
+  picked only LifeLog's own `EBWebView` folders, never the rest.
 - **Right-click menus**: on any computer, Timeline, Backlog, Ledger,
   notes, boards and habits rows have a menu of their own actions, and
   Select starts selecting from there.

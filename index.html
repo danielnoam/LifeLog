@@ -2370,7 +2370,7 @@
       </section>
       <div class="kb-foot"><button type="button" class="btn" id="kbResetAll">Reset all</button></div>
       </div>
-      <div class="settings-page" hidden data-page="desktop" data-title="Desktop" data-keywords="windows linux computer desktop app start at login startup boot sign in tray close quit minimise minimize window">
+      <div class="settings-page" hidden data-page="desktop" data-title="Desktop" data-keywords="windows linux computer desktop app start at login startup boot sign in tray close quit minimise minimize window data folder location save appdata storage move uninstall">
       <h2 class="settings-page-title">Desktop</h2>
       <p class="hint page-lede">How LifeLog runs on this computer.</p>
       <section class="sgroup">
@@ -2392,6 +2392,29 @@
           </label>
         </div>
         <p class="hint">Quit in the tray's menu always stops it. Anything due while it wasn't running rings when it opens again, if it's under an hour late (12 hours for the 9:00 heads-ups).</p>
+      </section>
+      <section class="sgroup" id="dataFolderGroup" hidden>
+        <h3 class="sgroup-label">Data folder</h3>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Keep data in</span><span class="sitem-sub data-folder-path" id="dataFolderPath"></span></span>
+            <select id="dataFolderMode">
+              <option value="lifelog">The LifeLog folder</option>
+              <option value="appdata">AppData</option>
+              <option value="custom">A folder you pick…</option>
+            </select>
+          </label>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Open the folder</span><span class="sitem-sub">In File Explorer</span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small" id="dataFolderOpenBtn">Open</button></span>
+          </div>
+          <div class="sitem" id="dataFolderOldRow" hidden>
+            <span class="sitem-text"><span class="sitem-title">Copy from before the move</span><span class="sitem-sub data-folder-path" id="dataFolderOldPath"></span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small btn-danger" id="dataFolderOldBtn">Remove</button></span>
+          </div>
+        </div>
+        <p class="warn" id="dataFolderNote" hidden></p>
+        <p class="hint">Everything LifeLog keeps on this computer, your GitHub token too. Changing it restarts LifeLog and copies it all over; the old copy stays until you remove it. Uninstalling asks whether to delete it. Avoid a OneDrive or Dropbox folder: syncing it while LifeLog is open can damage it, and your token would go along.</p>
       </section>
       </div>
       <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel background refresh widgets start at login tray computer desktop test action center toast">

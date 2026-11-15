@@ -7,6 +7,7 @@
     "core:default",
     "opener:allow-open-url",
     "dialog:allow-save",
+    "dialog:allow-open",
     "fs:allow-write-file",
     "fs:allow-write-text-file",
     "notification:default",
