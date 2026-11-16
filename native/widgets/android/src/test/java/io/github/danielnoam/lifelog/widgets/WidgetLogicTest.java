@@ -747,4 +747,34 @@ public class WidgetLogicTest {
         assertEquals("repeats", a.meta);
         assertEquals(1, WidgetStore.overdueCount(rows, D));
     }
+
+    @Test
+    public void aTaskRowCarriesWhatElseItHas() throws Exception {
+        JSONObject snap = json("{\"todos\":[{\"id\":\"a\",\"text\":\"Book\",\"category\":\"Trip\",\"list\":\"L\",\"repeatText\":\"Every day\",\"remind\":true,"
+            + "\"deadline\":\"2026-09-26\",\"deadlineText\":\"26 Sep\",\"own\":\"Admin\",\"ownColor\":\"#7c3aed\",\"tags\":[\"errands\",\" \",\"van\"],\"desc\":\"Bigger one\"},"
+            + "{\"id\":\"b\",\"text\":\"Plain\",\"category\":\"Trip\",\"list\":\"L\"}]}");
+        WidgetStore.Row a = null, b = null;
+        for (WidgetStore.Row r : WidgetStore.todoRows(snap, NONE)) {
+            if ("a".equals(r.id)) a = r;
+            if ("b".equals(r.id)) b = r;
+        }
+        assertEquals("Every day", a.repeatText);
+        assertTrue(a.reminds);
+        assertEquals("2026-09-26", a.deadline);
+        assertEquals("Admin", a.own);
+        assertEquals(0xFF7C3AED, a.ownColor);
+        assertEquals("#errands #van", a.tags);
+        assertEquals("Bigger one", a.desc);
+        assertEquals("", b.tags);
+        assertFalse(b.reminds);
+    }
+
+    @Test
+    public void aDeadlineIsWordedByThePhonesClock() {
+        assertEquals("Deadline today", WidgetStore.deadlineWords(D, "", D));
+        assertEquals("Deadline tomorrow", WidgetStore.deadlineWords("2026-09-25", "", D));
+        assertEquals("Deadline 20 Sep", WidgetStore.deadlineWords("2026-09-20", "20 Sep", D));
+        assertEquals("Deadline 9 Oct", WidgetStore.deadlineWords("2026-10-09", "9 Oct", D));
+        assertEquals("", WidgetStore.deadlineWords("", "", D));
+    }
 }

@@ -73,6 +73,55 @@ final class WidgetStore {
         int priority;
         /** A list's heading on a widget set not to show its tick: the name and + only. */
         boolean noTick;
+        /**
+         * What else the app's task line shows (0.319.1): the repeat in words,
+         * a reminder, the deadline, its own category, its tags, and the first
+         * line of its description. `details` and `descOn` are the widget's
+         * settings for them.
+         */
+        String repeatText = "";
+        boolean reminds;
+        String deadline = "";
+        String deadlineText = "";
+        String own = "";
+        int ownColor;
+        String tags = "";
+        String desc = "";
+        boolean details;
+        boolean descOn;
+    }
+
+    /** Reads what else a task (or a list heading) has, as the snapshot sends it (0.319.1). */
+    static void readDetails(Row r, JSONObject t) {
+        r.repeatText = str(t, "repeatText");
+        r.reminds = t.optBoolean("remind");
+        r.deadline = str(t, "deadline");
+        r.deadlineText = str(t, "deadlineText");
+        r.own = str(t, "own");
+        r.ownColor = parseColor(str(t, "ownColor"), 0);
+        JSONArray tags = t.optJSONArray("tags");
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; tags != null && i < tags.length(); i++) {
+            String tag = tags.optString(i, "").trim();
+            if (tag.isEmpty()) continue;
+            if (b.length() > 0) b.append(' ');
+            b.append('#').append(tag);
+        }
+        r.tags = b.toString();
+        r.desc = str(t, "desc");
+    }
+
+    /** A deadline in words, by this phone's clock: "Deadline today", "Deadline Fri", "Deadline 3 Oct". */
+    static String deadlineWords(String deadline, String deadlineText, String today) {
+        if (deadline == null || deadline.isEmpty()) return "";
+        int d = BacklogWidgets.daysBetween(today, deadline);
+        String words;
+        if (d == Integer.MIN_VALUE) words = deadlineText.isEmpty() ? deadline : deadlineText;
+        else if (d == 0) words = "today";
+        else if (d == 1) words = "tomorrow";
+        else if (d > 1 && d < 7) words = new java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault()).format(dayOf(deadline).getTime());
+        else words = deadlineText.isEmpty() ? BacklogWidgets.shortDay(deadline) : deadlineText;
+        return "Deadline " + words;
     }
 
     /** A task's day in words, by this phone's clock: "Overdue", "Yesterday", "Today 18:00", "Tomorrow", "Tue", else the app's date. */
@@ -522,7 +571,12 @@ final class WidgetStore {
     static List<Row> todoRows(Context c, int widgetId) {
         JSONObject cfg = config(c, widgetId);
         List<Row> rows = todoRows(snapshot(c), queue(c), listsOf(cfg), flag(cfg, "done"), orderOf(cfg));
-        if (!flag(cfg, "headTick")) for (Row r : rows) if (r.type == ROW_HEADER) r.noTick = true;
+        boolean tick = flag(cfg, "headTick"), details = flag(cfg, "details"), desc = flag(cfg, "desc");
+        for (Row r : rows) {
+            if (r.type == ROW_HEADER && !tick) r.noTick = true;
+            r.details = details;
+            r.descOn = desc;
+        }
         return rows;
     }
 
@@ -645,6 +699,7 @@ final class WidgetStore {
                 r.dateText = str(t, "dateText");
                 r.meta = str(t, "meta");
                 r.priority = t.optInt("priority");
+                readDetails(r, t);
                 color = parseColor(str(t, "color"), 0);
                 boolean saved = t.optBoolean("done");
                 int at = queuedAt(q, r.id);
@@ -676,6 +731,7 @@ final class WidgetStore {
                     h.dateText = str(head, "dateText");
                     h.meta = str(head, "meta");
                     h.priority = head.optInt("priority");
+                    readDetails(h, head);
                 }
                 rows.add(h);
             }

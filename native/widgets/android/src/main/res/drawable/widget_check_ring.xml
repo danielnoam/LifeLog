@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An open task's tick from Android 12 on (0.319.1): a ring, as in the app.
+     White here; the row's button tint gives it the priority's colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,3 A9,9 0 1,1 11.99,3 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFFFF" />
+</vector>

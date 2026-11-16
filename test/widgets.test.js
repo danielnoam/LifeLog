@@ -424,6 +424,21 @@ test("a list's heading carries the list's own tick, day, priority and repeat (0.
   assert.deepStrictEqual([m.done, m.priority], [true, undefined]);
   assert.deepStrictEqual(Object.keys(n).sort(), ["color", "id", "name"]);
 });
+test("a task row and a list heading carry what the app's task line shows (0.319.1)", () => {
+  const d = { noteCategories: [{ name: "Admin", color: "#7c3aed" }], notes: [{ id: "L", kind: "list", text: "Move", category: "Home", createdAt: "2026-01-01",
+    date: "2026-09-25", deadline: "2026-09-27", note: "## Boxes first\nthen the rest", items: [
+    { id: "a", text: "Book", date: "2026-09-23", remind: 30, repeat: { every: 1, unit: "day" }, deadline: "2026-09-26",
+      category: "Admin", tags: ["errands", "van"], note: "\n- [ ] **Bigger** one" },
+    { id: "b", text: "Plain", category: "Home" }] }] };
+  const s = W.snapshotOf(d, { today: TODAY });
+  const [a, b] = s.todos;
+  assert.deepStrictEqual([a.repeatText, a.remind, a.deadline, a.own, a.ownColor, a.tags, a.desc],
+    ["Every day", true, "2026-09-26", "Admin", "#7c3aed", ["errands", "van"], "Bigger one"]);
+  assert.ok(a.deadlineText);
+  assert.strictEqual(b.own, undefined);
+  const h = s.lists[0];
+  assert.deepStrictEqual([h.deadline, h.desc, h.own, h.tags], ["2026-09-27", "Boxes first", undefined, undefined]);
+});
 test("a list made in the quick-add window lands on top, empty, and the items queued after it go in it", () => {
   const d = { notes: [{ id: "L", kind: "list", text: "Old", items: [] }] };
   const n = W.applyQueue(d, [{ kind: "list", id: "nl", text: " Groceries ", at: "2026-09-24T08:00:00.000Z" },
