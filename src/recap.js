@@ -12,6 +12,7 @@
 // null is dropped outright — a recap that pads itself with "0 notes written"
 // is a report again, which is the thing this isn't.
 (function () {
+  const rtl = () => document.documentElement.dir === "rtl";
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
 
@@ -487,14 +488,16 @@
       x0 = y0 = null;
       // Mostly sideways, or it's a scroll through a slide's wall or notes
       // that drifted — which used to flip to the next slide mid-read.
-      if (Math.abs(dx) > 45 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+      if (Math.abs(dx) > 45 && Math.abs(dx) > 2 * Math.abs(dy)) step((dx < 0) !== rtl() ? 1 : -1);
     }, { passive: true });
     // A slide's scrolling part takes its own taps so it can scroll, which
     // took them from the tap zones underneath. Passed on here by the same
-    // split: the left third goes back, the rest forward.
+    // split: the left third goes back, the rest forward (the right third,
+    // right to left).
     $("#recapStage").addEventListener("click", (e) => {
       if (e.target.closest("a, button")) return;
-      step(e.clientX < window.innerWidth * 0.33 ? -1 : 1);
+      const fromStart = rtl() ? window.innerWidth - e.clientX : e.clientX;
+      step(fromStart < window.innerWidth * 0.33 ? -1 : 1);
     });
   }
 
@@ -505,8 +508,9 @@
   function handleKey(e) {
     if (!isOpen()) return false;
     if (e.key === "Escape") { closeRecap(); return true; }
-    if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") { e.preventDefault(); step(1); return true; }
-    if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); return true; }
+    const next = rtl() ? "ArrowLeft" : "ArrowRight", back = rtl() ? "ArrowRight" : "ArrowLeft";
+    if (e.key === next || e.key === " " || e.key === "Enter") { e.preventDefault(); step(1); return true; }
+    if (e.key === back) { e.preventDefault(); step(-1); return true; }
     return false;
   }
 

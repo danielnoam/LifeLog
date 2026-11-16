@@ -17,6 +17,12 @@
 // data-motion="off" on <html> (setStill) nothing moves at all. What slides
 // in from an edge uses the spring stopped at 1, so it never overshoots the
 // edge. Only transform, opacity, clip-path and scale move.
+//
+// Sideways moves follow the page's direction, read from <html dir> at each
+// move: right to left, a screen is pushed in from the left edge, a sidebar
+// comes from the right, the next page from the left. `from` (where a drag
+// left something) stays in screen pixels either way. rtl() and x(n) (n,
+// negated when right to left) are for the app's own drag code.
 (function () {
   // A spring from rest at 0 to 1, sampled every frame into linear().
   function spring(k, c) {
@@ -71,6 +77,8 @@
       else delete document.documentElement.dataset.motion;
     }
     const desk = () => !!deskQ.matches;
+    const rtl = () => document.documentElement.dir === "rtl";
+    const x = (n) => (rtl() ? -n : n);
 
     function timing(kind) {
       if (reduced()) return { duration: RMS, easing: "linear" };
@@ -98,16 +106,17 @@
     const back = (f) => f.slice().reverse();
     const box = (el) => el.getBoundingClientRect();
 
-    // A screen pushed over another: in from the right edge. On touch the
-    // screen under it drifts a quarter to the left; on a desktop it stays.
-    const DRIFT = "translateX(-25%)";
+    // A screen pushed over another: in from the end edge (the right, or
+    // the left right to left). On touch the screen under it drifts a
+    // quarter the other way; on a desktop it stays.
+    const drift = () => "translateX(" + x(-25) + "%)";
     function push(el, under) {
-      const f = [{ transform: "translateX(100%)" }, { transform: "none" }];
-      return run([[el, f], !desk() && under && [under, [{ transform: "none" }, { transform: DRIFT }]]], "sheetEdge", true);
+      const f = [{ transform: "translateX(" + x(100) + "%)" }, { transform: "none" }];
+      return run([[el, f], !desk() && under && [under, [{ transform: "none" }, { transform: drift() }]]], "sheetEdge", true);
     }
     function pop(el, under, from = 0) {
-      const f = [{ transform: "translateX(" + from + "px)" }, { transform: "translateX(100%)" }];
-      return run([[el, f], !desk() && under && [under, [{ transform: DRIFT }, { transform: "none" }]]], "sheetEdge", false);
+      const f = [{ transform: "translateX(" + from + "px)" }, { transform: "translateX(" + x(100) + "%)" }];
+      return run([[el, f], !desk() && under && [under, [{ transform: drift() }, { transform: "none" }]]], "sheetEdge", false);
     }
 
     // A screen opened from a card: it settles in from slightly small,
@@ -165,23 +174,26 @@
       return one(el, [{ opacity: a }, { opacity: show ? 1 : 0 }], "sheet", show);
     }
 
-    // A sidebar from the left edge; closing goes on from where a drag left
-    // it, and a short drag springs back. What's under it (one element or
-    // several) drifts right a fifth of its width.
-    const sideDrift = (side) => "translateX(" + Math.round(side.offsetWidth * 0.2) + "px)";
+    // A sidebar from the start edge (the left, or the right right to
+    // left); closing goes on from where a drag left it, and a short drag
+    // springs back. What's under it (one element or several) drifts away
+    // from it a fifth of its width.
+    const sideDrift = (side) => "translateX(" + x(Math.round(side.offsetWidth * 0.2)) + "px)";
+    // How much of the way open a sidebar dragged to `from` px still is.
+    const sideLeft = (el, from) => (el.offsetWidth ? 1 + x(from) / el.offsetWidth : 1);
     const unders = (under, frames) => (!under ? [] : Array.isArray(under) ? under : [under]).map((u) => [u, frames]);
     function slideIn(el, under) {
-      return run([[el, [{ transform: "translateX(-100%)" }, { transform: "none" }]], ...unders(under, [{ transform: "none" }, { transform: sideDrift(el) }])], "sheetEdge", true);
+      return run([[el, [{ transform: "translateX(" + x(-100) + "%)" }, { transform: "none" }]], ...unders(under, [{ transform: "none" }, { transform: sideDrift(el) }])], "sheetEdge", true);
     }
     function slideOut(el, from = 0, under) {
-      const k = el.offsetWidth ? 1 + from / el.offsetWidth : 1;
-      return run([[el, [{ transform: "translateX(" + from + "px)" }, { transform: "translateX(-100%)" }]],
-        ...unders(under, [{ transform: "translateX(" + Math.round(el.offsetWidth * 0.2 * k) + "px)" }, { transform: "none" }])], from ? "controlEdge" : "sheetEdge", false);
+      const k = sideLeft(el, from);
+      return run([[el, [{ transform: "translateX(" + from + "px)" }, { transform: "translateX(" + x(-100) + "%)" }]],
+        ...unders(under, [{ transform: "translateX(" + x(Math.round(el.offsetWidth * 0.2 * k)) + "px)" }, { transform: "none" }])], from ? "controlEdge" : "sheetEdge", false);
     }
     function slideBack(el, from, under) {
-      const k = el.offsetWidth ? 1 + from / el.offsetWidth : 1;
+      const k = sideLeft(el, from);
       return run([[el, [{ transform: "translateX(" + from + "px)" }, { transform: "none" }]],
-        ...unders(under, [{ transform: "translateX(" + Math.round(el.offsetWidth * 0.2 * k) + "px)" }, { transform: sideDrift(el) }])], "controlEdge", null);
+        ...unders(under, [{ transform: "translateX(" + x(Math.round(el.offsetWidth * 0.2 * k)) + "px)" }, { transform: sideDrift(el) }])], "controlEdge", null);
     }
 
     // A menu grows out of the button that opened it, from that button's
@@ -233,8 +245,11 @@
     }
 
     // Bars and toasts come in past the screen's edge they sit nearest and
-    // leave the same way.
+    // leave the same way. side: top, bottom, left, right, or start / end,
+    // which follow the page's direction.
     function fromPast(r, side) {
+      if (side === "start") side = rtl() ? "right" : "left";
+      else if (side === "end") side = rtl() ? "left" : "right";
       if (side === "top") return "translateY(" + -Math.ceil(r.bottom + 8) + "px)";
       if (side === "left") return "translateX(" + -Math.ceil(r.right + 8) + "px)";
       if (side === "right") return "translateX(" + Math.ceil(innerWidth - r.left + 8) + "px)";
@@ -287,7 +302,7 @@
       return run(runs, "sheet", null);
     }
     // What leaves in a flip: a copy of it, fixed where it was, goes past
-    // the top, bottom or left edge and is removed.
+    // the top, bottom, left, right, start or end edge and is removed.
     function ghostOut(el, r, side, layer) {
       const g = el.cloneNode(true);
       g.removeAttribute("id");
@@ -295,14 +310,15 @@
       g.inert = true;
       Object.assign(g.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px", margin: "0", pointerEvents: "none", zIndex: "1", boxSizing: "border-box" });
       (layer || document.body).appendChild(g);
-      const to = fromPast(r, side === "top" || side === "left" ? side : "bottom");
+      const to = fromPast(r, ["top", "left", "right", "start", "end"].includes(side) ? side : "bottom");
       return one(g, [{ transform: "none" }, { transform: to }], "sheet", false).finally(() => g.remove());
     }
 
     // Going on to the next page: sideways (`side`) the page leaves past
-    // the left edge and the next comes in from the right; otherwise the
-    // next comes up from the bottom. dir -1 runs it the other way.
-    const along = (side, d) => (side ? "translateX(" : "translateY(") + d + "%)";
+    // the start edge and the next comes in from the end (from the right,
+    // or the left right to left); otherwise the next comes up from the
+    // bottom. dir -1 runs it the other way.
+    const along = (side, d) => (side ? "translateX(" + x(d) : "translateY(" + d) + "%)";
     // from: where a sideways swipe left it, in px.
     function pageOut(el, side = true, dir = 1, from = 0) {
       return one(el, [{ transform: from ? "translateX(" + from + "px)" : "none" }, { transform: along(side, -100 * dir) }], "control", false)
@@ -370,7 +386,7 @@
 
     return {
       springs: { touch: TOUCH, desktop: DESK },
-      busy, timing, reduced, still, setStill, desk, push, pop, grow, shrink, rise, sink, settle, dim, slideIn, slideOut, slideBack,
+      busy, timing, reduced, still, setStill, desk, rtl, x, push, pop, grow, shrink, rise, sink, settle, dim, slideIn, slideOut, slideBack,
       popFrom, popInto, popOut, dialogIn, dialogOut, edgeIn, edgeOut, morph, appear, vanish, measure, flip, ghostOut, fromPast,
       pageOut, pageBack, pageIn, sideDrift, press,
     };

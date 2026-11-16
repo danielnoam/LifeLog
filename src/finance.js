@@ -7,6 +7,9 @@
 // (view renderers, modal openers, sanitizers for the shared import
 // infrastructure) is exposed on window.LifeLogFinance.
 (function () {
+  // Numbers in the reader's language (src/language.js); en-US where
+  // there's no page (the bridge, Node tests), as before.
+  const numLocale = () => (typeof window === "object" && window.i18n && window.i18n.lang !== "en" ? window.i18n.lang : "en-US");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
 
@@ -285,7 +288,7 @@
     const gap = /[A-Za-z]$/.test(symbol) ? " " : "";
     const digits = ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2;
     return sign + symbol + gap + Math.abs(n)
-      .toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      .toLocaleString(numLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
   }
 
   const homeCurrency = () => state.data.settings.currency || "ILS";
@@ -1622,7 +1625,7 @@
       bar.appendChild(spent);
       if (l.usual > 0) {
         const mark = el("span", "pace-usual");
-        mark.style.left = Math.min(100, (l.usual / max) * 100) + "%";
+        mark.style.insetInlineStart = Math.min(100, (l.usual / max) * 100) + "%";
         bar.appendChild(mark);
       }
       bar.setAttribute("aria-hidden", "true");

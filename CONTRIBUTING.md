@@ -85,6 +85,13 @@ changes `proxy/`, so a route only works in a browser once its PR is merged.
 every animation has a reduced-motion answer, touch targets are 44px on
 phones, and every theme (Default, Light, Nord, Dracula) is checked.
 
+**Right to left works.** Styles use logical sides (`inset-inline-start`,
+`padding-inline-end`, `text-align: start`), never left or right, unless JS
+places the element by pixels; `test/rtl.test.js` lists those exceptions.
+A swipe or arrow key that moves sideways goes through `rtlX()`. Text that
+shows a number or a date formats it with the language's locale, never a
+fixed `"en-US"`. See ARCHITECTURE.md, "Right to left".
+
 **Ask first for big things.** A new look, a reworked screen or a big change
 is shown or explained to Daniel (a mockup, a screenshot, a short write-up)
 and waits for his OK before it's built. Don't stack extra changes on top of

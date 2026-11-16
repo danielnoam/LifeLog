@@ -45,10 +45,9 @@
   // Under Node (the bridge, the tests) nothing loaded dates.js as a script.
   const Dates = window.LifeLogDates || require("./dates.js");
   const Keys = window.LifeLogKeys || require("./keys.js");
-  const MONTHS = ["", "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"];
-  const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // From dates.js, so a language other than English names them too.
+  const MONTHS = ["", ...Dates.MONTH_NAMES];
+  const MONTHS_SHORT = ["", ...Dates.MONTHS];
 
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
@@ -540,6 +539,10 @@
 
   // ---------- helpers ----------
   const $ = (sel) => document.querySelector(sel);
+  // Right to left (<html dir="rtl">, src/language.js) the layout mirrors:
+  // "forward" is a swipe to the right and what comes next sits on the left.
+  // rtlX(n) is n on screen, negated right to left.
+  const rtlX = (n) => (document.documentElement.dir === "rtl" ? -n : n);
   const el = (tag, cls, txt) => {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -1184,7 +1187,7 @@
       // in the half of the neighbour you haven't uncovered yet, and a
       // drag that stops short never shows it at all.
       const label = el("div", "mode-peek-label");
-      label.dataset.side = delta > 0 ? "right" : "left";
+      label.dataset.side = rtlX(delta) > 0 ? "right" : "left";
       label.style.top = Math.max(pageTop, 0) + 72 + "px";
       const peekIcon = el("span", "mode-peek-icon");
       if (entry[2]) peekIcon.appendChild(ico(entry[2]));
@@ -1198,7 +1201,7 @@
   function modeDragMove(dx) {
     if (!VIEW_MODES[state.view] || modeTurning) return;
     const c = $("#content");
-    const delta = dx < 0 ? 1 : -1;
+    const delta = rtlX(dx) < 0 ? 1 : -1;
     if (!modeDrag) modeDrag = { rect: c.getBoundingClientRect() };
     if (modeDrag.delta !== delta) {
       // Changed direction mid-drag: the other neighbour.
@@ -1213,7 +1216,7 @@
     c.style.transition = "none";
     c.style.transform = "translateX(" + offset + "px)";
     if (modeDrag.peek) {
-      modeDrag.peek.firstChild.style.transform = "translateX(" + (offset + delta * (modeDrag.rect.width + MODE_GAP)) + "px)";
+      modeDrag.peek.firstChild.style.transform = "translateX(" + (offset + rtlX(delta) * (modeDrag.rect.width + MODE_GAP)) + "px)";
     }
   }
 
@@ -1228,7 +1231,7 @@
     c.style.transform = "";
     if (peek) {
       peek.firstChild.style.transition = t;
-      peek.firstChild.style.transform = "translateX(" + delta * (rect.width + MODE_GAP) + "px)";
+      peek.firstChild.style.transform = "translateX(" + rtlX(delta) * (rect.width + MODE_GAP) + "px)";
     }
     setTimeout(() => {
       if (!modeDrag) c.style.transition = "";
@@ -1263,7 +1266,7 @@
 
     suppressModeAnim = true;
     c.style.transition = "none";
-    c.style.transform = "translateX(" + (offset + delta * step) + "px)";
+    c.style.transform = "translateX(" + (offset + rtlX(delta) * step) + "px)";
     try { cycleMode(delta); } finally { suppressModeAnim = false; }
 
     modeTurning = true;
@@ -1272,7 +1275,7 @@
     c.style.transition = t;
     c.style.transform = "translateX(0px)";
     leaving.style.transition = t;
-    leaving.style.transform = "translateX(" + (-delta * step) + "px)";
+    leaving.style.transform = "translateX(" + (-rtlX(delta) * step) + "px)";
     setTimeout(() => {
       ghost.remove();
       clearModeDragStyle(c);
@@ -2023,7 +2026,7 @@
       if (!active) return;
       const order = enabledViews();
       const idx = order.indexOf(state.view);
-      const targetView = dx < 0 ? order[idx + 1] : order[idx - 1];
+      const targetView = rtlX(dx) < 0 ? order[idx + 1] : order[idx - 1];
       const targetEl = targetView ? document.querySelector('#viewTabs .tab[data-view="' + targetView + '"]') : null;
       if (!targetEl) return; // at a boundary — nothing to drag toward
       tabDrag = {
@@ -2210,7 +2213,7 @@
     if (!track || !carousel) return;
     if (!jumpDrag) {
       if (jumpBusy) return;
-      const delta = dx < 0 ? 1 : -1;
+      const delta = rtlX(dx) < 0 ? 1 : -1;
       if (delta > 0 && jumpCurrentIndex >= jumpSections.length - 1) return;
       if (delta < 0 && jumpCurrentIndex <= 0) return;
       const slotWidth = carousel.clientWidth / 3;
@@ -2223,11 +2226,11 @@
         track.insertBefore(jumpItemEl(jumpCurrentIndex - 2, false), track.firstChild);
         jumpDrag = { delta, slotWidth, baseline: -slotWidth, current: -slotWidth };
       }
-      track.style.transform = "translateX(" + jumpDrag.baseline + "px)";
+      track.style.transform = "translateX(" + rtlX(jumpDrag.baseline) + "px)";
     }
-    const clamped = Math.max(-jumpDrag.slotWidth, Math.min(0, jumpDrag.baseline + dx));
+    const clamped = Math.max(-jumpDrag.slotWidth, Math.min(0, jumpDrag.baseline + rtlX(dx)));
     jumpDrag.current = clamped;
-    track.style.transform = "translateX(" + clamped + "px)";
+    track.style.transform = "translateX(" + rtlX(clamped) + "px)";
   }
   // committed: whether the swipe crossed the threshold in the direction
   // the carousel was actually prepared for (see the mismatch guard in
@@ -2257,7 +2260,7 @@
       jumpDrainQueue();
     };
     track.style.transition = "";
-    track.style.transform = "translateX(" + target + "px)";
+    track.style.transform = "translateX(" + rtlX(target) + "px)";
     // A deep enough drag can already be sitting exactly at the target by
     // release time (the live drag clamps at the same boundary this
     // settles to) — re-setting an unchanged transform fires no
@@ -2301,6 +2304,9 @@
   // swipe at all. A gesture that starts vertical is abandoned outright
   // rather than watched — a scroll that happens to drift sideways halfway
   // down the page is a scroll, not a change of mind.
+  // onLeft is the forward swipe and onRight the back one: to the left and
+  // right, or the other way round right to left. onMove's dx stays in
+  // screen px.
   function attachSwipe(el, { onLeft, onRight, onMove, onSettle, threshold = 40, requireHorizontal = false }) {
     let startX = null, startY = null, captured = false;
     el.addEventListener("pointerdown", (e) => {
@@ -2346,7 +2352,7 @@
       const dragged = captured;
       startX = null; captured = false;
       const swiped = Math.abs(dx) >= threshold && Math.abs(dx) >= Math.abs(dy);
-      if (swiped) (dx < 0 ? onLeft : onRight)();
+      if (swiped) (rtlX(dx) < 0 ? onLeft : onRight)();
       else if (dragged && onSettle) onSettle();
     });
     el.addEventListener("pointercancel", () => {
@@ -4904,7 +4910,7 @@
       // A tablist moves with the arrows (0.254.0): the next or previous
       // tab in the bar takes focus and opens; Home and End reach the ends.
       t.onkeydown = (e) => {
-        const step = { ArrowRight: 1, ArrowLeft: -1, Home: 0, End: 0 }[e.key];
+        const step = { ArrowRight: rtlX(1), ArrowLeft: rtlX(-1), Home: 0, End: 0 }[e.key];
         if (step === undefined) return;
         const tabs = [...document.querySelectorAll("#viewTabs .tab:not([hidden])")];
         const i = tabs.indexOf(t);

@@ -10,10 +10,17 @@
 (function () {
   const WEEK_STARTS = [0, 1, 6];
   const FORMATS = ["dmy", "mdy", "dmy-num", "mdy-num", "iso"];
-  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  // In a language other than English (src/language.js) the names come from
+  // Intl (2026-11-16); English keeps its own, and so does Node.
+  const LANG = (typeof window === "object" && window.i18n && window.i18n.lang) || "en";
+  const named = (n, opt, at, en) => (LANG === "en" ? en
+    : Array.from({ length: n }, (_, i) => new Intl.DateTimeFormat(LANG, opt).format(at(i))));
+  const wd = (i) => new Date(2026, 10, 15 + i); // 15 Nov 2026 was a Sunday
+  const mo = (i) => new Date(2026, i, 1);
+  const WEEKDAYS = named(7, { weekday: "short" }, wd, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+  const WEEKDAY_NAMES = named(7, { weekday: "long" }, wd, ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]);
+  const MONTHS = named(12, { month: "short" }, mo, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]);
+  const MONTH_NAMES = named(12, { month: "long" }, mo, ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]);
 
   let source = () => null;
   // The app hands over a getter rather than a copy, so a setting changed on

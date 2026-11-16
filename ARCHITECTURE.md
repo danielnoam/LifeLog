@@ -50,6 +50,8 @@ src/keel/errlog.js  the errors this device has hit (from keel; set up by its tag
 src/keel/platform.js  where it runs (phone, desktop, browser), app-build.json, links out to the device's browser (from keel); src/platform.js builds on it
 src/keel/motion.js  the motion engine: springs sampled into CSS linear(), press feedback, reduced motion and Animations off (from keel)
 src/motion.js       LifeLog's springs given to keel's engine (window.LifeLogMotion); styles.css's --spring-* come from it
+src/keel/i18n.js    languages: picks one, sets lang and dir on <html>, t()/tn() (from keel; runs in <head>)
+src/language.js     LifeLog's languages (English, and Hebrew once its strings are written); no strings translated yet
 src/wheel.js        the Spin wheel
 src/keel/           from keel (danielnoam/keel): the setup link's QR codes,
                     github.js, the GitHub calls storage.js makes, errlog.js,
@@ -81,12 +83,35 @@ keel.lock.json      (danielnoam/keel): see below
 ```
 
 The files listed in `keel.lock.json` (server.js, src/keel/qr.js,
-src/keel/github.js, src/keel/drive.js, src/keel/errlog.js, src/keel/platform.js, src/keel/motion.js, src/keel/releases.js,
+src/keel/github.js, src/keel/drive.js, src/keel/errlog.js, src/keel/platform.js, src/keel/motion.js, src/keel/i18n.js, src/keel/releases.js,
 src/keel/sw-preview.js,
 tools/release.js, tools/android-version.js, tools/keel-sync.js, tools/keel-checks.js (the contrast and CSP checks the tests use),
 test/keel.test.js, the github-pages skill) come from keel. Don't edit
 them here: `test/keel.test.js` fails. Change them in keel, tag a
 release there, then `node tools/keel-sync.js v<version>` in a PR here.
+
+## Right to left
+
+The app is ready to run right to left (Hebrew) though no language but
+English is offered yet. `src/language.js` sets `dir` on `<html>` before
+first paint, and everything else follows from it:
+
+- styles.css uses logical sides (`inset-inline-start`, `margin-inline-end`,
+  `text-align: start`), so the layout mirrors by itself. The exceptions are
+  elements JS places by `style.left` or the pointer's `clientX` (tab menu,
+  mode strip, home ghost, text measurer) and the Investments chart, which
+  reads left to right in every language. `test/rtl.test.js` fails on a new
+  physical side anywhere else. A physical `left` with `right` and `width`
+  also set is ignored right to left, which is why JS-placed boxes stay physical.
+- Swipes and drags decide by `rtlX(dx)` in app.js (negated right to left),
+  so a finger moving toward the next tab still reaches it; recap.js and
+  io.js do the same. Arrow keys follow the screen.
+- Month and day names come from `Intl` in any language but English
+  (dates.js); money and numbers format with the language's locale
+  (`numLocale()` in finance.js and invest.js).
+- Icons that point a way (chevrons, undo/redo, log in/out) flip in the
+  `:root[dir="rtl"]` block at the end of styles.css, and so do the switch
+  knob and the mode slide.
 
 ## Tests
 

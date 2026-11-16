@@ -14,6 +14,9 @@
 // make every save of the watchlist heavy. A ticker is asked for once for its
 // whole history, then only for the days since its last close.
 (function () {
+  // Numbers in the reader's language (src/language.js); en-US where
+  // there's no page (the bridge, Node tests), as before.
+  const numLocale = () => (typeof window === "object" && window.i18n && window.i18n.lang !== "en" ? window.i18n.lang : "en-US");
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const ico = (n) => window.LifeLogIcons.svg(n);
   let state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings, openInvest;
@@ -119,7 +122,7 @@
     };
   }
   function unitsText(n) {
-    const s = (Math.round(n * 1e4) / 1e4).toLocaleString("en-US", { maximumFractionDigits: 4 });
+    const s = (Math.round(n * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 });
     return s + (n === 1 ? " share" : " shares");
   }
   // Two points on a ticker's line, either way round: the change from the
@@ -246,7 +249,7 @@
   function usd(v) {
     if (v == null || !isFinite(v)) return "";
     const digits = Math.abs(v) < 1 ? 4 : 2;
-    return (v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits });
+    return (v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: digits });
   }
   // A difference, to the cent.
   const signedUsd = (v) => (v == null ? "" : (v >= 0 ? "+" : "") + usd(Math.round(v * 100) / 100));
@@ -701,7 +704,7 @@
       const cw = svg.clientWidth, ch = svg.clientHeight;
       if (!cw || !ch) return;
       for (const v of ticks) {
-        const l = el("span", "invest-yl", "$" + (step < 1 ? v.toFixed(2) : Math.round(v).toLocaleString("en-US")));
+        const l = el("span", "invest-yl", "$" + (step < 1 ? v.toFixed(2) : Math.round(v).toLocaleString(numLocale())));
         l.style.top = (y(v) / H * ch) + "px";
         box.appendChild(l);
       }
@@ -885,7 +888,7 @@
       s2.appendChild(el("b", cls || null, value));
       stats.appendChild(s2);
     };
-    stat("Shares", hd.units ? (Math.round(hd.units * 1e4) / 1e4).toLocaleString("en-US", { maximumFractionDigits: 4 }) : "0");
+    stat("Shares", hd.units ? (Math.round(hd.units * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 }) : "0");
     stat("Average cost", hd.avg != null ? usd(hd.avg) : "—");
     stat("Value", hd.value != null ? usd(hd.value) : hd.units ? "—" : usd(0));
     stat("Gain", hd.gain != null ? signedUsd(hd.gain) + (hd.gainPct != null ? " (" + pct(hd.gainPct) + ")" : "") : "—",
@@ -1465,7 +1468,7 @@
     const gain = value - cost, base = value - today;
     const hold = any ? {
       value: hidden ? "•••••" : usd(value),
-      short: hidden ? "•••••" : "$" + Math.round(value).toLocaleString("en-US"),
+      short: hidden ? "•••••" : "$" + Math.round(value).toLocaleString(numLocale()),
       gain: hidden ? "" : signedUsd(gain) + (cost ? " (" + pct(gain / cost) + ")" : ""),
       gainPct: hidden || !cost ? "" : pct(gain / cost),
       up: gain >= 0,
