@@ -23,6 +23,7 @@
 // next open finds the note and Activity offers to run it again; the passes
 // that use it save as they go and skip what's done, so again is resume.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const KEEP_FINISHED = 15;
   const BACKGROUND_EVERY_MS = 1000;
   const ACTIVE = new Set(["queued", "running"]);
@@ -71,7 +72,7 @@
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
     const job = {
       id: ++seq,
-      label: spec.label || "Working",
+      label: spec.label || i18n.t("Working"),
       lane: spec.lane || "",
       again: spec.again || "",
       listed: spec.listed !== false,
@@ -105,7 +106,7 @@
         if (!ACTIVE.has(job.state) || !job.stoppable || job.stopping) return;
         job.stopping = true;
         if (ctl) ctl.abort();
-        if (job.state === "queued") { end(job, "stopped", "Stopped before it started"); return; }
+        if (job.state === "queued") { end(job, "stopped", i18n.t("Stopped before it started")); return; }
         emit();
       },
     };
@@ -226,7 +227,7 @@
     const lead = running.find((j) => j.listed) || running[0] || now[0];
     if (!lead) return null;
     const others = now.length - 1;
-    let text = lead.total ? `${lead.done} of ${lead.total}` : (lead.detail || "Working…");
+    let text = lead.total ? i18n.t("{done} of {total}", { done: lead.done, total: lead.total }) : (lead.detail || i18n.t("Working…"));
     if (others > 0) text += ` · ${others} more`;
     return { title: lead.label, text, done: lead.done, total: lead.total || 0 };
   }

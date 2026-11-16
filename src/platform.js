@@ -16,6 +16,7 @@
 // `build` is app-build.json, written into the bundle at build time. It only
 // exists inside the app; in a browser it is null and nothing asks for it.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Where it runs (phone, desktop, browser), app-build.json and links out
   // to the device's browser are keel's (src/keel/platform.js).
   // Not `native` for the desktop: that still means a phone, with its
@@ -43,7 +44,7 @@
     if (!opts.base64) file.encoding = "utf8";
     const { uri } = await FS.writeFile(file);
     try {
-      await SH.share({ title: filename, files: [uri], dialogTitle: "Save or send " + filename });
+      await SH.share({ title: filename, files: [uri], dialogTitle: i18n.t("Save or send {file}", { file: filename }) });
     } catch (e) {
       // Closing the share sheet is a choice, not a failure.
       if (!/cancel/i.test(String(e && e.message || e))) throw e;

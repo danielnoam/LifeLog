@@ -14,6 +14,7 @@
 // habit is still undone — from the latest snapshot and the widget's own
 // ticks, so something kept anywhere that has reached this phone doesn't buzz.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const KEY = "lifelog-habit-reminders-v1";
   let ctx = null;
 
@@ -76,8 +77,8 @@
       try { now = (await W.askForNotifications()).state; } catch (e) { /* treated as not allowed */ }
     }
     if (now !== "granted") {
-      ctx.toast("Notifications are off for LifeLog, so reminders can't ring yet", true,
-        { label: "Allow", onClick: () => W.openNotificationSettings() });
+      ctx.toast(i18n.t("Notifications are off for LifeLog, so reminders can't ring yet"), true,
+        { label: i18n.t("Allow"), onClick: () => W.openNotificationSettings() });
     }
     ctx.render();
     return now === "granted";
@@ -94,12 +95,12 @@
     const t = timeOf(habit.id);
     const wrap = el("span", "habit-remind" + (t ? " is-set" : "") + (t && !isOn() ? " is-paused" : ""));
     const face = el("label", "habit-remind-face");
-    face.title = t ? "Reminder at " + t + " — tap to change" : "Remind me about this habit";
+    face.title = t ? i18n.t("Reminder at {time} — tap to change", { time: t }) : i18n.t("Remind me about this habit");
     face.appendChild(el("span", null)).appendChild(t ? window.LifeLogIcons.labelled(isOn() ? "bell" : "bell-off", t) : window.LifeLogIcons.svg("bell"));
     const input = el("input", "habit-remind-input");
     input.type = "time";
     input.value = t;
-    input.setAttribute("aria-label", "Reminder time for " + habit.name);
+    input.setAttribute("aria-label", i18n.t("Reminder time for {name}", { name: habit.name }));
     input.onchange = () => setTime(habit.id, input.value);
     face.appendChild(input);
     wrap.appendChild(face);
@@ -107,8 +108,8 @@
       const clear = el("button", "habit-remind-clear");
       clear.appendChild(window.LifeLogIcons.svg("x"));
       clear.type = "button";
-      clear.title = "No reminder";
-      clear.setAttribute("aria-label", "Remove the reminder for " + habit.name);
+      clear.title = i18n.t("No reminder");
+      clear.setAttribute("aria-label", i18n.t("Remove the reminder for {name}", { name: habit.name }));
       clear.onclick = () => setTime(habit.id, "");
       wrap.appendChild(clear);
     }
@@ -124,9 +125,9 @@
     const { el } = ctx;
     const b = el("div", "habit-remind-bar");
     b.appendChild(el("span", "habit-remind-bar-text")).appendChild(isOn()
-      ? window.LifeLogIcons.labelled("bell", set + (set === 1 ? " reminder" : " reminders") + " on this " + here())
-      : window.LifeLogIcons.labelled("bell-off", "Reminders paused on this " + here()));
-    const toggle = el("button", "btn btn-sm", isOn() ? "Pause" : "Resume");
+      ? window.LifeLogIcons.labelled("bell", here() === "computer" ? i18n.tn(set, "{n} reminder on this computer", "{n} reminders on this computer") : i18n.tn(set, "{n} reminder on this phone", "{n} reminders on this phone"))
+      : window.LifeLogIcons.labelled("bell-off", here() === "computer" ? i18n.t("Reminders paused on this computer") : i18n.t("Reminders paused on this phone")));
+    const toggle = el("button", "btn btn-sm", isOn() ? i18n.t("Pause") : i18n.t("Resume"));
     toggle.type = "button";
     toggle.onclick = () => setOn(!isOn());
     b.appendChild(toggle);
@@ -138,9 +139,9 @@
         if (now === "granted" || now === "unavailable" || !warn.isConnected) return;
         warn.hidden = false;
         warn.textContent = now === "denied"
-          ? "Notifications are off for LifeLog in the " + here() + "'s settings, so none of these will ring. "
-          : "LifeLog needs your permission before any of these can ring. ";
-        const fix = el("button", "btn btn-sm", now === "denied" ? "Open settings" : "Allow");
+          ? (here() === "computer" ? i18n.t("Notifications are off for LifeLog in the computer's settings, so none of these will ring.") : i18n.t("Notifications are off for LifeLog in the phone's settings, so none of these will ring.")) + " "
+          : i18n.t("LifeLog needs your permission before any of these can ring.") + " ";
+        const fix = el("button", "btn btn-sm", now === "denied" ? i18n.t("Open settings") : i18n.t("Allow"));
         fix.type = "button";
         fix.onclick = () => (now === "denied" ? plugin().openNotificationSettings() : ensureAllowed());
         warn.appendChild(fix);

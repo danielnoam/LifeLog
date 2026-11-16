@@ -21,6 +21,7 @@
 // Reading the releases and opening a build in the browser are keel's
 // (src/keel/releases.js, sw.js's src/keel/sw-preview.js); this is the fold.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const P = () => window.LifeLogPlatform;
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -56,35 +57,35 @@
       st.phase = "loaded";
     } catch (e) {
       st.phase = st.checkedAt ? "loaded" : "failed";
-      st.error = "Couldn't look for test builds. Try again when you're online.";
+      st.error = i18n.t("Couldn't look for test builds. Try again when you're online.");
     }
     paint();
   }
 
   const ago = (t) => {
     const m = Math.round((Date.now() - t) / 60000);
-    if (m < 1) return "just now";
-    if (m < 60) return m + " min ago";
+    if (m < 1) return i18n.t("just now");
+    if (m < 60) return i18n.t("{n} min ago", { n: m });
     const h = Math.round(m / 60);
-    if (h < 24) return h + (h === 1 ? " hour ago" : " hours ago");
+    if (h < 24) return i18n.tn(h, "{n} hour ago", "{n} hours ago");
     const d = Math.round(h / 24);
-    return d === 1 ? "yesterday" : d + " days ago";
+    return d === 1 ? i18n.t("yesterday") : i18n.tn(d, "{n} day ago", "{n} days ago");
   };
   const releasePage = R.releaseUrl;
 
   // Android: the updater's download and installer, under the build's tag.
   async function installApk(key, version, tag) {
-    st.going = { key, text: "Downloading…" };
+    st.going = { key, text: i18n.t("Downloading…") };
     paint();
     try {
-      const uri = await P().downloadUpdate(version, (f) => { st.going = { key, text: "Downloading · " + Math.round(f * 100) + "%" }; paint(); }, tag);
+      const uri = await P().downloadUpdate(version, (f) => { st.going = { key, text: i18n.t("Downloading · {pct}%", { pct: Math.round(f * 100) }) }; paint(); }, tag);
       if (!uri) { P().openOutside(releasePage(tag)); st.going = null; paint(); return; }
-      st.going = { key, text: "Opening the installer…" };
+      st.going = { key, text: i18n.t("Opening the installer…") };
       paint();
       await P().openInstaller(uri);
       st.going = null;
     } catch (e) {
-      st.going = { key, text: "The download didn't finish. Tap to try again", failed: true };
+      st.going = { key, text: i18n.t("The download didn't finish. Tap to try again"), failed: true };
     }
     paint();
   }
@@ -122,33 +123,33 @@
     group.hidden = !available();
     const here = running();
     $("#testBuildsHint").textContent = here
-      ? "Running a test build of " + (here.title || here.branch || "a branch")
-      : "Try a pull request before it's released";
+      ? i18n.t("Running a test build of {name}", { name: here.title || here.branch || i18n.t("a branch") })
+      : i18n.t("Try a pull request before it's released");
     const box = $("#testBuildsList");
     if (!box || !group.open) return;
     box.textContent = "";
     const lede = box.appendChild(el("div", "sitem"));
     lede.appendChild(el("span", "sitem-sub", native()
-      ? "A test build is a pull request built before it's released. It installs over the LifeLog you have and keeps your data. It also syncs with your data, so Settings → History → Undo takes back anything it gets wrong."
-        + (P().ios ? " On iPhone, Get it opens the build's page; install it with AltStore or SideStore." : "")
-      : "A test build is a pull request built before it's released. Open one and this browser runs it with your data, which it also syncs, so Settings → History → Undo takes back anything it gets wrong."));
+      ? i18n.t("A test build is a pull request built before it's released. It installs over the LifeLog you have and keeps your data. It also syncs with your data, so Settings → History → Undo takes back anything it gets wrong.")
+        + (P().ios ? " " + i18n.t("On iPhone, Get it opens the build's page; install it with AltStore or SideStore.") : "")
+      : i18n.t("A test build is a pull request built before it's released. Open one and this browser runs it with your data, which it also syncs, so Settings → History → Undo takes back anything it gets wrong.")));
     const mine = here && here.sha ? String(here.sha).slice(0, 7) : null;
     if (!st.checkedAt && st.phase !== "failed") {
-      box.appendChild(row("Looking for test builds…"));
+      box.appendChild(row(i18n.t("Looking for test builds…")));
     } else if (st.phase === "failed") {
-      box.appendChild(row(st.error, null, null, "Try again", load));
+      box.appendChild(row(st.error, null, null, i18n.t("Try again"), load));
     } else if (!st.list.length) {
-      box.appendChild(row("No pull request has a test build right now"));
+      box.appendChild(row(i18n.t("No pull request has a test build right now")));
     } else {
       for (const p of st.list) {
         const installed = !!mine && p.sha.slice(0, 7) === mine;
         const going = st.going && st.going.key === p.tag;
         const sub = going ? st.going.text : [p.branch, p.at && ago(p.at), p.pr && "#" + p.pr].filter(Boolean).join(" · ");
         const higher = native() && !P().ios && !!st.stable && !!p.version && newer(p.version, st.stable)
-          ? "Raises the version to " + p.version + ": going back to the release needs an uninstall" : null;
-        const label = installed ? (native() ? "Installed" : "Open now") : native() ? (P().ios ? "Get it" : "Install") : "Open";
+          ? i18n.t("Raises the version to {version}: going back to the release needs an uninstall", { version: p.version }) : null;
+        const label = installed ? (native() ? i18n.t("Installed") : i18n.t("Open now")) : native() ? (P().ios ? i18n.t("Get it") : i18n.t("Install")) : i18n.t("Open");
         const usable = native() ? (P().ios ? p.ipa : p.apk) : !!p.sha;
-        box.appendChild(row(p.title, sub, usable || installed ? higher : (P().ios ? "No iPhone build yet" : "No Android build yet"), label, () => install(p), installed || !usable || (going && !st.going.failed)));
+        box.appendChild(row(p.title, sub, usable || installed ? higher : (P().ios ? i18n.t("No iPhone build yet") : i18n.t("No Android build yet")), label, () => install(p), installed || !usable || (going && !st.going.failed)));
       }
     }
     if (here) {
@@ -159,20 +160,20 @@
       const b = box.appendChild(el("button", "sitem"));
       b.type = "button";
       const t = b.appendChild(el("span", "sitem-text"));
-      t.appendChild(el("span", "sitem-title", "Back to the release"));
+      t.appendChild(el("span", "sitem-title", i18n.t("Back to the release")));
       t.appendChild(el("span", "sitem-sub", going ? st.going.text
-        : !native() ? "The released LifeLog opens again"
-        : P().ios ? "Opens the latest release's page"
-        : stuck ? "Uninstall LifeLog first: this test build's " + mineV + " is above " + st.stable
-        : st.stable ? "LifeLog " + st.stable + " installs over this test build" : "No release found"));
+        : !native() ? i18n.t("The released LifeLog opens again")
+        : P().ios ? i18n.t("Opens the latest release's page")
+        : stuck ? i18n.t("Uninstall LifeLog first: this test build's {mine} is above {stable}", { mine: mineV, stable: st.stable })
+        : st.stable ? i18n.t("LifeLog {version} installs over this test build", { version: st.stable }) : i18n.t("No release found")));
       b.disabled = native() && !P().ios && (!st.stable || stuck || (going && !st.going.failed));
       b.onclick = backToRelease;
     }
     const again = box.appendChild(el("button", "sitem"));
     again.type = "button";
     const at = again.appendChild(el("span", "sitem-text"));
-    at.appendChild(el("span", "sitem-title", st.phase === "loading" ? "Checking…" : "Check again"));
-    if (st.checkedAt && st.phase !== "loading") at.appendChild(el("span", "sitem-sub", st.error || "Checked " + ago(st.checkedAt)));
+    at.appendChild(el("span", "sitem-title", st.phase === "loading" ? i18n.t("Checking…") : i18n.t("Check again")));
+    if (st.checkedAt && st.phase !== "loading") at.appendChild(el("span", "sitem-sub", st.error || i18n.t("Checked {when}", { when: ago(st.checkedAt) })));
     again.disabled = st.phase === "loading";
     again.onclick = load;
   }

@@ -15,6 +15,7 @@
 // nothing to buzz, and the data file stays as it was, so nothing changes
 // for the bridge.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const KEY = "lifelog-alerts-v1";
   // When they ring. One fixed time: these are a morning's heads-up, not
   // appointments.
@@ -27,8 +28,8 @@
   // Task reminders have room of their own, so a busy week of tasks can't
   // push a charge's heads-up out, nor the other way round.
   const MAX_TASKS = 16;
-  const CHARGE_DAYS = [["", "Off"], ["0", "On the day"], ["1", "The day before"], ["3", "3 days before"], ["7", "A week before"]];
-  const RELEASE_MODES = [["off", "Off"], ["starred", "Starred"], ["all", "Everything"]];
+  const CHARGE_DAYS = [["", i18n.t("Off")], ["0", i18n.t("On the day")], ["1", i18n.t("The day before")], ["3", i18n.t("3 days before")], ["7", i18n.t("A week before")]];
+  const RELEASE_MODES = [["off", i18n.t("Off")], ["starred", i18n.t("Starred")], ["all", i18n.t("Everything")]];
 
   const pad = (n) => String(n).padStart(2, "0");
   const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -63,14 +64,14 @@
         if (o.skipped || o.paused || !isDate(o.date) || o.date < today) continue;
         const day = addDays(o.date, -before);
         if (day < today) continue;
-        const name = o.note || rec.note || o.subcategory || o.category || rec.category || "A recurring expense";
-        const when = before === 0 ? "today" : before === 1 ? "tomorrow" : "in " + before + " days";
+        const name = o.note || rec.note || o.subcategory || o.category || rec.category || i18n.t("A recurring expense");
+        const title = before === 0 ? i18n.t("{name} charges today", { name }) : before === 1 ? i18n.t("{name} charges tomorrow", { name }) : i18n.t("{name} charges in {n} days", { name, n: before });
         out.push({
           id: "charge-" + rec.id + "-" + o.date,
           kind: "charge",
           day, time: AT,
-          title: name + " charges " + when,
-          body: fmt.money(o.amount) + " on " + fmt.day(o.date),
+          title,
+          body: i18n.t("{amount} on {date}", { amount: fmt.money(o.amount), date: fmt.day(o.date) }),
           action: "open-finance",
         });
       }
@@ -103,8 +104,8 @@
         id: "release-" + day,
         kind: "release",
         day, time: AT,
-        title: names.length === 1 ? names[0] + " is out today" : names.length + " things are out today",
-        body: names.length === 1 ? "From your Backlog" : names.join(", "),
+        title: names.length === 1 ? i18n.t("{title} is out today", { title: names[0] }) : i18n.t("{n} things are out today", { n: names.length }),
+        body: names.length === 1 ? i18n.t("From your Backlog") : names.join(", "),
         action: "open-upcoming",
       });
     }
@@ -128,8 +129,8 @@
         id: "price-" + b.id,
         kind: "price",
         day: h.day, time: h.time,
-        title: b.title + " is $" + Number(h.price).toFixed(2),
-        body: "Under your $" + Number(b.priceAlert).toFixed(2) + " on GG.deals",
+        title: i18n.t("{title} is {price}", { title: b.title, price: "$" + Number(h.price).toFixed(2) }),
+        body: i18n.t("Under your {price} on GG.deals", { price: "$" + Number(b.priceAlert).toFixed(2) }),
         action: "open-backlog",
       });
     }
@@ -148,8 +149,8 @@
         id: "target-" + id,
         kind: "target",
         day: h.day, time: h.time,
-        title: h.symbol + " closed at $" + Number(h.price).toFixed(2),
-        body: "At or under your $" + Number(h.target).toFixed(2) + " target",
+        title: i18n.t("{symbol} closed at {price}", { symbol: h.symbol, price: "$" + Number(h.price).toFixed(2) }),
+        body: i18n.t("At or under your {price} target", { price: "$" + Number(h.target).toFixed(2) }),
         action: "open-invest:" + id,
       });
     }
@@ -168,14 +169,15 @@
       if (!at || at < now) continue;
       const day = localDate(at);
       if (day > last) continue;
-      const when = r.item.time ? (r.day === day ? "at " + r.item.time : Tasks.shortDay(r.day, day).toLowerCase() + " at " + r.item.time)
-        : r.day === day ? "today" : Tasks.shortDay(r.day, day).toLowerCase();
+      const short = () => (i18n.lang === "en" ? Tasks.shortDay(r.day, day).toLowerCase() : Tasks.shortDay(r.day, day));
+      const when = r.item.time ? (r.day === day ? i18n.t("at {time}", { time: r.item.time }) : i18n.t("{day} at {time}", { day: short(), time: r.item.time }))
+        : r.day === day ? i18n.t("today") : short();
       out.push({
         id: "task-" + r.item.id + "-" + r.day,
         kind: "task",
         day, time: pad(at.getHours()) + ":" + pad(at.getMinutes()),
         title: r.item.text,
-        body: (r.note.text || "A task") + " · " + when,
+        body: (r.note.text || i18n.t("A task")) + " · " + when,
         action: "open-task:" + r.note.id + ":" + r.item.id,
       });
     }
@@ -185,7 +187,7 @@
   // `hidden`: the lock is on with "hide in widgets" (0.262.0). A
   // notification shows on the lock screen, so it says what kind of thing,
   // not which.
-  const HIDDEN_BODY = { charge: "A recurring charge is coming up", release: "Something in your Backlog is out today", price: "A game in your Backlog is on sale", target: "A ticker on your watchlist reached its target", task: "A task is coming up" };
+  const HIDDEN_BODY = { charge: i18n.t("A recurring charge is coming up"), release: i18n.t("Something in your Backlog is out today"), price: i18n.t("A game in your Backlog is on sale"), target: i18n.t("A ticker on your watchlist reached its target"), task: i18n.t("A task is coming up") };
   function alertsOf(data, { today, charges = {}, releases = "off", prices = {}, targets = {}, finance, fmt, hidden = false, tasks = null, now = new Date() } = {}) {
     const list = [
       ...(finance ? chargeAlerts(data, today, charges, finance, fmt) : []),
@@ -196,7 +198,7 @@
       .concat(taskAlerts(data, today, tasks, now))
       .sort((a, b) => a.day.localeCompare(b.day) || String(a.time).localeCompare(String(b.time)) || a.id.localeCompare(b.id));
     if (!hidden) return list;
-    return list.map((a) => ({ ...a, title: "LifeLog", body: HIDDEN_BODY[a.kind] || "LifeLog has something for you" }));
+    return list.map((a) => ({ ...a, title: "LifeLog", body: HIDDEN_BODY[a.kind] || i18n.t("LifeLog has something for you") }));
   }
 
   // ---------- this phone's choices ----------

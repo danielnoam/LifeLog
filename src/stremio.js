@@ -25,6 +25,7 @@
 // The reading and planning are pure (test/stremio.test.js); `start` wires
 // the Settings rows and the flows need a whole app.
 (() => {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const API = "https://api.strem.io/api/";
   const SYNC_KEY = "lifelog-stremio-autosync-v1";
   const TMDB_CACHE_KEY = "lifelog-stremio-tmdb-v1";
@@ -140,7 +141,7 @@
           if (count > (+b.progress || 0)) {
             patch.progress = count;
             patch.progressAt = new Date().toISOString();
-            fills.push({ key: "progress", label: "episode " + count }, { key: "progressAt", label: "count time" });
+            fills.push({ key: "progress", label: i18n.t("episode {n}", { n: count }) }, { key: "progressAt", label: i18n.t("count time") });
           }
           if (fills.length) updates.push({ target: b, patch, fills, id: r.id });
           continue;
@@ -211,26 +212,26 @@
         break;
       } catch (e) { /* the next way, if there is one */ }
     }
-    if (!res) throw new Error("Stremio couldn't be reached");
+    if (!res) throw new Error(i18n.t("Stremio couldn't be reached"));
     let data = null;
     try { data = await res.json(); } catch (e) { /* said below */ }
     if (data && data.error) {
       const msg = String(data.error.message || data.error || "").slice(0, 160);
-      const err = new Error(/session|auth/i.test(msg) ? "Stremio signed you out. Sign in again" : msg || "Stremio said no");
+      const err = new Error(/session|auth/i.test(msg) ? i18n.t("Stremio signed you out. Sign in again") : msg || i18n.t("Stremio said no"));
       err.signedOut = /session|auth/i.test(msg);
       throw err;
     }
-    if (!res.ok || !data) throw new Error("Stremio answered " + res.status);
+    if (!res.ok || !data) throw new Error(i18n.t("Stremio answered {status}", { status: res.status }));
     return data.result;
   }
   async function signIn(email, password) {
     const r = await call("login", { type: "Login", email, password, facebook: false });
-    if (!r || !r.authKey) throw new Error("Stremio didn't send a key back");
+    if (!r || !r.authKey) throw new Error(i18n.t("Stremio didn't send a key back"));
     return { authKey: String(r.authKey), email: (r.user && r.user.email) || email };
   }
   async function fetchLibrary(authKey) {
     const r = await call("datastoreGet", { authKey, collection: "libraryItem", ids: [], all: true });
-    if (!Array.isArray(r)) throw new Error("Stremio sent something unexpected");
+    if (!Array.isArray(r)) throw new Error(i18n.t("Stremio sent something unexpected"));
     return r;
   }
 
@@ -260,7 +261,7 @@
           cache[r.id] = { m: keep, at: now };
           if (keep) matches.set(r.id, keep);
         }
-        job.progress(++done, done + ask.length, "Matching titles on TMDB…");
+        job.progress(++done, done + ask.length, i18n.t("Matching titles on TMDB…"));
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
@@ -274,27 +275,27 @@
 
   let running = null;
   function sync(opts = {}) {
-    if (running) { if (opts.manual) ctx.toast("Stremio is already syncing"); return running; }
+    if (running) { if (opts.manual) ctx.toast(i18n.t("Stremio is already syncing")); return running; }
     running = runSync(opts).finally(() => { running = null; });
     return running;
   }
   async function runSync({ manual } = {}) {
     const cfg = cfgOf();
     const say = (msg) => { if (manual) ctx.toast(msg, true); };
-    if (!cfg.authKey) return say("Sign in to Stremio first");
-    if (!cfg.movieCategory && !cfg.showCategory) return say("Pick a category for movies and/or shows first");
+    if (!cfg.authKey) return say(i18n.t("Sign in to Stremio first"));
+    if (!cfg.movieCategory && !cfg.showCategory) return say(i18n.t("Pick a category for movies and/or shows first"));
     if (ctx.whenSynced) await ctx.whenSynced();
     const btn = manual ? document.getElementById("stremioSyncBtn") : null;
     const label = btn ? [...btn.childNodes].map((n) => n.cloneNode(true)) : null;
-    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    if (btn) { btn.disabled = true; btn.textContent = i18n.t("Syncing…"); }
     try {
-      await window.LifeLogJobs.run({ label: manual ? "Syncing Stremio" : "Checking Stremio", lane: "stremio", again: "stremioSyncBtn" }, async (job) => {
-        job.progress(0, 0, "Reading your Stremio library…");
+      await window.LifeLogJobs.run({ label: manual ? i18n.t("Syncing Stremio") : i18n.t("Checking Stremio"), lane: "stremio", again: "stremioSyncBtn" }, async (job) => {
+        job.progress(0, 0, i18n.t("Reading your Stremio library…"));
         let items;
         try { items = await fetchLibrary(cfg.authKey); }
         catch (e) {
           if (e.signedOut) { await setSetting("authKey", ""); renderSettings(); }
-          say("Stremio sync failed — " + e.message);
+          say(i18n.t("Stremio sync failed — {why}", { why: e.message }));
           job.fail(e.message);
           return;
         }
@@ -313,7 +314,7 @@
           const info = await window.LifeLogMedia.fetchTmdbSeasons(m.id, key);
           if (info) seasons.set(r.id, info);
         }
-        if (job.stopping) { job.finish("Stopped"); return; }
+        if (job.stopping) { job.finish(i18n.t("Stopped")); return; }
         const plan = planStremio(records, { categories, data: ctx.state.data, matches, seasons, today: localDay(new Date()) });
         if (!takes("progress")) {
           for (const u of plan.updates) {
@@ -326,27 +327,27 @@
         const built = buildRows(plan, ctx.buildImportItems, skips);
         const fresh = built.items.filter((it) => (it.update || !it.dup) && !it.skipped);
         if (!fresh.length) {
-          if (manual) ctx.toast("Nothing new from Stremio");
-          job.finish("Nothing new");
+          if (manual) ctx.toast(i18n.t("Nothing new from Stremio"));
+          job.finish(i18n.t("Nothing new"));
           return;
         }
         const n = fresh.length;
-        const hint = HINT + (key ? "" : " Add a TMDB key in Media lookups to match titles and get covers, genres and airing.");
+        const hint = HINT + (key ? "" : " " + i18n.t("Add a TMDB key in Media lookups to match titles and get covers, genres and airing."));
         const mode = C ? C.newMode("stremio") : "ask";
         if (mode === "none") {
           // Only what you have is kept in step: the updates, as they'd come.
           const ups = fresh.filter((it) => it.update);
           if (ups.length && ctx.importStraight) await ctx.importStraight("Stremio", ups, []);
-          job.finish(ups.length ? ups.length + " updated" : "Nothing new");
-          if (manual && !ups.length) ctx.toast("Nothing new from Stremio");
+          job.finish(ups.length ? i18n.t("{n} updated", { n: ups.length }) : i18n.t("Nothing new"));
+          if (manual && !ups.length) ctx.toast(i18n.t("Nothing new from Stremio"));
           return;
         }
-        job.finish(n + (mode === "add" ? " new" : " to review"));
+        job.finish(mode === "add" ? i18n.t("{n} new", { n }) : i18n.t("{n} to review", { n }));
         if (C) C.route("stremio", { built, title: "Stremio", hint, manual, onSkips: (selected, rows) => rememberSkips(rows, selected) });
         else {
           const review = () => ctx.reviewAndImport("Stremio", hint, built, (selected) => rememberSkips(built.items, selected));
           if (manual) review();
-          else ctx.toast(`Stremio: ${n} to review`, false, { label: "Review", onClick: review });
+          else ctx.toast(i18n.t("{title}: {n} to review", { title: "Stremio", n }), false, { label: i18n.t("Review"), onClick: review });
         }
       });
     } catch (e) {
@@ -355,7 +356,7 @@
       if (btn) { btn.disabled = false; btn.replaceChildren(...label); }
     }
   }
-  const HINT = "Your Stremio library, watching and watched. Stremio keeps only the last time you played something, so a watched movie is dated on its last play, and earlier watches aren't there. Movies with no date are unticked.";
+  const HINT = i18n.t("Your Stremio library, watching and watched. Stremio keeps only the last time you played something, so a watched movie is dated on its last play, and earlier watches aren't there. Movies with no date are unticked.");
 
   // What you leave unticked stays out of the way next time.
   async function rememberSkips(rows, selected) {
@@ -459,7 +460,7 @@
     if (!ctx) return;
     const c = upNextCfg();
     if (!c.on || !c.id || !c.key) return;
-    if (!workerUrl()) { upNextLast = "Needs your proxy URL in Media lookups"; paintUpNext(); return; }
+    if (!workerUrl()) { upNextLast = i18n.t("Needs your proxy URL in Media lookups"); paintUpNext(); return; }
     const cfg = cfgOf();
     const items = upNextItems(ctx.state.data, { movie: cfg.movieCategory, series: cfg.showCategory });
     const row = upNextRow(items, await resolveImdb(items));
@@ -468,14 +469,14 @@
     if (!manual && pushed.body === body && Date.now() - (pushed.at || 0) < 24 * 60 * 60 * 1000) return;
     try {
       const res = await fetch(workerUrl() + "/upnext/" + c.id, { method: "POST", headers: { "Content-Type": "application/json", "X-LifeLog-Key": c.key }, body });
-      if (res.status === 501) upNextLast = "Your worker needs its KV store set up (see the proxy's README)";
-      else if (!res.ok) upNextLast = "Your worker answered " + res.status;
+      if (res.status === 501) upNextLast = i18n.t("Your worker needs its KV store set up (see the proxy's README)");
+      else if (!res.ok) upNextLast = i18n.t("Your worker answered {status}", { status: res.status });
       else {
         writeJson(PUSHED_KEY, { body, at: Date.now() });
-        upNextLast = row.movie.length + " movies and " + row.series.length + " shows in the row";
+        upNextLast = i18n.t("{movies} movies and {shows} shows in the row", { movies: row.movie.length, shows: row.series.length });
       }
     } catch (e) {
-      upNextLast = "Couldn't reach your worker";
+      upNextLast = i18n.t("Couldn't reach your worker");
     }
     paintUpNext();
     if (manual) ctx.toast(upNextLast, !/in the row$/.test(upNextLast));
@@ -491,7 +492,7 @@
     const c = upNextCfg();
     const url = addonUrl(c);
     $("stremioUpNext").checked = !!c.on;
-    $("stremioUpNextState").textContent = !c.on ? "Off" : !workerUrl() ? "Needs your proxy URL in Media lookups" : upNextLast || "On";
+    $("stremioUpNextState").textContent = !c.on ? i18n.t("Off") : !workerUrl() ? i18n.t("Needs your proxy URL in Media lookups") : upNextLast || i18n.t("On");
     $("stremioUpNextAdd").hidden = $("stremioUpNextCopy").hidden = !(c.on && url);
     if (url) $("stremioUpNextAdd").href = url.replace(/^https?:\/\//, "stremio://");
   }
@@ -508,7 +509,7 @@
     sel.replaceChildren();
     const none = document.createElement("option");
     none.value = "";
-    none.textContent = "Don't import";
+    none.textContent = i18n.t("Don't import");
     sel.appendChild(none);
     for (const c of ctx.state.data.categories) {
       const o = document.createElement("option");
@@ -522,7 +523,7 @@
     if (!ctx || !$("stremioSyncBtn")) return;
     const cfg = cfgOf();
     const signedIn = !!cfg.authKey;
-    $("stremioState").textContent = signedIn ? "Signed in" + (cfg.email ? " as " + cfg.email : "") : "Not signed in";
+    $("stremioState").textContent = signedIn ? (cfg.email ? i18n.t("Signed in as {email}", { email: cfg.email }) : i18n.t("Signed in")) : i18n.t("Not signed in");
     $("stremioEmailRow").hidden = signedIn;
     $("stremioPasswordRow").hidden = signedIn;
     $("stremioSignInBtn").hidden = signedIn;
@@ -537,18 +538,18 @@
     if (!$("stremioSyncBtn")) return;
     $("stremioSignInBtn").onclick = async () => {
       const email = $("stremioEmail").value.trim(), password = $("stremioPassword").value;
-      if (!email || !password) { ctx.toast("Enter your Stremio email and password", true); return; }
+      if (!email || !password) { ctx.toast(i18n.t("Enter your Stremio email and password"), true); return; }
       const btn = $("stremioSignInBtn");
       btn.disabled = true;
-      $("stremioState").textContent = "Signing in…";
+      $("stremioState").textContent = i18n.t("Signing in…");
       try {
         const r = await signIn(email, password);
         const st = S();
         st.stremio = { ...ctx.DEFAULT_SETTINGS.stremio, ...(st.stremio || {}), authKey: r.authKey, email: r.email, connectedAt: new Date().toISOString() };
         await ctx.persist();
-        ctx.toast("Signed in to Stremio");
+        ctx.toast(i18n.t("Signed in to Stremio"));
       } catch (e) {
-        ctx.toast("Couldn't sign in to Stremio — " + e.message, true);
+        ctx.toast(i18n.t("Couldn't sign in to Stremio — {why}", { why: e.message }), true);
       } finally {
         $("stremioPassword").value = "";
         btn.disabled = false;
@@ -561,7 +562,7 @@
       await setSetting("authKey", "");
       await setSetting("connectedAt", "");
       renderSettings();
-      ctx.toast("Signed out of Stremio");
+      ctx.toast(i18n.t("Signed out of Stremio"));
     };
     $("stremioMovieCategory").onchange = () => setSetting("movieCategory", $("stremioMovieCategory").value);
     $("stremioShowCategory").onchange = () => setSetting("showCategory", $("stremioShowCategory").value);
@@ -575,8 +576,8 @@
       if (on) pushUpNext({ manual: true });
     };
     $("stremioUpNextCopy").onclick = async () => {
-      try { await navigator.clipboard.writeText(addonUrl(upNextCfg())); ctx.toast("Add-on link copied. In Stremio: Add-ons → paste it in the search box"); }
-      catch (e) { ctx.toast("Couldn't copy the link", true); }
+      try { await navigator.clipboard.writeText(addonUrl(upNextCfg())); ctx.toast(i18n.t("Add-on link copied. In Stremio: Add-ons → paste it in the search box")); }
+      catch (e) { ctx.toast(i18n.t("Couldn't copy the link"), true); }
     };
     if (window.LifeLogJobs && window.LifeLogJobs.onAgain) window.LifeLogJobs.onAgain("stremioSyncBtn", () => sync({ manual: true }));
   }

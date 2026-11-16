@@ -5,6 +5,7 @@
 // still there next time). Self-contained apart from the usual app plumbing
 // handed in by init(ctx).
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let $, toast, prefersReducedMotion;
 
   function init(ctx) {
@@ -251,7 +252,7 @@
   function syncButtons() {
     const has = segments.length > 0;
     $("#wheelSpinBtn").disabled = spinning || !has;
-    $("#wheelSpinBtn").textContent = spinning ? "…" : (winner ? "Again" : "Spin");
+    $("#wheelSpinBtn").textContent = spinning ? "…" : (winner ? i18n.t("Again") : i18n.t("Spin"));
     $("#wheelRemoveBtn").hidden = !custom || !winner || !has;
     $("#wheelRemoveBtn").disabled = spinning || segments.length < 2;
     $("#wheelEditBtn").hidden = !custom;
@@ -271,7 +272,7 @@
 
   function applyOptions() {
     const labels = $("#wheelOptions").value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 60);
-    if (!labels.length) { toast("Add at least one option", true); return; }
+    if (!labels.length) { toast(i18n.t("Add at least one option"), true); return; }
     custom = true;
     onResult = null;
     segments = toSegments(labels);

@@ -19,6 +19,7 @@
 // The reading is pure (test/letterboxd.test.js); only `importFiles` touches
 // the page.
 (() => {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let ctx = null;
   const lower = (s) => String(s || "").toLowerCase();
 
@@ -61,7 +62,7 @@
       recognised++;
       by[kind] = by[kind].concat(table(f.rows));
     }
-    if (!recognised) throw new Error("No Letterboxd files here — the zip from Settings → Import & Export has diary.csv, watched.csv and watchlist.csv");
+    if (!recognised) throw new Error(i18n.t("No Letterboxd files here — the zip from Settings → Import & Export has diary.csv, watched.csv and watchlist.csv"));
     const ratings = new Map();
     for (const r of by.ratings) if (starsOf(r.rating)) ratings.set(uriOf(r), starsOf(r.rating));
     const entries = [];
@@ -117,8 +118,8 @@
     const files = await filesOf(fileList);
     const got = parseExport(files, category);
     const built = ctx.buildImportItems({ entries: got.entries, backlog: got.backlog, categories: [] }, ["entry", "backlog"]);
-    const hint = `${got.entries.length} watched (${got.counts.diary} with a diary date) and ${got.backlog.length} on the watchlist. Films already in your data are hidden; untick anything you don't want.`;
-    ctx.reviewAndImport("Import from Letterboxd", hint, built);
+    const hint = i18n.t("{watched} watched ({diary} with a diary date) and {list} on the watchlist. Films already in your data are hidden; untick anything you don't want.", { watched: got.entries.length, diary: got.counts.diary, list: got.backlog.length });
+    ctx.reviewAndImport(i18n.t("Import from Letterboxd"), hint, built);
   }
 
   function start(c) { ctx = c; }

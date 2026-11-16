@@ -6,6 +6,7 @@
 // fetchMediaMatch, makeMediaAcItem, sync-status/button visibility,
 // setEntryCover) live here and are re-forwarded into backlog.js by app.js.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Shared app plumbing, provided by app.js via init(ctx).
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
@@ -45,10 +46,10 @@
     const e = (state.data.entries || []).find((x) => x.id === id);
     if (!e) return null;
     return [
-      { icon: "pencil", label: "Open", run: () => openEntryModal(e) },
+      { icon: "pencil", label: i18n.t("Open"), run: () => openEntryModal(e) },
       h.divider,
-      { icon: "undo-2", label: "Move to backlog", run: () => moveEntryToBacklog(false, id) },
-      { icon: "play", label: "Move to In progress", hidden: !categoryShows(e.category).inProgress, run: () => moveEntryToBacklog(true, id) },
+      { icon: "undo-2", label: i18n.t("Move to backlog"), run: () => moveEntryToBacklog(false, id) },
+      { icon: "play", label: i18n.t("Move to In progress"), hidden: !categoryShows(e.category).inProgress, run: () => moveEntryToBacklog(true, id) },
       h.divider,
       h.select(id),
       h.del(id, bulkDeleteEntriesSelected),
@@ -102,15 +103,15 @@
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
       const yn = byYear[y].length;
-      head.appendChild(el("span", "ycount", `${yn} ${yn === 1 ? "entry" : "entries"}`));
+      head.appendChild(el("span", "ycount", i18n.tn(yn, "{n} entry", "{n} entries")));
       const accs = (state.data.accomplishments && state.data.accomplishments[y]) || [];
       if (accs.length) {
         const a = el("div", "accs");
         a.appendChild(document.createTextNode("★"));
         accs.forEach((acc, i) => {
           const chip = el("span", "acc", acc.text);
-          chip.title = "Edit achievement";
-          activatable(chip, () => openAchModal({ year: +y, index: i, text: acc.text, createdAt: acc.createdAt, notes: acc.notes }), "Edit achievement: " + acc.text);
+          chip.title = i18n.t("Edit achievement");
+          activatable(chip, () => openAchModal({ year: +y, index: i, text: acc.text, createdAt: acc.createdAt, notes: acc.notes }), i18n.t("Edit achievement: {text}", { text: acc.text }));
           a.appendChild(chip);
         });
         head.appendChild(a);
@@ -250,9 +251,9 @@
 
     const head = el("div", "cal-head");
     head.appendChild(el("h2", "cal-title", MONTHS[m] + " " + y));
-    head.appendChild(el("span", "cal-count", inMonth.length ? inMonth.length + " finished" : ""));
+    head.appendChild(el("span", "cal-count", inMonth.length ? i18n.t("{n} finished", { n: inMonth.length }) : ""));
     const nav = el("div", "cal-nav");
-    for (const [dir, icon, label] of [[-1, "chevron-left", "Previous month"], [1, "chevron-right", "Next month"]]) {
+    for (const [dir, icon, label] of [[-1, "chevron-left", i18n.t("Previous month")], [1, "chevron-right", i18n.t("Next month")]]) {
       const b = el("button", "btn btn-icon cal-step");
       b.type = "button";
       b.appendChild(ico(icon));
@@ -278,8 +279,8 @@
       cell.classList.toggle("has-entries", list.length > 0);
       cell.setAttribute("aria-pressed", String(d === calDay));
       const due = tasksByDay.get(d) || [];
-      cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + list.length + " finished" : "")
-        + (due.length ? ", " + due.length + (due.length === 1 ? " task" : " tasks") : ""));
+      cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + i18n.t("{n} finished", { n: list.length }) : "")
+        + (due.length ? ", " + i18n.tn(due.length, "{n} task", "{n} tasks") : ""));
       cell.dataset.day = d;
       if (list.length) {
         const first = list[0];
@@ -302,7 +303,7 @@
           n.prepend(dot);
           names.appendChild(n);
         }
-        if (lines.length > 3) names.appendChild(el("span", "cal-name is-more", "+" + (lines.length - 3) + " more"));
+        if (lines.length > 3) names.appendChild(el("span", "cal-name is-more", i18n.t("+{n} more", { n: lines.length - 3 })));
         cell.appendChild(names);
       }
       cell.appendChild(el("span", "cal-n", String(d)));
@@ -320,14 +321,14 @@
     const picked = byDay.get(calDay) || [];
     const dayCard = el("div", "month-card cal-daycard");
     dayCard.appendChild(el("h3", null, D.day(calKey(y, m) + "-" + pad2(calDay), { weekday: true, year: false }) +
-      (picked.length ? " · " + picked.length + " finished" : "")));
+      (picked.length ? " · " + i18n.t("{n} finished", { n: picked.length }) : "")));
     if (picked.length) for (const e of picked) dayCard.appendChild(calRow(e));
-    else dayCard.appendChild(el("p", "cal-empty", "Nothing finished this day"));
+    else dayCard.appendChild(el("p", "cal-empty", i18n.t("Nothing finished this day")));
     side.appendChild(dayCard);
     const dueOn = tasksByDay.get(calDay) || [];
     if (dueOn.length) {
       const box = el("div", "month-card cal-tasks");
-      box.appendChild(el("h3", null, "Tasks · " + dueOn.length));
+      box.appendChild(el("h3", null, i18n.t("Tasks") + " · " + dueOn.length));
       const todayKey = T.today();
       for (const r of dueOn) {
         box.appendChild(Home.taskRow({ kind: "task", day: r.day, title: r.item.text, category: r.category, list: r.note.text || "",
@@ -337,7 +338,7 @@
     }
     if (undated.length) {
       const box = el("div", "month-card cal-undated");
-      box.appendChild(el("h3", null, "No day set · " + undated.length));
+      box.appendChild(el("h3", null, i18n.t("No day set") + " · " + undated.length));
       for (const e of undated) box.appendChild(calRow(e));
       side.appendChild(box);
     }
@@ -400,7 +401,7 @@
     const sp = spanLabel(e);
     if (sp) {
       const chip = el("span", "espan", sp);
-      chip.title = "Spanned " + sp;
+      chip.title = i18n.t("Spanned {span}", { span: sp });
       row.appendChild(chip);
     }
     if (e.rating) row.appendChild(ratingBadge(e.rating));
@@ -541,19 +542,19 @@
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Moved ${n} entr${n === 1 ? "y" : "ies"} to “${categoryName}”`);
+    toast(i18n.tn(n, "Moved {n} entry to “{category}”", "Moved {n} entries to “{category}”", { category: categoryName }));
   }
 
   async function bulkDeleteEntriesSelected() {
     const ids = state.bulk.selected;
     const n = ids.size;
-    if (!confirm(`Delete ${n} entr${n === 1 ? "y" : "ies"} from your timeline?`)) return;
+    if (!confirm(i18n.tn(n, "Delete {n} entry from your timeline?", "Delete {n} entries from your timeline?"))) return;
     state.data.entries = state.data.entries.filter((e) => !ids.has(e.id));
     state.bulk.active = false;
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
+    toast(i18n.tn(n, "Deleted {n} entry", "Deleted {n} entries"));
   }
 
   // Syncs each selected timeline entry to media metadata, auto-picking the top
@@ -574,9 +575,9 @@
       // Steam has no search (CORS-blocked) — its App ID can only be entered
       // manually per item, so it's skipped here rather than attempted.
       const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-      if (!item) { markBulkItem(id, "skipped", "no longer in your timeline"); skipped++; }
-      else if (!source) { markBulkItem(id, "skipped", `no media source set for ${item.category}`); skipped++; }
-      else if (source === "steam") { markBulkItem(id, "skipped", "Steam needs an App ID per item"); skipped++; }
+      if (!item) { markBulkItem(id, "skipped", i18n.t("no longer in your timeline")); skipped++; }
+      else if (!source) { markBulkItem(id, "skipped", i18n.t("no media source set for {category}", { category: item.category })); skipped++; }
+      else if (source === "steam") { markBulkItem(id, "skipped", i18n.t("Steam needs an App ID per item")); skipped++; }
       else {
         try {
           // fetchMediaMatch swallows its own errors and returns no match, so a
@@ -594,8 +595,8 @@
             const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
             if (err) lastErr = err;
             markBulkItem(id, "skipped", found.closest
-              ? `no match for this title — closest was “${found.closest.title}”`
-              : (err || "no match found"));
+              ? i18n.t("no match for this title — closest was “{title}”", { title: found.closest.title })
+              : (err || i18n.t("no match found")));
           } else {
             const r = found.match;
             const filled = [];
@@ -636,7 +637,7 @@
       // A dead key or a blocked network fails identically on every title —
       // no reason to spend the rest of the selection proving it.
       if (streak >= 3) {
-        ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", "stopped after 3 failures in a row"));
+        ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", i18n.t("stopped after 3 failures in a row")));
         skipped += ids.length - ids.indexOf(id) - 1;
         break;
       }
@@ -652,9 +653,9 @@
     state.bulk.selected.clear();
     render();
     await persist();
-    const bits = [`Synced ${synced} entr${synced === 1 ? "y" : "ies"}`];
-    if (skipped) bits.push(`skipped ${skipped}`);
-    if (failed) bits.push(`${failed} failed`);
+    const bits = [i18n.tn(synced, "Synced {n} entry", "Synced {n} entries")];
+    if (skipped) bits.push(i18n.t("skipped {n}", { n: skipped }));
+    if (failed) bits.push(i18n.t("{n} failed", { n: failed }));
     const base = bits.join(", ");
     toast(lastErr ? base + " — " + lastErr : base, !!(failed || (skipped && lastErr)));
   }
@@ -665,19 +666,19 @@
     const thisYear = new Date().getFullYear();
     const big = el("div", "card");
     const bigRow = el("div", "stat-big");
-    bigRow.appendChild(statItem(entries.length, "entries"));
-    bigRow.appendChild(statItem(entries.filter((e) => e.year === thisYear).length, `in ${thisYear}`));
+    bigRow.appendChild(statItem(entries.length, i18n.t("entries")));
+    bigRow.appendChild(statItem(entries.filter((e) => e.year === thisYear).length, i18n.t("in {year}", { year: String(thisYear) })));
     bigRow.appendChild(statItem(ys.length, "years"));
-    bigRow.appendChild(statItem(new Set(entries.map((e) => e.category)).size, "categories"));
-    bigRow.appendChild(statItem(entries.filter((e) => e.backlogAddedAt).length, "completed from backlog"));
-    big.appendChild(el("h2", null, "Overview"));
+    bigRow.appendChild(statItem(new Set(entries.map((e) => e.category)).size, i18n.t("categories")));
+    bigRow.appendChild(statItem(entries.filter((e) => e.backlogAddedAt).length, i18n.t("completed from backlog")));
+    big.appendChild(el("h2", null, i18n.t("Overview")));
     big.appendChild(bigRow);
 
     const grid = el("div", "stats-grid");
 
     // by category
     const catCard = el("div", "card");
-    catCard.appendChild(el("h2", null, "Categories"));
+    catCard.appendChild(el("h2", null, i18n.t("Categories")));
     const catCounts = countBy(entries, (e) => e.category);
     const byCat = groupBy(entries, (e) => e.category);
     const catUnique = {};
@@ -690,7 +691,7 @@
 
     // by year
     const yearCard = el("div", "card");
-    yearCard.appendChild(el("h2", null, "Years"));
+    yearCard.appendChild(el("h2", null, i18n.t("Years")));
     const yearCounts = countBy(entries, (e) => e.year);
     const yearMax = Math.max(1, ...Object.values(yearCounts));
     Object.keys(yearCounts).sort((a, b) => b - a)
@@ -713,7 +714,7 @@
     const repeats = [...byTitle.values()].filter((g) => g.count > 1).sort((a, b) => b.count - a.count).slice(0, 5);
     if (repeats.length) {
       const repCard = el("div", "card");
-      repCard.appendChild(el("h2", null, "Most repeated"));
+      repCard.appendChild(el("h2", null, i18n.t("Most repeated")));
       const repMax = Math.max(1, ...repeats.map((r) => r.count));
       repeats.forEach((r) => {
         const row = barRow(r.title, r.count, repMax, colorOf(r.category));
@@ -762,13 +763,13 @@
     // between them), so it needs the same 20px top margin the other stacked
     // cards get — without it the two panels butt together with no padding.
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Highlights"));
+    card.appendChild(el("h2", null, i18n.t("Highlights")));
     const row = el("div", "stat-big");
-    row.appendChild(statItem(`${MONTHS_SHORT[(bestK % 12) + 1]} ${Math.floor(bestK / 12)}`, `busiest month (${monthCounts[bestK]})`, "hl:busiest"));
-    row.appendChild(statItem(bestStreak, "month streak", "hl:streak"));
-    row.appendChild(statItem(topCat, "top category", "hl:cat"));
+    row.appendChild(statItem(`${MONTHS_SHORT[(bestK % 12) + 1]} ${Math.floor(bestK / 12)}`, i18n.t("busiest month ({n})", { n: monthCounts[bestK] }), "hl:busiest"));
+    row.appendChild(statItem(bestStreak, i18n.t("month streak"), "hl:streak"));
+    row.appendChild(statItem(topCat, i18n.t("top category"), "hl:cat"));
     // Nothing logged last year: the comparison would be with zero.
-    if (lastYear) row.appendChild(statItem((delta > 0 ? "+" : "") + delta, `vs ${thisYear - 1}`, "hl:yoy"));
+    if (lastYear) row.appendChild(statItem((delta > 0 ? "+" : "") + delta, i18n.t("vs {year}", { year: String(thisYear - 1) }), "hl:yoy"));
     card.appendChild(row);
     root.appendChild(card);
   }
@@ -783,7 +784,7 @@
     const max = Math.max(1, ...counts.slice(1));
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Monthly pattern"));
+    card.appendChild(el("h2", null, i18n.t("Monthly pattern")));
     for (let m = 1; m <= 12; m++) card.appendChild(barRow(MONTHS[m], counts[m], max, "var(--accent)"));
     root.appendChild(card);
   }
@@ -798,7 +799,7 @@
     if (!names.length) return;
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Genres"));
+    card.appendChild(el("h2", null, i18n.t("Genres")));
     const max = Math.max(1, ...Object.values(counts));
     names.sort((a, b) => counts[b] - counts[a]).slice(0, 12)
       .forEach((n) => card.appendChild(barRow(n, counts[n], max, "var(--accent)")));
@@ -824,7 +825,7 @@
 
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Activity"));
+    card.appendChild(el("h2", null, i18n.t("Activity")));
     const wrap = el("div", "heatmap");
 
     const header = el("div", "heatmap-row");
@@ -840,7 +841,7 @@
         const cell = el("div", "heatmap-cell");
         if (count) {
           cell.style.background = heatColor(count, maxCount);
-          const label = `${count} ${count === 1 ? "entry" : "entries"} · ${MONTHS_SHORT[m]} ${year}`;
+          const label = i18n.tn(count, "{n} entry", "{n} entries") + ` · ${MONTHS_SHORT[m]} ${year}`;
           cell.title = label;
           // A lit cell jumps to that month in the Timeline (see
           // jumpToTimelineMonth). activatable makes it keyboard-reachable too.
@@ -849,7 +850,7 @@
           // isn't a way into a mode that isn't there.
           if (modeEnabled("timeline", "entries")) {
             cell.classList.add("is-clickable");
-            activatable(cell, () => jumpToTimelineMonth(year, m), "Show " + label + " in Timeline");
+            activatable(cell, () => jumpToTimelineMonth(year, m), i18n.t("Show {what} in Timeline", { what: label }));
           }
         }
         row.appendChild(cell);
@@ -872,7 +873,7 @@
     // through rather than read. Two of them under one name was worse than
     // either, and this is the one that was always really a table.
     const head = el("div", "yir-head");
-    head.appendChild(el("h2", null, "That year in numbers"));
+    head.appendChild(el("h2", null, i18n.t("That year in numbers")));
     card.appendChild(head);
 
     const yearNav = el("div", "yir-years");
@@ -886,9 +887,9 @@
     // the year chosen there, and says which. Beside the heading it was a
     // button taller than the line it sat on, hanging between the two rows.
     const recapBtn = el("button", "recap-open-btn");
-    recapBtn.appendChild(window.LifeLogIcons.labelled("play", "Recap " + state.statsYear));
+    recapBtn.appendChild(window.LifeLogIcons.labelled("play", i18n.t("Recap {year}", { year: String(state.statsYear) })));
     recapBtn.type = "button";
-    recapBtn.title = "Your year, one thing at a time";
+    recapBtn.title = i18n.t("Your year, one thing at a time");
     recapBtn.onclick = () => window.LifeLogRecap.openRecap(state.statsYear);
     yearNav.appendChild(recapBtn);
     card.appendChild(yearNav);
@@ -897,7 +898,7 @@
     const achs = state.data.accomplishments[state.statsYear] || [];
 
     if (!yearEntries.length && !achs.length) {
-      card.appendChild(el("p", "muted", `No entries logged in ${state.statsYear}.`));
+      card.appendChild(el("p", "muted", i18n.t("No entries logged in {year}.", { year: String(state.statsYear) })));
       root.appendChild(card);
       return;
     }
@@ -908,15 +909,15 @@
     const ratedYear = yearEntries.filter((e) => e.rating);
     const fromBacklog = yearEntries.filter((e) => e.backlogAddedAt).length;
     const highlights = el("div", "yir-highlights");
-    highlights.appendChild(statItem(yearEntries.length, "entries", "yir:entries"));
-    highlights.appendChild(statItem(uniqueTitles, "unique titles", "yir:unique"));
-    if (topMonth) highlights.appendChild(statItem(MONTHS_SHORT[+topMonth[0]], "best month", "yir:month"));
+    highlights.appendChild(statItem(yearEntries.length, i18n.t("entries"), "yir:entries"));
+    highlights.appendChild(statItem(uniqueTitles, i18n.t("unique titles"), "yir:unique"));
+    if (topMonth) highlights.appendChild(statItem(MONTHS_SHORT[+topMonth[0]], i18n.t("best month"), "yir:month"));
     // avg rating as a fixed-1-decimal string so 4.2 doesn't round to 4
     if (ratedYear.length) {
       const avg = ratedYear.reduce((s, e) => s + e.rating, 0) / ratedYear.length;
-      highlights.appendChild(statItem(avg.toFixed(1) + "★", "avg rating", "yir:avg"));
+      highlights.appendChild(statItem(avg.toFixed(1) + "★", i18n.t("avg rating"), "yir:avg"));
     }
-    if (fromBacklog) highlights.appendChild(statItem(fromBacklog, "from backlog", "yir:backlog"));
+    if (fromBacklog) highlights.appendChild(statItem(fromBacklog, i18n.t("from backlog"), "yir:backlog"));
     card.appendChild(highlights);
 
     if (yearEntries.length) {
@@ -924,7 +925,7 @@
       const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
       const catMax = topCats[0][1];
       const sec = el("div", "yir-section");
-      sec.appendChild(el("h3", null, "Top categories"));
+      sec.appendChild(el("h3", null, i18n.t("Top categories")));
       for (const [name, count] of topCats) sec.appendChild(barRow(name, count, catMax, colorOf(name)));
       card.appendChild(sec);
     }
@@ -940,7 +941,7 @@
       }
       const top = [...bestByTitle.values()].sort((a, b) => b.rating - a.rating).slice(0, 5);
       const sec = el("div", "yir-section");
-      sec.appendChild(el("h3", null, "Top rated"));
+      sec.appendChild(el("h3", null, i18n.t("Top rated")));
       for (const r of top) {
         const item = el("div", "yir-rated");
         const dot = el("span", "yir-rated-dot");
@@ -966,7 +967,7 @@
     if (repeats.length) {
       const repMax = repeats[0].count;
       const sec = el("div", "yir-section");
-      sec.appendChild(el("h3", null, "Most repeated"));
+      sec.appendChild(el("h3", null, i18n.t("Most repeated")));
       for (const r of repeats) {
         const row = barRow(r.title, r.count, repMax, colorOf(r.category));
         row.querySelector(".lbl").title = r.title;
@@ -977,7 +978,7 @@
 
     if (achs.length) {
       const sec = el("div", "yir-section");
-      sec.appendChild(el("h3", null, `Achievements (${achs.length})`));
+      sec.appendChild(el("h3", null, i18n.t("Achievements ({n})", { n: achs.length })));
       for (const a of achs) {
         const item = el("div", "yir-ach");
         item.appendChild(el("span", "yir-ach-bullet", "✦"));
@@ -1026,7 +1027,7 @@
 
   function openEntryModal(entry, fromBacklog, preset) {
     const editing = !!entry;
-    $("#entryModalTitle").textContent = editing ? "Edit entry" : "Add entry";
+    $("#entryModalTitle").textContent = editing ? i18n.t("Edit entry") : i18n.t("Add entry");
     $("#entryId").value = editing ? entry.id : "";
     $("#entryFromBacklog").value = fromBacklog ? fromBacklog.id : "";
     $("#fTitle").value = editing ? entry.title
@@ -1051,7 +1052,7 @@
     closeSheetMenus();
     const added = $("#addedLine");
     if (editing && entry.createdAt) {
-      added.textContent = "Added " + Dates().day(entry.createdAt);
+      added.textContent = i18n.t("Added {date}", { date: Dates().day(entry.createdAt) });
       added.hidden = false;
     } else added.hidden = true;
     setRating(editing ? (entry.rating || 0) : 0);
@@ -1169,7 +1170,7 @@
   // Every lookup source a category can use, as Settings → Media lookups and
   // the category sheet both offer them.
   const MEDIA_SOURCE_OPTIONS = [
-    { value: "", label: "None" },
+    { value: "", label: i18n.t("None") },
     { value: "rawg", label: "RAWG (games)" },
     { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
     { value: "steamgriddb", label: "SteamGridDB (games)" },
@@ -1454,7 +1455,7 @@
         // Deduped: a primary and fallback can share a display name (TMDB
         // covers both movies and TV), and "Searching TMDB, TMDB…" reads as a bug.
         const names = [...new Set([...waiting].map((k) => MEDIA_SOURCE_LABELS[k] || k))].join(", ");
-        pendingRow = el("div", "ac-pending", "Searching " + names + "…");
+        pendingRow = el("div", "ac-pending", i18n.t("Searching {names}…", { names }));
         list.appendChild(pendingRow);
       }
       list.hidden = !list.children.length;
@@ -1473,7 +1474,7 @@
       if (!total) {
         list.hidden = true;
         const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
-        toast(err ? "No matches found — " + err : "No matches found", !!err);
+        toast(err ? i18n.t("No matches found — {why}", { why: err }) : i18n.t("No matches found"), !!err);
       }
       return total;
     } finally {
@@ -1509,9 +1510,9 @@
     // Something you already have (0.295.0): Open goes to its sheet instead
     // of starting a second copy, which picking the row still does.
     if (r.open) {
-      const btn = el("button", "btn btn-sm ac-open", "Open");
+      const btn = el("button", "btn btn-sm ac-open", i18n.t("Open"));
       btn.type = "button";
-      btn.title = "Open the one you already have";
+      btn.title = i18n.t("Open the one you already have");
       btn.onclick = (ev) => { ev.stopPropagation(); r.open(); };
       item.appendChild(btn);
     }
@@ -1524,7 +1525,7 @@
     const statusText = $("#" + prefix + "SyncStatusText");
     if (!statusDiv) return;
     if (source) {
-      statusText.textContent = "Synced via " + (MEDIA_SOURCE_LABELS[source] || source);
+      statusText.textContent = i18n.t("Synced via {source}", { source: MEDIA_SOURCE_LABELS[source] || source });
       statusDiv.hidden = false;
     } else {
       statusDiv.hidden = true;
@@ -1653,7 +1654,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta", `×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
+      info.appendChild(el("span", "ac-meta", i18n.t("×{n} · last {month} {year}", { n: m.count, month: MONTHS_SHORT[m.month], year: String(m.year) })));
       list.appendChild(item);
     });
 
@@ -1678,7 +1679,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("clipboard-list", `In backlog · ${b.category}`));
+      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("clipboard-list", i18n.t("In backlog · {category}", { category: b.category })));
       list.appendChild(item);
     });
 
@@ -1822,7 +1823,7 @@
     render();
     await persist();
     if (window.LifeLogSync) window.LifeLogSync.aniListChanged({ mediaSource });
-    toast(id ? "Entry updated" : (fromBacklogId ? "Moved to log" : "Entry added"));
+    toast(id ? i18n.t("Entry updated") : (fromBacklogId ? i18n.t("Moved to log") : i18n.t("Entry added")));
     // A new synced entry is something finished: the sequel offer (0.275.0)
     // rides in a second toast under this one, once its lookup lands. An
     // edit is not a finish, so it asks nothing.
@@ -1834,14 +1835,14 @@
   async function deleteCurrentEntry() {
     const id = $("#entryId").value;
     if (!id) return;
-    if (!confirm("Delete this entry?")) return;
+    if (!confirm(i18n.t("Delete this entry?"))) return;
     if (window.LifeLogSync) window.LifeLogSync.aniListRemoved(state.data.entries.find((x) => x.id === id));
     state.data.entries = state.data.entries.filter((x) => x.id !== id);
     closeEntryModal();
     buildYearFilter();
     render();
     await persist();
-    toast("Entry deleted");
+    toast(i18n.t("Entry deleted"));
   }
 
   // `started` (0.220.0) sends it to In progress instead: for something
@@ -1853,7 +1854,7 @@
     if (!id) return;
     const entry = state.data.entries.find((e) => e.id === id);
     if (!entry) return;
-    if (!confirm(started ? "Move this entry back to In progress?" : "Move this entry to your backlog?")) return;
+    if (!confirm(started ? i18n.t("Move this entry back to In progress?") : i18n.t("Move this entry to your backlog?"))) return;
     const item = { id: uid(), title: entry.title, category: entry.category, createdAt: new Date().toISOString() };
     if (entry.notes) item.notes = entry.notes;
     if (entry.coverUrl) item.coverUrl = entry.coverUrl;
@@ -1878,20 +1879,20 @@
     render();
     await persist();
     if (window.LifeLogSync) window.LifeLogSync.aniListChanged(item);
-    toast(started ? "Back in progress — it's at the top of your Timeline" : "Moved to backlog");
+    toast(started ? i18n.t("Back in progress — it's at the top of your Timeline") : i18n.t("Moved to backlog"));
   }
 
   // ---------- achievements ----------
   function openAchModal(ach) {
     const editing = !!ach;
-    $("#achModalTitle").textContent = editing ? "Edit achievement" : "Add achievement";
+    $("#achModalTitle").textContent = editing ? i18n.t("Edit achievement") : i18n.t("Add achievement");
     $("#achOrig").value = editing ? `${ach.year}|${ach.index}` : "";
     $("#aText").value = editing ? ach.text : "";
     $("#aYear").value = editing ? ach.year : new Date().getFullYear();
     $("#deleteAchBtn").hidden = !editing;
     const added = $("#achAddedLine");
     if (editing && ach.createdAt) {
-      added.textContent = "Added " + Dates().day(ach.createdAt);
+      added.textContent = i18n.t("Added {date}", { date: Dates().day(ach.createdAt) });
       added.hidden = false;
     } else added.hidden = true;
     $("#aNotes").value = editing ? (ach.notes || "") : "";
@@ -1925,20 +1926,20 @@
     closeAchModal();
     render();
     await persist();
-    toast(orig ? "Achievement updated" : "Achievement added");
+    toast(orig ? i18n.t("Achievement updated") : i18n.t("Achievement added"));
   }
 
   async function deleteCurrentAch() {
     const orig = $("#achOrig").value;
     if (!orig) return;
-    if (!confirm("Delete this achievement?")) return;
+    if (!confirm(i18n.t("Delete this achievement?"))) return;
     const [oy, oi] = orig.split("|");
     const accs = state.data.accomplishments;
     if (accs[oy]) { accs[oy].splice(+oi, 1); if (!accs[oy].length) delete accs[oy]; }
     closeAchModal();
     render();
     await persist();
-    toast("Achievement deleted");
+    toast(i18n.t("Achievement deleted"));
   }
 
   // ---------- categories management ----------
@@ -1947,7 +1948,7 @@
   let catAuthorAuto = true, catProgressAuto = true;
   function openCategoryModal(cat) {
     const editing = !!cat;
-    $("#catModalTitle").textContent = editing ? "Edit category" : "Add category";
+    $("#catModalTitle").textContent = editing ? i18n.t("Edit category") : i18n.t("Add category");
     $("#catOrigName").value = editing ? cat.name : "";
     $("#cName").value = editing ? cat.name : "";
     $("#cColor").value = editing ? cat.color : "#3bb2e2";
@@ -1966,7 +1967,7 @@
       const entryCount = countBy(state.data.entries, (e) => e.category)[cat.name] || 0;
       const backlogCount = countBy(state.data.backlog, (b) => b.category)[cat.name] || 0;
       const n = entryCount + backlogCount;
-      uses.textContent = n + (n === 1 ? " item uses this" : " items use this");
+      uses.textContent = i18n.tn(n, "{n} item uses this", "{n} items use this");
       uses.hidden = false;
     } else uses.hidden = true;
     $("#deleteCatBtn").hidden = !editing;
@@ -1996,7 +1997,7 @@
 
     if (!orig) { // adding a new category
       if (state.data.categories.some((c) => c.name === newName)) {
-        toast("That category already exists", true);
+        toast(i18n.t("That category already exists"), true);
         return;
       }
       const now = new Date().toISOString();
@@ -2009,7 +2010,7 @@
       closeCategoryModal();
       rebuildColorMap(); buildCatFilter(); render();
       await persist();
-      toast("Category added");
+      toast(i18n.t("Category added"));
       resolvePendingCatSelect(newName);
       return;
     }
@@ -2017,7 +2018,7 @@
     const cat = state.data.categories.find((c) => c.name === orig);
     if (!cat) return;
     if (newName !== cat.name && state.data.categories.some((c) => c !== cat && c.name === newName)) {
-      toast("A category with that name already exists", true);
+      toast(i18n.t("A category with that name already exists"), true);
       return;
     }
     cat.color = color;
@@ -2037,7 +2038,7 @@
     closeCategoryModal();
     rebuildColorMap(); buildCatFilter(); render();
     await persist();
-    toast("Category saved");
+    toast(i18n.t("Category saved"));
   }
 
   // The timeline and the backlog name their category; a rename moves both.
@@ -2069,10 +2070,10 @@
     const n = (counts[cat.name] || 0) + (backlogCounts[cat.name] || 0);
     if (n > 0) {
       if (cat.name === "Other") {
-        toast("Can't delete “Other” while it's in use", true);
+        toast(i18n.t("Can't delete “Other” while it's in use"), true);
         return;
       }
-      if (!confirm(`“${cat.name}” is used by ${n} item${n === 1 ? "" : "s"}. Move them to “Other” and delete?`)) return;
+      if (!confirm(i18n.tn(n, "“{category}” is used by {n} item. Move them to “Other” and delete?", "“{category}” is used by {n} items. Move them to “Other” and delete?", { category: cat.name }))) return;
       let other = state.data.categories.find((c) => c.name === "Other");
       if (!other) {
         other = { id: "other", name: "Other", color: "#7a8a99", updatedAt: new Date().toISOString() };
@@ -2080,14 +2081,14 @@
       }
       renameCategory(state.data, cat.name, "Other");
     } else {
-      if (!confirm(`Delete category “${cat.name}”?`)) return;
+      if (!confirm(i18n.t("Delete category “{category}”?", { category: cat.name }))) return;
     }
     state.data.categories = state.data.categories.filter((c) => c !== cat);
     state.activeCats.delete(cat.name);
     rebuildColorMap();
     buildCatFilter(); render();
     await persist();
-    toast("Category deleted");
+    toast(i18n.t("Category deleted"));
   }
 
   // A Steam game's How Long to Beat times and review scores (0.282.0; see

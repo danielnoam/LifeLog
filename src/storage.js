@@ -9,6 +9,7 @@
 // freshened from it so the backup never goes stale. With neither connected,
 // it's browser-only (that copy), seeded from ./lifelog.json.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const CACHE_KEY = "lifelog-cache-v1";
   const GH_KEY = "lifelog-github-v1";        // { owner, repo, path, branch, token, sha }
   const SYNC_BASE_KEY = "lifelog-sync-base-v1";
@@ -345,7 +346,7 @@
     if (e instanceof TypeError || (typeof navigator !== "undefined" && navigator.onLine === false)) {
       return { kind: "offline", detail: "" };
     }
-    if (e instanceof SyntaxError) return { kind: "other", detail: "GitHub sent back something that isn't your data" };
+    if (e instanceof SyntaxError) return { kind: "other", detail: i18n.t("GitHub sent back something that isn't your data") };
     return { kind: "other", detail: String(e.message || e).slice(0, 160) };
   }
 
@@ -415,13 +416,13 @@
       // repo pointed at through Advanced, or one flipped public later, went
       // unnoticed (0.259.2).
       tookSize(info, false); // saved with the rest once connecting succeeds
-      if (info && info.private === false) throw new Error(`The repo ${gh.owner}/${gh.repo} is public — your log would be visible to everyone. Make it private on GitHub, or pick another repo.`);
+      if (info && info.private === false) throw new Error(i18n.t("The repo {repo} is public — your log would be visible to everyone. Make it private on GitHub, or pick another repo.", { repo: gh.owner + "/" + gh.repo }));
       return gh.branch;
     }
     // A token limited to one repo answers 404 for a repo it wasn't given,
     // whether or not the repo exists, and can't create one. Say what to do
     // rather than "GitHub 403" (0.260.0).
-    const limited = (msg) => new Error(`This token can't reach ${gh.owner}/${gh.repo}. Create that private repo on GitHub if it doesn't exist yet, and give the token access to it (Only select repositories) — then Connect again.` + (msg ? ` GitHub said: ${msg}` : ""));
+    const limited = (msg) => new Error(i18n.t("This token can't reach {repo}. Create that private repo on GitHub if it doesn't exist yet, and give the token access to it (Only select repositories) — then Connect again.", { repo: gh.owner + "/" + gh.repo }) + (msg ? " " + i18n.t("GitHub said: {msg}", { msg }) : ""));
     if (tokenKind(gh.token) === "fine") throw limited("");
     let created;
     try { created = await ghc().createRepo(gh.repo, "LifeLog data"); }
@@ -634,7 +635,7 @@
     const head = await imgHead();
     if (!head) return { removed: 0, bytes: 0, kept: 0 };
     const listing = await ghJson("GET", "git/trees/" + head.tree + "?recursive=1");
-    if (listing.truncated) throw new Error("GitHub sent back only part of the picture list, so nothing was removed");
+    if (listing.truncated) throw new Error(i18n.t("GitHub sent back only part of the picture list, so nothing was removed"));
     const files = listing.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/"));
     const kept = files.filter((e) => keep.has(e.path.slice(7)));
     const gone = files.filter((e) => !keep.has(e.path.slice(7)));
@@ -805,7 +806,7 @@
       async version(entry) {
         if (entry.doc) return entry.doc;
         const f = await ghGetFile(entry.sha, path());
-        if (!f) throw new Error("That version of " + file + " couldn't be found.");
+        if (!f) throw new Error(i18n.t("That version of {file} couldn't be found.", { file }));
         return f.data;
       },
       // ---- a copy on disk (File System Access), beside the local-file backup ----
@@ -884,17 +885,17 @@
     // whether it's on, and when it last wrote.
     get phoneBackup() {
       const c = phoneCfg();
-      return { available: !!phoneFs(), on: !!c.on, last: c.last || null, error: c.error || null, folder: phoneIos() ? "Files → On My iPhone → LifeLog" : "Documents/LifeLog" };
+      return { available: !!phoneFs(), on: !!c.on, last: c.last || null, error: c.error || null, folder: phoneIos() ? i18n.t("Files → On My iPhone → LifeLog") : "Documents/LifeLog" };
     },
     // Turning it on writes a copy straight away, so "on" never means "on,
     // and empty until the next edit". `boards` is boards.json's current doc.
     async enablePhoneBackup(boards) {
       const FS = phoneFs();
-      if (!FS) throw new Error("Only in the Android app");
+      if (!FS) throw new Error(i18n.t("Only in the Android app"));
       // Asks on Android 9 and earlier; later versions answer granted.
       try {
         const p = await FS.requestPermissions();
-        if (p && p.publicStorage && p.publicStorage !== "granted") throw new Error("LifeLog wasn't allowed to save files");
+        if (p && p.publicStorage && p.publicStorage !== "granted") throw new Error(i18n.t("LifeLog wasn't allowed to save files"));
       } catch (e) { if (/allowed/.test(e.message)) throw e; /* no such call on this build: try anyway */ }
       setPhoneCfg({ on: true, error: null });
       const cached = await this.loadCache();
@@ -971,7 +972,7 @@
           if (f) {
             gh.sha = f.sha; saveGhCfg();
             githubError = null;
-            candidates.push({ source: "github", label: "GitHub (" + gh.owner + "/" + gh.repo + ")", data: f.data });
+            candidates.push({ source: "github", label: i18n.t("GitHub ({repo})", { repo: gh.owner + "/" + gh.repo }), data: f.data });
           }
           // file vanished — fall through to local/cache/seed
         } catch (e) { githubError = e; /* offline/bad token → local/cache */ }
@@ -981,18 +982,18 @@
       if (handle && !needsReconnect) {
         try {
           const data = await readHandle(handle);
-          candidates.push({ source: "file", label: "Local file (" + handle.name + ")", data });
+          candidates.push({ source: "file", label: i18n.t("Local file ({name})", { name: handle.name }), data });
         } catch (e) { /* file moved/unreadable; fall through */ }
       }
 
       // --- this device's own copy ---
       if (getLocal) {
         const live = getLocal();
-        if (live) candidates.push({ source: "cache", label: "This browser", data: live });
+        if (live) candidates.push({ source: "cache", label: i18n.t("This browser"), data: live });
       } else {
         const cached = copies[CACHE_COPY];
         if (cached) {
-          try { candidates.push({ source: "cache", label: "This browser", data: JSON.parse(cached) }); }
+          try { candidates.push({ source: "cache", label: i18n.t("This browser"), data: JSON.parse(cached) }); }
           catch (e) { /* ignore */ }
         }
       }
@@ -1180,7 +1181,7 @@
           return { existed: true, data: existing.data };
         }
         if (!allowCreate) {
-          throw new Error("No existing data found at this sync target — open the link from the device that already has your data, or set this up from Settings instead.");
+          throw new Error(i18n.t("No existing data found at this sync target — open the link from the device that already has your data, or set this up from Settings instead."));
         }
         // Create the file with whatever we currently have.
         gh.sha = await ghPut(currentData, null);
@@ -1263,16 +1264,16 @@
     // request fails — this is a user-initiated action, so callers should show
     // the error rather than swallow it.
     async listHistory() {
-      if (!gh || !gh.token) throw new Error("GitHub isn't connected.");
+      if (!gh || !gh.token) throw new Error(i18n.t("GitHub isn't connected."));
       return ghListCommits();
     },
     // Data as of a specific historical commit. Read-only — does not touch the
     // current save state. Callers should normalize() the result and call
     // Storage.save() themselves to commit it forward as the new current state.
     async getVersion(sha) {
-      if (!gh || !gh.token) throw new Error("GitHub isn't connected.");
+      if (!gh || !gh.token) throw new Error(i18n.t("GitHub isn't connected."));
       const f = await ghGetFileAtRef(sha);
-      if (!f) throw new Error("That version's data file couldn't be found.");
+      if (!f) throw new Error(i18n.t("That version's data file couldn't be found."));
       return f.data;
     },
 
@@ -1301,7 +1302,7 @@
       let cfg;
       try { cfg = parseSetupHash(hash); } catch (e) { return null; }
       if (!cfg || !cfg.token) return null;
-      return (cfg.owner || "your account") + "/" + (cfg.repo || "lifelog-data");
+      return (cfg.owner || i18n.t("your account")) + "/" + (cfg.repo || "lifelog-data");
     },
     // Connect from a location hash produced on another device. Returns the
     // connectGithub result, or null if the hash has no setup payload. Never

@@ -10,31 +10,32 @@
 //   take     { status: false } for a status left out; anything missing is on
 //   send     false to stop sending your changes (the two-way ones only)
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let ctx = null;
 
   // Each connection's statuses, in its own words. `defaultNew` is how it
   // behaved before the choice existed.
   const SPECS = {
     hardcover: {
-      defaultNew: "ask", newLabel: "New books",
-      take: [["want", "Want to Read", "To the backlog"], ["reading", "Currently Reading", "In progress"], ["read", "Read", "To the Timeline on the day you finished"], ["dnf", "Did Not Finish", "Into Dropped"]],
-      send: ["Send my changes to Hardcover", "Starts, finishes, drops, and books you add"],
+      defaultNew: "ask", newLabel: i18n.t("New books"),
+      take: [["want", "Want to Read", i18n.t("To the backlog")], ["reading", "Currently Reading", i18n.t("In progress")], ["read", "Read", i18n.t("To the Timeline on the day you finished")], ["dnf", "Did Not Finish", i18n.t("Into Dropped")]],
+      send: [i18n.t("Send my changes to Hardcover"), i18n.t("Starts, finishes, drops, and books you add")],
     },
     anilist: {
-      defaultNew: "add", newLabel: "New titles",
-      take: [["planning", "Planning", "To the backlog"], ["current", "Watching / Reading", "In progress, with the episode count"], ["completed", "Completed", "To the Timeline"], ["dropped", "Paused and Dropped", "Into Dropped"]],
-      send: ["Send my changes to AniList", "Needs the sign-in below"],
+      defaultNew: "add", newLabel: i18n.t("New titles"),
+      take: [["planning", "Planning", i18n.t("To the backlog")], ["current", "Watching / Reading", i18n.t("In progress, with the episode count")], ["completed", "Completed", i18n.t("To the Timeline")], ["dropped", "Paused and Dropped", i18n.t("Into Dropped")]],
+      send: [i18n.t("Send my changes to AniList"), i18n.t("Needs the sign-in below")],
     },
     stremio: {
-      defaultNew: "ask", newLabel: "New titles",
-      take: [["planning", "In your library", "To the backlog"], ["watching", "Watching", "In progress, with the episode you're on"], ["watched", "Watched movies", "To the Timeline on the last play"], ["progress", "Episode counts", "Updates shows you already have"]],
+      defaultNew: "ask", newLabel: i18n.t("New titles"),
+      take: [["planning", i18n.t("In your library"), i18n.t("To the backlog")], ["watching", i18n.t("Watching"), i18n.t("In progress, with the episode you're on")], ["watched", i18n.t("Watched movies"), i18n.t("To the Timeline on the last play")], ["progress", i18n.t("Episode counts"), i18n.t("Updates shows you already have")]],
     },
     steam: {
-      defaultNew: "ask", newLabel: "New wishlist games",
+      defaultNew: "ask", newLabel: i18n.t("New wishlist games"),
       take: [],
     },
   };
-  const NEW_OPTIONS = [["ask", "Ask me first"], ["add", "Add straight away"], ["none", "Don't add new"]];
+  const NEW_OPTIONS = [["ask", i18n.t("Ask me first")], ["add", i18n.t("Add straight away")], ["none", i18n.t("Don't add new")]];
 
   const S = () => ctx.state.data.settings;
   const cfg = (k) => S()[k] || {};
@@ -57,11 +58,11 @@
     const spec = SPECS[k];
     if (!box || !spec || !ctx) return;
     const el = ctx.el;
-    box.replaceChildren(el("h3", "sgroup-label", "What comes in"));
+    box.replaceChildren(el("h3", "sgroup-label", i18n.t("What comes in")));
     const card = el("div", "sgroup-card");
     const row = el("label", "sitem");
     const t = el("span", "sitem-text");
-    t.append(el("span", "sitem-title", spec.newLabel), el("span", "sitem-sub", "Ask me first opens the review"));
+    t.append(el("span", "sitem-title", spec.newLabel), el("span", "sitem-sub", i18n.t("Ask me first opens the review")));
     const sel = el("select");
     for (const [v, label] of NEW_OPTIONS) sel.appendChild(new Option(label, v));
     sel.value = newMode(k);
@@ -85,8 +86,8 @@
     if (spec.send) toggle(spec.send[0], spec.send[1], sends(k), (on) => set(k, { send: on }));
     box.appendChild(card);
     box.appendChild(el("p", "hint", spec.send
-      ? "The switches choose what comes in from there. Turned off, a status there leaves the title here as it is, so the two can differ until you turn it back on. Sending your changes has only its own switch."
-      : "The switches choose what comes in. Turned off, that part is left as it is here."));
+      ? i18n.t("The switches choose what comes in from there. Turned off, a status there leaves the title here as it is, so the two can differ until you turn it back on. Sending your changes has only its own switch.")
+      : i18n.t("The switches choose what comes in. Turned off, that part is left as it is here.")));
   }
   const renderAll = () => Object.keys(SPECS).forEach(render);
 
@@ -116,7 +117,7 @@
     }
     const review = () => ctx.reviewAndImport(title, hint, offer, onSkips && ((selected) => onSkips(selected, offer.items)));
     if (manual) review();
-    else ctx.toast(`${title}: ${offer.items.filter((it) => !it.dup).length} to review`, false, { label: "Review", onClick: review });
+    else ctx.toast(i18n.t("{title}: {n} to review", { title, n: offer.items.filter((it) => !it.dup).length }), false, { label: i18n.t("Review"), onClick: review });
     return fresh.length;
   }
 
@@ -126,35 +127,35 @@
     const keys = st.mediaKeys || {};
     if (k === "hardcover") {
       const c = st.hardcover || {};
-      if (!String(keys.hardcover || "").trim()) return { text: "Needs a token in Media lookups" };
-      if (!c.category) return { text: "Not set up" };
-      return { text: c.category + (sends(k) ? ", both ways" : ", read only") + (c.username ? " · @" + c.username : "") };
+      if (!String(keys.hardcover || "").trim()) return { text: i18n.t("Needs a token in Media lookups") };
+      if (!c.category) return { text: i18n.t("Not set up") };
+      return { text: c.category + ", " + (sends(k) ? i18n.t("both ways") : i18n.t("read only")) + (c.username ? " · @" + c.username : "") };
     }
     if (k === "anilist") {
       const c = st.anilist || {};
-      if (!String(c.userName || "").trim()) return { text: "Not set up" };
-      return { text: c.userName + " · " + (c.token && sends(k) ? "both ways" : "read only") };
+      if (!String(c.userName || "").trim()) return { text: i18n.t("Not set up") };
+      return { text: c.userName + " · " + (c.token && sends(k) ? i18n.t("both ways") : i18n.t("read only")) };
     }
     if (k === "stremio") {
       const c = st.stremio || {};
-      return { text: c.authKey ? "Signed in" + (c.email ? " as " + c.email : "") + " · read only" : "Not signed in" };
+      return { text: c.authKey ? (c.email ? i18n.t("Signed in as {email}", { email: c.email }) : i18n.t("Signed in")) + " · " + i18n.t("read only") : i18n.t("Not signed in") };
     }
     if (k === "waypage") {
       const W = window.LifeLogWaypage;
       const c = W ? W.cleanConfig(st.waypage) : st.waypage || {};
-      if (!c.repo || !c.token) return { text: "Not connected" };
+      if (!c.repo || !c.token) return { text: i18n.t("Not connected") };
       const n = Object.keys(c.review || {}).length;
-      if (c.paused) return { text: "Turned off", tone: "warn" };
-      return n ? { text: n + " to check", tone: "warn" } : { text: "Reading log · " + c.repo };
+      if (c.paused) return { text: i18n.t("Turned off"), tone: "warn" };
+      return n ? { text: i18n.t("{n} to check", { n }), tone: "warn" } : { text: i18n.t("Reading log") + " · " + c.repo };
     }
     if (k === "steam") {
       const c = st.steam || {};
-      return { text: c.steamId ? "Wishlist, played games, game times" : "Not set up" };
+      return { text: c.steamId ? i18n.t("Wishlist, played games, game times") : i18n.t("Not set up") };
     }
-    if (k === "letterboxd") return { text: "Diary and watchlist from an export" };
+    if (k === "letterboxd") return { text: i18n.t("Diary and watchlist from an export") };
     if (k === "payments") {
       const sel = document.getElementById("paymentsOn");
-      return { text: "Payments from notifications · " + (sel && sel.value === "on" ? "on" : "off") };
+      return { text: i18n.t("Payments from notifications") + " · " + (sel && sel.value === "on" ? i18n.t("on") : i18n.t("off")) };
     }
     return { text: "" };
   }

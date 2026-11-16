@@ -14,6 +14,7 @@
 // field the sheets share. The chips, cards and the All tags sheet are in
 // notes.js and app.js with the rest of the Notebook.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const MAX_LEN = 40;
   const MAX_TAGS = 30;
   const key = (t) => String(t).toLowerCase();
@@ -71,9 +72,15 @@
     for (const t of clean(saved)) if (!by.has(key(t))) by.set(key(t), { name: t, key: key(t), total: 0, text: 0, quote: 0, list: 0, task: 0, board: 0 });
     return [...by.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   }
-  const KIND_WORDS = [["text", "note", "notes"], ["quote", "quote", "quotes"], ["list", "list", "lists"], ["task", "task", "tasks"], ["board", "board", "boards"]];
+  const KIND_WORDS = {
+    text: (n) => i18n.tn(n, "{n} note", "{n} notes"),
+    quote: (n) => i18n.tn(n, "{n} quote", "{n} quotes"),
+    list: (n) => i18n.tn(n, "{n} list", "{n} lists"),
+    task: (n) => i18n.tn(n, "{n} task", "{n} tasks"),
+    board: (n) => i18n.tn(n, "{n} board", "{n} boards"),
+  };
   // "2 notes · 1 list · 1 board"
-  const summary = (c) => KIND_WORDS.filter(([k]) => c[k]).map(([k, one, many]) => c[k] + " " + (c[k] === 1 ? one : many)).join(" · ") || "Not used yet";
+  const summary = (c) => Object.keys(KIND_WORDS).filter((k) => c[k]).map((k) => KIND_WORDS[k](c[k])).join(" · ") || i18n.t("Not used yet");
 
   // One tag renamed (or deleted, `to` empty) in a list; null when the list
   // doesn't hold it. Renaming onto a tag the list already has leaves one.
@@ -115,7 +122,7 @@
   // the tags you've used that match, most used first. `get` and `set` read
   // and write the tags; `known` returns count()'s list. A pill's × and a
   // suggestion keep the box focused, so a phone's keyboard stays up.
-  function field(root, { get, set, known, placeholder = "Add a tag", label = "Tags" }) {
+  function field(root, { get, set, known, placeholder = i18n.t("Add a tag"), label = i18n.t("Tags") }) {
     const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
     const ico = (n) => window.LifeLogIcons.svg(n);
     root.classList.add("tag-field");
@@ -152,7 +159,7 @@
         p.appendChild(document.createTextNode(t));
         const x = el("button", "tag-pill-x");
         x.type = "button";
-        x.setAttribute("aria-label", "Remove tag " + t);
+        x.setAttribute("aria-label", i18n.t("Remove tag {tag}", { tag: t }));
         x.appendChild(ico("x"));
         x.addEventListener("pointerdown", keep);
         x.onclick = (ev) => { ev.stopPropagation(); set(get().filter((v) => key(v) !== key(t))); draw(); suggest(); };
@@ -187,8 +194,8 @@
         const row = el("div", "tag-suggest-row");
         row.setAttribute("role", "option");
         row.id = menu.id + "-" + i;
-        row.appendChild(el("span", null, o.add ? `Add “${o.name}”` : o.name));
-        row.appendChild(el("span", "tag-suggest-n", o.add ? "new" : String(o.n)));
+        row.appendChild(el("span", null, o.add ? i18n.t("Add “{tag}”", { tag: o.name }) : o.name));
+        row.appendChild(el("span", "tag-suggest-n", o.add ? i18n.t("new") : String(o.n)));
         row.addEventListener("pointerdown", keep);
         row.onclick = () => add(o.name);
         menu.appendChild(row);
@@ -228,7 +235,7 @@
   // One thing's tags in a small sheet over whatever is open (#tagSheet).
   // `set` saves straight away; `done` runs when it closes.
   let open = null;
-  function sheet({ title = "Tags", get, set, known, done }) {
+  function sheet({ title = i18n.t("Tags"), get, set, known, done }) {
     closeSheet();
     const $ = (s) => document.querySelector(s);
     const ov = $("#tagSheet");
@@ -254,7 +261,7 @@
     return true;
   }
   // "Tags…", or "Tags (3)…" when there are some.
-  const itemLabel = (list) => (list && list.length ? `Tags (${list.length})…` : "Tags…");
+  const itemLabel = (list) => (list && list.length ? i18n.t("Tags ({n})…", { n: list.length }) : i18n.t("Tags…"));
 
   const api = { sheet, closeSheet, itemLabel, MAX_LEN, key, cleanOne, clean, setOn, has, hasAny, holders, count, summary, renamed, renameIn, parseQuery, field };
   if (typeof window !== "undefined") window.LifeLogTags = api;
