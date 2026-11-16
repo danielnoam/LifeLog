@@ -1708,6 +1708,44 @@
     return meta;
   }
 
+  // The Timeline's calendar (0.320.0): what the backlog has coming out in
+  // one month. A release known to the day and a show's next episode sit on
+  // their day; a month or quarter that covers this month and hasn't passed
+  // goes in `rough`. Years and TBA stay off: a whole year is no day.
+  // Past days of the month keep theirs, so the month reads as a record too.
+  function calendarReleases(items, y, m) {
+    const key = y + "-" + String(m).padStart(2, "0");
+    const byDay = new Map(), rough = [];
+    const add = (raw, b, kind) => {
+      const d = +raw.slice(8, 10);
+      if (!byDay.has(d)) byDay.set(d, []);
+      const list = byDay.get(d);
+      if (!list.some((r) => r.b === b)) list.push({ b, kind });
+    };
+    for (const b of items) {
+      if (b.dropped) continue;
+      if (b.nextAt && isRealDate(b.nextAt) && b.nextAt.startsWith(key + "-")) add(b.nextAt, b, "episode");
+      const raw = (b.releaseDate || "").slice(0, 10);
+      const precision = precisionOf(b);
+      if (precision === "day") {
+        if (isRealDate(raw) && raw.startsWith(key + "-")) add(raw, b, "release");
+      } else if ((precision === "month" || precision === "quarter") && isUnreleased(b)) {
+        const w = releaseWindow(b);
+        if (w && w.start <= key + "-31" && w.end >= key + "-01") rough.push(b);
+      }
+    }
+    rough.sort((a, b) => a.title.localeCompare(b.title));
+    return { byDay, rough };
+  }
+  // A release's row in the calendar's side cards: the Upcoming page's row,
+  // opening the item.
+  function calendarRow(b) {
+    const row = upcomingRow(b);
+    row.classList.add("cal-release-row");
+    row.onclick = () => openBacklogModal(b);
+    return row;
+  }
+
   // ---------- Out today ----------
   // Next Releases drops a title the day after its date, which is exactly when
   // you'd want to know it came out. So the day it's out it gets a card of its
@@ -3678,6 +3716,8 @@
     airingLabel,
     stillAiring,
     upcomingAt,
+    // the Timeline's calendar (journal.js, test/backlog.test.js)
+    calendarReleases, calendarRow,
     releaseLabel, // the Upcoming widget's wording (widgets.js)
     // manual release-date overrides (test/backlog.test.js)
     parseReleaseInput,
