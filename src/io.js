@@ -7,6 +7,7 @@
 // arrive via init(ctx), and everything app.js still calls directly is
 // exposed on window.LifeLogIO.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureSubcategories, ensureProjects,
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
@@ -31,7 +32,7 @@
     backlog: ["backlog"],
     finance: ["finance", "recurring"],
   };
-  const TAB_LABEL = { notes: "Notebook", timeline: "Timeline", backlog: "Backlog", finance: "Ledger", all: "everything" };
+  const TAB_LABEL = { notes: i18n.t("Notebook"), timeline: i18n.t("Timeline"), backlog: i18n.t("Backlog"), finance: i18n.t("Ledger"), all: i18n.t("everything") };
   const TAB_FILE = { notes: "notes", timeline: "timeline", backlog: "backlog", finance: "ledger" };
   function tabPayload(tab) {
     const d = state.data;
@@ -51,7 +52,7 @@
     const P = window.LifeLogPlatform;
     if (P && (P.native || P.desktop)) {
       P.saveAndShare(filename, text, opts).then((done) => { if (!done) downloadLink(filename, text, type, opts); })
-        .catch((e) => toast("Couldn't export: " + (e && e.message || e), true));
+        .catch((e) => toast(i18n.t("Couldn't export: {error}", { error: e && e.message || e }), true));
       return;
     }
     downloadLink(filename, text, type, opts);
@@ -109,7 +110,7 @@
   // stay empty. A habit's history rides in one cell — its marked days, each
   // with "*n" when it was done more than once — so a re-import keeps the
   // streaks; "Done" is when a to-do was ticked or a habit archived.
-  const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // CSV columns stay English
   // A quote's author and source, and a list's items (one per line, "[x] "
   // when ticked), ride in three columns on the end (0.195.0), so a sheet
   // from before them still reads; a plain note's title (0.199.0) after them.
@@ -293,11 +294,11 @@
       ["externalRating", "rating"],
       ["length", "length"],
       ["releaseYear", "year"],
-      ["releaseDate", "release date"],
-      ["releaseStatus", "release status"],
+      ["releaseDate", i18n.t("release date")],
+      ["releaseStatus", i18n.t("release status")],
       ["summary", "description"],
       ["genres", "genres"],
-      ["mediaSource", "media link"],
+      ["mediaSource", i18n.t("media link")],
     ],
     // Only what sanitizeEntry actually keeps (KNOWN_ENTRY_KEYS). An entry has
     // no externalRating/release*/summary — offering those would write fields
@@ -309,21 +310,21 @@
       ["coverUrl", "cover"],
       ["length", "length"],
       ["genres", "genres"],
-      ["rating", "your rating"],
-      ["notes", "your notes"],
+      ["rating", i18n.t("your rating")],
+      ["notes", i18n.t("your notes")],
       ["day", "day"],
       ["startYear", "month span"],
-      ["mediaSource", "media link"],
+      ["mediaSource", i18n.t("media link")],
     ],
     // recurringKey matches on startDate, interval, amount, category and note,
     // so everything that makes a plan more than its bare shape is outside it
     // and can go missing on a restore.
     recurring: [
-      ["endDate", "end date"],
+      ["endDate", i18n.t("end date")],
       ["project", "project"],
       ["pauses", "pauses"],
       ["overrides", "per-month changes"],
-      ["prevId", "plan history"],
+      ["prevId", i18n.t("plan history")],
       ["extras", "one-off charges"],
     ],
   };
@@ -543,7 +544,7 @@
   // pushes each selected item into its matching state array, and reports a
   // single summary toast across every kind that was touched
   async function applyImportSelection(selected, addCats) {
-    if (!selected.length) { toast("Nothing selected"); return; }
+    if (!selected.length) { toast(i18n.t("Nothing selected")); return; }
     const d = state.data;
     // Everything this import does, so Undo in the toast can take exactly it
     // back (0.256.0): ids added per list, categories and projects created,
@@ -654,28 +655,28 @@
     afterDataChange();
     await persist();
     const parts = [];
-    const count = (k, one, many) => { const n = byKind[k].length; if (n) parts.push(n + " " + (n === 1 ? one : many)); };
-    count("entry", "entry", "entries");
+    const count = (k, words) => { const n = byKind[k].length; if (n) parts.push(words(n)); };
+    count("entry", (n) => i18n.tn(n, "{n} entry", "{n} entries"));
     if (undo.removed && undo.removed.backlog.length) {
       const n = undo.removed.backlog.length;
-      parts.push(n + " moved off your backlog");
+      parts.push(i18n.tn(n, "{n} moved off your backlog", "{n} moved off your backlog"));
     }
-    count("achievement", "achievement", "achievements");
-    count("backlog", "backlog item", "backlog items");
-    count("note", "note", "notes");
-    count("todo", "task", "tasks");
-    count("habit", "habit", "habits");
-    count("board", "board", "boards");
-    count("finance", "finance entry", "finance entries");
-    count("recurring", "recurring expense", "recurring expenses");
+    count("achievement", (n) => i18n.tn(n, "{n} achievement", "{n} achievements"));
+    count("backlog", (n) => i18n.tn(n, "{n} backlog item", "{n} backlog items"));
+    count("note", (n) => i18n.tn(n, "{n} note", "{n} notes"));
+    count("todo", (n) => i18n.tn(n, "{n} task", "{n} tasks"));
+    count("habit", (n) => i18n.tn(n, "{n} habit", "{n} habits"));
+    count("board", (n) => i18n.tn(n, "{n} board", "{n} boards"));
+    count("finance", (n) => i18n.tn(n, "{n} finance entry", "{n} finance entries"));
+    count("recurring", (n) => i18n.tn(n, "{n} recurring expense", "{n} recurring expenses"));
     if (updates.length) {
-      parts.push(`filled ${filled} field${filled === 1 ? "" : "s"} on ${updates.length} existing item${updates.length === 1 ? "" : "s"}`);
+      parts.push(i18n.t("filled {fields} on {items}", { fields: i18n.tn(filled, "{n} field", "{n} fields"), items: i18n.tn(updates.length, "{n} existing item", "{n} existing items") }));
     }
-    if (!parts.length) { toast("Nothing to import"); return; }
+    if (!parts.length) { toast(i18n.t("Nothing to import")); return; }
     // To-dos from an older file were folded into their list notes, which
     // rewrites notes this import didn't add; that one isn't offered Undo.
     const canUndo = !byKind.todo.length && (!undo.boards || deleteBoards);
-    toast(`Imported ${parts.join(", ")}`, false, canUndo ? { label: "Undo", onClick: () => undoImport(undo) } : undefined);
+    toast(i18n.t("Imported {what}", { what: parts.join(", ") }), false, canUndo ? { label: i18n.t("Undo"), onClick: () => undoImport(undo) } : undefined);
   }
   // Takes one import back: what it added goes, what it filled in returns to
   // what it was, and a category or project it created goes if nothing uses
@@ -715,16 +716,16 @@
     if (undo.boards && deleteBoards) await deleteBoards(undo.boards);
     afterDataChange();
     await persist();
-    toast("Import undone");
+    toast(i18n.t("Import undone"));
   }
 
   // `opts` (0.255.0) passes the picker's extras through: `threshold` is a
   // source's "at least N" slider (the Steam backfill's play time).
   function reviewAndImport(title, hint, built, extraOnConfirm, opts) {
-    if (!built.items.length) { toast("No items found in this file"); return; }
+    if (!built.items.length) { toast(i18n.t("No items found in this file")); return; }
     openImportPicker({
       title, hint, mode: "import", items: built.items, newCategories: built.newCategories,
-      confirmLabel: "Import", ...(opts || {}),
+      confirmLabel: i18n.t("Import"), ...(opts || {}),
       onConfirm: async (selected, addCats) => {
         await applyImportSelection(selected, addCats);
         if (extraOnConfirm) await extraOnConfirm(selected);
@@ -738,7 +739,7 @@
     await applyImportSelection(picked, []);
     if (after) await after();
   }
-  const IMPORT_HINT = "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.";
+  const IMPORT_HINT = i18n.t("Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.");
   // ---------- Markdown files as notes (0.200.0) ----------
   // One file, one note. The title is the front matter's `title`, else a
   // leading "# heading", else the file's name; a file that's nothing but
@@ -810,7 +811,7 @@
     }
     return { ...note, title, text: words };
   }
-  const MD_HINT = "One note per file. Tick what to bring in; to file some under a category, select them, pick it under Put the selected in, and Apply. Files already in your notes are hidden.";
+  const MD_HINT = i18n.t("One note per file. Tick what to bring in; to file some under a category, select them, pick it under Put the selected in, and Apply. Files already in your notes are hidden.");
   // `files` are browser Files, or what the Android app's folder picker
   // hands back (0.202.0): { name, folder, text, lastModified }.
   //
@@ -856,7 +857,7 @@
   async function imageBlob(f) {
     if (typeof Blob !== "undefined" && f instanceof Blob) return f;
     const plugin = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
-    if (!f.uri || !plugin || !plugin.readDocument) throw new Error("Couldn't read " + f.name);
+    if (!f.uri || !plugin || !plugin.readDocument) throw new Error(i18n.t("Couldn't read {file}", { file: f.name }));
     const res = await plugin.readDocument({ uri: f.uri });
     const bin = atob(res.data || "");
     const bytes = new Uint8Array(bin.length);
@@ -899,7 +900,7 @@
   // folder.
   const dataUrlBlob = (u) => {
     const m = /^data:([^;,]+);base64,(.*)$/s.exec(u);
-    if (!m) throw new Error("This picture's data can't be read");
+    if (!m) throw new Error(i18n.t("This picture's data can't be read"));
     const bin = atob(m[2]);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -922,7 +923,7 @@
         let id = kept.get(key);
         if (!id) {
           try { id = await Images.add(f.data ? dataUrlBlob(f.data) : await imageBlob(key)); kept.set(key, id); out.added++; }
-          catch (err) { out.failed.push((f.link || "A picture") + ": " + ((err && err.message) || err)); continue; }
+          catch (err) { out.failed.push((f.link || i18n.t("A picture")) + ": " + ((err && err.message) || err)); continue; }
         }
         e.img = id;
         delete e.miss;
@@ -959,10 +960,10 @@
   // point at them from then on.
   async function findImagesInFolder(ids, boardIds) {
     let files;
-    try { files = await pickFolder(); } catch (e) { toast("Couldn't read that folder — " + ((e && e.message) || e), true); return; }
+    try { files = await pickFolder(); } catch (e) { toast(i18n.t("Couldn't read that folder — {error}", { error: (e && e.message) || e }), true); return; }
     const pictures = files.filter(isImageFile);
     if (!files.length) return;
-    if (!pictures.length) { toast("No images in that folder", true); return; }
+    if (!pictures.length) { toast(i18n.t("No images in that folder"), true); return; }
     const notes = (state.data.notes || []).filter((n) => ids.includes(n.id));
     let res = null;
     const B = window.LifeLogBoards;
@@ -988,11 +989,11 @@
       if (job) job.finish(`${res.added} image${res.added === 1 ? "" : "s"} found`);
     };
     const Jobs = window.LifeLogJobs;
-    if (Jobs) await Jobs.run({ label: "Finding images", lane: "files" }, run); else await run(null);
-    if (!res || !res.added) { toast(res && res.missing.length ? `None of the ${res.missing.length} missing images ${res.missing.length === 1 ? "is" : "are"} in that folder` : "Nothing to find", true); return; }
+    if (Jobs) await Jobs.run({ label: i18n.t("Finding images"), lane: "files" }, run); else await run(null);
+    if (!res || !res.added) { toast(res && res.missing.length ? i18n.tn(res.missing.length, "The {n} missing image isn't in that folder", "None of the {n} missing images are in that folder") : i18n.t("Nothing to find"), true); return; }
     afterDataChange();
     await persist();
-    toast(`Found ${res.added} image${res.added === 1 ? "" : "s"}` + (res.missing.length ? ` — ${res.missing.length} still missing` : ""), !!res.missing.length);
+    toast(i18n.tn(res.added, "Found {n} image", "Found {n} images") + (res.missing.length ? " — " + i18n.t("{n} still missing", { n: res.missing.length }) : ""), !!res.missing.length);
   }
 
   // The folder a picked file sits in: the Android folder screen says it, a
@@ -1005,7 +1006,7 @@
   async function importMarkdown(files) {
     const picked = [...files].filter((f) => /\.(md|markdown|txt|excalidraw)$/i.test(f.name) || (isDoc(f.name) && typeof f.arrayBuffer === "function"));
     const pictures = [...files].filter(isImageFile);
-    if (!picked.length) { toast(pictures.length ? "Pick the notes along with their images" : "No Markdown, PDF or EPUB files in that selection", true); return; }
+    if (!picked.length) { toast(pictures.length ? i18n.t("Pick the notes along with their images") : i18n.t("No Markdown, PDF or EPUB files in that selection"), true); return; }
     // Only notes with something in them, so the rows buildImportItems hands
     // back line up one to one with these and each can be told its folder.
     //
@@ -1018,7 +1019,7 @@
     const notes = [], folders = [], failed = [];
     const boards = [], boardFolders = [], boardSkips = [], boardPictures = [];
     const Doc = window.LifeLogDocImport;
-    if (picked.some((f) => isDoc(f.name))) toast("Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files") + "…");
+    if (picked.some((f) => isDoc(f.name))) toast((picked.length === 1 ? i18n.t("Reading {file}…", { file: picked[0].name }) : i18n.t("Reading {n} files…", { n: picked.length })));
     const Jobs = window.LifeLogJobs;
     let ran = false, stopped = false;
     const read = async (job) => {
@@ -1030,7 +1031,7 @@
         if (isDoc(f.name)) {
           try {
             n = await window.LifeLogDocImport.fileToNote(new Uint8Array(await f.arrayBuffer()), f.name, f.lastModified);
-            if (n.text.length > DOC_MAX) throw new Error(`It's too long to keep as a note (${Math.round(n.text.length / 1000)}k characters, the limit is ${DOC_MAX / 1000}k)`);
+            if (n.text.length > DOC_MAX) throw new Error(i18n.t("It's too long to keep as a note ({n}k characters, the limit is {max}k)", { n: Math.round(n.text.length / 1000), max: DOC_MAX / 1000 }));
           } catch (err) { failed.push(f.name + ": " + (err.message || err)); continue; }
         } else {
           const text = typeof f.text === "function" ? await f.text() : f.text;
@@ -1055,18 +1056,18 @@
       if (job) {
         const got = notes.length + boards.length;
         const left = picked.length - got - failed.length;
-        job.finish(job.stopping ? `Stopped — ${got} read, sent to review` : `${got} read` + (failed.length ? `, ${failed.length} couldn't be` : "") + (left > 0 && !job.stopping ? `, ${left} empty` : ""));
+        job.finish(job.stopping ? i18n.t("Stopped — {n} read, sent to review", { n: got }) : i18n.t("{n} read", { n: got }) + (failed.length ? ", " + i18n.t("{n} couldn't be", { n: failed.length }) : "") + (left > 0 && !job.stopping ? ", " + i18n.t("{n} empty", { n: left }) : ""));
       }
     };
-    const label = "Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files");
+    const label = (picked.length === 1 ? i18n.t("Reading {file}", { file: picked[0].name }) : i18n.t("Reading {n} files", { n: picked.length }));
     try { if (Jobs) await Jobs.run({ label, lane: "files" }, read); else await read(null); }
-    catch (e) { toast("Couldn't read those files (" + ((e && e.message) || e) + ")", true); return; }
+    catch (e) { toast(i18n.t("Couldn't read those files ({error})", { error: (e && e.message) || e }), true); return; }
     if (!ran || (stopped && !notes.length && !boards.length)) return;
     // One file that can't be read says why; several say how many and the
     // first reason, and the rest still come in.
-    if (failed.length && !notes.length && !boards.length) { toast(failed.length === 1 ? failed[0] : `None of those ${failed.length} files could be read. ${failed[0]}`, true); return; }
-    if (failed.length) toast(`${failed.length} file${failed.length === 1 ? "" : "s"} couldn't be read. ${failed[0]}`, true);
-    if (!notes.length && !boards.length) { toast("Those files are empty", true); return; }
+    if (failed.length && !notes.length && !boards.length) { toast(failed.length === 1 ? failed[0] : i18n.t("None of those {n} files could be read. {why}", { n: failed.length, why: failed[0] }), true); return; }
+    if (failed.length) toast(i18n.tn(failed.length, "{n} file couldn't be read. {why}", "{n} files couldn't be read. {why}", { why: failed[0] }), true);
+    if (!notes.length && !boards.length) { toast(i18n.t("Those files are empty"), true); return; }
     // The boards you have, so a drawing brought in before is a duplicate.
     if (boards.length && boardsForExport) await boardsForExport();
     const built = buildImportItems({ notes, boards }, ["note", "board"]);
@@ -1077,13 +1078,13 @@
     const withImages = noteRows.filter((it) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(it.entry.text).length).length;
     const partial = boardRows.filter((it) => it.leftOut).length;
     openImportPicker({
-      title: `Import ${n} file${n === 1 ? "" : "s"}`,
-      hint: MD_HINT + (withImages ? ` ${withImages} of them ${withImages === 1 ? "has" : "have"} images, brought in with the note when the image file was picked too.` : "") +
-        (boards.length ? ` ${boards.length === 1 ? "One file is an Excalidraw drawing and becomes a board" : boards.length + " files are Excalidraw drawings and become boards"}` +
-          (partial ? `; ${partial === 1 ? "one has" : partial + " have"} parts a board can't show (frames, embeds, SVG pictures, formulas), which are left out.` : ".") +
-          (boardRows.some((it) => Object.values(it.pictures || {}).some((f) => f.link)) ? " A drawing's pictures come in with it when the image files were picked too." : "") : ""),
+      title: i18n.tn(n, "Import {n} file", "Import {n} files"),
+      hint: MD_HINT + (withImages ? " " + i18n.tn(withImages, "{n} of them has images, brought in with the note when the image file was picked too.", "{n} of them have images, brought in with the note when the image file was picked too.") : "") +
+        (boards.length ? " " + i18n.tn(boards.length, "One file is an Excalidraw drawing and becomes a board", "{n} files are Excalidraw drawings and become boards") +
+          (partial ? "; " + i18n.tn(partial, "one has parts a board can't show (frames, embeds, SVG pictures, formulas), which are left out.", "{n} have parts a board can't show (frames, embeds, SVG pictures, formulas), which are left out.") : ".") +
+          (boardRows.some((it) => Object.values(it.pictures || {}).some((f) => f.link)) ? " " + i18n.t("A drawing's pictures come in with it when the image files were picked too.") : "") : ""),
       mode: "import", items: built.items, newCategories: built.newCategories,
-      confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
+      confirmLabel: i18n.t("Import"), searchable: picked.length > 8, categorize: "note",
       // The preview draws a note's pictures from the files picked with it,
       // read on this device; nothing is kept until Import.
       previewImage: pictures.length ? async (src) => {
@@ -1098,10 +1099,10 @@
         if (drawings.length) {
           const run = async (job) => {
             drawn = await keepBoardPictures(drawings, pictures, job);
-            if (job) job.finish(`${drawn.added} picture${drawn.added === 1 ? "" : "s"} kept` + (drawn.missing ? `, ${drawn.missing} not among the files` : ""));
+            if (job) job.finish(i18n.tn(drawn.added, "{n} picture kept", "{n} pictures kept") + (drawn.missing ? ", " + i18n.t("{n} not among the files", { n: drawn.missing }) : ""));
           };
           const Jobs = window.LifeLogJobs;
-          if (Jobs) await Jobs.run({ label: "Bringing in drawings' pictures", lane: "files" }, run); else await run(null);
+          if (Jobs) await Jobs.run({ label: i18n.t("Bringing in drawings' pictures"), lane: "files" }, run); else await run(null);
         }
         let linked = null;
         if (chosen.some((e) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(e.text).length)) {
@@ -1109,24 +1110,24 @@
           const run = async (job) => {
             res = await linkNoteImages(chosen, pictures, job);
             linked = res;
-            if (job) job.finish(`${res.added} image${res.added === 1 ? "" : "s"} kept` + (res.missing.length ? `, ${res.missing.length} not among the files` : ""));
+            if (job) job.finish(i18n.tn(res.added, "{n} image kept", "{n} images kept") + (res.missing.length ? ", " + i18n.t("{n} not among the files", { n: res.missing.length }) : ""));
           };
           const Jobs = window.LifeLogJobs;
-          if (Jobs) await Jobs.run({ label: "Bringing in images", lane: "files" }, run); else await run(null);
+          if (Jobs) await Jobs.run({ label: i18n.t("Bringing in images"), lane: "files" }, run); else await run(null);
         }
         await applyImportSelection(selected, addCats);
         const boardIds = drawings.map((i) => i.entry.id);
-        if (drawn && drawn.failed.length) toast(`${drawn.failed.length} picture${drawn.failed.length === 1 ? "" : "s"} in drawings couldn't be read. ${drawn.failed[0]}`, true);
+        if (drawn && drawn.failed.length) toast(i18n.tn(drawn.failed.length, "{n} picture in drawings couldn't be read. {why}", "{n} pictures in drawings couldn't be read. {why}", { why: drawn.failed[0] }), true);
         else if (drawn && drawn.missing && !(linked && (linked.failed.length || linked.missing.length))) {
           const n = drawn.missing;
-          toast(`${n} picture${n === 1 ? " in a drawing wasn't" : "s in drawings weren't"} among the files picked` + (canPickFolder() ? "" : ` — ${n === 1 ? "it shows" : "they show"} as a dashed box on the board`), true,
-            canPickFolder() ? { label: "Find in folder", keepEarlier: true, onClick: () => findImagesInFolder([], boardIds) } : undefined);
-        } else if (linked && linked.failed.length) toast(`${linked.failed.length} image${linked.failed.length === 1 ? "" : "s"} couldn't be read. ${linked.failed[0]}`, true);
+          toast((canPickFolder() ? i18n.tn(n, "{n} picture in a drawing wasn't among the files picked", "{n} pictures in drawings weren't among the files picked") : i18n.tn(n, "{n} picture in a drawing wasn't among the files picked — it shows as a dashed box on the board", "{n} pictures in drawings weren't among the files picked — they show as a dashed box on the board")), true,
+            canPickFolder() ? { label: i18n.t("Find in folder"), keepEarlier: true, onClick: () => findImagesInFolder([], boardIds) } : undefined);
+        } else if (linked && linked.failed.length) toast(i18n.tn(linked.failed.length, "{n} image couldn't be read. {why}", "{n} images couldn't be read. {why}", { why: linked.failed[0] }), true);
         else if (linked && linked.missing.length) {
           const ids = chosen.map((e) => e.id);
           const n = linked.missing.length;
-          toast(`${n} image${n === 1 ? " wasn't" : "s weren't"} among the files picked` + (canPickFolder() ? "" : ` — ${n === 1 ? "it shows" : "they show"} as a dashed line in the note`), true,
-            canPickFolder() ? { label: "Find in folder", keepEarlier: true, onClick: () => findImagesInFolder(ids, boardIds) } : undefined);
+          toast((canPickFolder() ? i18n.tn(n, "{n} image wasn't among the files picked", "{n} images weren't among the files picked") : i18n.tn(n, "{n} image wasn't among the files picked — it shows as a dashed line in the note", "{n} images weren't among the files picked — they show as a dashed line in the note")), true,
+            canPickFolder() ? { label: i18n.t("Find in folder"), keepEarlier: true, onClick: () => findImagesInFolder(ids, boardIds) } : undefined);
         }
       },
     });
@@ -1135,7 +1136,7 @@
   function readFile(file, then) {
     const reader = new FileReader();
     reader.onload = () => {
-      Promise.resolve().then(() => then(reader.result)).catch((e) => toast("Import failed: " + (e.message || e), true));
+      Promise.resolve().then(() => then(reader.result)).catch((e) => toast(i18n.t("Import failed: {error}", { error: e.message || e }), true));
     };
     reader.readAsText(file);
   }
@@ -1146,18 +1147,18 @@
       const incoming = JSON.parse(text);
       // What boards you already have, so a re-import of one is a duplicate.
       if (Array.isArray(incoming.boards) && boardsForExport) await boardsForExport();
-      if (!incoming || typeof incoming !== "object") throw new Error("not a LifeLog file");
+      if (!incoming || typeof incoming !== "object") throw new Error(i18n.t("not a LifeLog file"));
       const built = buildImportItems(incoming, tab ? TAB_KINDS[tab] : null);
-      if (!built.items.length) throw new Error(tab ? "no " + TAB_LABEL[tab] + " data in this file" : "not a LifeLog file");
-      reviewAndImport(tab ? "Import " + TAB_LABEL[tab] : "Import full backup", IMPORT_HINT, built);
+      if (!built.items.length) throw new Error(tab ? i18n.t("no {tab} data in this file", { tab: TAB_LABEL[tab] }) : i18n.t("not a LifeLog file"));
+      reviewAndImport(tab ? i18n.t("Import {tab}", { tab: TAB_LABEL[tab] }) : i18n.t("Import full backup"), IMPORT_HINT, built);
     });
   }
   function importTabCsv(file, tab) {
     readFile(file, (text) => {
       const incoming = tab === "all" ? parseAllCsv(text) : tab === "notes" ? parseNotesCsv(text) : parseJournalCsv(text);
       const built = buildImportItems(incoming, TAB_KINDS[tab]);
-      if (!built.items.length) throw new Error("no " + TAB_LABEL[tab] + " rows in this file");
-      reviewAndImport("Import " + TAB_LABEL[tab] + " CSV", IMPORT_HINT, built);
+      if (!built.items.length) throw new Error(i18n.t("no {tab} rows in this file", { tab: TAB_LABEL[tab] }));
+      reviewAndImport(i18n.t("Import {tab} CSV", { tab: TAB_LABEL[tab] }), IMPORT_HINT, built);
     });
   }
   // parses CSV text into rows of cells, honoring quoted fields (with
@@ -1231,7 +1232,7 @@
       + (finance ? " finance-entry" : ""));
     row.importItem = item;
     const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
-    cb.setAttribute("aria-label", "Import " + (importItemTitle(item) || "this"));
+    cb.setAttribute("aria-label", i18n.t("Import {title}", { title: importItemTitle(item) || i18n.t("this") }));
     cb.onchange = () => { item.checked = cb.checked; onChange(item); };
     row.appendChild(cb);
     const bar = el("div", "bar");
@@ -1252,7 +1253,7 @@
       row.appendChild(el("span", "fdate", `${MONTHS_SHORT[e.month]} ${e.year}`));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
-      if (item.finishes) row.appendChild(el("span", "dup-tag", "done, leaves backlog"));
+      if (item.finishes) row.appendChild(el("span", "dup-tag", i18n.t("done, leaves backlog")));
     } else if (item.kind === "note" || item.kind === "todo" || item.kind === "habit" || item.kind === "achievement" || item.kind === "board") {
       const date = item.kind === "note" ? (e.createdAt || "").slice(0, 10)
         : item.kind === "board" ? (e.updatedAt || "").slice(0, 10)
@@ -1274,7 +1275,7 @@
         const p = el("span", "picker-pics");
         p.appendChild(window.LifeLogIcons.svg("image"));
         p.appendChild(document.createTextNode(String(pics)));
-        p.title = pics + (pics === 1 ? " image" : " images");
+        p.title = i18n.tn(pics, "{n} image", "{n} images");
         row.appendChild(p);
       }
       if (e.category) row.appendChild(el("span", "ecat", e.category));
@@ -1285,7 +1286,7 @@
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
-      row.appendChild(el("span", "dup-tag", e.dropped ? "dropped" : e.startedAt ? "in progress" : "backlog"));
+      row.appendChild(el("span", "dup-tag", e.dropped ? i18n.t("dropped") : e.startedAt ? i18n.t("in progress") : i18n.t("backlog")));
     }
     // An update says what it would actually do, rather than "already added":
     // that phrase is true of the item and useless about the change.
@@ -1293,9 +1294,9 @@
       // What the update writes, value by value (0.258.0): an update only
       // ever fills a field that is empty, so the "before" is always nothing,
       // and the tag says where the item is instead of repeating the list.
-      const tag = el("span", "update-tag", "+ " + item.fills.length + (item.fills.length === 1 ? " field" : " fields"));
-      tag.title = "Already in your " + (item.targetKind === "entry" ? "timeline" : "backlog")
-        + " — this fills in what it's missing, and changes nothing it already has";
+      const tag = el("span", "update-tag", "+ " + i18n.tn(item.fills.length, "{n} field", "{n} fields"));
+      tag.title = (item.targetKind === "entry" ? i18n.t("Already in your timeline — this fills in what it's missing, and changes nothing it already has") : i18n.t("Already in your backlog — this fills in what it's missing, and changes nothing it already has"))
+        ;
       row.appendChild(tag);
       const diff = el("div", "picker-fills");
       for (const f of item.fills) {
@@ -1306,13 +1307,13 @@
         diff.appendChild(line);
       }
       row.appendChild(diff);
-    } else if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
-    else if (item.edited) row.appendChild(el("span", "dup-tag", "edited"));
+    } else if (item.dup) row.appendChild(el("span", "dup-tag", i18n.t("already added")));
+    else if (item.edited) row.appendChild(el("span", "dup-tag", i18n.t("edited")));
     if (onEdit && !item.dup) {
       const edit = el("button", "btn btn-icon picker-edit");
       edit.type = "button";
-      edit.setAttribute("aria-label", "Edit before import");
-      edit.title = "Edit before import";
+      edit.setAttribute("aria-label", i18n.t("Edit before import"));
+      edit.title = i18n.t("Edit before import");
       edit.appendChild(window.LifeLogIcons.svg("pencil"));
       edit.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); onEdit(item, row); };
       row.appendChild(edit);
@@ -1348,28 +1349,28 @@
     const names = new Set([...have.map((c) => c.name), ...newCategories.filter((c) => (c.scope === "journal" ? "entry" : c.scope) === scope).map((c) => c.name)]);
     if (e.category) names.add(e.category);
     for (const key of fields) {
-      if (key === "title" || key === "note" || key === "name" || key === "text") text(key, key === "note" ? "Note" : key === "name" ? "Name" : key === "text" ? "Text" : "Title");
+      if (key === "title" || key === "note" || key === "name" || key === "text") text(key, key === "note" ? i18n.t("Note") : key === "name" ? i18n.t("Name") : key === "text" ? i18n.t("Text") : i18n.t("Title"));
       else if (key === "when") {
         const y = el("input"); y.type = "number"; y.min = 1900; y.max = 2200; y.value = e.year || new Date().getFullYear();
         const m = el("select"); MONTHS.forEach((name, i) => { if (!i && !MONTHS[0]) return; const o = document.createElement("option"); o.value = i; o.textContent = name; if (i === +e.month) o.selected = true; m.appendChild(o); });
         const wrap = el("span", "picker-editor-when"); wrap.appendChild(m); wrap.appendChild(y);
         inputs.year = y; inputs.month = m;
-        const l = el("label", "picker-editor-field"); l.appendChild(el("span", null, "When")); l.appendChild(wrap); form.appendChild(l);
-      } else if (key === "date" || key === "startDate") { const i = el("input"); i.type = "date"; i.value = e[key] || ""; field(key, key === "date" ? "Date" : "Starts", i); if (window.LifeLogDateField) window.LifeLogDateField.enhance(i); }
+        const l = el("label", "picker-editor-field"); l.appendChild(el("span", null, i18n.t("When"))); l.appendChild(wrap); form.appendChild(l);
+      } else if (key === "date" || key === "startDate") { const i = el("input"); i.type = "date"; i.value = e[key] || ""; field(key, key === "date" ? i18n.t("Date") : i18n.t("Starts"), i); if (window.LifeLogDateField) window.LifeLogDateField.enhance(i); }
       else if (key === "category") {
         const sel = el("select");
-        const none = document.createElement("option"); none.value = ""; none.textContent = "No category"; sel.appendChild(none);
+        const none = document.createElement("option"); none.value = ""; none.textContent = i18n.t("No category"); sel.appendChild(none);
         for (const n of [...names].sort((a, b) => a.localeCompare(b))) { const o = document.createElement("option"); o.value = n; o.textContent = n; if (n === e.category) o.selected = true; sel.appendChild(o); }
-        field("category", "Category", sel);
+        field("category", i18n.t("Category"), sel);
       } else if (key === "rating") {
         const sel = el("select");
-        for (let r = 0; r <= 5; r++) { const o = document.createElement("option"); o.value = r; o.textContent = r ? "★".repeat(r) : "No rating"; if (r === (+e.rating || 0)) o.selected = true; sel.appendChild(o); }
-        field("rating", "Rating", sel);
-      } else if (key === "amount") { const i = el("input"); i.type = "number"; i.step = "0.01"; i.value = e.amount == null ? "" : e.amount; field("amount", "Amount", i); }
+        for (let r = 0; r <= 5; r++) { const o = document.createElement("option"); o.value = r; o.textContent = r ? "★".repeat(r) : i18n.t("No rating"); if (r === (+e.rating || 0)) o.selected = true; sel.appendChild(o); }
+        field("rating", i18n.t("Rating"), sel);
+      } else if (key === "amount") { const i = el("input"); i.type = "number"; i.step = "0.01"; i.value = e.amount == null ? "" : e.amount; field("amount", i18n.t("Amount"), i); }
     }
     const actions = el("div", "picker-editor-actions");
-    const cancel = el("button", "btn btn-small", "Cancel"); cancel.type = "button"; cancel.onclick = () => onDone(false);
-    const done = el("button", "btn btn-small btn-primary", "Done"); done.type = "submit";
+    const cancel = el("button", "btn btn-small", i18n.t("Cancel")); cancel.type = "button"; cancel.onclick = () => onDone(false);
+    const done = el("button", "btn btn-small btn-primary", i18n.t("Done")); done.type = "submit";
     actions.appendChild(cancel); actions.appendChild(done);
     form.appendChild(actions);
     form.onsubmit = (ev) => {
@@ -1416,11 +1417,11 @@
 
   const PREVIEW_SKIP = new Set(["id", "title", "name", "text", "items", "kind", "coverUrl", "updatedAt", "order", "marks", "columns", "cards", "year", "month", "day"]);
   const PREVIEW_LABELS = {
-    category: "Category", subcategory: "Subcategory", date: "Date", startDate: "Starts", amount: "Amount", interval: "Repeats",
-    rating: "Rating", note: "Note", author: "By", platform: "Platform", startedAt: "Started", finishedAt: "Finished",
-    createdAt: "Written", project: "Project", progress: "Progress", url: "Link", dropped: "Dropped", bought: "Bought",
-    starred: "Starred", releaseDate: "Out", cadence: "How often", target: "Goal", period: "Per", unit: "Unit",
-    chargeDay: "Charged on day", chargeWeekday: "Charged on", chargeMonth: "Charged in", endDate: "Ends", done: "Done",
+    category: i18n.t("Category"), subcategory: i18n.t("Subcategory"), date: i18n.t("Date"), startDate: i18n.t("Starts"), amount: i18n.t("Amount"), interval: i18n.t("Repeats"),
+    rating: i18n.t("Rating"), note: i18n.t("Note"), author: i18n.t("By"), platform: i18n.t("Platform"), startedAt: i18n.t("Started"), finishedAt: i18n.t("Finished"),
+    createdAt: i18n.t("Written"), project: i18n.t("Project"), progress: i18n.t("Progress"), url: i18n.t("Link"), dropped: i18n.t("Dropped"), bought: i18n.t("Bought"),
+    starred: i18n.t("Starred"), releaseDate: i18n.t("Out"), cadence: i18n.t("How often"), target: i18n.t("Goal"), period: i18n.t("Per"), unit: i18n.t("Unit"),
+    chargeDay: i18n.t("Charged on day"), chargeWeekday: i18n.t("Charged on"), chargeMonth: i18n.t("Charged in"), endDate: i18n.t("Ends"), done: i18n.t("Done"),
   };
   const fieldLabel = (k) => PREVIEW_LABELS[k] || k.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
   const dayText = (iso) => {
@@ -1430,7 +1431,7 @@
     catch (e) { return String(iso).slice(0, 10); }
   };
   function previewValue(key, v) {
-    if (typeof v === "boolean") return v ? "Yes" : "No";
+    if (typeof v === "boolean") return v ? i18n.t("Yes") : i18n.t("No");
     if (/At$|Date$|^date$/.test(key) && /^\d{4}-\d{2}-\d{2}/.test(String(v))) return dayText(v);
     if (key === "amount" && typeof v === "number" && formatMoney) return formatMoney(v);
     return fillValueText(key, v);
@@ -1449,8 +1450,8 @@
     img.decoding = "async";
     Promise.resolve(want).then((u) => {
       if (u) img.src = u;
-      else img.replaceWith(el("span", "md-img-missing", "Image not among the files picked: " + String(node.src).replace(/^.*[\\/]/, "")));
-    }).catch(() => img.replaceWith(el("span", "md-img-missing", "Couldn't read this image")));
+      else img.replaceWith(el("span", "md-img-missing", i18n.t("Image not among the files picked: {file}", { file: String(node.src).replace(/^.*[\\/]/, "") })));
+    }).catch(() => img.replaceWith(el("span", "md-img-missing", i18n.t("Couldn't read this image"))));
     return img;
   }
   function importPreview(item, imageUrl) {
@@ -1461,7 +1462,7 @@
       c.onerror = () => c.remove();
       doc.appendChild(c);
     }
-    doc.appendChild(el("h3", "picker-doc-title", importItemTitle(item) || "Untitled"));
+    doc.appendChild(el("h3", "picker-doc-title", importItemTitle(item) || i18n.t("Untitled")));
     const meta = el("div", "picker-doc-meta");
     const metaBit = (icon, text) => { if (!text) return; const s = el("span"); s.appendChild(window.LifeLogIcons.labelled(icon, text)); meta.appendChild(s); };
     const when = importItemDateStr(item);
@@ -1475,10 +1476,10 @@
       meta.appendChild(s);
     }
     const pics = importImageCount(item);
-    if (pics) metaBit("image", pics + (pics === 1 ? " image" : " images"));
+    if (pics) metaBit("image", i18n.tn(pics, "{n} image", "{n} images"));
     if (meta.childNodes.length) doc.appendChild(meta);
     if (item.update) {
-      doc.appendChild(el("p", "picker-doc-note", "Already in your " + (item.targetKind === "entry" ? "timeline" : "backlog") + " — this fills in what it's missing, and changes nothing it already has"));
+      doc.appendChild(el("p", "picker-doc-note", (item.targetKind === "entry" ? i18n.t("Already in your timeline — this fills in what it's missing, and changes nothing it already has") : i18n.t("Already in your backlog — this fills in what it's missing, and changes nothing it already has"))));
       const dl = el("dl", "picker-doc-fields");
       for (const f of item.fills) {
         if (isEmptyField(e[f.key])) continue;
@@ -1488,10 +1489,10 @@
       doc.appendChild(dl);
       return doc;
     }
-    if (item.dup) doc.appendChild(el("p", "picker-doc-note", "Already in your data — tick it only to bring in a second copy"));
+    if (item.dup) doc.appendChild(el("p", "picker-doc-note", i18n.t("Already in your data — tick it only to bring in a second copy")));
     if (item.kind === "board" && window.LifeLogBoards) {
       // An Excalidraw drawing, drawn as the board it becomes.
-      if (item.leftOut) doc.appendChild(el("p", "picker-doc-note", "Left out, as a board can't show them: " + item.leftOut));
+      if (item.leftOut) doc.appendChild(el("p", "picker-doc-note", i18n.t("Left out, as a board can't show them: {what}", { what: item.leftOut })));
       const box = el("div", "picker-doc-board");
       // Its pictures read from the files picked, nothing kept until Import.
       const pics = item.pictures || {};
@@ -1526,7 +1527,7 @@
       dl.appendChild(el("dt", null, fieldLabel(k)));
       dl.appendChild(el("dd", null, previewValue(k, v)));
     }
-    if (Array.isArray(e.items) && e.items.length) { dl.appendChild(el("dt", null, "Items")); dl.appendChild(el("dd", null, e.items.map((i) => i.text).join(", "))); }
+    if (Array.isArray(e.items) && e.items.length) { dl.appendChild(el("dt", null, i18n.t("Items"))); dl.appendChild(el("dd", null, e.items.map((i) => i.text).join(", "))); }
     if (dl.childNodes.length) doc.appendChild(dl);
     return doc;
   }
@@ -1543,6 +1544,26 @@
   let pickerKeysWired = false, pickerKeyHandler = null;
 
   const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["task", "tasks"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
+  const kindCount = (k, n) => ({
+    entry: () => i18n.tn(n, "{n} entry", "{n} entries"),
+    backlog: () => i18n.tn(n, "{n} backlog item", "{n} backlog items"),
+    finance: () => i18n.tn(n, "{n} expense", "{n} expenses"),
+    recurring: () => i18n.tn(n, "{n} recurring expense", "{n} recurring expenses"),
+    note: () => i18n.tn(n, "{n} note", "{n} notes"),
+    todo: () => i18n.tn(n, "{n} task", "{n} tasks"),
+    habit: () => i18n.tn(n, "{n} habit", "{n} habits"),
+    achievement: () => i18n.tn(n, "{n} achievement", "{n} achievements"),
+    board: () => i18n.tn(n, "{n} board", "{n} boards"),
+  })[k]();
+  const KIND_NAMES = {
+    entry: i18n.t("Entries"), backlog: i18n.t("Backlog items"), finance: i18n.t("Expenses"), recurring: i18n.t("Recurring expenses"),
+    note: i18n.t("Notes"), todo: i18n.t("Tasks"), habit: i18n.t("Habits"), achievement: i18n.t("Achievements"), board: i18n.t("Boards"),
+  };
+  const IMPORT_THIS = {
+    entry: i18n.t("Import this entry"), backlog: i18n.t("Import this backlog item"), finance: i18n.t("Import this expense"),
+    recurring: i18n.t("Import this recurring expense"), note: i18n.t("Import this note"), todo: i18n.t("Import this task"),
+    habit: i18n.t("Import this habit"), achievement: i18n.t("Import this achievement"), board: i18n.t("Import this board"),
+  };
   const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
   function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold, previewImage }) {
     const sorted = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
@@ -1580,13 +1601,13 @@
     const searchInput = $("#financePickerSearch");
     searchInput.hidden = !(searchable || items.length > 20);
     searchInput.value = "";
-    searchInput.placeholder = items.some((i) => i.kind === "note") ? "Search titles and text…" : "Search…";
+    searchInput.placeholder = items.some((i) => i.kind === "note") ? i18n.t("Search titles and text…") : i18n.t("Search…");
     let searchTerm = "";
     // Sort: by date either way, by name, or by the threshold's measure.
     const sortSel = $("#financePickerSort");
     sortSel.hidden = items.length < 2;
     sortSel.innerHTML = "";
-    for (const [v, label] of [["newest", "Newest first"], ["oldest", "Oldest first"], ["name", "A to Z"]].concat(threshold ? [["measure", threshold.sortLabel || "Most first"]] : [])) {
+    for (const [v, label] of [["newest", i18n.t("Newest first")], ["oldest", i18n.t("Oldest first")], ["name", i18n.t("A to Z")]].concat(threshold ? [["measure", threshold.sortLabel || i18n.t("Most first")]] : [])) {
       const o = document.createElement("option"); o.value = v; o.textContent = label; sortSel.appendChild(o);
     }
     sortSel.value = threshold ? "measure" : "newest";
@@ -1640,7 +1661,7 @@
     function renderNewCats() {
     newCatsWrap.hidden = !newCategories.length;
     $("#financePickerNewCatsEyebrow").textContent =
-      `${newCategories.length} new categor${newCategories.length === 1 ? "y" : "ies"} found — pick which ones to add`;
+      i18n.tn(newCategories.length, "{n} new category found — pick which ones to add", "{n} new categories found — pick which ones to add");
     newCatsList.innerHTML = "";
     newCategories.forEach((nc) => {
       const row = el("label", "toggle-label");
@@ -1666,11 +1687,11 @@
       const fillSelect = () => {
         sel.innerHTML = "";
         const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
-        opt("", "No category");
+        opt("", i18n.t("No category"));
         const names = new Set([...(state.data.noteCategories || []).map((c) => c.name), ...newCategories.map((c) => c.name)]);
         for (const n of [...names].sort((a, b) => a.localeCompare(b))) opt(n, n);
-        if (items.some((i) => i.folder)) opt(FOLDER, "Each file's folder");
-        opt(NEW, "New category…");
+        if (items.some((i) => i.folder)) opt(FOLDER, i18n.t("Each file's folder"));
+        opt(NEW, i18n.t("New category…"));
       };
       fillSelect();
       const ensureCat = (name) => {
@@ -1680,11 +1701,11 @@
       $("#financePickerCatApply").onclick = () => {
         let name = sel.value;
         if (name === NEW) {
-          name = (prompt("Name of the new category") || "").trim();
+          name = (prompt(i18n.t("Name of the new category")) || "").trim();
           if (!name) return;
         }
         const chosen = visibleItems().filter((i) => i.checked);
-        if (!chosen.length) { toast("Select the notes to file first"); return; }
+        if (!chosen.length) { toast(i18n.t("Select the notes to file first")); return; }
         for (const i of chosen) {
           // A file straight in the folder you picked has no folder of its
           // own to be filed under, so it keeps what it had.
@@ -1752,7 +1773,7 @@
         chip.type = "button";
         chip.appendChild(el("span", null, label));
         chip.appendChild(el("span", "bucket-count", on === its.length ? String(its.length) : `${on}/${its.length}`));
-        chip.title = "Take this period in or out";
+        chip.title = i18n.t("Take this period in or out");
         chip.setAttribute("aria-pressed", String(on === its.length));
         chip.onclick = () => { const v = on !== its.length; its.forEach((i) => (i.checked = v)); render(); };
         return chip;
@@ -1766,7 +1787,7 @@
         if (months.size > 1) {
           const more = el("button", "btn btn-icon picker-year-more");
           more.type = "button";
-          more.setAttribute("aria-label", (openYears.has(y) ? "Hide" : "Show") + " the months of " + y);
+          more.setAttribute("aria-label", (openYears.has(y) ? i18n.t("Hide the months of {year}", { year: String(y) }) : i18n.t("Show the months of {year}", { year: String(y) })));
           more.setAttribute("aria-expanded", String(openYears.has(y)));
           more.appendChild(window.LifeLogIcons.svg("chevron-down"));
           more.onclick = () => { if (openYears.has(y)) openYears.delete(y); else openYears.add(y); renderBuckets(); };
@@ -1797,7 +1818,7 @@
         b.onclick = () => onPick(current === value ? null : value);
         wrap.appendChild(b);
       };
-      row(null, "All", groups.reduce((t, g) => t + g.n, 0));
+      row(null, i18n.t("All"), groups.reduce((t, g) => t + g.n, 0));
       for (const g of groups) row(g.value, g.label, g.n, g.color);
     }
     function renderFilters() {
@@ -1808,13 +1829,13 @@
       const colorFor = (i, c) => (!c ? "" : (i.kind === "finance" || i.kind === "recurring") ? financeColorOf(c) : colorOf(c));
       const sample = new Map(inKind.map((i) => [i.entry.category || "", i]));
       const catGroups = [...cats.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .map(([c, n]) => ({ value: c, label: c || "No category", n, color: colorFor(sample.get(c), c) }));
+        .map(([c, n]) => ({ value: c, label: c || i18n.t("No category"), n, color: colorFor(sample.get(c), c) }));
       renderFilter(catFilterWrap, "#financePickerCatSec", catGroups, catFilter, (v) => { catFilter = v; render(); });
       const inCat = base.filter((i) => catFilter === null || (i.entry.category || "") === catFilter);
       const kinds = new Map();
       for (const i of inCat) { const k = kindOf(i); kinds.set(k, (kinds.get(k) || 0) + 1); }
       const kindGroups = [...kinds.entries()].map(([k, n]) => ({ value: k, n,
-        label: k === "update" ? "Updates" : (KIND_WORDS[k] ? KIND_WORDS[k][1].replace(/^./, (c) => c.toUpperCase()) : k) }));
+        label: k === "update" ? i18n.t("Updates") : (KIND_NAMES[k] || k) }));
       renderFilter(kindFilterWrap, "#financePickerKindSec", kindGroups, kindFilter, (v) => { kindFilter = v; render(); });
       $("#financePickerShowSec").hidden = [thresholdRow, imagesRow, dupRow, skipRow, unresolvedRow].every((r) => r.hidden);
       const secs = ["#financePickerYearsSec", "#financePickerCatSec", "#financePickerKindSec", "#financePickerShowSec", "#financePickerNewCats"];
@@ -1833,11 +1854,11 @@
         chipsWrap.appendChild(b);
       };
       const offYears = [...bucketsWrap.querySelectorAll(".year-chip")].filter((c) => !c.classList.contains("on")).length;
-      chip("#financePickerYearsSec", offYears ? "Years · " + offYears + " off" : "Years", offYears > 0);
-      chip("#financePickerCatSec", catFilter === null ? "Category" : (catFilter || "No category"), catFilter !== null);
-      chip("#financePickerKindSec", kindFilter === null ? "Kind" : (kindFilter === "update" ? "Updates" : (KIND_WORDS[kindFilter] || [kindFilter, kindFilter])[1]), kindFilter !== null);
+      chip("#financePickerYearsSec", offYears ? i18n.t("Years · {n} off", { n: offYears }) : i18n.t("Years"), offYears > 0);
+      chip("#financePickerCatSec", catFilter === null ? i18n.t("Category") : (catFilter || i18n.t("No category")), catFilter !== null);
+      chip("#financePickerKindSec", kindFilter === null ? i18n.t("Kind") : (kindFilter === "update" ? i18n.t("Updates") : KIND_NAMES[kindFilter] || kindFilter), kindFilter !== null);
       const shown = [showDupCb, showSkipCb, hideUnresolvedCb, imagesOnlyCb].filter((c) => c.checked).length + (threshold && parseFloat(thresholdInput.value) ? 1 : 0);
-      chip("#financePickerShowSec", shown ? "Show · " + shown : "Show", shown > 0);
+      chip("#financePickerShowSec", shown ? i18n.t("Show · {n}", { n: shown }) : i18n.t("Show"), shown > 0);
       if (newCategories.length) {
         const on = newCategories.filter((n) => n.add).length;
         const b = el("button", "picker-newcats-line");
@@ -1845,8 +1866,8 @@
         const dots = el("span", "picker-newcats-dots");
         for (const nc of newCategories.slice(0, 5)) { const d = el("span", "dot picker-dot"); d.style.background = nc.color; dots.appendChild(d); }
         b.appendChild(dots);
-        b.appendChild(el("span", null, `${newCategories.length} new categor${newCategories.length === 1 ? "y" : "ies"}, ${on} added`));
-        b.appendChild(el("span", "picker-newcats-choose", "Choose"));
+        b.appendChild(el("span", null, i18n.tn(newCategories.length, "{n} new category, {on} added", "{n} new categories, {on} added", { on })));
+        b.appendChild(el("span", "picker-newcats-choose", i18n.t("Choose")));
         b.onclick = () => openRail("#financePickerNewCats");
         chipsWrap.appendChild(b);
       }
@@ -1866,15 +1887,15 @@
       const parts = [];
       for (const k of Object.keys(KIND_WORDS)) {
         const n = chosen.filter((i) => !i.update && i.kind === k).length;
-        if (n) parts.push(n + " " + KIND_WORDS[k][n === 1 ? 0 : 1]);
+        if (n) parts.push(kindCount(k, n));
       }
       const ups = chosen.filter((i) => i.update).length;
-      if (ups) parts.push(ups + (ups === 1 ? " update" : " updates"));
+      if (ups) parts.push(i18n.tn(ups, "{n} update", "{n} updates"));
       const cats = newCategories.filter((nc) => nc.add).length;
-      let text = parts.length ? parts.join(", ") + (mode === "import" ? "" : " selected") : (chosen.length ? `${chosen.length} selected` : "Nothing selected");
-      if (cats && mode === "import") text += ` · ${cats} new categor${cats === 1 ? "y" : "ies"}`;
+      let text = parts.length ? (mode === "import" ? parts.join(", ") : i18n.t("{what} selected", { what: parts.join(", ") })) : (chosen.length ? i18n.tn(chosen.length, "{n} selected", "{n} selected") : i18n.t("Nothing selected"));
+      if (cats && mode === "import") text += " · " + i18n.tn(cats, "{n} new category", "{n} new categories");
       $("#financePickerCount").textContent = text;
-      $("#financePickerSelCount").textContent = shownNow.length ? `${chosen.length} of ${shownNow.length} selected` : "Nothing to show";
+      $("#financePickerSelCount").textContent = shownNow.length ? i18n.t("{n} of {total} selected", { n: chosen.length, total: shownNow.length }) : i18n.t("Nothing to show");
       if (threshold) {
         const under = items.filter(underThreshold).length;
         $("#financePickerThresholdHidden").textContent = under ? `${under} hidden` : "";
@@ -1897,16 +1918,16 @@
       if (!active || !shownNow.includes(active)) active = pickerPhone() ? null : shownNow[0] || null;
       for (const [it, r] of rowOf) r.classList.toggle("is-active", it === active);
       const at = active ? shownNow.indexOf(active) : -1;
-      $("#financePickerPos").textContent = at >= 0 ? `${at + 1} of ${shownNow.length}` : "";
+      $("#financePickerPos").textContent = at >= 0 ? i18n.t("{done} of {total}", { done: at + 1, total: shownNow.length }) : "";
       $("#financePickerPrev").disabled = at <= 0;
       $("#financePickerNext").disabled = at < 0 || at >= shownNow.length - 1;
       const inc = $("#financePickerInclude");
       inc.disabled = !active;
       inc.checked = !!(active && active.checked);
-      $("#financePickerIncludeLabel").textContent = !active ? "Import this" : active.update ? "Import this update" : "Import this " + ((KIND_WORDS[active.kind] || ["item"])[0]);
+      $("#financePickerIncludeLabel").textContent = !active ? i18n.t("Import this") : active.update ? i18n.t("Import this update") : (IMPORT_THIS[active.kind] || i18n.t("Import this"));
       $("#financePickerPreviewEdit").hidden = !onEdit || !active || active.dup;
       previewDoc.innerHTML = "";
-      if (!active) { previewDoc.appendChild(el("p", "picker-doc-empty", shownNow.length ? "Pick something on the left to see it here" : "Nothing matches")); return; }
+      if (!active) { previewDoc.appendChild(el("p", "picker-doc-empty", shownNow.length ? i18n.t("Pick something on the left to see it here") : i18n.t("Nothing matches"))); return; }
       previewDoc.appendChild(importPreview(active, imageUrl));
       previewDoc.scrollTop = 0;
     }
@@ -1958,7 +1979,7 @@
           if (k !== lastKey) {
             lastKey = k;
             const h = el("div", "picker-group");
-            h.appendChild(el("span", null, k ? importBucketLabel(k) : "No date"));
+            h.appendChild(el("span", null, k ? importBucketLabel(k) : i18n.t("No date")));
             h.appendChild(el("span", "picker-group-n", String(groupCount.get(k))));
             frag.appendChild(h);
           }

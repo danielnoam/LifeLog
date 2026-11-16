@@ -4,6 +4,7 @@
 // quote with its author) and can carry a category of its own. Shared app
 // plumbing arrives via init(ctx), same as every other view module.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const Tasks = () => window.LifeLogTasks || require("./tasks.js");
@@ -293,7 +294,7 @@
   function openNoteCatModal(cat, onSaved) {
     const editing = !!cat;
     catSaved = onSaved || null;
-    $("#noteCatModalTitle").textContent = editing ? "Edit note category" : "Add note category";
+    $("#noteCatModalTitle").textContent = editing ? i18n.t("Edit note category") : i18n.t("Add note category");
     $("#noteCatOrigName").value = editing ? cat.name : "";
     $("#noteCatName").value = editing ? cat.name : "";
     $("#noteCatColorInput").value = editing ? cat.color : CATEGORY_PALETTE[noteCats().length % CATEGORY_PALETTE.length];
@@ -303,11 +304,11 @@
     const uses = $("#noteCatUses");
     if (editing) {
       const n = state.data.notes.filter((x) => x.category === cat.name).length;
-      uses.textContent = n + (n === 1 ? " note" : " notes");
+      uses.textContent = i18n.tn(n, "{n} note", "{n} notes");
       uses.hidden = false;
     } else uses.hidden = true;
     catTags = editing ? (cat.tags || []).slice() : [];
-    catTagField = Tags().field($("#noteCatTags"), { get: () => catTags, set: (v) => { catTags = v; }, known: tagCounts, label: "Tags for new notes" });
+    catTagField = Tags().field($("#noteCatTags"), { get: () => catTags, set: (v) => { catTags = v; }, known: tagCounts, label: i18n.t("Tags for new notes") });
     $("#deleteNoteCatBtn").hidden = !editing;
     $("#noteCatModal").hidden = false;
     $("#noteCatName").focus();
@@ -324,14 +325,14 @@
     const clash = (c) => c.name.toLowerCase() === name.toLowerCase();
     const after = catSaved;
     if (!orig) {
-      if (cats.some(clash)) { toast("That category already exists", true); return; }
+      if (cats.some(clash)) { toast(i18n.t("That category already exists"), true); return; }
       const fresh = { id: uid(), name, color, ...(layout ? { layout } : {}), updatedAt: new Date().toISOString() };
       Tags().setOn(fresh, catTags);
       cats.push(fresh);
     } else {
       const cat = cats.find((c) => c.name === orig);
       if (!cat) return;
-      if (name !== cat.name && cats.some((c) => c !== cat && clash(c))) { toast("A category with that name already exists", true); return; }
+      if (name !== cat.name && cats.some((c) => c !== cat && clash(c))) { toast(i18n.t("A category with that name already exists"), true); return; }
       cat.color = color;
       if (layout) cat.layout = layout; else delete cat.layout;
       Tags().setOn(cat, catTags);
@@ -365,8 +366,8 @@
     if (!cat) return;
     const using = state.data.notes.filter((n) => n.category === cat.name);
     if (!confirm(using.length
-      ? `“${cat.name}” is used by ${using.length} note${using.length === 1 ? "" : "s"}. Delete it and leave them uncategorised?`
-      : `Delete note category “${cat.name}”?`)) return;
+      ? i18n.tn(using.length, "“{category}” is used by {n} note. Delete it and leave it uncategorised?", "“{category}” is used by {n} notes. Delete it and leave them uncategorised?", { category: cat.name })
+      : i18n.t("Delete note category “{category}”?", { category: cat.name }))) return;
     renameNoteCategory(state.data, cat.name, null);
     window.LifeLogBoards.renameCategory(cat.name, null);
     state.data.noteCategories = cats.filter((c) => c !== cat);
@@ -375,7 +376,7 @@
     buildCatFilter();
     render();
     await persist();
-    toast("Note category deleted");
+    toast(i18n.t("Note category deleted"));
   }
 
   // ---------- the mode bar: the sort ----------
@@ -388,7 +389,7 @@
     const count = state.data.notes.length;
     if (!count) return;
     const bar = el("div", "notes-toolbar");
-    bar.appendChild(el("span", "notes-count", count + (count === 1 ? " note" : " notes")));
+    bar.appendChild(el("span", "notes-count", i18n.tn(count, "{n} note", "{n} notes")));
     // Boards run newest first; a collection sorts by name, and has its own.
     if (boardsPage()) { /* nothing to sort */ }
     else if (openCollections()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
@@ -430,7 +431,7 @@
     const stamp = el("div", "note-stamp", formatStamp(noteDate(n)));
     if (n.editedAt) {
       const edited = formatEdited(n.editedAt);
-      if (edited) stamp.appendChild(el("span", "note-edited", " · edited " + edited));
+      if (edited) stamp.appendChild(el("span", "note-edited", " · " + i18n.t("edited {when}", { when: edited })));
     }
     // A list shows its category as its header's dot, as the old panels did.
     if (n.category && (n.kind !== "list" || state.bulk.active)) {
@@ -474,7 +475,7 @@
     const fav = own(el("button", "note-fav" + (n.fav ? " on" : "")));
     fav.appendChild(ico("star", n.fav ? "is-fill" : ""));
     fav.type = "button";
-    fav.title = n.fav ? "Remove from favourites" : "Add to favourites";
+    fav.title = n.fav ? i18n.t("Remove from favourites") : i18n.t("Add to favourites");
     fav.setAttribute("aria-label", fav.title);
     fav.setAttribute("aria-pressed", String(!!n.fav));
     fav.onclick = () => (isBoardItem(n) ? window.LifeLogBoards.toggleFav(n.board.id) : toggleFav(n.id));
@@ -491,7 +492,7 @@
       if (!buttons) { wrap.appendChild(el("span", "tag-pill" + (lit ? " on" : ""), t)); continue; }
       const b = own(el("button", "tag-pill" + (lit ? " on" : ""), t));
       b.type = "button";
-      b.title = lit ? `Stop showing only “${t}”` : `Show everything tagged “${t}”`;
+      b.title = lit ? i18n.t("Stop showing only “{tag}”", { tag: t }) : i18n.t("Show everything tagged “{tag}”", { tag: t });
       b.setAttribute("aria-pressed", String(lit));
       b.onclick = () => toggleTagFilter(t);
       wrap.appendChild(b);
@@ -583,18 +584,18 @@
       cb.type = "checkbox";
       cb.className = "todo-check note-list-tick" + (n.priority ? " is-p" + n.priority : "");
       cb.checked = !!n.done;
-      cb.setAttribute("aria-label", (n.done ? "Mark as not done: " : "Mark as done: ") + (n.text || "this list"));
+      cb.setAttribute("aria-label", (n.done ? i18n.t("Mark as not done: {title}", { title: n.text || i18n.t("this list") }) : i18n.t("Mark as done: {title}", { title: n.text || i18n.t("this list") })));
       cb.onchange = () => tickItem(n.id, n.id, cb.checked);
       left.appendChild(cb);
     }
     if (n.category) { const dot = el("span", "dot"); dot.style.background = catColor(n.category); left.appendChild(dot); }
-    left.appendChild(el("span", "note-list-title", reordering ? "Drag to reorder" : (n.text || "Untitled list")));
+    left.appendChild(el("span", "note-list-title", reordering ? i18n.t("Drag to reorder") : (n.text || i18n.t("Untitled list"))));
     if (n.tags && !reordering) left.appendChild(tagPills(n.tags));
     h.appendChild(left);
     const right = el("span", "mc-right");
     if (!reordering) right.appendChild(favButton(n));
     if (reordering) {
-      const btn = el("button", "btn btn-sm btn-primary", "Done");
+      const btn = el("button", "btn btn-sm btn-primary", i18n.t("Done"));
       btn.type = "button";
       btn.onclick = (ev) => { ev.stopPropagation(); listReorderId = ""; render(); };
       right.appendChild(btn);
@@ -607,8 +608,8 @@
     if (headMeta) { h.classList.add("has-meta"); card.appendChild(el("div", "note-list-head-meta")).appendChild(headMeta); }
 
     const rows = el("div", "note-list-rows");
-    if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
-    else if (!openTop.length) rows.appendChild(el("p", "dsc-note", "All done."));
+    if (!items.length) rows.appendChild(el("p", "dsc-note", i18n.t("Nothing here.")));
+    else if (!openTop.length) rows.appendChild(el("p", "dsc-note", i18n.t("All done.")));
     const withKids = (it) => {
       const sub = kids.get(it.id) || [];
       rows.appendChild(itemRow(n, it, { sub: false, kids: sub }));
@@ -619,7 +620,7 @@
     // hidden, not removed): the card keeping its height is what keeps the
     // page from scrolling under a finger that is already holding a row.
     if (done.length) {
-      rows.appendChild(el("div", "todo-done-sep", done.length + " done"));
+      rows.appendChild(el("div", "todo-done-sep", i18n.tn(done.length, "{n} done", "{n} done")));
       for (const it of done) withKids(it);
     }
     card.appendChild(rows);
@@ -630,11 +631,11 @@
   // its title alone, a list was a one-line card among full ones and you
   // couldn't tell which list you were ticking. A press anywhere selects it.
   function bulkListPreview(card, n) {
-    card.appendChild(el("p", "note-text note-list-title", n.text || "Untitled list"));
+    card.appendChild(el("p", "note-text note-list-title", n.text || i18n.t("Untitled list")));
     const items = n.items || [];
     const open = items.filter((i) => !i.done), done = items.filter((i) => i.done).sort(byNewestDone);
     const rows = el("div", "note-list-rows is-preview");
-    if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
+    if (!items.length) rows.appendChild(el("p", "dsc-note", i18n.t("Nothing here.")));
     const row = (it) => {
       const r = el("div", "todo-row" + (it.done ? " is-done" : ""));
       const cb = document.createElement("input");
@@ -649,7 +650,7 @@
     };
     for (const it of open) rows.appendChild(row(it));
     if (done.length) {
-      rows.appendChild(el("div", "todo-done-sep", done.length + " done"));
+      rows.appendChild(el("div", "todo-done-sep", i18n.tn(done.length, "{n} done", "{n} done")));
       for (const it of done) rows.appendChild(row(it));
     }
     card.appendChild(rows);
@@ -673,7 +674,7 @@
     cb.type = "checkbox";
     cb.className = "todo-check" + (it.priority ? " is-p" + it.priority : "");
     cb.checked = !!it.done;
-    cb.setAttribute("aria-label", (it.done ? "Mark as not done: " : "Mark as done: ") + it.text);
+    cb.setAttribute("aria-label", (it.done ? i18n.t("Mark as not done: {title}", { title: it.text }) : i18n.t("Mark as done: {title}", { title: it.text })));
     cb.onchange = () => tickItem(n.id, it.id, cb.checked);
     row.appendChild(cb);
     const body = el("button", "todo-body");
@@ -681,7 +682,7 @@
     body.appendChild(el("span", "todo-text", it.text));
     const meta = taskMeta(n, it, kids);
     if (meta) { body.appendChild(meta); row.classList.add("has-meta"); }
-    body.setAttribute("aria-label", "Open " + it.text);
+    body.setAttribute("aria-label", i18n.t("Open {title}", { title: it.text }));
     body.onclick = () => T.openTask(n.id, it.id);
     row.appendChild(body);
     if (kids.length) {
@@ -689,7 +690,7 @@
       const fold = el("button", "todo-fold");
       fold.type = "button";
       fold.appendChild(ico(shut ? "chevron-right" : "chevron-down"));
-      fold.setAttribute("aria-label", (shut ? "Show subtasks of " : "Hide subtasks of ") + it.text);
+      fold.setAttribute("aria-label", (shut ? i18n.t("Show subtasks of {title}", { title: it.text }) : i18n.t("Hide subtasks of {title}", { title: it.text })));
       fold.setAttribute("aria-expanded", String(!shut));
       fold.onclick = () => toggleFold(it.id);
       row.appendChild(fold);
@@ -698,7 +699,7 @@
     del.appendChild(ico("x"));
     del.type = "button";
     del.title = "Delete";
-    del.setAttribute("aria-label", "Delete: " + it.text);
+    del.setAttribute("aria-label", i18n.t("Delete: {title}", { title: it.text }));
     del.onclick = () => deleteItem(n.id, it.id);
     row.appendChild(del);
     if (!it.done && !sub) attachLongPressReorder(row, n.id);
@@ -727,10 +728,10 @@
       const late = !it.done && it.date < today;
       bit("calendar", T.shortDay(it.date, today) + (it.time ? " " + it.time : ""), late ? "is-late" : it.date === today && !it.done ? "is-today" : "");
     }
-    if (it.remind != null && it.date) bit("bell", "").setAttribute("aria-label", "Reminder: " + T.remindText(it));
+    if (it.remind != null && it.date) bit("bell", "").setAttribute("aria-label", i18n.t("Reminder: {when}", { when: T.remindText(it) }));
     if (it.repeat) bit("repeat", T.repeatText(it.repeat));
-    if (it.deadline) bit("hourglass", "Deadline " + T.shortDay(it.deadline, today), !it.done && it.deadline < today ? "is-late" : "");
-    if (it.note) bit("text", "").setAttribute("aria-label", "Has a description");
+    if (it.deadline) bit("hourglass", i18n.t("Deadline {date}", { date: T.shortDay(it.deadline, today) }), !it.done && it.deadline < today ? "is-late" : "");
+    if (it.note) bit("text", "").setAttribute("aria-label", i18n.t("Has a description"));
     if (kids && kids.length) bit("list-tree", kids.filter((c) => c.done).length + "/" + kids.length);
     // Spans, not buttons: the whole line is inside the row's button.
     if (it.tags && !head) bits.push(tagPills(it.tags, { buttons: false }));
@@ -744,11 +745,11 @@
     const wrap = own(el("div", "todo-compose note-list-compose"));
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "Add an item…";
+    input.placeholder = i18n.t("Add an item…");
     input.autocomplete = "off";
-    input.setAttribute("aria-label", "Add to " + (n.text || "this list"));
+    input.setAttribute("aria-label", i18n.t("Add to {group}", { group: n.text || i18n.t("this list") }));
     input.value = listDrafts.get(n.id) || "";
-    const add = el("button", "btn btn-primary btn-sm", "Add");
+    const add = el("button", "btn btn-primary btn-sm", i18n.t("Add"));
     add.type = "button";
     add.disabled = !input.value.trim();
     const submit = () => {
@@ -792,7 +793,7 @@
     if (n.pinned) delete n.pinned; else n.pinned = true;
     render();
     await persist();
-    toast(n.pinned ? "Pinned to Home" : "Unpinned from Home");
+    toast(n.pinned ? i18n.t("Pinned to Home") : i18n.t("Unpinned from Home"));
   }
   // The list itself ticks by its own id (16 Nov 2026).
   const HEAD_STATE = ["date", "deadline", "ticks", "done", "doneAt"];
@@ -807,7 +808,7 @@
     await saveList(n, false);
     // A repeating task moved on rather than finishing: say where to, with
     // a way back for a tick that wasn't meant.
-    if (r && r.next) toast("Next: " + Tasks().shortDay(r.next, Tasks().today()), false, { label: "Undo", onClick: () => restoreItems(noteId, before, head) });
+    if (r && r.next) toast(i18n.t("Next: {date}", { date: Tasks().shortDay(r.next, Tasks().today()) }), false, { label: i18n.t("Undo"), onClick: () => restoreItems(noteId, before, head) });
   }
   async function restoreItems(noteId, items, head) {
     const n = findList(noteId);
@@ -844,7 +845,7 @@
     const it = before.find((i) => i.id === itemId);
     n.items = (n.items || []).filter((i) => i.id !== itemId && i.parent !== itemId);
     await saveList(n, true);
-    if (it && (always || it.note || n.items.length < before.length - 1)) toast("Task deleted", false, { label: "Undo", onClick: () => restoreItems(noteId, before) });
+    if (it && (always || it.note || n.items.length < before.length - 1)) toast(i18n.t("Task deleted"), false, { label: i18n.t("Undo"), onClick: () => restoreItems(noteId, before) });
   }
   // Clear finished, in a list's ⋯ (Daniel, 2026-11-16: not on the card).
   // Takes the ticked rows off the page; saved with the rest when it closes.
@@ -852,11 +853,11 @@
     const done = sheetItems.filter((i) => i.done);
     if (!done.length) return;
     const ids = new Set(done.map((i) => i.id));
-    if (!confirm(`Clear ${done.length} finished item${done.length === 1 ? "" : "s"}?`)) return;
+    if (!confirm(i18n.tn(done.length, "Clear {n} finished item?", "Clear {n} finished items?"))) return;
     sheetItems = sheetItems.filter((i) => !ids.has(i.id) && !ids.has(i.parent));
     renderSheetItems();
     syncClearDone();
-    toast(`Cleared ${done.length}`);
+    toast(i18n.t("Cleared {n}", { n: done.length }));
   }
   function syncClearDone() {
     const b = $("#noteClearDoneBtn");
@@ -1168,9 +1169,9 @@
     if (!state.data.notes.length) {
       showEmpty(emptyState({
         glyph: "pencil",
-        title: "No notes yet",
-        body: "Write things down as you notice them. Each one keeps the date and time it was written, and you can edit it later.",
-        action: "Write your first note",
+        title: i18n.t("No notes yet"),
+        body: i18n.t("Write things down as you notice them. Each one keeps the date and time it was written, and you can edit it later."),
+        action: i18n.t("Write your first note"),
         onAction: () => openNoteModal(null),
       }));
       return;
@@ -1178,8 +1179,8 @@
     const notes = getFilteredNotes();
     if (!notes.length) {
       showEmpty(emptyState(feedOnly() && collections().length
-        ? "Nothing in the feed yet — everything so far is in a collection (▦ in the categories above)."
-        : "No notes match your filters."));
+        ? i18n.t("Nothing in the feed yet — everything so far is in a collection (▦ in the categories above).")
+        : i18n.t("No notes match your filters.")));
       return;
     }
     if (notesEmptyEl) { notesEmptyEl.remove(); notesEmptyEl = null; }
@@ -1216,14 +1217,14 @@
     const favs = notes.filter((n) => n.fav).sort(bySort);
     const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
     if (favs.length && !sections.length) {
-      sections.push(flatBlock("favourites", "Favourites", `${favs.length} note${favs.length === 1 ? "" : "s"}`, favs));
+      sections.push(flatBlock("favourites", i18n.t("Favourites"), i18n.tn(favs.length, "{n} note", "{n} notes"), favs));
     }
     for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");
       block.dataset.year = y;
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
-      head.appendChild(el("span", "ycount", `${byYear[y].length} note${byYear[y].length === 1 ? "" : "s"}`));
+      head.appendChild(el("span", "ycount", i18n.tn(byYear[y].length, "{n} note", "{n} notes")));
       block.appendChild(head);
       const grid = el("div", "month-grid");
       block.appendChild(grid);
@@ -1280,12 +1281,12 @@
   // plain note's title, else its first line (a "# heading" read as one).
   function splitTitle(n) {
     const kind = kindOf(n);
-    if (kind === "list") return { title: n.text || "Untitled list", body: "" };
-    if (kind === "quote") return { title: [n.author, n.source].filter(Boolean).join(", ") || "Quote", body: n.text };
+    if (kind === "list") return { title: n.text || i18n.t("Untitled list"), body: "" };
+    if (kind === "quote") return { title: [n.author, n.source].filter(Boolean).join(", ") || i18n.t("Quote"), body: n.text };
     if (n.title) return { title: n.title, body: n.text || "" };
     const lines = String(n.text || "").split("\n");
     const first = lines.findIndex((l) => l.trim());
-    if (first < 0) return { title: "Untitled", body: "" };
+    if (first < 0) return { title: i18n.t("Untitled"), body: "" };
     return { title: lines[first].replace(/^#+\s*/, "").trim(), body: lines.slice(first + 1).join("\n").trim() };
   }
   // A card's text, drawn the way the reader draws it rather than as the
@@ -1317,8 +1318,8 @@
     img.decoding = "async";
     I.url(id).then((u) => {
       if (u) { img.src = u; return; }
-      img.replaceWith(el("span", "md-img-missing", "Image not synced yet — it shows once the device that added it saves"));
-    }).catch(() => img.replaceWith(el("span", "md-img-missing", "Couldn't load this image")));
+      img.replaceWith(el("span", "md-img-missing", i18n.t("Image not synced yet — it shows once the device that added it saves")));
+    }).catch(() => img.replaceWith(el("span", "md-img-missing", i18n.t("Couldn't load this image"))));
     return img;
   }
   const mdOpts = { image: drawImage };
@@ -1342,7 +1343,7 @@
   function collectionView(names) {
     const wrap = el("div", "coll");
     const head = el("div", "coll-head");
-    const back = el("button", "btn btn-sm", "‹ All notes");
+    const back = el("button", "btn btn-sm", i18n.t("‹ All notes"));
     back.type = "button";
     back.onclick = () => { state.noteActiveCats.clear(); buildCatFilter(); render(); };
     const title = el("h2", "coll-title");
@@ -1352,13 +1353,13 @@
       title.append(dot, document.createTextNode(name));
     });
     const notes = sortCollection(getFilteredNotes());
-    const add = el("button", "btn btn-sm btn-primary", "+ Note");
+    const add = el("button", "btn btn-sm btn-primary", i18n.t("+ Note"));
     add.type = "button";
     add.onclick = () => openNoteModal(null);
-    head.append(back, title, el("span", "ycount", notes.length + (notes.length === 1 ? " note" : " notes")), add);
+    head.append(back, title, el("span", "ycount", i18n.tn(notes.length, "{n} note", "{n} notes")), add);
     wrap.appendChild(head);
     if (!notes.length) {
-      wrap.appendChild(emptyState(state.search.trim() || state.noteKinds.size ? "Nothing here matches." : "Nothing in this collection yet."));
+      wrap.appendChild(emptyState(state.search.trim() || state.noteKinds.size ? i18n.t("Nothing here matches.") : i18n.t("Nothing in this collection yet.")));
       return wrap;
     }
     const grid = el("div", "coll-grid");
@@ -1397,11 +1398,11 @@
     const kind = kindOf(n);
     card.appendChild(el("span", "coll-card-title", title));
     const preview = kind === "list"
-      ? (() => { const open = openItems(n); return open.length ? open.map((i) => i.text).join(" · ") : "All done"; })()
+      ? (() => { const open = openItems(n); return open.length ? open.map((i) => i.text).join(" · ") : i18n.t("All done"); })()
       : kind === "quote" ? "“" + plainPreview(body) + "”" : plainPreview(body);
     if (preview) card.appendChild(el("span", "coll-card-text", preview));
     const when = n.editedAt || n.createdAt;
-    const meta = [showCat ? n.category : "", kind === "list" ? openItems(n).length + " left" : "", when ? formatEdited(when) : ""].filter(Boolean).join(" · ");
+    const meta = [showCat ? n.category : "", kind === "list" ? i18n.tn(openItems(n).length, "{n} left", "{n} left") : "", when ? formatEdited(when) : ""].filter(Boolean).join(" · ");
     if (meta) card.appendChild(el("span", "coll-card-meta", meta));
     card.onclick = () => {
       if (state.bulk.active) toggleBulkItem(n.id);
@@ -1447,7 +1448,7 @@
     readingId = id;
     let { title, body } = splitTitle(n);
     // A one-line note has no title to split off: the line is the note.
-    if (!n.title && kindOf(n) === "text" && !body) { body = title; title = "Note"; }
+    if (!n.title && kindOf(n) === "text" && !body) { body = title; title = i18n.t("Note"); }
     applyNoteView();
     $("#noteReaderTitle").textContent = title;
     const cat = $("#noteReaderCat");
@@ -1457,7 +1458,7 @@
     const rt = $("#noteReaderTags");
     rt.hidden = !n.tags;
     rt.replaceChildren(...(n.tags ? [tagPills(n.tags, { buttons: false })] : []));
-    const meta = ["Written " + formatStamp(noteDate(n)), n.editedAt ? "edited " + formatEdited(n.editedAt) : ""]
+    const meta = [i18n.t("Written {when}", { when: formatStamp(noteDate(n)) }), n.editedAt ? i18n.t("edited {when}", { when: formatEdited(n.editedAt) }) : ""]
       .filter(Boolean).join(" · ");
     $("#noteReaderMeta").textContent = meta;
     const out = $("#noteReaderBody");
@@ -1469,7 +1470,7 @@
       out.appendChild(q);
     } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
-    if (!out.childNodes.length) out.appendChild(el("p", "muted", "Nothing written under the title yet."));
+    if (!out.childNodes.length) out.appendChild(el("p", "muted", i18n.t("Nothing written under the title yet.")));
     // Wide code and tables scroll sideways themselves, so no Read/Edit swipe starts on them.
     out.querySelectorAll("pre, table").forEach((x) => x.classList.add("no-swipe"));
     $("#noteReaderEntryBtn").hidden = kindOf(n) !== "text";
@@ -1508,13 +1509,13 @@
     if (typed && !all.some((c) => c.key === Tags().key(typed))) {
       const add = el("button", "tags-name tags-add");
       add.type = "button";
-      add.append(ico("plus"), el("span", "tags-name-text", `Add “${typed}”`));
+      add.append(ico("plus"), el("span", "tags-name-text", i18n.t("Add “{tag}”", { tag: typed })));
       add.onclick = () => addTagName(typed);
       const row = el("div", "tags-row");
       row.appendChild(add);
       list.appendChild(row);
     }
-    if (!all.length && !typed) { list.appendChild(el("p", "muted tags-empty", "No tags yet. Type one above to add it.")); return; }
+    if (!all.length && !typed) { list.appendChild(el("p", "muted tags-empty", i18n.t("No tags yet. Type one above to add it."))); return; }
     for (const c of rows) {
       const row = el("div", "tags-row");
       if (renaming === c.key) {
@@ -1522,11 +1523,11 @@
         input.type = "text";
         input.value = c.name;
         input.maxLength = Tags().MAX_LEN;
-        input.setAttribute("aria-label", "New name for " + c.name);
+        input.setAttribute("aria-label", i18n.t("New name for {tag}", { tag: c.name }));
         const ok = el("button", "btn btn-icon");
         ok.type = "button";
-        ok.title = "Rename";
-        ok.setAttribute("aria-label", "Rename");
+        ok.title = i18n.t("Rename");
+        ok.setAttribute("aria-label", i18n.t("Rename"));
         ok.appendChild(ico("check"));
         const warn = el("p", "tags-warn");
         warn.hidden = true;
@@ -1534,7 +1535,7 @@
           const to = Tags().cleanOne(input.value);
           const other = to && Tags().key(to) !== c.key && all.find((x) => x.key === Tags().key(to));
           warn.hidden = !other;
-          if (other) warn.textContent = `“${other.name}” is already a tag: renaming puts ${c.name} into it.`;
+          if (other) warn.textContent = i18n.t("“{other}” is already a tag: renaming puts {tag} into it.", { other: other.name, tag: c.name });
         };
         const go = () => renameTag(c.name, input.value);
         input.oninput = check;
@@ -1552,7 +1553,7 @@
       }
       const name = el("button", "tags-name");
       name.type = "button";
-      name.title = `Show everything tagged “${c.name}”`;
+      name.title = i18n.t("Show everything tagged “{tag}”", { tag: c.name });
       name.append(el("span", "tags-name-text", c.name), el("span", "tags-count", Tags().summary(c)));
       name.onclick = () => {
         state.noteActiveTags.clear();
@@ -1563,13 +1564,13 @@
       };
       const ren = el("button", "btn btn-icon");
       ren.type = "button";
-      ren.title = "Rename " + c.name;
+      ren.title = i18n.t("Rename {tag}", { tag: c.name });
       ren.setAttribute("aria-label", ren.title);
       ren.appendChild(ico("pencil"));
       ren.onclick = () => { renaming = c.key; drawTagsList(); };
       const del = el("button", "btn btn-icon");
       del.type = "button";
-      del.title = "Delete tag " + c.name;
+      del.title = i18n.t("Delete tag {tag}", { tag: c.name });
       del.setAttribute("aria-label", del.title);
       del.appendChild(ico("trash"));
       del.onclick = () => deleteTag(c);
@@ -1608,12 +1609,12 @@
     $("#tagsFind").value = "";
     drawTagsList();
     buildCatFilter();
-    toast(`Tag “${t}” added`);
+    toast(i18n.t("Tag “{tag}” added", { tag: t }));
   }
   async function deleteTag(c) {
-    if (!confirm(`Take the tag “${c.name}” off ${Tags().summary(c)}? Nothing else is deleted.`)) return;
+    if (!confirm(i18n.t("Take the tag “{tag}” off {what}? Nothing else is deleted.", { tag: c.name, what: Tags().summary(c) }))) return;
     await renameTag(c.name, "");
-    toast("Tag deleted");
+    toast(i18n.t("Tag deleted"));
   }
   function wireTags() {
     $("#closeTagsBtn").onclick = closeTagsModal;
@@ -1640,10 +1641,10 @@
   // A selection can hold boards (as "board:<id>") beside notes; they live
   // in boards.json, so boards.js moves and deletes those.
   const selectedBoards = () => [...state.bulk.selected].filter((id) => id.startsWith(BOARD)).map((id) => id.slice(BOARD.length));
-  const counted = (notes, boards) => [
-    notes ? `${notes} note${notes === 1 ? "" : "s"}` : "",
-    boards ? `${boards} board${boards === 1 ? "" : "s"}` : "",
-  ].filter(Boolean).join(" and ") || "nothing";
+  const counted = (notes, boards) => i18n.join([
+    notes ? i18n.tn(notes, "{n} note", "{n} notes") : "",
+    boards ? i18n.tn(boards, "{n} board", "{n} boards") : "",
+  ].filter(Boolean)) || i18n.t("nothing");
 
   async function bulkMoveNotesSelected(category) {
     const ids = state.bulk.selected, boardIds = selectedBoards();
@@ -1654,7 +1655,7 @@
     const b = boardIds.length ? await window.LifeLogBoards.setCategory(boardIds, category) : 0;
     render();
     if (n) await persist();
-    toast(`Moved ${counted(n, b)} to ${category}`);
+    toast(i18n.t("Moved {what} to {category}", { what: counted(n, b), category }));
   }
   // Right-click on a note or board card (app.js, contextMenu). Boards come
   // as "board:<id>", as they do to the bulk bar, which moves and deletes
@@ -1668,10 +1669,10 @@
     const cats = noteCats();
     const current = (board || n).category || "";
     return [
-      { icon: "pencil", label: "Open", run: () => (board ? B.openBoard(board.id) : openNote(n)) },
-      { icon: "star", label: fav ? "Unfavourite" : "Favourite", fill: fav, run: () => (board ? B.toggleFav(board.id) : toggleFav(n.id)) },
-      { icon: n && n.pinned ? "pin-off" : "pin", label: n && n.pinned ? "Unpin from Home" : "Pin to Home", hidden: !n || !homeOn(), run: () => togglePinned(n.id) },
-      { icon: "layers", label: "Move to…", hidden: !cats.length, sub: () => cats.filter((c) => c.name !== current)
+      { icon: "pencil", label: i18n.t("Open"), run: () => (board ? B.openBoard(board.id) : openNote(n)) },
+      { icon: "star", label: fav ? i18n.t("Unfavourite") : i18n.t("Favourite"), fill: fav, run: () => (board ? B.toggleFav(board.id) : toggleFav(n.id)) },
+      { icon: n && n.pinned ? "pin-off" : "pin", label: n && n.pinned ? i18n.t("Unpin from Home") : i18n.t("Pin to Home"), hidden: !n || !homeOn(), run: () => togglePinned(n.id) },
+      { icon: "layers", label: i18n.t("Move to…"), hidden: !cats.length, sub: () => cats.filter((c) => c.name !== current)
         .map((c) => ({ label: c.name, run: () => h.runOne(id, () => bulkMoveNotesSelected(c.name)) })) },
       h.divider,
       // Home has no bulk bar to act on a selection.
@@ -1684,14 +1685,14 @@
     const ids = state.bulk.selected, boardIds = selectedBoards();
     const notes = state.data.notes.filter((x) => ids.has(x.id)).length;
     const what = counted(notes, boardIds.length);
-    if (!confirm(`Delete ${what}?` + (boardIds.length ? " Boards can be brought back from Settings → History → Boards." : ""))) return;
+    if (!confirm(i18n.t("Delete {what}?", { what }) + (boardIds.length ? " " + i18n.t("Boards can be brought back from Settings → History → Boards.") : ""))) return;
     state.data.notes = state.data.notes.filter((x) => !ids.has(x.id));
     state.bulk.active = false;
     state.bulk.selected.clear();
     if (boardIds.length) await window.LifeLogBoards.deleteBoards(boardIds);
     render();
     if (notes) await persist();
-    toast(`Deleted ${what}`);
+    toast(i18n.t("Deleted {what}", { what }));
   }
 
   // ---------- note -> entry ----------
@@ -1741,7 +1742,7 @@
   // (no switching since 0.314.0). "board" is a name and a category over a
   // blank board; tapping the board makes it and opens the board editor, so
   // a board left unnamed and untouched is never made.
-  const SHEET_HEADS = { text: "New note", list: "New tasks", quote: "New quote", board: "New board" };
+  const SHEET_HEADS = { text: i18n.t("New note"), list: i18n.t("New tasks"), quote: i18n.t("New quote"), board: i18n.t("New board") };
   let editingNoteId = "";
   let sheetKind = "text";
   let boardAfter = null; // what the add menu wants done once a board is made
@@ -1766,7 +1767,7 @@
     $("#nPriority").value = sheetHead.priority ? String(sheetHead.priority) : "";
     const when = T.dateSummary(sheetHead, today);
     const val = $("#nDateValue");
-    val.textContent = when || "Add";
+    val.textContent = when || i18n.t("Add");
     val.classList.toggle("is-today", sheetHead.date === today);
     val.classList.toggle("is-late", !!sheetHead.date && sheetHead.date < today);
     val.classList.toggle("is-empty", !when);
@@ -1791,15 +1792,15 @@
     const board = sheetKind === "board";
     $("#nTitleLabel").hidden = sheetKind === "quote";
     $("#nBoardPad").hidden = !board;
-    $("#nTitle").placeholder = sheetKind === "list" ? "Shopping, packing, this week…" : "Title";
+    $("#nTitle").placeholder = sheetKind === "list" ? i18n.t("Shopping, packing, this week…") : i18n.t("Title");
     $("#nListEditor").hidden = sheetKind !== "list";
     $("#nTextLabel").hidden = sheetKind === "list" || board;
     $("#nAuthorRow").hidden = $("#nSourceRow").hidden = sheetKind !== "quote";
     const list = sheetKind === "list";
     $("#nDesc").hidden = $("#nDateBtn").hidden = $("#nPriorityRow").hidden = $("#nSubsHead").hidden = !list;
     $("#nImages").hidden = sheetKind !== "text";
-    $("#nTextLabelText").textContent = sheetKind === "quote" ? "Quote" : "Note";
-    $("#nText").placeholder = sheetKind === "quote" ? "The words, as they were said" : "What happened, what you noticed…";
+    $("#nTextLabelText").textContent = sheetKind === "quote" ? i18n.t("Quote") : i18n.t("Note");
+    $("#nText").placeholder = sheetKind === "quote" ? i18n.t("The words, as they were said") : i18n.t("What happened, what you noticed…");
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
     const editing = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
     $("#noteToEntryBtn").hidden = !editing || sheetKind !== "text";
@@ -1877,7 +1878,7 @@
     return [String(title || "").trim(), String(text || "").trim()].filter(Boolean).join("\n\n");
   }
   async function copyText(text) {
-    if (!text) { toast("Nothing to copy yet"); return; }
+    if (!text) { toast(i18n.t("Nothing to copy yet")); return; }
     try {
       await navigator.clipboard.writeText(text);
     } catch (e) {
@@ -1890,21 +1891,21 @@
       ta.select();
       const ok = document.execCommand("copy");
       ta.remove();
-      if (!ok) { toast("Couldn't copy, the clipboard was blocked", true); return; }
+      if (!ok) { toast(i18n.t("Couldn't copy, the clipboard was blocked"), true); return; }
     }
-    toast("Copied");
+    toast(i18n.t("Copied"));
   }
   const homeOn = () => !(state.visual.disabledViews || []).includes("home");
   function syncPinButton(n, b = $("#notePinBtn")) {
     b.hidden = !n || !homeOn();
     if (!n) return;
-    b.replaceChildren(ico(n.pinned ? "pin-off" : "pin"), document.createTextNode(n.pinned ? " Unpin from Home" : " Pin to Home"));
+    b.replaceChildren(ico(n.pinned ? "pin-off" : "pin"), document.createTextNode(" " + (n.pinned ? i18n.t("Unpin from Home") : i18n.t("Pin to Home"))));
   }
   // The star beside ⋯ (0.314.0), lit like a card's when the note is one.
   function syncFavButton(n, b = $("#noteFavBtn")) {
     b.hidden = !n;
     if (!n) return;
-    const label = n.fav ? "Unfavourite" : "Favourite";
+    const label = n.fav ? i18n.t("Unfavourite") : i18n.t("Favourite");
     b.replaceChildren(ico("star", n.fav ? "is-fill" : ""));
     b.classList.toggle("on", !!n.fav);
     b.title = label;
@@ -1934,19 +1935,19 @@
       const grip = el("button", "note-list-grip");
       grip.type = "button";
       grip.appendChild(ico("grip-vertical"));
-      grip.setAttribute("aria-label", "Move " + (it.text || "item") + " — drag, or use the arrow keys");
+      grip.setAttribute("aria-label", i18n.t("Move {item} — drag, or use the arrow keys", { item: it.text || i18n.t("item") }));
       wireSheetGrip(grip, row, i);
       const input = document.createElement("input");
       input.type = "text";
       input.value = it.text;
-      input.setAttribute("aria-label", "Item " + (i + 1));
+      input.setAttribute("aria-label", i18n.t("Item {n}", { n: i + 1 }));
       input.oninput = () => { it.text = input.value; };
       // Enter in an item starts the next one, like any list app.
       input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); $("#nNewItem").focus(); } };
       const del = el("button", "note-list-del");
       del.appendChild(ico("x"));
       del.type = "button";
-      del.setAttribute("aria-label", "Remove item");
+      del.setAttribute("aria-label", i18n.t("Remove item"));
       del.onclick = () => { sheetItems.splice(i, 1); renderSheetItems(); };
       // What's set on the task, under its words, and the pen to open it: the
       // date, priority, subtasks and the rest live in the task's sheet.
@@ -1958,8 +1959,8 @@
       const open = el("button", "note-list-open");
       open.type = "button";
       open.appendChild(ico("pencil"));
-      open.setAttribute("aria-label", "Edit " + (it.text || "task"));
-      open.title = "Edit task";
+      open.setAttribute("aria-label", i18n.t("Edit {name}", { name: it.text || i18n.t("task") }));
+      open.title = i18n.t("Edit task");
       open.onclick = () => openSheetTask(i);
       row.append(grip, words, open, del);
       wrap.appendChild(row);
@@ -2049,9 +2050,9 @@
     const sel = $("#nCategory");
     sel.innerHTML = "";
     const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
-    opt("", "No category");
+    opt("", i18n.t("No category"));
     for (const c of noteCats()) opt(c.name, c.name);
-    opt(NEW_CATEGORY, "New category…");
+    opt(NEW_CATEGORY, i18n.t("New category…"));
     sel.value = noteCats().some((c) => c.name === value) ? value : "";
     sel.dataset.prev = sel.value;
     setCatChip(sel.closest(".task-field"), sel.value);
@@ -2079,7 +2080,7 @@
       box.appendChild(drawImage(r) || el("span"));
       const del = el("button", "note-image-del");
       del.type = "button";
-      del.setAttribute("aria-label", "Remove image");
+      del.setAttribute("aria-label", i18n.t("Remove image"));
       del.appendChild(ico("x"));
       del.onclick = () => removeSheetImage(id);
       box.appendChild(del);
@@ -2103,7 +2104,7 @@
     const refs = [];
     for (const f of pics) {
       try { refs.push(I.ref(await I.add(f), "")); }
-      catch (e) { toast((e && e.message) || "Couldn't add that image", true); }
+      catch (e) { toast((e && e.message) || i18n.t("Couldn't add that image"), true); }
     }
     if (!refs.length) return;
     const at = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
@@ -2118,16 +2119,16 @@
   }
 
   // Settings → Notebook → Images in notes: how many, and Clean up.
-  const mb = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB");
+  const mb = (b) => (b >= 1048576 ? i18n.t("{size} MB", { size: (b / 1048576).toFixed(1) }) : i18n.t("{size} KB", { size: String(Math.max(1, Math.round(b / 1024))) }));
   async function updateImagesSetting() {
     const I = Images(), info = $("#noteImagesInfo");
     if (!I || !info) return;
     const st = await I.stats(state.data.notes).catch(() => null);
     if (!st) return;
-    const parts = [st.used ? st.used + (st.used === 1 ? " image" : " images") + " in your notes and boards" : "No images in your notes or boards yet"];
-    if (st.count) parts.push(mb(st.bytes) + " kept on this device");
-    if (st.waiting) parts.push(st.waiting + " waiting to upload");
-    info.textContent = parts.join(" · ") + ". Clean up removes the ones no note or board shows any more";
+    const parts = [st.used ? i18n.tn(st.used, "{n} image in your notes and boards", "{n} images in your notes and boards") : i18n.t("No images in your notes or boards yet")];
+    if (st.count) parts.push(i18n.t("{size} kept on this device", { size: mb(st.bytes) }));
+    if (st.waiting) parts.push(i18n.tn(st.waiting, "{n} waiting to upload", "{n} waiting to upload"));
+    info.textContent = parts.join(" · ") + ". " + i18n.t("Clean up removes the ones no note or board shows any more");
   }
   async function cleanUpImages() {
     const I = Images(), S = window.LifeLogStorage;
@@ -2139,19 +2140,19 @@
       const online = S && S.images && S.images.connected();
       const there = online ? await S.images.list() : new Set();
       const unused = [...there].filter((id) => !used.has(id)).length;
-      if (online && !unused && !confirm("Every image on GitHub is in a note or on a board. Clean up anyway? It also starts the images' history over, which frees the space of ones removed before.")) return;
-      if (unused && !confirm(`Remove ${unused} image${unused === 1 ? "" : "s"} no note or board shows any more? This can't be undone — a note or board brought back from History later won't have ${unused === 1 ? "it" : "them"}.`)) return;
-      toast("Cleaning up images…");
+      if (online && !unused && !confirm(i18n.t("Every image on GitHub is in a note or on a board. Clean up anyway? It also starts the images' history over, which frees the space of ones removed before."))) return;
+      if (unused && !confirm(i18n.tn(unused, "Remove {n} image no note or board shows any more? This can't be undone — a note or board brought back from History later won't have it.", "Remove {n} images no note or board shows any more? This can't be undone — a note or board brought back from History later won't have them."))) return;
+      toast(i18n.t("Cleaning up images…"));
       const res = await I.cleanUp(state.data);
       if (res.remote) {
         state.data.settings.imagesCleanedAt = new Date().toISOString();
         await persist();
       }
       const r = res.remote;
-      toast(r ? (r.removed ? `Removed ${r.removed} image${r.removed === 1 ? "" : "s"} (${mb(r.bytes)}) — GitHub frees the space in its own time` : "Nothing to remove — the images' history starts over")
-        : res.local ? `Removed ${res.local} image${res.local === 1 ? "" : "s"} from this device` : "Nothing to remove");
+      toast(r ? (r.removed ? i18n.tn(r.removed, "Removed {n} image ({size}) — GitHub frees the space in its own time", "Removed {n} images ({size}) — GitHub frees the space in its own time", { size: mb(r.bytes) }) : i18n.t("Nothing to remove — the images' history starts over"))
+        : res.local ? i18n.tn(res.local, "Removed {n} image from this device", "Removed {n} images from this device") : i18n.t("Nothing to remove"));
     } catch (e) {
-      toast("Couldn't clean up images — " + ((e && e.message) || e), true);
+      toast(i18n.t("Couldn't clean up images — {error}", { error: (e && e.message) || e }), true);
     } finally {
       btn.disabled = false;
       updateImagesSetting();
@@ -2184,10 +2185,10 @@
     const stamp = $("#noteStampLine");
     $("#noteFoot").hidden = !note;
     if (note) {
-      let line = "Written " + formatStamp(noteDate(note));
+      let line = i18n.t("Written {when}", { when: formatStamp(noteDate(note)) });
       if (note.editedAt) {
         const edited = formatEdited(note.editedAt);
-        if (edited) line += " · edited " + edited;
+        if (edited) line += " · " + i18n.t("edited {when}", { when: edited });
       }
       stamp.textContent = line;
       stamp.hidden = false;
@@ -2198,7 +2199,7 @@
     setSheetKind(note ? kindOf(note) : (kind || shown || "text"));
     // A new one says what it is in the bar; an open note's own title does.
     const head = $("#noteModalTitle");
-    head.textContent = note ? "Edit note" : SHEET_HEADS[sheetKind];
+    head.textContent = note ? i18n.t("Edit note") : SHEET_HEADS[sheetKind];
     head.classList.toggle("sr-only", !!note);
     if (sheetKind === "board") primeBoardSheet();
     renderSheetImages();
@@ -2235,8 +2236,8 @@
 
   function primeBoardSheet() {
     const B = window.LifeLogBoards;
-    $("#nBoardPadText").textContent = (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " to start drawing";
-    $("#nTitle").placeholder = "Board name";
+    $("#nBoardPadText").textContent = (matchMedia("(pointer: coarse)").matches ? i18n.t("Tap to start drawing") : i18n.t("Click to start drawing"));
+    $("#nTitle").placeholder = i18n.t("Board name");
     B.ensureLoaded().then(() => { if (sheetKind === "board") $("#nTitle").placeholder = B.nextName(); }).catch(() => {});
   }
   async function startBoard() {
@@ -2257,7 +2258,7 @@
     const items = sheetItems.map((i) => ({ ...i, text: i.text.trim() })).filter((i) => i.text);
     const title = $("#nTitle").value.trim();
     if (kind === "list" ? !text && !items.length : kind === "text" ? !text && !title : !text) {
-      toast(kind === "list" ? "Give the list a title or an item" : kind === "quote" ? "Write the quote" : "Write something first", true);
+      toast(kind === "list" ? i18n.t("Give the list a title or an item") : kind === "quote" ? i18n.t("Write the quote") : i18n.t("Write something first"), true);
       return false;
     }
     const fields = { text, kind: kind === "text" ? undefined : kind, title: kind === "text" ? $("#nTitle").value.trim() : undefined };
@@ -2294,13 +2295,13 @@
 
   async function deleteNote(id = editingNoteId) {
     if (!id) return;
-    if (!confirm("Delete this note?")) return;
+    if (!confirm(i18n.t("Delete this note?"))) return;
     state.data.notes = state.data.notes.filter((n) => n.id !== id);
     closeNoteModal();
     closeNoteReader();
     render();
     await persist();
-    toast("Note deleted");
+    toast(i18n.t("Note deleted"));
   }
 
   function wire() {

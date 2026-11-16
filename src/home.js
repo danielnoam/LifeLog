@@ -12,18 +12,19 @@
 // resolve as any setting does, the newer save winning. A pinned note is a
 // note with `pinned: true`; it stays in the Notebook too.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
 
   // [id, label, icon, half]. Half sections next to each other in your order
   // share a row on a wide screen (two or three across).
   const SECTIONS = [
-    ["progress", "In progress", "play", false],
-    ["upcoming", "Coming up", "calendar", true],
-    ["scratchpad", "Scratchpad", "notebook-pen", true],
-    ["pinned", "Pinned notes", "pin", true],
-    ["ledger", "Ledger", "receipt", true],
-    ["invest", "Investments", "trending-up", true],
+    ["progress", i18n.t("In progress"), "play", false],
+    ["upcoming", i18n.t("Coming up"), "calendar", true],
+    ["scratchpad", i18n.t("Scratchpad"), "notebook-pen", true],
+    ["pinned", i18n.t("Pinned notes"), "pin", true],
+    ["ledger", i18n.t("Ledger"), "receipt", true],
+    ["invest", i18n.t("Investments"), "trending-up", true],
   ];
   const SECTION_IDS = SECTIONS.map(([id]) => id);
   const DAYS_AHEAD = 14;
@@ -166,7 +167,7 @@
           if (o.skipped || o.paused || !isDate(o.date) || o.date < today || o.date > until) continue;
           rows.push({
             kind: "charge", day: o.date, id: rec.id, amount: +o.amount || 0,
-            title: o.note || rec.note || o.subcategory || o.category || rec.category || "Recurring expense",
+            title: o.note || rec.note || o.subcategory || o.category || rec.category || i18n.t("Recurring expense"),
             category: o.category || rec.category || "",
           });
         }
@@ -190,10 +191,10 @@
 
   // Which heading a day goes under.
   function bucketOf(day, today) {
-    if (day < today) return "Overdue";
-    if (day === today) return "Today";
-    if (day === addDays(today, 1)) return "Tomorrow";
-    return day <= addDays(today, 6) ? "This week" : "Later";
+    if (day < today) return i18n.t("Overdue");
+    if (day === today) return i18n.t("Today");
+    if (day === addDays(today, 1)) return i18n.t("Tomorrow");
+    return day <= addDays(today, 6) ? i18n.t("This week") : i18n.t("Later");
   }
 
   // This month's spending so far against last month's by the same day of the
@@ -246,7 +247,7 @@
     const head = el("div", "home-sec-head");
     head.appendChild(el("h2")).appendChild(window.LifeLogIcons.labelled(icon, label));
     if (more) {
-      const b = el("button", "home-more", more.label + " ›");
+      const b = el("button", "home-more", i18n.t("{label} ›", { label: more.label }));
       b.type = "button";
       b.onclick = more.run;
       head.appendChild(b);
@@ -271,9 +272,9 @@
     const items = inProgress(state.data);
     const run = goTo("timeline");
     const sec = el("section", "home-sec home-progress");
-    sec.appendChild(sectionHead("progress", run && items.length ? { label: "Timeline", run } : null));
+    sec.appendChild(sectionHead("progress", run && items.length ? { label: i18n.t("Timeline"), run } : null));
     if (!items.length) {
-      sec.appendChild(el("p", "home-empty", "Nothing in progress. Start something from your Backlog and it shows here."));
+      sec.appendChild(el("p", "home-empty", i18n.t("Nothing in progress. Start something from your Backlog and it shows here.")));
       return sec;
     }
     const strip = el("div", "home-strip");
@@ -288,13 +289,13 @@
       const wp = !c && window.LifeLogWaypage ? window.LifeLogWaypage.progressLabel(b) : "";
       if (c || wp) {
         const badge = el("span", "home-tile-count", c ? c.text : wp);
-        badge.title = c ? c.words : wp + " in Waypage";
+        badge.title = c ? c.words : i18n.t("{progress} in Waypage", { progress: wp });
         tile.querySelector(".bl-tile-art").appendChild(badge);
       }
       const since = el("span", "home-tile-since");
       const dot = el("span", "dot");
       dot.style.background = (state.data.categories.find((x) => x.name === b.category) || {}).color || "";
-      since.append(dot, document.createTextNode("Since " + Dates().day(b.startedAt, { year: "auto" })));
+      since.append(dot, document.createTextNode(i18n.t("Since {date}", { date: Dates().day(b.startedAt, { year: "auto" }) })));
       tile.appendChild(since);
       const open = () => B.openBacklogModal(b);
       tile.onclick = open;
@@ -314,7 +315,7 @@
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.className = "todo-check" + (r.priority ? " is-p" + r.priority : "");
-    cb.setAttribute("aria-label", "Mark as done: " + r.title);
+    cb.setAttribute("aria-label", i18n.t("Mark as done: {title}", { title: r.title }));
     cb.onchange = () => window.LifeLogNotes.tickItem(r.noteId, r.id, cb.checked);
     const tick = el("span", "home-row-tick");
     tick.appendChild(cb);
@@ -328,12 +329,12 @@
       const c = (state.data.noteCategories || []).find((x) => x.name === r.category);
       if (c && c.color) { const dot = el("span", "dot"); dot.style.background = c.color; sub.appendChild(dot); }
     }
-    sub.appendChild(document.createTextNode([r.list, r.repeat ? "repeats" : ""].filter(Boolean).join(" · ")));
+    sub.appendChild(document.createTextNode([r.list, r.repeat ? i18n.t("repeats") : ""].filter(Boolean).join(" · ")));
     text.appendChild(sub);
     open.appendChild(text);
     const T = window.LifeLogTasks;
     const end = el("span", "home-row-end" + (r.day < today ? " is-late" : ""),
-      r.day === today ? (r.time || "Today") : T.shortDay(r.day, today) + (r.time ? " " + r.time : ""));
+      r.day === today ? (r.time || i18n.t("Today")) : T.shortDay(r.day, today) + (r.time ? " " + r.time : ""));
     open.appendChild(end);
     open.onclick = () => T.openTask(r.noteId, r.id);
     row.appendChild(open);
@@ -356,16 +357,16 @@
     const H = window.LifeLogHabits;
     const amt = (n) => (r.minutes ? H.minutesShort(n) : String(n));
     const words = r.kind === "habit"
-      ? (r.period === "day" ? (r.count === 1 ? "1 habit left today" : r.count + " habits left today") : `${amt(r.done)} of ${amt(r.target)} this ${r.period}`)
-      : r.kind === "charge" ? [r.category, "charges"].filter(Boolean).join(" · ")
-        : [r.category, r.kind === "release" ? (r.day === today ? "out today" : "release") : r.label || "new episode"].filter(Boolean).join(" · ");
+      ? (r.period === "day" ? i18n.tn(r.count, "1 habit left today", "{n} habits left today") : ({ week: i18n.t("{done} of {target} this week", { done: amt(r.done), target: amt(r.target) }), month: i18n.t("{done} of {target} this month", { done: amt(r.done), target: amt(r.target) }), year: i18n.t("{done} of {target} this year", { done: amt(r.done), target: amt(r.target) }) })[r.period])
+      : r.kind === "charge" ? [r.category, i18n.t("charges")].filter(Boolean).join(" · ")
+        : [r.category, r.kind === i18n.t("release") ? (r.day === today ? i18n.t("out today") : "release") : r.label || i18n.t("new episode")].filter(Boolean).join(" · ");
     sub.appendChild(document.createTextNode(words));
     text.appendChild(sub);
     row.appendChild(text);
     const right = el("span", "home-row-end" + (r.kind === "charge" ? " is-money" : ""));
     if (r.kind === "charge") right.textContent = window.LifeLogFinance.amountText(r);
-    else if (r.kind === "habit") right.textContent = r.period === "day" ? r.count + " left" : r.day === today ? "Today" : Dates().day(r.day, { year: false });
-    else right.textContent = r.day === today ? "Today" : bucketOf(r.day, today) === "This week" || r.day === addDays(today, 1)
+    else if (r.kind === "habit") right.textContent = r.period === "day" ? i18n.tn(r.count, "{n} left", "{n} left") : r.day === today ? i18n.t("Today") : Dates().day(r.day, { year: false });
+    else right.textContent = r.day === today ? i18n.t("Today") : bucketOf(r.day, today) === i18n.t("This week") || r.day === addDays(today, 1)
       ? Dates().WEEKDAYS[Dates().parts(r.day).wd] + " " + Dates().parts(r.day).d : Dates().day(r.day, { year: "auto" });
     row.appendChild(right);
     const B = window.LifeLogBacklog;
@@ -386,9 +387,9 @@
     const rows = comingUp(state.data, today, { Backlog: window.LifeLogBacklog, Finance: window.LifeLogFinance, Habits: window.LifeLogHabits, Tasks: window.LifeLogTasks });
     const run = goTo("backlog", "upcoming");
     const sec = el("section", "home-sec home-upcoming");
-    sec.appendChild(sectionHead("upcoming", run ? { label: "Upcoming", run } : null));
+    sec.appendChild(sectionHead("upcoming", run ? { label: i18n.t("Upcoming"), run } : null));
     if (!rows.length) {
-      sec.appendChild(el("p", "home-empty", "Nothing dated in the next two weeks."));
+      sec.appendChild(el("p", "home-empty", i18n.t("Nothing dated in the next two weeks.")));
       return sec;
     }
     const card = el("div", "home-card");
@@ -409,13 +410,13 @@
     if (pad) return pad;
     pad = el("textarea", "home-pad");
     pad.id = "homeScratchpad";
-    pad.placeholder = "Jot something down…";
-    pad.setAttribute("aria-label", "Scratchpad");
+    pad.placeholder = i18n.t("Jot something down…");
+    pad.setAttribute("aria-label", i18n.t("Scratchpad"));
     pad.oninput = () => {
       fitPad();
       clearTimeout(padTimer);
       padTimer = setTimeout(savePad, 700);
-      markPad("Saving…");
+      markPad(i18n.t("Saving…"));
     };
     pad.onblur = () => { if (padTimer) { clearTimeout(padTimer); savePad(); } };
     return pad;
@@ -430,9 +431,9 @@
     padTimer = 0;
     if (!pad) return;
     const v = pad.value;
-    if ((state.data.settings.scratchpad || "") === v) { markPad(v ? "Saved" : ""); return; }
+    if ((state.data.settings.scratchpad || "") === v) { markPad(v ? i18n.t("Saved") : ""); return; }
     if (v) state.data.settings.scratchpad = v; else delete state.data.settings.scratchpad;
-    markPad("Saved");
+    markPad(i18n.t("Saved"));
     await persist();
   }
 
@@ -442,8 +443,8 @@
   function modeSwitch() {
     const seg = el("div", "seg home-pad-mode");
     seg.setAttribute("role", "group");
-    seg.setAttribute("aria-label", "Scratchpad kind");
-    for (const [k, icon, label] of [["note", "notebook-pen", "Note"], ["board", "presentation", "Board"]]) {
+    seg.setAttribute("aria-label", i18n.t("Scratchpad kind"));
+    for (const [k, icon, label] of [["note", "notebook-pen", i18n.t("Note")], ["board", "presentation", i18n.t("Board")]]) {
       const b = el("button", "seg-btn" + (scratchMode() === k ? " active" : ""));
       b.type = "button";
       b.dataset.mode = k;
@@ -474,7 +475,7 @@
     // "Saved" sits in the head: Note/Board took its place in the foot, and
     // both there wrapped Save to Notebook onto two lines on a phone.
     if (scratchMode() === "note") {
-      const said = el("span", "home-pad-state", state.data.settings.scratchpad ? "Saved" : "");
+      const said = el("span", "home-pad-state", state.data.settings.scratchpad ? i18n.t("Saved") : "");
       said.id = "homePadState";
       head.appendChild(said);
     }
@@ -492,8 +493,8 @@
     const foot = padFoot();
     const make = el("button", "btn btn-small");
     make.type = "button";
-    make.append(ico("plus"), document.createTextNode(" Save to Notebook"));
-    make.title = "Save what's here as a note in your Notebook and clear the scratchpad";
+    make.append(ico("plus"), document.createTextNode(" " + i18n.t("Save to Notebook")));
+    make.title = i18n.t("Save what's here as a note in your Notebook and clear the scratchpad");
     make.onclick = makeNote;
     foot.appendChild(make);
     card.appendChild(foot);
@@ -508,15 +509,15 @@
     open.type = "button";
     open.id = "homeScratchBoard";
     if (!B.isLoaded()) {
-      open.appendChild(el("span", "home-board-empty", "Loading…"));
+      open.appendChild(el("span", "home-board-empty", i18n.t("Loading…")));
       B.ensureLoaded().then(() => { if (state.view === "home") render(); }).catch(() => {});
     } else {
       const b = B.scratchBoard();
       if (b && b.elements.length) {
         open.appendChild(B.thumbnail(b));
-        open.setAttribute("aria-label", "Open the scratch board");
-      } else open.appendChild(el("span", "home-board-empty", "Nothing drawn yet"));
-      if (!open.hasAttribute("aria-label")) open.setAttribute("aria-label", "Draw on the scratch board");
+        open.setAttribute("aria-label", i18n.t("Open the scratch board"));
+      } else open.appendChild(el("span", "home-board-empty", i18n.t("Nothing drawn yet")));
+      if (!open.hasAttribute("aria-label")) open.setAttribute("aria-label", i18n.t("Draw on the scratch board"));
     }
     open.onclick = () => B.openScratch();
     card.appendChild(open);
@@ -524,8 +525,8 @@
     const foot = padFoot();
     const keep = el("button", "btn btn-small");
     keep.type = "button";
-    keep.append(ico("plus"), document.createTextNode(" Save to Notebook"));
-    keep.title = "File this drawing as a board in your Notebook and start a blank one";
+    keep.append(ico("plus"), document.createTextNode(" " + i18n.t("Save to Notebook")));
+    keep.title = i18n.t("File this drawing as a board in your Notebook and start a blank one");
     keep.onclick = keepBoard;
     foot.appendChild(keep);
     card.appendChild(foot);
@@ -552,15 +553,15 @@
   async function keepBoard() {
     const B = window.LifeLogBoards;
     const b = await B.keepScratch();
-    if (!b) { toast("The board is empty — draw something first", true); return; }
+    if (!b) { toast(i18n.t("The board is empty — draw something first"), true); return; }
     render();
     const canOpen = viewEnabled("notes") && modeEnabled("notes", "boards");
-    toast(`Kept as "${b.name}" — the scratch board is blank`, false, canOpen ? { label: "Open", onClick: () => B.openBoard(b.id) } : null);
+    toast(i18n.t('Kept as "{name}" — the scratch board is blank', { name: b.name }), false, canOpen ? { label: i18n.t("Open"), onClick: () => B.openBoard(b.id) } : null);
   }
 
   async function makeNote() {
     const text = (pad ? pad.value : state.data.settings.scratchpad || "").trim();
-    if (!text) { toast("The scratchpad is empty — write something first", true); return; }
+    if (!text) { toast(i18n.t("The scratchpad is empty — write something first"), true); return; }
     clearTimeout(padTimer); padTimer = 0;
     const now = new Date().toISOString();
     const N = window.LifeLogNotes;
@@ -570,7 +571,7 @@
     if (pad) pad.value = "";
     render();
     await persist();
-    toast("Saved as a note — the scratchpad is clear", false, viewEnabled("notes") ? { label: "Open", onClick: () => N.openNote(note) } : null);
+    toast(i18n.t("Saved as a note — the scratchpad is clear"), false, viewEnabled("notes") ? { label: i18n.t("Open"), onClick: () => N.openNote(note) } : null);
   }
 
   function pinnedSection() {
@@ -578,9 +579,9 @@
     const notes = pinnedNotes(state.data);
     const run = goTo("notes", "notes");
     const sec = el("section", "home-sec home-pinned");
-    sec.appendChild(sectionHead("pinned", run ? { label: "Notebook", run } : null));
+    sec.appendChild(sectionHead("pinned", run ? { label: i18n.t("Notebook"), run } : null));
     if (!notes.length) {
-      sec.appendChild(el("p", "home-empty", "No pinned notes. Open a note and choose Pin to Home from its ⋯ menu."));
+      sec.appendChild(el("p", "home-empty", i18n.t("No pinned notes. Open a note and choose Pin to Home from its ⋯ menu.")));
       return sec;
     }
     const grid = el("div", "home-pins");
@@ -595,25 +596,25 @@
     const g = ledgerGlance(state.data, today, { Finance: F });
     const run = goTo("finance", "entries");
     const sec = el("section", "home-sec home-ledger");
-    sec.appendChild(sectionHead("ledger", run ? { label: "Ledger", run } : null));
+    sec.appendChild(sectionHead("ledger", run ? { label: i18n.t("Ledger"), run } : null));
     const money = F.formatMoney;
     const colorOf = (name) => (state.data.financeCategories.find((c) => c.name === name) || {}).color || "";
     const card = el("div", "home-card");
     const top = el("div", "home-ledger-top");
     const D = Dates();
     const monthName = D.MONTH_NAMES[+g.month.slice(5) - 1];
-    top.appendChild(el("p", "home-ledger-label", monthName + " so far"));
+    top.appendChild(el("p", "home-ledger-label", i18n.t("{month} so far", { month: monthName })));
     top.appendChild(el("p", "home-ledger-total", money(g.total)));
     if (g.hasLast) {
       const diff = g.total - g.lastByNow;
       const lastName = D.MONTH_NAMES[+g.prev.slice(5) - 1];
-      const words = Math.abs(diff) < 0.005 ? `Same as this time in ${lastName}`
-        : `${money(Math.abs(diff))} ${diff > 0 ? "more" : "less"} than this time in ${lastName}`;
+      const words = Math.abs(diff) < 0.005 ? i18n.t("Same as this time in {month}", { month: lastName })
+        : (diff > 0 ? i18n.t("{amount} more than this time in {month}", { amount: money(Math.abs(diff)), month: lastName }) : i18n.t("{amount} less than this time in {month}", { amount: money(Math.abs(diff)), month: lastName }));
       const vs = el("p", "home-ledger-vs" + (diff > 0.005 ? " is-up" : ""));
       vs.appendChild(ico(diff > 0.005 ? "trending-up" : "trending-down"));
       vs.appendChild(document.createTextNode(words));
       top.appendChild(vs);
-      top.appendChild(el("p", "home-ledger-of", `${lastName} came to ${money(g.lastTotal)}`));
+      top.appendChild(el("p", "home-ledger-of", i18n.t("{month} came to {amount}", { month: lastName, amount: money(g.lastTotal) })));
     }
     if (g.total > 0) {
       const bar = el("div", "home-ledger-bar");
@@ -630,14 +631,14 @@
         const li = el("li");
         const dot = el("span", "dot");
         dot.style.background = colorOf(c.name);
-        li.append(dot, el("span", "home-ledger-cat", c.name || "Other"), el("span", "home-ledger-amt", money(c.amount)));
+        li.append(dot, el("span", "home-ledger-cat", c.name || i18n.t("Other")), el("span", "home-ledger-amt", money(c.amount)));
         legend.appendChild(li);
       }
       top.appendChild(legend);
     }
     card.appendChild(top);
     if (g.latest.length) {
-      card.appendChild(el("p", "home-day", "Latest"));
+      card.appendChild(el("p", "home-day", i18n.t("Latest")));
       for (const f of g.latest) {
         const row = el("button", "home-row");
         row.type = "button";
@@ -645,11 +646,11 @@
         ki.appendChild(ico(f.virtual ? "repeat" : "banknote"));
         row.appendChild(ki);
         const text = el("span", "home-row-text");
-        text.appendChild(el("span", "home-row-title", f.note || f.subcategory || f.category || "Expense"));
+        text.appendChild(el("span", "home-row-title", f.note || f.subcategory || f.category || i18n.t("Expense")));
         const sub = el("span", "home-row-sub");
         const dot = el("span", "dot");
         dot.style.background = colorOf(f.category);
-        sub.append(dot, document.createTextNode([f.subcategory || f.category, f.date === today ? "Today" : D.day(f.date, { year: "auto" })].filter(Boolean).join(" · ")));
+        sub.append(dot, document.createTextNode([f.subcategory || f.category, f.date === today ? i18n.t("Today") : D.day(f.date, { year: "auto" })].filter(Boolean).join(" · ")));
         text.appendChild(sub);
         row.appendChild(text);
         row.appendChild(el("span", "home-row-end is-money", money(f.amount)));
@@ -659,12 +660,12 @@
         } else row.onclick = () => F.openFinanceModal(state.data.financeEntries.find((x) => x.id === f.id));
         card.appendChild(row);
       }
-    } else card.appendChild(el("p", "home-empty home-ledger-none", "No expenses yet this month."));
+    } else card.appendChild(el("p", "home-empty home-ledger-none", i18n.t("No expenses yet this month.")));
     const foot = el("div", "home-pad-foot");
     foot.appendChild(el("span", "spacer"));
     const add = el("button", "btn btn-small");
     add.type = "button";
-    add.append(ico("plus"), document.createTextNode(" Add expense"));
+    add.append(ico("plus"), document.createTextNode(" " + i18n.t("Add expense")));
     add.onclick = () => F.openFinanceModal(null);
     foot.appendChild(add);
     card.appendChild(foot);
@@ -680,20 +681,20 @@
     const I = window.LifeLogInvest;
     const sec = el("section", "home-sec home-invest");
     const toMode = modeEnabled("finance", "invest") && viewEnabled("finance");
-    sec.appendChild(sectionHead("invest", toMode ? { label: "Investments", run: () => I.openTicker(null) } : null));
+    sec.appendChild(sectionHead("invest", toMode ? { label: i18n.t("Investments"), run: () => I.openTicker(null) } : null));
     const card = el("div", "home-card");
     sec.appendChild(card);
     const g = I && I.homeGlance();
-    if (!g) { card.appendChild(el("p", "home-empty home-invest-none", "Loading your watchlist…")); return sec; }
+    if (!g) { card.appendChild(el("p", "home-empty home-invest-none", i18n.t("Loading your watchlist…"))); return sec; }
     const addBtn = () => {
       const add = el("button", "btn btn-small");
       add.type = "button";
-      add.append(ico("plus"), document.createTextNode(" Add ticker"));
+      add.append(ico("plus"), document.createTextNode(" " + i18n.t("Add ticker")));
       add.onclick = () => I.addTicker();
       return add;
     };
     if (!g.count) {
-      card.appendChild(el("p", "home-empty home-invest-none", "Nothing on your watchlist yet."));
+      card.appendChild(el("p", "home-empty home-invest-none", i18n.t("Nothing on your watchlist yet.")));
       const foot = el("div", "home-pad-foot");
       foot.append(el("span", "spacer"), addBtn());
       card.appendChild(foot);
@@ -701,11 +702,11 @@
     }
     if (g.hold) {
       const top = el("div", "home-ledger-top");
-      top.appendChild(el("p", "home-ledger-label", "You hold"));
+      top.appendChild(el("p", "home-ledger-label", i18n.t("You hold")));
       top.appendChild(el("p", "home-ledger-total", g.hold.value));
       const gain = el("p", "home-invest-gain " + (g.hold.up ? "invest-up" : "invest-down"));
       gain.appendChild(ico(g.hold.up ? "trending-up" : "trending-down"));
-      gain.appendChild(document.createTextNode(g.hold.gain + " since you bought"));
+      gain.appendChild(document.createTextNode(i18n.t("{gain} since you bought", { gain: g.hold.gain })));
       top.appendChild(gain);
       if (g.hold.today) top.appendChild(el("p", "home-ledger-of", g.hold.today + (g.hold.todayPct ? " (" + g.hold.todayPct.replace(" today", "") + ")" : "")));
       card.appendChild(top);
@@ -715,7 +716,7 @@
       row.type = "button";
       const text = el("span", "home-row-text");
       const title = el("span", "home-row-title", r.symbol);
-      if (r.hit) title.appendChild(el("i", "home-invest-hit", "At target"));
+      if (r.hit) title.appendChild(el("i", "home-invest-hit", i18n.t("At target")));
       text.appendChild(title);
       text.appendChild(el("span", "home-row-sub", r.sub));
       row.appendChild(text);
@@ -728,7 +729,7 @@
       card.appendChild(row);
     }
     const foot = el("div", "home-pad-foot");
-    foot.appendChild(el("span", "home-invest-closed", g.blocked === "key" ? "Add a Tiingo key for prices" : g.count > INVEST_ROWS ? `${g.count - INVEST_ROWS} more · ${g.closed}` : g.closed));
+    foot.appendChild(el("span", "home-invest-closed", g.blocked === "key" ? i18n.t("Add a Tiingo key for prices") : g.count > INVEST_ROWS ? i18n.t("{n} more · {closed}", { n: g.count - INVEST_ROWS, closed: g.closed }) : g.closed));
     foot.appendChild(el("span", "spacer"));
     foot.appendChild(addBtn());
     card.appendChild(foot);
@@ -747,7 +748,7 @@
     page.appendChild(head);
     const layout = floors();
     if (!layout.length) {
-      page.appendChild(el("p", "home-empty", "Every section is hidden. Turn some back on from the View button, or right-click here."));
+      page.appendChild(el("p", "home-empty", i18n.t("Every section is hidden. Turn some back on from the View button, or right-click here.")));
       if (!isMobileLayout()) page.classList.add("can-arrange");
       page.addEventListener("contextmenu", emptyMenu);
       root.appendChild(page);
@@ -934,7 +935,7 @@
     endDrag();
     saveFloors(next);
     render();
-    if (pushed) toast(sectionLabel(pushed) + " moved down — that floor was full");
+    if (pushed) toast(i18n.t("{section} moved down — that floor was full", { section: sectionLabel(pushed) }));
   }
   function cancelDrag() {
     const was = drag && drag.live;
@@ -975,11 +976,11 @@
     const off = SECTION_IDS.filter((id) => (state.visual.homeHidden || []).includes(id));
     ev.preventDefault();
     const items = off.length
-      ? [{ head: "Add to Home" }].concat(off.map((id) => {
+      ? [{ head: i18n.t("Add to Home") }].concat(off.map((id) => {
         const [, label, icon] = SECTIONS.find(([s]) => s === id);
         return { icon, label, run: () => addSectionAt(page, id, place) };
       }))
-      : [{ head: "Every section is on Home" }];
+      : [{ head: i18n.t("Every section is on Home") }];
     CM.open(ev.clientX, ev.clientY, items);
   }
 
@@ -1005,7 +1006,7 @@
     const { floors: next, pushed } = placeSection(layout, id, place, perFloor(page.clientWidth));
     saveFloors(next);
     render();
-    if (pushed) toast(sectionLabel(pushed) + " moved down — that floor was full");
+    if (pushed) toast(i18n.t("{section} moved down — that floor was full", { section: sectionLabel(pushed) }));
   }
 
   const sectionLabel = (id) => (SECTIONS.find(([s]) => s === id) || [, id])[1];
@@ -1035,13 +1036,13 @@
         b.onclick = () => moveSection(id, delta);
         return b;
       };
-      row.appendChild(arrow("arrow-up", -1, "Move " + label + " up"));
-      row.appendChild(arrow("arrow-down", 1, "Move " + label + " down"));
+      row.appendChild(arrow("arrow-up", -1, i18n.t("Move {section} up", { section: label })));
+      row.appendChild(arrow("arrow-down", 1, i18n.t("Move {section} down", { section: label })));
       const box = document.createElement("input");
       box.type = "checkbox";
       box.className = "switch";
       box.checked = !off.includes(id);
-      box.setAttribute("aria-label", "Show " + label);
+      box.setAttribute("aria-label", i18n.t("Show {section}", { section: label }));
       box.onchange = () => setSectionShown(id, box.checked);
       row.appendChild(box);
       wrap.appendChild(row);
@@ -1080,7 +1081,7 @@
     saveFloors(DEFAULT_FLOORS.map((f) => f.slice()));
     fillViewOptions();
     render();
-    toast("Home layout reset", false, { label: "Undo", onClick: () => {
+    toast(i18n.t("Home layout reset"), false, { label: i18n.t("Undo"), onClick: () => {
       state.visual.homeHidden = was.homeHidden || [];
       saveFloors(was.homeFloors);
       fillViewOptions();

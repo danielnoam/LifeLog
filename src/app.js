@@ -1,5 +1,6 @@
 // LifeLog — main app logic (vanilla JS, no build step).
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Storage = window.LifeLogStorage;
   const Finance = window.LifeLogFinance;
   const SettingsUI = window.LifeLogSettings;
@@ -82,33 +83,33 @@
   //             dropped), which stay as they are
   const SORTS = {
     notes: [
-      ["newest", "Newest first"],
-      ["oldest", "Oldest first"],
-      ["edited", "Recently edited"],
+      ["newest", i18n.t("Newest first")],
+      ["oldest", i18n.t("Oldest first")],
+      ["edited", i18n.t("Recently edited")],
     ],
     // A collection of notes (0.204.0): by name, not by date.
     collection: [
       ["title", "A–Z"],
-      ["edited", "Recently edited"],
-      ["newest", "Newest first"],
+      ["edited", i18n.t("Recently edited")],
+      ["newest", i18n.t("Newest first")],
     ],
     timeline: [
-      ["newest", "Newest first"],
-      ["oldest", "Oldest first"],
+      ["newest", i18n.t("Newest first")],
+      ["oldest", i18n.t("Oldest first")],
     ],
     ledger: [
-      ["newest", "Newest first"],
-      ["oldest", "Oldest first"],
-      ["largest", "Largest first"],
-      ["smallest", "Smallest first"],
+      ["newest", i18n.t("Newest first")],
+      ["oldest", i18n.t("Oldest first")],
+      ["largest", i18n.t("Largest first")],
+      ["smallest", i18n.t("Smallest first")],
     ],
     backlog: [
-      ["title", "Title A–Z"],
-      ["added-new", "Recently added"],
-      ["added-old", "Added longest ago"],
-      ["release", "Release date"],
-      ["price", "Price, cheapest"],
-      ["length", "Length, shortest"],
+      ["title", i18n.t("Title A–Z")],
+      ["added-new", i18n.t("Recently added")],
+      ["added-old", i18n.t("Added longest ago")],
+      ["release", i18n.t("Release date")],
+      ["price", i18n.t("Price, cheapest")],
+      ["length", i18n.t("Length, shortest")],
     ],
   };
   const SORT_VALUES = {
@@ -124,8 +125,8 @@
   function sortSelect(kind, value, onPick) {
     const sel = document.createElement("select");
     sel.className = "sort-select";
-    sel.title = "Sort";
-    sel.setAttribute("aria-label", "Sort");
+    sel.title = i18n.t("Sort");
+    sel.setAttribute("aria-label", i18n.t("Sort"));
     fillSelect(sel, SORTS[kind].map(([v, label]) => ({ value: v, label })), value);
     sel.onchange = () => onPick(sel.value);
     return sel;
@@ -154,7 +155,7 @@
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", hardcover: "Hardcover", musicbrainz: "MusicBrainz",
     steam: "Steam",
-    "nyt-openlibrary": "NYT bestsellers", "nyt-googlebooks": "NYT bestsellers", "nyt-hardcover": "NYT bestsellers",
+    "nyt-openlibrary": i18n.t("NYT bestsellers"), "nyt-googlebooks": i18n.t("NYT bestsellers"), "nyt-hardcover": i18n.t("NYT bestsellers"),
   };
   const PRIVACY_KEY = "lifelog-privacy-v1";
   // App lock: gates opening the app on this device. Local-only, never synced
@@ -412,7 +413,7 @@
   async function nativeBiometricCheck(W, title) {
     const r = await W.authenticate({ title });
     if (r && r.ok) return;
-    const err = new Error((r && r.message) || "Not verified");
+    const err = new Error((r && r.message) || i18n.t("Not verified"));
     err.cancelled = !!r && r.reason === "cancelled";
     throw err;
   }
@@ -421,7 +422,7 @@
     if (W) {
       // Proving it works once is the setting-up: Android holds the
       // fingerprints, so there's no credential of ours to store.
-      await nativeBiometricCheck(W, Platform.ios ? "Use Face ID for LifeLog" : "Use your fingerprint for LifeLog");
+      await nativeBiometricCheck(W, Platform.ios ? i18n.t("Use Face ID for LifeLog") : i18n.t("Use your fingerprint for LifeLog"));
       return NATIVE_BIOMETRIC;
     }
     const cred = await navigator.credentials.create({
@@ -440,8 +441,8 @@
   async function verifyBiometric(credentialId) {
     const W = nativeBiometrics();
     if (credentialId === NATIVE_BIOMETRIC || W) {
-      if (!W || credentialId !== NATIVE_BIOMETRIC) throw new Error("Fingerprint unlock was set up somewhere else — use your PIN");
-      return nativeBiometricCheck(W, "Unlock LifeLog");
+      if (!W || credentialId !== NATIVE_BIOMETRIC) throw new Error(i18n.t("Fingerprint unlock was set up somewhere else — use your PIN"));
+      return nativeBiometricCheck(W, i18n.t("Unlock LifeLog"));
     }
     await navigator.credentials.get({
       publicKey: {
@@ -718,7 +719,7 @@
       // better here — see NOTES.md.
       // The To-do mode's lists became list notes in 0.197.0.
       // Boards were a third mode until 0.204.0; they're a kind of note now.
-      modes: [["notes", "Notes", "notebook-text"], ["habits", "Habits", "square-check-big"]],
+      modes: [["notes", i18n.t("Notes"), "notebook-text"], ["habits", i18n.t("Habits"), "square-check-big"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -729,7 +730,7 @@
     },
     timeline: {
       key: "timeline",
-      modes: [["entries", "Log", "list"], ["stats", "Stats", "chart-pie"]],
+      modes: [["entries", i18n.t("Log"), "list"], ["stats", i18n.t("Stats"), "chart-pie"]],
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
@@ -743,7 +744,7 @@
     },
     finance: {
       key: "finance",
-      modes: [["entries", "Expenses", "receipt"], ["summary", "Summary", "chart-pie"], ["invest", "Investments", "trending-up"]],
+      modes: [["entries", i18n.t("Expenses"), "receipt"], ["summary", i18n.t("Summary"), "chart-pie"], ["invest", i18n.t("Investments"), "trending-up"]],
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
@@ -1518,13 +1519,13 @@
     Widgets.changed();
     saveDirty = true;
     if (!saveJob && Storage.githubConnected && window.LifeLogJobs) {
-      saveJob = window.LifeLogJobs.begin({ label: "Saving to GitHub", listed: false, stoppable: false });
+      saveJob = window.LifeLogJobs.begin({ label: i18n.t("Saving to GitHub"), listed: false, stoppable: false });
     }
     const now = performance.now();
     if (!saveQueuedAt) saveQueuedAt = now;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flushSave, Math.max(0, Math.min(SAVE_DELAY, saveQueuedAt + SAVE_MAX_WAIT - now)));
-    setSyncing("Saving…");
+    setSyncing(i18n.t("Saving…"));
   }
 
   const savePending = () => !!(saveTimer || saving);
@@ -1761,17 +1762,17 @@
       if (!state.data.entries.length && !progress) {
         c.appendChild(emptyState({
           glyph: "list",
-          title: "Nothing logged yet",
-          body: "Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month.",
-          action: "Add your first entry",
+          title: i18n.t("Nothing logged yet"),
+          body: i18n.t("Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month."),
+          action: i18n.t("Add your first entry"),
           onAction: () => Journal.openEntryModal(null),
-          hint: "Tip: you can also import an existing lifelog.json from Settings → Import & export.",
+          hint: i18n.t("Tip: you can also import an existing lifelog.json from Settings → Import & export."),
         }));
         return;
       }
       if (!entries.length) {
         if (progress) c.appendChild(progress);
-        c.appendChild(emptyState(state.data.entries.length ? "No entries match your filters." : "Nothing logged yet — finish something in progress and it lands here."));
+        c.appendChild(emptyState(state.data.entries.length ? i18n.t("No entries match your filters.") : i18n.t("Nothing logged yet — finish something in progress and it lands here.")));
         return;
       }
       // Two readings of one filtered set — same entries, same chips, same
@@ -2401,7 +2402,7 @@
       // Some-but-not-all shows the tri-state bar instead of an empty box,
       // so a partly-selected group doesn't read as untouched.
       cb.indeterminate = !allSelected && selectableItems.some((b) => state.bulk.selected.has(b.id));
-      cb.title = "Select all in " + label;
+      cb.title = i18n.t("Select all in {group}", { group: label });
       cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(selectableItems); };
       left.appendChild(cb);
     }
@@ -2412,7 +2413,7 @@
     if (opts && opts.onAdd && !state.bulk.active) {
       const addBtn = el("button", "month-add-btn", "+");
       addBtn.type = "button";
-      addBtn.title = "Add to " + label;
+      addBtn.title = i18n.t("Add to {group}", { group: label });
       addBtn.setAttribute("aria-label", addBtn.title);
       addBtn.onclick = (ev) => { ev.stopPropagation(); opts.onAdd(); };
       right.appendChild(addBtn);
@@ -2500,7 +2501,7 @@
   // Kept on a Steam game by Sync's game-times fill (sync.js). `hltb` holds
   // minutes for the three ways HLTB times a game plus the day they were
   // asked; `reviews` holds OpenCritic's and Metacritic's user score.
-  const GAME_TIME_KINDS = [["story", "Main Story"], ["extras", "Main + Extras"], ["complete", "Completionist"]];
+  const GAME_TIME_KINDS = [["story", i18n.t("Main Story")], ["extras", i18n.t("Main + Extras")], ["complete", i18n.t("Completionist")]];
   const REVIEW_LABELS = { opencritic: "OpenCritic", metauser: "Metacritic" };
   const hasGameTimes = (h) => !!(h && GAME_TIME_KINDS.some(([k]) => h[k] > 0));
   // The sheet's three times, labelled, as one strip: over the cover's foot
@@ -2536,15 +2537,16 @@
   // runtime like "2h 10m", or anything else, is one cell.
   const LENGTH_UNITS = { hr: "Playtime", hrs: "Playtime", page: "Pages", pages: "Pages", episode: "Episodes", episodes: "Episodes",
     season: "Seasons", seasons: "Seasons", chapter: "Chapters", chapters: "Chapters", volume: "Volumes", volumes: "Volumes" };
+  const LENGTH_NAMES = { Playtime: i18n.t("Playtime"), Pages: i18n.t("Pages"), Episodes: i18n.t("Episodes"), Seasons: i18n.t("Seasons"), Chapters: i18n.t("Chapters"), Volumes: i18n.t("Volumes") };
   function lengthCells(length) {
     const text = String(length || "").trim();
     if (!text) return [];
     return text.split(" · ").map((part) => {
       const m = /^([\d.,½]+)\s+([a-z]+)$/i.exec(part.trim());
       const unit = m && LENGTH_UNITS[m[2].toLowerCase()];
-      if (unit === "Playtime") return [unit, m[1] + " h"];
-      if (unit) return [unit, m[1]];
-      return [/^\d+h( \d+m)?$|^\d+m$/.test(part.trim()) ? "Runtime" : "Length", part.trim()];
+      if (unit === "Playtime") return [LENGTH_NAMES[unit], i18n.t("{hours} h", { hours: m[1] })];
+      if (unit) return [LENGTH_NAMES[unit], m[1]];
+      return [/^\d+h( \d+m)?$|^\d+m$/.test(part.trim()) ? i18n.t("Runtime") : i18n.t("Length"), part.trim()];
     });
   }
   // On a cover the scores are pills in the top-left corner, opposite the
@@ -2596,12 +2598,12 @@
       if (!(hltb[k] > 0)) continue;
       const cell = el("span", "game-time");
       cell.appendChild(el("span", "game-time-label", label));
-      cell.appendChild(el("span", "game-time-value", window.LifeLogMedia.gameHours(hltb[k]).replace(" hrs", " h")));
+      cell.appendChild(el("span", "game-time-value", window.LifeLogMedia.gameHours(hltb[k]).replace(" hrs", " " + i18n.t("h"))));
       strip.appendChild(cell);
       said.push(label + " " + window.LifeLogMedia.gameHours(hltb[k]));
     }
     const site = hltb.from === "igdb" ? "IGDB" : "How Long to Beat";
-    strip.setAttribute("aria-label", site + ": " + said.join(", ") + (hltb.url ? ". Opens " + site : ""));
+    strip.setAttribute("aria-label", site + ": " + said.join(", ") + (hltb.url ? ". " + i18n.t("Opens {site}", { site }) : ""));
     return strip;
   }
   // A sheet's game info sits in its hidden #fGameInfo / #bGameInfo as
@@ -2880,8 +2882,8 @@
           const run = bulkRun;
           node.hidden = !run;
           if (!run) { node.textContent = ""; return; }
-          node.textContent = `${run.done}/${run.total}` + (run.active ? "" : " · done");
-          node.title = "See what happened to each item";
+          node.textContent = `${run.done}/${run.total}` + (run.active ? "" : " · " + i18n.t("done"));
+          node.title = i18n.t("See what happened to each item");
           return;
         }
         if (part.kind === "move") {
@@ -2891,16 +2893,16 @@
           // reconcile applies to any live input.
           if (document.activeElement === node) return;
           fillSelect(node, [
-            { value: "", label: "Move to category…" },
+            { value: "", label: i18n.t("Move to category…") },
             ...categories.flatMap((c) => [{ value: c.name, label: c.name },
               ...(c.subs || []).map((x) => ({ value: Finance.subKey(c.name, x.name), label: "\u00a0\u00a0\u00a0\u00a0" + x.name }))]),
           ], "");
           return;
         }
         node.disabled = part.kind === "cancel" ? busy : (empty || busy);
-        if (part.kind === "sync") { node.__onSync = onSync; window.LifeLogIcons.setLabel(node, "refresh-cw", "Sync"); }
-        if (part.kind === "delete") { node.__onDelete = onDelete; node.textContent = "Delete"; }
-        if (part.kind === "cancel") node.textContent = "Cancel";
+        if (part.kind === "sync") { node.__onSync = onSync; window.LifeLogIcons.setLabel(node, "refresh-cw", i18n.t("Sync")); }
+        if (part.kind === "delete") { node.__onDelete = onDelete; node.textContent = i18n.t("Delete"); }
+        if (part.kind === "cancel") node.textContent = i18n.t("Cancel");
       },
     });
     return bulkBarEl;
@@ -2932,7 +2934,7 @@
     bulkRun = {
       rows: rows.map((r) => ({ ...r, state: "pending", detail: "" })),
       total, done: 0, active: true,
-      job: window.LifeLogJobs ? window.LifeLogJobs.begin({ label: `Syncing ${total} item${total === 1 ? "" : "s"} with their media info` }) : null,
+      job: window.LifeLogJobs ? window.LifeLogJobs.begin({ label: i18n.tn(total, "Syncing {n} item with its media info", "Syncing {n} items with their media info") }) : null,
     };
     if (bulkRun.job) bulkRun.job.progress(0, total);
     renderBulkProgressPanel();
@@ -2960,7 +2962,7 @@
     bulkRun.active = false;
     if (bulkRun.job) {
       const n = bulkRun.rows.filter((r) => r.state === "done").length;
-      bulkRun.job.finish(`Synced ${n} of ${bulkRun.total}`);
+      bulkRun.job.finish(i18n.t("Synced {n} of {total}", { n, total: bulkRun.total }));
     }
     if (bulkRun.rows.some((r) => r.state !== "done")) openBulkProgressPanel();
     else renderBulkProgressPanel();
@@ -2983,12 +2985,12 @@
     const { rows, total, done, active } = bulkRun;
     const counts = { done: 0, skipped: 0, failed: 0 };
     rows.forEach((r) => { if (counts[r.state] != null) counts[r.state]++; });
-    $("#bulkProgressTitle").textContent = active ? `Syncing ${done} of ${total}` : `Finished — ${total} item${total === 1 ? "" : "s"}`;
+    $("#bulkProgressTitle").textContent = active ? i18n.t("Syncing {done} of {total}", { done, total }) : i18n.tn(total, "Finished — {n} item", "Finished — {n} items");
     const parts = [];
-    if (counts.done) parts.push(counts.done + " updated");
-    if (counts.skipped) parts.push(counts.skipped + " skipped");
-    if (counts.failed) parts.push(counts.failed + " failed");
-    $("#bulkProgressSummary").textContent = parts.join(" · ") || "Nothing yet";
+    if (counts.done) parts.push(i18n.tn(counts.done, "{n} updated", "{n} updated"));
+    if (counts.skipped) parts.push(i18n.tn(counts.skipped, "{n} skipped", "{n} skipped"));
+    if (counts.failed) parts.push(i18n.tn(counts.failed, "{n} failed", "{n} failed"));
+    $("#bulkProgressSummary").textContent = parts.join(" · ") || i18n.t("Nothing yet");
     const list = $("#bulkProgressList");
     list.replaceChildren(...rows.map((r) => {
       const row = el("div", "bulkp-row is-" + r.state);
@@ -3019,27 +3021,27 @@
     const sec = Math.max(1, Math.round(ms / 1000));
     if (sec < 60) return sec + "s";
     const min = Math.round(sec / 60);
-    if (min < 60) return min + " min";
-    return Math.floor(min / 60) + " h " + (min % 60) + " min";
+    if (min < 60) return i18n.t("{min} min", { min });
+    return i18n.t("{h} h {min} min", { h: Math.floor(min / 60), min: min % 60 });
   }
 
   function activityMeta(job, now) {
     if (job.state === "queued") {
       const ahead = Jobs.list().find((j) => j.lane === job.lane && j.state === "running");
-      return ahead ? "Waiting for " + ahead.label.toLowerCase() : "Waiting";
+      return ahead ? i18n.t("Waiting for {job}", { job: ahead.label.toLowerCase() }) : i18n.t("Waiting");
     }
     if (job.state === "running") {
       const parts = [];
-      if (job.total) parts.push(`${job.done} of ${job.total}`);
+      if (job.total) parts.push(i18n.t("{done} of {total}", { done: job.done, total: job.total }));
       const left = Jobs.eta(job, now);
-      if (left != null) parts.push("about " + spanText(left) + " left");
-      else parts.push(spanText(now - job.startedAt) + " so far");
-      if (job.stopping) parts.push("stopping…");
+      if (left != null) parts.push(i18n.t("about {time} left", { time: spanText(left) }));
+      else parts.push(i18n.t("{time} so far", { time: spanText(now - job.startedAt) }));
+      if (job.stopping) parts.push(i18n.t("stopping…"));
       else if (job.detail) parts.push(job.detail);
       return parts.join(" · ");
     }
-    const took = job.startedAt ? " · took " + spanText(job.endedAt - job.startedAt) : "";
-    return (job.result || (job.state === "stopped" ? "Stopped" : job.state === "failed" ? "Didn't finish" : "Done")) + took;
+    const took = job.startedAt ? " · " + i18n.t("took {time}", { time: spanText(job.endedAt - job.startedAt) }) : "";
+    return (job.result || (job.state === "stopped" ? i18n.t("Stopped") : job.state === "failed" ? i18n.t("Didn't finish") : i18n.t("Done"))) + took;
   }
 
   function activityRow(job, now) {
@@ -3059,10 +3061,10 @@
     }
     row.appendChild(text);
     if ((job.state === "running" || job.state === "queued") && job.stoppable) {
-      const stop = el("button", "btn btn-sm activity-stop", job.stopping ? "Stopping…" : "Stop");
+      const stop = el("button", "btn btn-sm activity-stop", job.stopping ? i18n.t("Stopping…") : i18n.t("Stop"));
       stop.type = "button";
       stop.disabled = job.stopping;
-      stop.setAttribute("aria-label", "Stop " + job.label.toLowerCase());
+      stop.setAttribute("aria-label", i18n.t("Stop {job}", { job: job.label.toLowerCase() }));
       stop.onclick = () => job.stop();
       row.appendChild(stop);
     }
@@ -3076,17 +3078,17 @@
     row.appendChild(el("span", "activity-glyph")).appendChild(ico("triangle-alert"));
     const text = el("div", "activity-text");
     text.appendChild(el("span", "activity-label", r.label));
-    text.appendChild(el("span", "activity-meta", "Didn't finish — the app was closed while it ran"));
+    text.appendChild(el("span", "activity-meta", i18n.t("Didn't finish — the app was closed while it ran")));
     row.appendChild(text);
-    const again = el("button", "btn btn-sm activity-stop", "Run again");
+    const again = el("button", "btn btn-sm activity-stop", i18n.t("Run again"));
     again.type = "button";
     again.onclick = () => Jobs.runAgain(r);
     row.appendChild(again);
     const drop = el("button", "btn btn-icon btn-sm activity-dismiss");
     drop.appendChild(ico("x"));
     drop.type = "button";
-    drop.title = "Dismiss";
-    drop.setAttribute("aria-label", "Dismiss " + r.label.toLowerCase());
+    drop.title = i18n.t("Dismiss");
+    drop.setAttribute("aria-label", i18n.t("Dismiss {job}", { job: r.label.toLowerCase() }));
     drop.onclick = () => Jobs.dismiss(r);
     row.appendChild(drop);
     return row;
@@ -3103,13 +3105,13 @@
     const left = Jobs.unfinished();
     list.replaceChildren(...going.map((j) => activityRow(j, now)), ...left.map(unfinishedRow), ...finished.map((j) => activityRow(j, now)));
     if (!jobs.length && !left.length) {
-      list.appendChild(el("p", "activity-empty", "Nothing running. Imports, re-checks and syncs show here while they work, and for a while after."));
+      list.appendChild(el("p", "activity-empty", i18n.t("Nothing running. Imports, re-checks and syncs show here while they work, and for a while after.")));
     }
     const hint = $("#activityHint");
     hint.textContent = going.length && Platform.android
-      ? "These keep going with the app put away; Android shows a notification while they do"
+      ? i18n.t("These keep going with the app put away; Android shows a notification while they do")
       : going.length && Platform.ios
-        ? "iOS gives these about 30 seconds with the app put away, then they carry on when you're back"
+        ? i18n.t("iOS gives these about 30 seconds with the app put away, then they carry on when you're back")
         : "";
     hint.hidden = !hint.textContent;
     $("#activityStopAllBtn").hidden = going.filter((j) => j.stoppable && !j.stopping).length < 2;
@@ -3134,20 +3136,20 @@
     btn.style.setProperty("--activity-progress", String(known));
     $("#activityCount").textContent = going.length > 1 ? String(going.length) : unseenFailure && !going.length ? "!" : "";
     const what = going.length
-      ? `${going.length} running` + (lead ? ` — ${lead.label}${lead.total ? `, ${lead.done} of ${lead.total}` : ""}` : "")
-      : unseenFailure ? "Something didn't finish — open to see why" : "Activity";
+      ? i18n.tn(going.length, "{n} running", "{n} running") + (lead ? " — " + lead.label + (lead.total ? ", " + i18n.t("{done} of {total}", { done: lead.done, total: lead.total }) : "") : "")
+      : unseenFailure ? i18n.t("Something didn't finish — open to see why") : i18n.t("Activity");
     btn.title = what;
-    btn.setAttribute("aria-label", "Activity: " + what);
+    btn.setAttribute("aria-label", i18n.t("Activity: {what}", { what }));
     const pill = $("#activityPill");
     if (pill) {
       pill.hidden = !busy;
       pill.className = btn.className.replace("btn btn-icon activity-btn", "activity-pill").replace(" is-busy", "");
       pill.style.setProperty("--activity-progress", String(known));
       pill.title = what;
-      pill.setAttribute("aria-label", "Activity: " + what);
+      pill.setAttribute("aria-label", i18n.t("Activity: {what}", { what }));
       $("#activityPillText").textContent = going.length
         ? (lead && lead.total ? `${lead.done}/${lead.total} · ` : "") + (lead ? lead.label : "")
-        : Jobs.unfinished().length && !activitySeenLeft ? "Didn't finish — run it again?" : "Didn't finish — see why";
+        : Jobs.unfinished().length && !activitySeenLeft ? i18n.t("Didn't finish — run it again?") : i18n.t("Didn't finish — see why");
       $("#activityPillMore").textContent = going.length > 1 ? `+${going.length - 1}` : "";
     }
   }
@@ -3271,7 +3273,7 @@
   }
   const ctxHelpers = {
     runOne, selectOne,
-    select: (id) => ({ icon: "square-check-big", label: "Select", run: () => selectOne(id) }),
+    select: (id) => ({ icon: "square-check-big", label: i18n.t("Select"), run: () => selectOne(id) }),
     del: (id, bulkDelete, label) => ({ icon: "trash", label: label || "Delete", danger: true, run: () => runOne(id, bulkDelete) }),
     divider: { divider: true },
   };
@@ -3281,23 +3283,23 @@
   function bulkMenuItems() {
     const bar = bulkBarEl && bulkBarEl.isConnected ? bulkBarEl : null;
     const n = state.bulk.selected.size;
-    const items = [{ head: n + " selected" }];
-    if (!bar) return items.concat([{ icon: "x", label: "Clear selection", run: toggleBulkMode }]);
+    const items = [{ head: i18n.tn(n, "{n} selected", "{n} selected") }];
+    if (!bar) return items.concat([{ icon: "x", label: i18n.t("Clear selection"), run: toggleBulkMode }]);
     const sel = bar.querySelector(".bulk-move-select");
     if (sel && !sel.disabled) {
       const opts = [...sel.options].filter((o) => o.value);
-      if (opts.length) items.push({ icon: "layers", label: "Move to…", sub: () => opts.map((o) => ({
+      if (opts.length) items.push({ icon: "layers", label: i18n.t("Move to…"), sub: () => opts.map((o) => ({
         label: o.textContent.trim(), indent: /^\u00a0/.test(o.textContent),
         run: () => { sel.value = o.value; sel.dispatchEvent(new Event("change")); },
       })) });
     }
     const btns = [...bar.querySelectorAll("button")];
     const sync = btns.find((b) => b.__onSync);
-    if (sync && !sync.disabled) items.push({ icon: "refresh-cw", label: "Sync", run: () => sync.click() });
+    if (sync && !sync.disabled) items.push({ icon: "refresh-cw", label: i18n.t("Sync"), run: () => sync.click() });
     items.push({ divider: true });
-    items.push({ icon: "x", label: "Clear selection", run: toggleBulkMode });
+    items.push({ icon: "x", label: i18n.t("Clear selection"), run: toggleBulkMode });
     const del = btns.find((b) => b.classList.contains("btn-danger"));
-    if (del && !del.disabled) items.push({ icon: "trash", label: "Delete " + n, danger: true, run: () => del.click() });
+    if (del && !del.disabled) items.push({ icon: "trash", label: i18n.t("Delete {n}", { n }), danger: true, run: () => del.click() });
     return items;
   }
 
@@ -3412,7 +3414,7 @@
     return cb;
   }
 
-  function barRow(label, val, max, color, uniqueVal, fmt, uniqueLabel = "unique") {
+  function barRow(label, val, max, color, uniqueVal, fmt, uniqueLabel = i18n.t("unique")) {
     const row = el("div", "bar-row");
     row.appendChild(el("div", "lbl", label));
     const track = el("div", "bar-track");
@@ -3558,8 +3560,8 @@
     // A Show row like the Backlog's since 0.290.0: icon chips, the label
     // clears, and the two turn each other off (both on was the same as none).
     const chips = [
-      { key: PROJ_NONE, label: "No project", ico: "receipt", title: "Expenses that aren't part of a project" },
-      { key: PROJ_ANY, label: "Project", ico: "layers", title: "Expenses that are part of any project" },
+      { key: PROJ_NONE, label: i18n.t("No project"), ico: "receipt", title: i18n.t("Expenses that aren't part of a project") },
+      { key: PROJ_ANY, label: i18n.t("Project"), ico: "layers", title: i18n.t("Expenses that are part of any project") },
     ];
     reconcile($("#projFilter"), chips, {
       keyOf: (item) => item.key,
@@ -3601,7 +3603,7 @@
   // number at once, like the rows around it (0.214.0), and none is all; its
   // label selects every one or none. Boards on its own is the Boards page,
   // with New board; beside another kind they're cards in the feed, as in All.
-  const NOTE_KIND_CHIPS = [["text", "Notes", "notebook-text"], ["list", "Tasks", "list-checks"], ["quote", "Quotes", "quote"], ["board", "Boards", "presentation"]];
+  const NOTE_KIND_CHIPS = [["text", i18n.t("Notes"), "notebook-text"], ["list", i18n.t("Tasks"), "list-checks"], ["quote", i18n.t("Quotes"), "quote"], ["board", i18n.t("Boards"), "presentation"]];
   const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || !!window.LifeLogBoards);
   function toggleAllKinds() {
     const all = noteKindChips().map(([k]) => k);
@@ -3678,7 +3680,7 @@
       create: (item) => {
         if (item.add) {
           const add = el("span", "cat-chip add-chip", "+");
-          activatable(add, (ev) => { ev.stopPropagation(); Notes.openTagsModal({ adding: true }); }, "Add a tag");
+          activatable(add, (ev) => { ev.stopPropagation(); Notes.openTagsModal({ adding: true }); }, i18n.t("Add a tag"));
           return add;
         }
         const chip = el("span", "cat-chip tag-chip");
@@ -3691,8 +3693,8 @@
         if (item.all) {
           const k = el("span", "kind-ico");
           k.appendChild(ico("tags"));
-          chip.replaceChildren(k, document.createTextNode(item.more ? `All tags (${item.more} more)` : "All tags"));
-          chip.title = "Every tag: rename, merge or delete";
+          chip.replaceChildren(k, document.createTextNode(item.more ? i18n.t("All tags ({n} more)", { n: item.more }) : i18n.t("All tags")));
+          chip.title = i18n.t("Every tag: rename, merge or delete");
           return;
         }
         chip.dataset.name = item.name;
@@ -3711,8 +3713,8 @@
   // worth asking. Bought can't stack with the other two (a price alert stops
   // once it's bought), so turning one on turns its opposite off, and the
   // label only clears: "all of them" would be an empty list.
-  const BACKLOG_SHOW_CHIPS = [["starred", "Starred", "star"], ["bought", "Bought", "shopping-bag"],
-    ["unbought", "Not bought", "shopping-cart"], ["alert", "Price alert", "bell"]];
+  const BACKLOG_SHOW_CHIPS = [["starred", i18n.t("Starred"), "star"], ["bought", i18n.t("Bought"), "shopping-bag"],
+    ["unbought", i18n.t("Not bought"), "shopping-cart"], ["alert", i18n.t("Price alert"), "bell"]];
   const SHOW_EXCLUDES = { bought: ["unbought", "alert"], unbought: ["bought"], alert: ["bought"] };
   function clearShows() {
     if (!state.backlogShows.size) return;
@@ -3789,8 +3791,8 @@
     const activeCats = note ? state.noteActiveCats
       : finance ? state.financeActiveCats : state.activeCats;
 
-    const addLabel = note ? "Add note category"
-      : finance ? "Add finance category" : "Add category";
+    const addLabel = note ? i18n.t("Add note category")
+      : finance ? i18n.t("Add finance category") : i18n.t("Add category");
     // The + rides in the same keyed list under a reserved key, so it keeps its
     // place at the end without being rebuilt with the row.
     //
@@ -3801,7 +3803,7 @@
     // followed by a chip per sub and one for the expenses with none, so a
     // total can be narrowed to Games alone without a second row.
     const subChips = (c) => (!finance || !c.subs || !c.subs.length || !activeCats.has(c.name) ? [] : [
-      { key: c.name + Finance.SUB_SEP, cat: c, sub: "", label: "Only " + c.name },
+      { key: c.name + Finance.SUB_SEP, cat: c, sub: "", label: i18n.t("Only {category}", { category: c.name }) },
       ...c.subs.map((x) => ({ key: Finance.subKey(c.name, x.name), cat: c, sub: x.name, label: x.name })),
     ]);
     const chips = [
@@ -3848,7 +3850,7 @@
         const c = item.cat;
         if (item.sub != null) {
           chip.classList.toggle("on", activeCats.has(item.key));
-          chip.title = item.sub ? c.name + " › " + item.sub : c.name + " with no subcategory";
+          chip.title = item.sub ? c.name + " › " + item.sub : i18n.t("{category} with no subcategory", { category: c.name });
           const subDot = el("span", "dot"); subDot.style.background = c.color;
           chip.replaceChildren(subDot, document.createTextNode(item.label));
           return;
@@ -3858,18 +3860,18 @@
         // Nothing to edit on the general one — it isn't a category, it's
         // where a note is when it doesn't name one.
         if (item.general) {
-          chip.title = "Notes with no category";
-          chip.replaceChildren(dot, document.createTextNode("No category"));
+          chip.title = i18n.t("Notes with no category");
+          chip.replaceChildren(dot, document.createTextNode(i18n.t("No category")));
           return;
         }
         const edit = el("span", "chip-edit");
         edit.appendChild(ico("pencil"));
-        edit.title = "Edit category";
-        activatable(edit, (ev) => { ev.stopPropagation(); editCatFor(which)(c); }, "Edit category " + c.name);
+        edit.title = i18n.t("Edit category");
+        activatable(edit, (ev) => { ev.stopPropagation(); editCatFor(which)(c); }, i18n.t("Edit category {category}", { category: c.name }));
         // A collection says so, since its chip opens a page rather than filtering.
         const coll = which === "note" && c.layout === "collection";
         chip.classList.toggle("is-collection", coll);
-        chip.title = coll ? "A collection — its notes show as cards" : "";
+        chip.title = coll ? i18n.t("A collection — its notes show as cards") : "";
         const mark = el("span", "coll-mark");
         mark.appendChild(ico("layers"));
         mark.style.color = c.color;
@@ -3926,7 +3928,7 @@
     fillSelect(sel,
       cats.flatMap((c) => [{ value: c.name, label: c.name },
         ...(c.subs || []).map((x) => ({ value: Finance.subKey(c.name, x.name), label: "\u00a0\u00a0\u00a0\u00a0" + x.name }))])
-        .concat([{ value: ADD_CATEGORY_OPTION, label: "+ Add new category…" }]),
+        .concat([{ value: ADD_CATEGORY_OPTION, label: i18n.t("+ Add new category…") }]),
       val);
     sel.dataset.prevValue = val || "";
   }
@@ -3981,7 +3983,7 @@
     const behind = versionBehind();
     if (!behind || behind === versionBehindNoticed) return;
     versionBehindNoticed = behind;
-    toast(`Another device is on v${behind}; this one is on v${APP_VERSION}. Update this device — until you do it can't show anything the newer version added.`, true);
+    toast(i18n.t("Another device is on v{newer}; this one is on v{version}. Update this device — until you do it can't show anything the newer version added.", { newer: behind, version: APP_VERSION }), true);
   }
 
   function setStorageStatus(cls, txt) {
@@ -4017,11 +4019,11 @@
     }
 
     let txt, cls = "storage-status connected";
-    if (ghOn && fileOn) txt = "Synced to " + (gi ? gi.owner + "/" + gi.repo : "GitHub") + " + file backup";
-    else if (ghOn) txt = "Synced to " + (gi ? gi.owner + "/" + gi.repo : "GitHub");
-    else if (fileOn) txt = "Saved to " + (Storage.fileName || "file");
-    else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = "File needs reconnect — open Settings"; }
-    else { cls = "storage-status local"; txt = Platform.native || Platform.desktop ? "On this device only — set up Sync in Settings" : Storage.fsSupported ? "Browser only — set up Sync in Settings" : "Browser storage (this browser only)"; }
+    if (ghOn && fileOn) txt = i18n.t("Synced to {where} + file backup", { where: gi ? gi.owner + "/" + gi.repo : "GitHub" });
+    else if (ghOn) txt = i18n.t("Synced to {where}", { where: gi ? gi.owner + "/" + gi.repo : "GitHub" });
+    else if (fileOn) txt = i18n.t("Saved to {where}", { where: Storage.fileName || i18n.t("file") });
+    else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = i18n.t("File needs reconnect — open Settings"); }
+    else { cls = "storage-status local"; txt = Platform.native || Platform.desktop ? i18n.t("On this device only — set up Sync in Settings") : Storage.fsSupported ? i18n.t("Browser only — set up Sync in Settings") : i18n.t("Browser storage (this browser only)"); }
     // A 401/403 from GitHub is a *persistent* failure (revoked/expired token,
     // or one missing the `repo` scope) — "will sync when online" is misleading
     // there, because it never will until the token is fixed, leaving the user
@@ -4036,30 +4038,30 @@
     const behind = versionBehind();
     if (ghAuthFailed) {
       cls = "storage-status error";
-      txt = "GitHub rejected your token — saved to this browser only. Reconnect in Settings.";
+      txt = i18n.t("GitHub rejected your token — saved to this browser only. Reconnect in Settings.");
     } else if (behind) {
       cls = "storage-status error";
       // Action first: this line ellipses on a phone, which is the device most
       // likely to be the one behind, and "update this device" is the half
       // that has to survive the cut. The full story is in the toast and in
       // Settings, which tapping the line opens.
-      txt = `Update this device — your data is on v${behind}`;
+      txt = i18n.t("Update this device — your data is on v{newer}", { newer: behind });
     } else if (problem && problem.kind === "ratelimit") {
       // Fixes itself; the next save goes through once GitHub lets it.
       cls = "storage-status pending";
-      txt = "GitHub is limiting saves for a minute — changes are kept here and will sync";
+      txt = i18n.t("GitHub is limiting saves for a minute — changes are kept here and will sync");
     } else if (problem && (problem.kind === "server" || problem.kind === "other")) {
       // Not offline, and saying so is what made this undiagnosable: the
       // reason is known, so it goes on the line.
       cls = "storage-status error";
-      txt = "Not syncing — " + (problem.detail || "GitHub refused the save") + ". Changes are kept on this device.";
+      txt = i18n.t("Not syncing — {why}. Changes are kept on this device.", { why: problem.detail || i18n.t("GitHub refused the save") });
     } else if (state.pendingSync && (ghOn || fileOn)) {
       cls = "storage-status pending";
-      txt += " — unsynced changes, will sync when online";
+      txt += " — " + i18n.t("unsynced changes, will sync when online");
     }
     // "Synced" while an edit is still waiting to go out would be a claim
     // about GitHub this device can't make yet.
-    if (cls === "storage-status connected" && savePending()) { setSyncing("Saving…"); return; }
+    if (cls === "storage-status connected" && savePending()) { setSyncing(i18n.t("Saving…")); return; }
     setStorageStatus(cls, txt);
   }
 
@@ -4183,11 +4185,11 @@
       d.appendChild(el("dd", null, text));
       wrap.appendChild(d);
     };
-    for (const a of Keys.ACTIONS) row(Keys.keysFor(a.id), a.id === "help" ? "Show this list" : a.label);
-    if (Keys.hintsOn()) row(["ShiftLeft"], "Hold to see each tab's key");
+    for (const a of Keys.ACTIONS) row(Keys.keysFor(a.id), a.id === "help" ? i18n.t("Show this list") : a.label);
+    if (Keys.hintsOn()) row(["ShiftLeft"], i18n.t("Hold to see each tab's key"));
     for (const view of enabledViews()) {
       const spec = VIEW_MODES[view];
-      row(Keys.keysFor("tab:" + view), tabLabel(view) + (spec && modeIds(spec).length > 1 ? " (again for the next mode)" : ""));
+      row(Keys.keysFor("tab:" + view), (spec && modeIds(spec).length > 1 ? i18n.t("{tab} (again for the next mode)", { tab: tabLabel(view) }) : tabLabel(view)));
     }
     if (Keys.otherModeOn()) {
       const seconds = enabledViews()
@@ -4199,12 +4201,12 @@
           return entry && combo ? entry[1] + " (" + Keys.label(combo) + ")" : null;
         })
         .filter(Boolean);
-      if (seconds.length) row(["ShiftLeft"], "+ a tab's key: its other mode — " + seconds.join(", "));
+      if (seconds.length) row(["ShiftLeft"], i18n.t("+ a tab's key: its other mode — {modes}", { modes: seconds.join(", ") }));
     }
-    row(["Escape"], "Stop searching, close a dialog / menu");
+    row(["Escape"], i18n.t("Stop searching, close a dialog / menu"));
     const boardRows = Keys.BOARD_ACTIONS.filter((a) => Keys.keysFor(a.id).length);
     if (boardRows.length) {
-      wrap.appendChild(el("div", "shortcuts-head", "On a board"));
+      wrap.appendChild(el("div", "shortcuts-head", i18n.t("On a board")));
       for (const a of boardRows) row(Keys.keysFor(a.id), a.label);
     }
   }
@@ -4225,7 +4227,7 @@
       node.hidden = !viewEnabled(node.dataset.view) || (!!node.dataset.mode && !modeEnabled(node.dataset.view, node.dataset.mode));
     });
     menu.querySelectorAll(".add-group button").forEach((b) => {
-      b.setAttribute("aria-label", "Add " + b.lastChild.textContent.trim().toLowerCase() + " to " + b.closest(".add-group").querySelector(".add-head").textContent);
+      b.setAttribute("aria-label", i18n.t("Add {what} to {where}", { what: b.lastChild.textContent.trim().toLowerCase(), where: b.closest(".add-group").querySelector(".add-head").textContent }));
     });
   }
 
@@ -4274,7 +4276,7 @@
       noticeVersionSkew();
       if (contributedLocally) await persist(); // push the reconciled result back so it durably converges
       else refreshStorageStatus();
-      let msg = summary && summary !== "No changes" ? "Merged " + summary + " from your other device" : "Updated from another device";
+      let msg = summary && summary !== "No changes" ? i18n.t("Merged {summary} from your other device", { summary }) : i18n.t("Updated from another device");
       if (conflictSummary) msg += " — " + conflictSummary;
       toast(msg, !!conflictSummary);
       return { outcome: "merged" };
@@ -4381,16 +4383,16 @@
 
     if (result.source === "merged") {
       toast(result.conflictSummary
-        ? "Merged from your other device — " + result.conflictSummary
-        : "Merged changes from your other device", !!result.conflictSummary);
+        ? i18n.t("Merged from your other device — {conflicts}", { conflicts: result.conflictSummary })
+        : i18n.t("Merged changes from your other device"), !!result.conflictSummary);
     } else if (changed) {
-      toast(summary ? "Merged " + summary + " from your other device"
-        : "Updated from your other device");
+      toast(summary ? i18n.t("Merged {summary} from your other device", { summary })
+        : i18n.t("Updated from your other device"));
     } else if (Storage.githubConnected && !Storage.githubReadOk) {
       const p = Storage.githubProblem;
       toast(!p || p.kind === "offline"
-        ? "Offline — showing last saved copy; will sync when GitHub is reachable"
-        : "Couldn't read from GitHub" + (p.detail ? " — " + p.detail : "") + ". Showing this device's copy.", true);
+        ? i18n.t("Offline — showing last saved copy; will sync when GitHub is reachable")
+        : (p.detail ? i18n.t("Couldn't read from GitHub — {why}. Showing this device's copy.", { why: p.detail }) : i18n.t("Couldn't read from GitHub. Showing this device's copy.")), true);
     }
   }
 
@@ -4774,7 +4776,7 @@
       // The phone's search box shares its row with up to three buttons and
       // cut "Search everything…" to "Search everythi" (0.273.0); the short
       // placeholder fits the smallest of them.
-      $("#search").placeholder = isMobileLayout() ? "Search…" : "Search everything…";
+      $("#search").placeholder = isMobileLayout() ? i18n.t("Search…") : i18n.t("Search everything…");
     };
     new ResizeObserver(setTopbarH).observe(topbar);
     setTopbarH();
@@ -5094,7 +5096,7 @@
       const files = [...e.target.files];
       e.target.value = "";
       const category = $("#letterboxdCategory").value || "Films";
-      if (files.length) Letterboxd.importFiles(files, category).catch((err) => toast("Couldn't read that export: " + (err.message || err), true));
+      if (files.length) Letterboxd.importFiles(files, category).catch((err) => toast(i18n.t("Couldn't read that export: {error}", { error: err.message || err }), true));
     };
     // A folder: Android's own folder screen in the app (the WebView has no
     // folder picker), the browser's on a computer. A phone's browser can't
@@ -5108,15 +5110,15 @@
         const res = await widgetsPlugin.pickMarkdownFolder();
         if (res && res.cancelled) return;
         const files = (res && res.files) || [];
-        if (!files.length) { toast("No Markdown files in that folder", true); return; }
+        if (!files.length) { toast(i18n.t("No Markdown files in that folder"), true); return; }
         await IO.importMarkdown(files);
-      } catch (err) { toast("Import failed: " + (err.message || err), true); }
+      } catch (err) { toast(i18n.t("Import failed: {error}", { error: err.message || err }), true); }
     };
     for (const id of ["#importMdInput", "#importMdFolderInput"]) {
       $(id).onchange = (e) => {
         const files = [...e.target.files];
         e.target.value = "";
-        if (files.length) IO.importMarkdown(files).catch((err) => toast("Import failed: " + (err.message || err), true));
+        if (files.length) IO.importMarkdown(files).catch((err) => toast(i18n.t("Import failed: {error}", { error: err.message || err }), true));
       };
     }
 
@@ -5526,7 +5528,7 @@
     else if (action.startsWith("open-note:") && modeEnabled("notes", "notes")) {
       const note = state.data.notes.find((n) => n.id === action.slice("open-note:".length));
       goTo("notes", "notes");
-      if (note) Notes.openNoteModal(note); else toast("That note has been deleted", true);
+      if (note) Notes.openNoteModal(note); else toast(i18n.t("That note has been deleted"), true);
     }
     // The to-do widget and quick-add's "To-do" (0.197.0): the lists among
     // the notes, and for adding, the list most recently worked on, or a new
@@ -5563,12 +5565,12 @@
     }
     const money = (n) => Finance.formatMoney(Math.round(n)).replace(/\.00$/, "");
     const cats = [...byCat].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)
-      .map(([name, n]) => ({ name: name || "Other", amount: money(n), color: Finance.financeColorOf(name) }));
+      .map(([name, n]) => ({ name: name || i18n.t("Other"), amount: money(n), color: Finance.financeColorOf(name) }));
     return {
       month: thisKey,
       label: MONTHS[m],
       total: money(total),
-      compare: prev > 0 ? money(prev) + " by this day in " + MONTHS[prevM] : "",
+      compare: prev > 0 ? i18n.t("{amount} by this day in {month}", { amount: money(prev), month: MONTHS[prevM] }) : "",
       cats,
     };
   }
@@ -5606,10 +5608,10 @@
       divider.hidden = !(hasPin && hasBio);
       errorEl.hidden = true;
       $("#lockHint").textContent = hasPin && hasBio
-        ? "Enter your PIN or use fingerprint/Face ID to continue."
+        ? i18n.t("Enter your PIN or use fingerprint/Face ID to continue.")
         : hasBio
-        ? "Use your device's fingerprint or Face ID to continue."
-        : "Enter your PIN to continue.";
+        ? i18n.t("Use your device's fingerprint or Face ID to continue.")
+        : i18n.t("Enter your PIN to continue.");
       if (hasPin) setTimeout(() => input.focus(), 50);
 
       // On-screen keypad mirrors the PIN into `input` (still typable directly
@@ -5645,10 +5647,11 @@
         const left = pinWaitLeft();
         keypad.classList.toggle("waiting", left > 0);
         input.disabled = left > 0;
-        if (!left) { clearInterval(waitTimer); waitTimer = null; if (!errorEl.hidden && /Try again in/.test(errorEl.textContent)) errorEl.hidden = true; return; }
+        if (!left) { clearInterval(waitTimer); waitTimer = null; if (!errorEl.hidden && errorEl.dataset.wait) { errorEl.hidden = true; delete errorEl.dataset.wait; } return; }
         const secs = Math.ceil(left / 1000);
-        errorEl.textContent = "Too many tries — try again in " + (secs >= 60 ? Math.ceil(secs / 60) + " min" : secs + " s");
+        errorEl.textContent = (secs >= 60 ? i18n.t("Too many tries — try again in {n} min", { n: Math.ceil(secs / 60) }) : i18n.t("Too many tries — try again in {n} s", { n: secs }));
         errorEl.hidden = false;
+        errorEl.dataset.wait = "1";
         if (!waitTimer) waitTimer = setInterval(renderWait, 1000);
       }
       input.value = ""; // a re-lock would otherwise reopen with the last PIN in the box
@@ -5666,6 +5669,7 @@
 
       function showError(msg) {
         errorEl.textContent = msg;
+        delete errorEl.dataset.wait;
         errorEl.hidden = false;
         box.classList.remove("shake");
         void box.offsetWidth; // force reflow so the shake replays each time
@@ -5701,7 +5705,7 @@
         if (!typed) return;
         if (await checkPin(typed)) unlocked();
         else if (pinWaitLeft()) { showError(""); renderWait(); }
-        else { showError("Incorrect PIN"); input.focus(); }
+        else { showError(i18n.t("Incorrect PIN")); input.focus(); }
       };
       bioBtn.onclick = async () => {
         errorEl.hidden = true;
@@ -5709,7 +5713,7 @@
         catch (e) {
           // Backing out, or choosing the PIN, is a choice — the PIN is right there.
           if (e && e.cancelled) { if (hasPin) input.focus(); return; }
-          showError("Couldn't verify — try again");
+          showError(i18n.t("Couldn't verify — try again"));
         }
       };
       // Forgotten PIN / lost biometric: a reset that just removed the lock and
@@ -5722,18 +5726,18 @@
       resetBtn.onclick = async () => {
         const recoverable = Storage.githubConnected || Storage.fileConnected;
         const msg = recoverable
-          ? "Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync afterward to get your data back."
-          : "Reset app lock on this device? This device isn't connected to GitHub or a backup file, so this will permanently delete all your data with no way to recover it.";
+          ? i18n.t("Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync afterward to get your data back.")
+          : i18n.t("Reset app lock on this device? This device isn't connected to GitHub or a backup file, so this will permanently delete all your data with no way to recover it.");
         if (!confirm(msg)) return;
-        const typed = prompt('Type "reset" to confirm — this cannot be undone from this device.');
-        if ((typed || "").trim().toLowerCase() !== "reset") { toast("Reset cancelled"); return; }
+        const typed = prompt(i18n.t('Type "reset" to confirm — this cannot be undone from this device.'));
+        if ((typed || "").trim().toLowerCase() !== "reset") { toast(i18n.t("Reset cancelled")); return; }
         await Storage.forgetDevice();
         state.privacy = { ...DEFAULT_PRIVACY };
         savePrivacySettings();
         state.data = emptyData();
         cleanup();
         resolve();
-        toast(recoverable ? "Local data cleared — reconnect in Settings to restore it" : "All data on this device permanently deleted");
+        toast(recoverable ? i18n.t("Local data cleared — reconnect in Settings to restore it") : i18n.t("All data on this device permanently deleted"));
       };
       // Auto-prompt biometrics on open when available — the PIN form (if also
       // set up) stays visible underneath as a fallback if it's cancelled/fails.
@@ -5786,10 +5790,10 @@
         const info = el("div", "conflict-info");
         info.appendChild(el("strong", null, c.label));
         const count = (c.data.entries || []).length;
-        const when = c.data.exportedAt ? Dates.dateTime(c.data.exportedAt, { year: true }) : "unknown time";
-        info.appendChild(el("span", "muted", "Saved " + when + " · " + count + " entries"));
+        const when = c.data.exportedAt ? Dates.dateTime(c.data.exportedAt, { year: true }) : i18n.t("unknown time");
+        info.appendChild(el("span", "muted", i18n.tn(count, "Saved {when} · {n} entry", "Saved {when} · {n} entries", { when })));
         item.appendChild(info);
-        const btn = el("button", "btn btn-primary", "Use this");
+        const btn = el("button", "btn btn-primary", i18n.t("Use this"));
         btn.type = "button";
         btn.onclick = () => { $("#conflictModal").hidden = true; resolve(c); };
         item.appendChild(btn);
@@ -5819,7 +5823,7 @@
     if (state.privacy.enabled && !withinUnlockGrace()) { lockShowing = true; await showLockScreen(); }
     wireRelock();
     applyPrivacyScreen();
-    setSyncing("Loading…");
+    setSyncing(i18n.t("Loading…"));
 
     // One-link device setup: open the app with #t=… (or legacy #setup=…) and
     // it connects, after asking. Without the question, any link someone got
@@ -5830,15 +5834,15 @@
       const target = Storage.describeSetupHash(savedHash);
       const current = Storage.githubConnected ? Storage.githubInfo : null;
       const ask = target
-        ? `This link connects LifeLog on this device to the GitHub repo "${target}"` +
-          (current ? `, replacing the current connection to "${current.owner}/${current.repo}".` : ".") +
-          "\n\nOnly continue if you made the link yourself, on another device of yours."
+        ? (current ? i18n.t('This link connects LifeLog on this device to the GitHub repo "{repo}", replacing the current connection to "{current}".', { repo: target, current: current.owner + "/" + current.repo })
+          : i18n.t('This link connects LifeLog on this device to the GitHub repo "{repo}".', { repo: target })) +
+          "\n\n" + i18n.t("Only continue if you made the link yourself, on another device of yours.")
         : null;
       if (ask && confirm(ask)) {
-        try { await Storage.connectFromHash(savedHash, null); setupMsg = "Connected to your GitHub sync"; }
-        catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
+        try { await Storage.connectFromHash(savedHash, null); setupMsg = i18n.t("Connected to your GitHub sync"); }
+        catch (e) { setupMsg = i18n.t("Setup link failed: {error}", { error: e.message || e }); setupErr = true; }
       } else if (ask) {
-        setupMsg = "Setup link ignored"; setupErr = true;
+        setupMsg = i18n.t("Setup link ignored"); setupErr = true;
       }
     }
 
@@ -5905,12 +5909,12 @@
       const githubReached = Storage.githubReadOk;
       showData();
       if (setupMsg) toast(setupMsg, setupErr);
-      else if (source === "seed") toast("Loaded " + state.data.entries.length + " entries from your sheet");
+      else if (source === "seed") toast(i18n.tn(state.data.entries.length, "Loaded {n} entry from your sheet", "Loaded {n} entries from your sheet"));
       // "merged" can't happen here: a merge needs this device's own copy as
       // one of its two sides, and this branch is the case where there isn't
       // one. It belongs to reconcileFromSources now.
       else if (Storage.githubConnected && !githubReached) {
-        toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
+        toast(i18n.t("Offline — showing last saved copy; will sync when GitHub is reachable"), true);
       }
     }
 
@@ -6080,26 +6084,26 @@
       btn.disabled = !!busy;
     };
     const install = async () => {
-      say("Opening the installer…", "Install", true);
+      say(i18n.t("Opening the installer…"), i18n.t("Install"), true);
       try {
         await Platform.openInstaller(apk);
-        say("LifeLog " + version + " is ready to install", "Install");
+        say(i18n.t("LifeLog {version} is ready to install", { version }), i18n.t("Install"));
       } catch (e) {
-        say("Couldn't open the installer", "Try again");
+        say(i18n.t("Couldn't open the installer"), i18n.t("Try again"));
       }
     };
     btn.onclick = async () => {
       if (apk) return install();
-      say("Downloading LifeLog " + version + "…", "0%", true);
+      say(i18n.t("Downloading LifeLog {version}…", { version }), "0%", true);
       try {
         apk = await Platform.downloadUpdate(version, (f) => { btn.textContent = Math.round(f * 100) + "%"; });
       } catch (e) {
-        say("The download didn't finish", "Retry");
+        say(i18n.t("The download didn't finish"), i18n.t("Retry"));
         return;
       }
       if (!apk) {
         // An older shell: no in-app downloader, so the browser it is.
-        say("LifeLog " + version + " is out", "Download");
+        say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Download"));
         Platform.openOutside(Platform.apkUrl());
         return;
       }
@@ -6117,22 +6121,22 @@
       const openPage = () => Platform.openOutside(Platform.releasesUrl());
       btn.onclick = async () => {
         if (pageOnly) return openPage();
-        say("Checking…", "…", true);
+        say(i18n.t("Checking…"), "…", true);
         const found = await window.LifeLogDesktop.findUpdate();
         if (!found) {
           pageOnly = true;
-          say("LifeLog " + version + " is out", "Open page");
+          say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Open page"));
           openPage();
           return;
         }
-        say("Downloading LifeLog " + version + "…", "0%", true);
+        say(i18n.t("Downloading LifeLog {version}…", { version }), "0%", true);
         try {
           await window.LifeLogDesktop.installUpdate((f) => { btn.textContent = Math.round(f * 100) + "%"; }, found);
         } catch (e) {
-          say("The update didn't finish", "Retry");
+          say(i18n.t("The update didn't finish"), i18n.t("Retry"));
         }
       };
-      say("LifeLog " + version + " is out", "Update");
+      say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Update"));
       showUpdateBar(version);
       return;
     }
@@ -6140,11 +6144,11 @@
     // from AltStore or SideStore, so the bar points at the release instead.
     if (Platform.ios) {
       btn.onclick = () => Platform.openOutside(Platform.releasesUrl());
-      say("LifeLog " + version + " is out", "Get it");
+      say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Get it"));
       showUpdateBar(version);
       return;
     }
-    say("LifeLog " + version + " is out", "Update");
+    say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Update"));
     showUpdateBar(version);
   }
 
@@ -6269,7 +6273,7 @@
       if (dist < PULL_ARM) { home(); return; }
       busy = true;
       root.classList.add("pull-busy");
-      setSyncing("Syncing…");
+      setSyncing(i18n.t("Syncing…"));
       settle(PULL_HOLD);
       try {
         // A floor on the spin, so a quick "Up to date" still reads as the
@@ -6292,18 +6296,18 @@
     const newerApp = checkForNewerApp();
     if (!Storage.githubConnected) {
       await newerApp;
-      toast("This device isn't syncing with GitHub — connect it in Settings", true);
+      toast(i18n.t("This device isn't syncing with GitHub — connect it in Settings"), true);
       return;
     }
     const [r] = await Promise.all([pollForUpdates(), newerApp]);
-    if (r.outcome === "unchanged") toast("Up to date");
-    else if (r.outcome === "saved") toast("Your changes are saved to GitHub");
-    else if (r.outcome === "busy") toast("Already syncing");
+    if (r.outcome === "unchanged") toast(i18n.t("Up to date"));
+    else if (r.outcome === "saved") toast(i18n.t("Your changes are saved to GitHub"));
+    else if (r.outcome === "busy") toast(i18n.t("Already syncing"));
     else if (r.outcome === "failed") {
       const p = r.problem;
       toast(!p || p.kind === "offline"
-        ? "You're offline — changes are kept here and will sync when you're back"
-        : "Couldn't sync" + (p.detail ? " — " + p.detail : ""), true);
+        ? i18n.t("You're offline — changes are kept here and will sync when you're back")
+        : (p.detail ? i18n.t("Couldn't sync — {why}", { why: p.detail }) : i18n.t("Couldn't sync")), true);
       refreshStorageStatus();
     }
     // "merged" has already said what it merged.
