@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The round tick of the Tasks widget's checkboxes (0.319.1), as the app's.
+     A selector, so the box ticks itself on the home screen without a redraw. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/widget_check_done" android:state_checked="true" />
+    <item android:drawable="@drawable/widget_check_ring" />
+</selector>

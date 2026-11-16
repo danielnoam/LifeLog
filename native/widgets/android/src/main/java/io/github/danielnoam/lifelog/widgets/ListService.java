@@ -62,8 +62,12 @@ public class ListService extends RemoteViewsService {
      */
     static RemoteViews headRow(Context c, WidgetStore.Row r) {
         boolean list = !r.id.isEmpty();
-        if (list && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return headCheckRow(c, r);
+        if (list && !r.noTick && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return headCheckRow(c, r);
         RemoteViews v = headText(c, r, R.layout.widget_row_header);
+        if (list && r.noTick) {
+            v.setViewVisibility(R.id.row_tick_box, android.view.View.GONE);
+            return addsTo(v, r);
+        }
         if (!list) {
             v.setViewVisibility(R.id.row_tick_box, android.view.View.GONE);
             v.setViewVisibility(R.id.row_add, android.view.View.GONE);
@@ -115,7 +119,7 @@ public class ListService extends RemoteViewsService {
         SpannableStringBuilder b = new SpannableStringBuilder(r.text);
         b.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (r.color != 0 && !r.done) b.setSpan(new ForegroundColorSpan(r.color), 0, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        if (r.done || (r.date.isEmpty() && r.meta.isEmpty())) return b;
+        if (r.done) return b;
         CharSequence rest = todoText(c, r);
         // todoText starts with the words and a line break; keep only what's under them.
         return b.append(rest.subSequence(r.text.length(), rest.length()));
@@ -129,29 +133,65 @@ public class ListService extends RemoteViewsService {
 
     /**
      * A task's words, and under them (0.317.0) its day by this phone's clock,
-     * red when past and green for today, then what else it has. A finished
-     * one, or one with nothing set, is its words alone.
+     * red when past and green for today, then what else it has; since
+     * 0.319.1, on a widget showing details, its own category, the repeat in
+     * words, a reminder, the deadline and its tags, and under that the first
+     * line of its description. A finished one is its words alone. Words, not
+     * the app's icons: a span holding a picture doesn't survive the trip to
+     * the home screen.
      */
     static CharSequence todoText(Context c, WidgetStore.Row r) {
-        if (r.done || (r.date.isEmpty() && r.meta.isEmpty())) return r.text;
-        String today = WidgetStore.today();
-        String when = WidgetStore.taskWhen(r.date, r.time, r.dateText, today);
-        SpannableStringBuilder b = new SpannableStringBuilder(r.text).append("\n");
-        int line = b.length();
+        SpannableStringBuilder b = new SpannableStringBuilder(r.text);
+        if (r.done) return b;
         int muted = c.getResources().getColor(R.color.widget_muted, null);
+        int late = c.getResources().getColor(R.color.widget_down, null);
+        String today = WidgetStore.today();
+        int line = -1;
+        // The parts of the line under the words, each with its colour (null:
+        // it has its own), joined by " · ".
+        java.util.List<Object[]> parts = new java.util.ArrayList<>();
+        if (r.details && !r.own.isEmpty()) {
+            SpannableStringBuilder own = new SpannableStringBuilder("● ").append(r.own);
+            own.setSpan(new ForegroundColorSpan(r.ownColor != 0 ? r.ownColor : muted), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            own.setSpan(new ForegroundColorSpan(muted), 1, own.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            parts.add(new Object[] { own, null });
+        }
+        String when = WidgetStore.taskWhen(r.date, r.time, r.dateText, today);
         if (!when.isEmpty()) {
             int d = BacklogWidgets.daysBetween(today, r.date);
-            int color = d < 0 ? c.getResources().getColor(R.color.widget_down, null) : d == 0 ? c.getResources().getColor(R.color.widget_up, null) : muted;
-            int at = b.length();
-            b.append(when);
-            b.setSpan(new ForegroundColorSpan(color), at, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            parts.add(new Object[] { when, d < 0 ? late : d == 0 ? c.getResources().getColor(R.color.widget_up, null) : muted });
         }
-        if (!r.meta.isEmpty()) {
+        if (r.details) {
+            if (!r.repeatText.isEmpty()) parts.add(new Object[] { r.repeatText, muted });
+            else if (!r.meta.isEmpty()) parts.add(new Object[] { r.meta, muted });
+            if (r.reminds) parts.add(new Object[] { "Reminder", muted });
+            String dl = WidgetStore.deadlineWords(r.deadline, r.deadlineText, today);
+            if (!dl.isEmpty()) parts.add(new Object[] { dl, BacklogWidgets.daysBetween(today, r.deadline) < 0 ? late : muted });
+            if (!r.tags.isEmpty()) parts.add(new Object[] { r.tags, muted });
+        } else if (!r.meta.isEmpty()) parts.add(new Object[] { r.meta, muted });
+        if (!parts.isEmpty()) {
+            b.append("\n");
+            line = b.length();
+            for (int i = 0; i < parts.size(); i++) {
+                if (i > 0) {
+                    int at = b.length();
+                    b.append(" · ");
+                    b.setSpan(new ForegroundColorSpan(muted), at, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+                int at = b.length();
+                b.append((CharSequence) parts.get(i)[0]);
+                Object color = parts.get(i)[1];
+                if (color != null) b.setSpan(new ForegroundColorSpan((Integer) color), at, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+        if (r.descOn && !r.desc.isEmpty()) {
+            b.append("\n");
+            if (line < 0) line = b.length();
             int at = b.length();
-            b.append(when.isEmpty() ? r.meta : " · " + r.meta);
+            b.append(r.desc);
             b.setSpan(new ForegroundColorSpan(muted), at, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
-        b.setSpan(new RelativeSizeSpan(0.86f), line, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (line >= 0) b.setSpan(new RelativeSizeSpan(0.86f), line, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         return b;
     }
 

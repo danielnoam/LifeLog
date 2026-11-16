@@ -160,6 +160,28 @@
     // by the name.
     const noteCats = data.noteCategories || [];
     const colorOf = (name) => (noteCats.find((c) => c.name === name) || {}).color || "";
+    // What else the app's task line shows (0.319.1), for a widget that
+    // shows details: the repeat in words, a reminder, the deadline, the
+    // task's own category when it isn't its list's, its tags, and the first
+    // line of its description. The widget can turn each part off.
+    const T = typeof window !== "undefined" && window.LifeLogTasks;
+    const taskDetails = (n, it, head) => {
+      const out = {};
+      if (it.repeat && T) out.repeatText = T.repeatText(it.repeat);
+      if (it.remind != null && it.date) out.remind = true;
+      if (it.deadline) {
+        out.deadline = it.deadline;
+        out.deadlineText = Dates().day(it.deadline, { year: it.deadline.slice(0, 4) !== today.slice(0, 4) });
+      }
+      if (!head) {
+        const own = T ? T.categoryOf(n, it) : it.category || "";
+        if (own && own !== (n.category || "")) { out.own = own; const c = colorOf(own); if (c) out.ownColor = c; }
+        if (Array.isArray(it.tags) && it.tags.length) out.tags = it.tags.slice(0, 4);
+      }
+      const desc = String(it.note || "").split("\n").map((l) => l.replace(/^\s*(#{1,6}\s+|[-*+>]\s+|\[[ xX]\]\s+)*/, "").replace(/[*_`~]/g, "").trim()).find(Boolean);
+      if (desc) out.desc = desc.slice(0, 140);
+      return out;
+    };
     const lists = (data.notes || []).filter((n) => n.kind === "list")
       .sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
     const todos = [];
@@ -183,6 +205,7 @@
         if (n.date) { head.date = n.date; head.dateText = Dates().day(n.date, { year: n.date.slice(0, 4) !== today.slice(0, 4) }); }
         if (n.time && n.date) head.time = n.time;
         if (n.repeat) head.meta = "repeats";
+        Object.assign(head, taskDetails(n, n, true));
       }
       listsOut.push(head);
       // Tasks (tasks.js): a task's second line (0.317.0) is its date, then
@@ -199,7 +222,7 @@
         if (it.time && it.date) out.time = it.time;
         if (meta) out.meta = meta;
         if (it.priority) out.priority = it.priority;
-        return out;
+        return Object.assign(out, taskDetails(n, it, false));
       };
       const items = all;
       const open = items.filter((it) => !it.done);

@@ -18,13 +18,17 @@ import org.json.JSONObject;
  * Opened when it's placed on Android before 12; from 12 it's optional and a
  * long press on the widget brings it back.
  *
+ * Since 0.319.1 the tick on each list's heading can be turned off, for a
+ * widget where finishing a whole list with one tap is too easy, and so can
+ * the details under each task and the first line of its description.
+ *
  * Since 0.266.0 the lists can be put in order, held and dragged as lists
  * are elsewhere in LifeLog; the widget's panels follow it (see Sortable).
  */
 public class TodosSettingsActivity extends SettingsScreen {
 
     private final Sortable lists = new Sortable();
-    private CheckBox count, done;
+    private CheckBox count, done, headTick, details, desc;
 
     @Override
     protected void build() {
@@ -57,6 +61,9 @@ public class TodosSettingsActivity extends SettingsScreen {
         heading("Show");
         count = check("How many are left, under the title", flag("count"));
         done = check("Finished items, under \"N done\"", flag("done"));
+        headTick = check("A tick on each list's name, to finish the whole list", flag("headTick"));
+        details = check("Details under each task: repeat, reminder, deadline, category, tags", flag("details"));
+        desc = check("The first line of each task's description", flag("desc"));
     }
 
     @Override
@@ -65,6 +72,9 @@ public class TodosSettingsActivity extends SettingsScreen {
         out.put("order", lists.order());
         out.put("count", count.isChecked());
         out.put("done", done.isChecked());
+        out.put("headTick", headTick.isChecked());
+        out.put("details", details.isChecked());
+        out.put("desc", desc.isChecked());
     }
 
     // Whole, not the partial refresh: the + comes and goes with the choice.
