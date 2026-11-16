@@ -2,6 +2,7 @@
 // SteamGridDB, TMDB, Open Library, AniList, Jikan, Google Books, and
 // MusicBrainz.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Set whenever a search/price fetch fails outright (network error, CORS
   // block, bad key, rate limit) so the UI can show *why* nothing came back
   // instead of a generic "no matches" — most failures here are silent
@@ -28,8 +29,8 @@
       said = String((body && (body.error || body.detail)) || "").slice(0, 160);
     } catch (e) { /* not JSON — the status says enough */ }
     const why = res.status === 401 || res.status === 403
-      ? "RAWG refused the API key"
-      : res.status === 429 ? "RAWG's rate limit or monthly quota is used up" : "RAWG request failed";
+      ? i18n.t("RAWG refused the API key")
+      : res.status === 429 ? i18n.t("RAWG's rate limit or monthly quota is used up") : i18n.t("RAWG request failed");
     return why + " (HTTP " + res.status + (said ? ": " + said : "") + ")";
   }
   function rawgNetError(e) {
@@ -679,7 +680,7 @@
   }
 
   async function fetchAniListLists(userName, type, token) {
-    if (!userName) { lastError = "Enter your AniList username"; return null; }
+    if (!userName) { lastError = i18n.t("Enter your AniList username"); return null; }
     try {
       const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status_in: [PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED]) { lists { isCustomList entries { " + ANILIST_LIST_ENTRY + " } } } }";
       const data = await aniListQuery(query, { userName, type }, token);
@@ -848,7 +849,7 @@
   async function searchSteamGridDB(title, apiKey, proxyUrl) {
     if (!apiKey) return [];
     if (!proxyUrl) {
-      lastError = "SteamGridDB needs the CORS proxy URL set (Settings → Media lookups) — it's CORS-blocked without it";
+      lastError = i18n.t("SteamGridDB needs the CORS proxy URL set (Settings → Media lookups) — it's CORS-blocked without it");
       return [];
     }
     const auth = { Authorization: "Bearer " + apiKey };
@@ -1276,7 +1277,7 @@
   async function igdbQuery(endpoint, query, keys, proxyUrl) {
     const creds = igdbCreds(keys);
     if (!creds) return [];
-    if (!proxyUrl) { igdbErr("IGDB needs the CORS proxy URL set (Settings → Media lookups) — it's CORS-blocked without it"); return []; }
+    if (!proxyUrl) { igdbErr(i18n.t("IGDB needs the CORS proxy URL set (Settings → Media lookups) — it's CORS-blocked without it")); return []; }
     try {
       for (let attempt = 0; attempt < 2; attempt++) {
         const token = await igdbAccessToken(creds, proxyUrl, attempt > 0);
@@ -1511,7 +1512,7 @@
   async function hardcoverQuery(query, variables, keys, proxyUrl) {
     const token = hardcoverToken(keys);
     if (!token) return null;
-    if (!proxyUrl) { noteError("Hardcover needs the CORS proxy URL set (Settings → Media lookups)"); return null; }
+    if (!proxyUrl) { noteError(i18n.t("Hardcover needs the CORS proxy URL set (Settings → Media lookups)")); return null; }
     try {
       const body = JSON.stringify({ query, variables: variables || {} });
       const res = await get(proxyUrl + "/hardcover?q=" + encodeURIComponent(body), { headers: { Authorization: "Bearer " + token } });
@@ -1901,31 +1902,31 @@
     const make = KEY_CHECKS[kind];
     if (!make || !key) return null;
     if (kind === "igdb" && !String((keys || {}).igdbSecret || "").trim()) {
-      return { state: "warn", label: "Needs the secret", detail: "Paste the client secret too — IGDB signs in with both" };
+      return { state: "warn", label: i18n.t("Needs the secret"), detail: i18n.t("Paste the client secret too — IGDB signs in with both") };
     }
     const req = make(String(key).trim(), proxyUrl, keys || {});
-    if (!req) return { state: "warn", label: "Needs the proxy", detail: "Set the CORS proxy URL below — this service can't be reached without it" };
+    if (!req) return { state: "warn", label: i18n.t("Needs the proxy"), detail: i18n.t("Set the CORS proxy URL below — this service can't be reached without it") };
     let res;
     try { res = await get(req.url, req.init); }
     catch (e) {
       return e && e.name === "TimeoutError"
-        ? { state: "down", label: "No answer", detail: "The service didn't answer within " + FETCH_TIMEOUT_MS / 1000 + "s — it may be down" }
-        : { state: "down", label: "Can't reach", detail: "Couldn't reach the service — check your connection" };
+        ? { state: "down", label: i18n.t("No answer"), detail: i18n.t("The service didn't answer within {n}s — it may be down", { n: FETCH_TIMEOUT_MS / 1000 }) }
+        : { state: "down", label: i18n.t("Can't reach"), detail: i18n.t("Couldn't reach the service — check your connection") };
     }
     let body = null;
     try { body = await res.json(); } catch (e) { /* the status decides */ }
     const said = body && ((body.error && (body.error.message || body.error)) || body.status_message || body.detail || body.fault && body.fault.faultstring || body.message);
     const refused = res.status === 401 || res.status === 403 || (res.status === 400 && /key|client/i.test(String(said || "")));
     if (refused || (res.ok && req.success && body && body.success === false)) {
-      return { state: "bad", label: "Key refused", detail: "The service turned the key down" + (said ? ": " + String(said).slice(0, 160) : "") };
+      return { state: "bad", label: i18n.t("Key refused"), detail: i18n.t("The service turned the key down") + (said ? ": " + String(said).slice(0, 160) : "") };
     }
     if (req.graphql && res.ok && body && body.errors && body.errors.length) {
-      return { state: "bad", label: "Key refused", detail: "The service turned the key down: " + String(body.errors[0].message || "").slice(0, 160) };
+      return { state: "bad", label: i18n.t("Key refused"), detail: i18n.t("The service turned the key down") + ": " + String(body.errors[0].message || "").slice(0, 160) };
     }
-    if (res.status === 429) return { state: "warn", label: "Limit reached", detail: "The key works, but its rate limit or quota is used up for now" };
-    if (!res.ok) return { state: "down", label: "Error " + res.status, detail: "The service answered HTTP " + res.status + (said ? ": " + String(said).slice(0, 160) : "") };
+    if (res.status === 429) return { state: "warn", label: i18n.t("Limit reached"), detail: i18n.t("The key works, but its rate limit or quota is used up for now") };
+    if (!res.ok) return { state: "down", label: i18n.t("Error {status}", { status: res.status }), detail: i18n.t("The service answered HTTP {status}", { status: res.status }) + (said ? ": " + String(said).slice(0, 160) : "") };
     if (req.igdb && body && body.access_token) saveIgdbToken({ clientId: String(key).trim(), token: body.access_token, expiresAt: Date.now() + (+body.expires_in || 0) * 1000 });
-    return { state: "ok", label: "Working", detail: "The key works" };
+    return { state: "ok", label: i18n.t("Working"), detail: i18n.t("The key works") };
   }
 
   window.LifeLogMedia = {

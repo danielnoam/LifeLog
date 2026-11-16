@@ -9,6 +9,7 @@
 // Everything here is pure apart from DecompressionStream, which Node has
 // too, so test/docimport.test.js drives the real code.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const latin1 = (bytes) => {
     let s = "";
     for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
@@ -31,7 +32,7 @@
     for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
       if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
     }
-    if (eocd < 0) throw new Error("This isn't a valid EPUB file");
+    if (eocd < 0) throw new Error(i18n.t("This isn't a valid EPUB file"));
     const count = dv.getUint16(eocd + 10, true);
     let p = dv.getUint32(eocd + 16, true);
     const files = new Map();
@@ -54,7 +55,7 @@
         if (!f) return null;
         if (f.method === 0) return f.raw;
         if (f.method === 8) return inflate(f.raw, "deflate-raw");
-        throw new Error("This EPUB uses a compression LifeLog can't read");
+        throw new Error(i18n.t("This EPUB uses a compression LifeLog can't read"));
       },
     };
   }
@@ -111,10 +112,10 @@
     const rootTag = container && /<rootfile\b[^>]*>/i.exec(utf8(container));
     const opfPath = rootTag && attr(rootTag[0], "full-path");
     const opfBytes = opfPath && await zip.read(opfPath);
-    if (!opfBytes) throw new Error("This EPUB has no table of contents LifeLog can find");
+    if (!opfBytes) throw new Error(i18n.t("This EPUB has no table of contents LifeLog can find"));
     const opf = utf8(opfBytes);
     if (zip.names().includes("META-INF/encryption.xml") && /<EncryptedData/i.test(utf8(await zip.read("META-INF/encryption.xml")))) {
-      throw new Error("This EPUB is copy-protected (DRM), so its text can't be read");
+      throw new Error(i18n.t("This EPUB is copy-protected (DRM), so its text can't be read"));
     }
     const tagText = (re) => { const m = re.exec(opf); return m ? stripTags(m[1]) : ""; };
     const title = tagText(/<dc:title[^>]*>([\s\S]*?)<\/dc:title>/i);
@@ -135,7 +136,7 @@
       if (md) chapters.push(md);
     }
     const text = chapters.join("\n\n");
-    if (!text.trim()) throw new Error("No text found in this EPUB");
+    if (!text.trim()) throw new Error(i18n.t("No text found in this EPUB"));
     return { title, author, text };
   }
 
@@ -560,11 +561,11 @@
   }
 
   async function pdfToNote(bytes) {
-    if (latin1(bytes.subarray(0, 1024)).indexOf("%PDF") < 0) throw new Error("This isn't a valid PDF file");
+    if (latin1(bytes.subarray(0, 1024)).indexOf("%PDF") < 0) throw new Error(i18n.t("This isn't a valid PDF file"));
     const objs = await pdfObjects(bytes);
     const tail = latin1(bytes.subarray(Math.max(0, bytes.length - 4096)));
     if (/\/Encrypt\s+\d+\s+\d+\s+R/.test(tail) || [...objs.values()].some((o) => /\/Type\s*\/XRef\b/.test(o.dict) && /\/Encrypt\b/.test(o.dict))) {
-      throw new Error("This PDF is password-protected, so its text can't be read");
+      throw new Error(i18n.t("This PDF is password-protected, so its text can't be read"));
     }
     // Pages in reading order: walk the page tree from the catalog, falling
     // back to file order when there isn't one to walk.
@@ -618,7 +619,7 @@
       paras.push(...runsToParagraphs(textRuns(content, res, [1, 0, 0, 1, 0, 0], [], 0)));
     }
     const text = paras.map((p) => p.replace(/^([#>*+-]|\d+[.)])(\s)/, "\\$1$2")).join("\n\n").trim();
-    if (!text) throw new Error("No text found in this PDF. If it's a scan, it holds pictures of words, not words");
+    if (!text) throw new Error(i18n.t("No text found in this PDF. If it's a scan, it holds pictures of words, not words"));
     return { title, text };
   }
 
@@ -680,7 +681,7 @@
       let entry;
       if (typeof dict[c] === "string") entry = dict[c];
       else if (c === dictSize) entry = w + w[0];
-      else throw new Error("This drawing's data is damaged");
+      else throw new Error(i18n.t("This drawing's data is damaged"));
       out.push(entry);
       dict[dictSize++] = w + entry[0];
       w = entry;
@@ -697,8 +698,8 @@
       /```(compressed-json|json)[ \t]*\n([\s\S]*?)\n```/.exec(s);
     let json = block ? (block[1] === "compressed-json" ? lzBase64(block[2]) : block[2]) : s.trim();
     let scene;
-    try { scene = JSON.parse(json); } catch (e) { throw new Error("This Excalidraw drawing's data can't be read"); }
-    if (!scene || !Array.isArray(scene.elements)) throw new Error("This isn't an Excalidraw drawing");
+    try { scene = JSON.parse(json); } catch (e) { throw new Error(i18n.t("This Excalidraw drawing's data can't be read")); }
+    if (!scene || !Array.isArray(scene.elements)) throw new Error(i18n.t("This isn't an Excalidraw drawing"));
     return scene;
   }
 
@@ -717,9 +718,16 @@
     const c = Math.cos(a), s = Math.sin(a);
     return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
   };
-  const SKIP_NAMES = { image: ["image", "images"], frame: ["frame", "frames"], magicframe: ["frame", "frames"],
-    embeddable: ["embedded page", "embedded pages"], iframe: ["embedded page", "embedded pages"],
-    formula: ["formula", "formulas"], svg: ["SVG picture", "SVG pictures"], file: ["embedded file", "embedded files"] };
+  const SKIP_KIND = { magicframe: "frame", iframe: "embeddable" };
+  const SKIP_NAMES = {
+    image: (n) => i18n.tn(n, "{n} image", "{n} images"),
+    frame: (n) => i18n.tn(n, "{n} frame", "{n} frames"),
+    embeddable: (n) => i18n.tn(n, "{n} embedded page", "{n} embedded pages"),
+    formula: (n) => i18n.tn(n, "{n} formula", "{n} formulas"),
+    svg: (n) => i18n.tn(n, "{n} SVG picture", "{n} SVG pictures"),
+    file: (n) => i18n.tn(n, "{n} embedded file", "{n} embedded files"),
+    other: (n) => i18n.tn(n, "{n} other shape", "{n} other shapes"),
+  };
 
   // Where each picture's file is. Excalidraw's own file carries them as
   // data: URLs in `files`; Obsidian's plugin lists them under "Embedded
@@ -762,12 +770,10 @@
   function skippedText(skipped) {
     const by = new Map();
     for (const [t, n] of Object.entries(skipped || {})) {
-      const [one, many] = SKIP_NAMES[t] || ["other shape", "other shapes"];
-      const prev = by.get(one) || { n: 0, many };
-      prev.n += n;
-      by.set(one, prev);
+      const k = SKIP_NAMES[SKIP_KIND[t] || t] ? SKIP_KIND[t] || t : "other";
+      by.set(k, (by.get(k) || 0) + n);
     }
-    return [...by].map(([one, { n, many }]) => n + " " + (n === 1 ? one : many)).join(", ");
+    return [...by].map(([k, n]) => SKIP_NAMES[k](n)).join(", ");
   }
 
   // A scene's elements as a board's (boards.js has the shapes): rectangles,
@@ -890,7 +896,7 @@
     const scene = excalidrawScene(text);
     const { elements, skipped, pictures } = excalidrawToElements(scene, makeId, excalidrawFiles(text, scene));
     const total = Object.values(skipped).reduce((t, n) => t + n, 0);
-    if (!elements.length) throw new Error(total ? "Nothing on this drawing a board can show (" + skippedText(skipped) + ")" : "This drawing is empty");
+    if (!elements.length) throw new Error(total ? i18n.t("Nothing on this drawing a board can show ({what})", { what: skippedText(skipped) }) : i18n.t("This drawing is empty"));
     const name = String(fileName || "").replace(/^.*[\\/]/, "").replace(/\.excalidraw(\.md)?$/i, "").replace(/\.(md|json)$/i, "").trim();
     const when = new Date(lastModified || NaN);
     const stamp = isNaN(when) ? null : when.toISOString();

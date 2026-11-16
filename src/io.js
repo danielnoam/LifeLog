@@ -173,7 +173,7 @@
         habits.push(h);
       }
     }
-    if (!notes.length && !todos.length && !habits.length) throw new Error("No rows found — is this a Notes CSV export?");
+    if (!notes.length && !todos.length && !habits.length) throw new Error(i18n.t("No rows found — is this a Notes CSV export?"));
     return { notes, todos, habits };
   }
 
@@ -214,7 +214,7 @@
       if (!parse || rows.length < 2) continue;
       Object.assign(out, parse(text));
     }
-    if (!Object.keys(out).length) throw new Error("No rows found — is this a LifeLog CSV export?");
+    if (!Object.keys(out).length) throw new Error(i18n.t("No rows found — is this a LifeLog CSV export?"));
     return out;
   }
   let MONTH_NAME_TO_NUM;
@@ -246,7 +246,7 @@
         backlog.push({ title, category, createdAt: createdAt ? new Date(createdAt).toISOString() : null });
       }
     }
-    if (!entries.length && !backlog.length && !Object.keys(accomplishments).length) throw new Error("No rows found — is this a Timeline or Backlog CSV export?");
+    if (!entries.length && !backlog.length && !Object.keys(accomplishments).length) throw new Error(i18n.t("No rows found — is this a Timeline or Backlog CSV export?"));
     return { entries, backlog, accomplishments };
   }
 

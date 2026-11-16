@@ -14,6 +14,7 @@
 // make every save of the watchlist heavy. A ticker is asked for once for its
 // whole history, then only for the days since its last close.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Numbers in the reader's language (src/language.js); en-US where
   // there's no page (the bridge, Node tests), as before.
   const numLocale = () => (typeof window === "object" && window.i18n && window.i18n.lang !== "en" ? window.i18n.lang : "en-US");
@@ -123,7 +124,7 @@
   }
   function unitsText(n) {
     const s = (Math.round(n * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 });
-    return s + (n === 1 ? " share" : " shares");
+    return n === 1 ? i18n.t("{n} share", { n: s }) : i18n.t("{n} shares", { n: s });
   }
   // Two points on a ticker's line, either way round: the change from the
   // earlier to the later, in % and dollars, and how long between.
@@ -239,11 +240,11 @@
   }
   function spanLabel(days) {
     if (days == null) return "";
-    if (days < 1) return "the same day";
-    if (days < 60) return days === 1 ? "1 day" : days + " days";
-    if (days < 730) { const m = Math.round(days / 30.44); return m + (m === 1 ? " month" : " months"); }
+    if (days < 1) return i18n.t("the same day");
+    if (days < 60) return i18n.tn(days, "1 day", "{n} days");
+    if (days < 730) { const m = Math.round(days / 30.44); return i18n.tn(m, "1 month", "{n} months"); }
     const y = days / 365.25;
-    return (Math.round(y * 10) / 10) + " years";
+    return i18n.t("{n} years", { n: String(Math.round(y * 10) / 10) });
   }
   const pct = (v) => (v == null ? "" : (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(Math.abs(v) < 0.01 ? 2 : 1) + "%");
   function usd(v) {
@@ -397,10 +398,10 @@
     try { body = await res.json(); } catch (e) { /* the status decides */ }
     if (!res.ok) {
       const said = body && (body.detail || body.error);
-      const err = new Error(res.status === 401 || res.status === 403 ? "Tiingo turned the key down"
-        : res.status === 404 ? "Tiingo doesn't know that ticker"
-          : res.status === 429 ? "Tiingo's limit for the hour is used up — try again later"
-            : "Tiingo answered " + res.status + (said ? ": " + String(said).slice(0, 120) : ""));
+      const err = new Error(res.status === 401 || res.status === 403 ? i18n.t("Tiingo turned the key down")
+        : res.status === 404 ? i18n.t("Tiingo doesn't know that ticker")
+          : res.status === 429 ? i18n.t("Tiingo's limit for the hour is used up — try again later")
+            : i18n.t("Tiingo answered {status}", { status: res.status }) + (said ? ": " + String(said).slice(0, 120) : ""));
       err.status = res.status;
       throw err;
     }
@@ -438,7 +439,7 @@
         widgetsChanged();
         return true;
       } catch (e) {
-        lastProblem.set(symbol, (e && e.name === "TimeoutError") ? "Tiingo didn't answer — try again in a bit" : (e && e.message) || "Couldn't reach Tiingo");
+        lastProblem.set(symbol, (e && e.name === "TimeoutError") ? i18n.t("Tiingo didn't answer — try again in a bit") : (e && e.message) || i18n.t("Couldn't reach Tiingo"));
         return false;
       }
     })().finally(() => fetching.delete(symbol));
@@ -493,7 +494,7 @@
   // ---------- the mode ----------
   function renderInvest(c) {
     if (!doc) {
-      c.appendChild(el("div", "empty", "Loading your watchlist…"));
+      c.appendChild(el("div", "empty", i18n.t("Loading your watchlist…")));
       ensureLoaded().then(() => { if (isOpen()) render({ keepSnapshots: true }); });
       return;
     }
@@ -509,11 +510,11 @@
     if (!watchlist().length) {
       c.appendChild(emptyState({
         glyph: "trending-up",
-        title: "Nothing on your watchlist yet",
-        body: "Follow US stocks and ETFs here: a price chart for each, a target price and a note, and pins on the days you want to compare.",
-        action: "Add a ticker",
+        title: i18n.t("Nothing on your watchlist yet"),
+        body: i18n.t("Follow US stocks and ETFs here: a price chart for each, a target price and a note, and pins on the days you want to compare."),
+        action: i18n.t("Add a ticker"),
         onAction: () => openWatchModal(null),
-        hint: blocker() === "key" ? "Prices come from Tiingo with a free key of your own — Settings → Media lookups." : "",
+        hint: blocker() === "key" ? i18n.t("Prices come from Tiingo with a free key of your own — Settings → Media lookups.") : "",
       }));
       return;
     }
@@ -534,7 +535,7 @@
   function tickerStrip(current) {
     const row = el("div", "invest-strip no-swipe");
     row.setAttribute("role", "group");
-    row.setAttribute("aria-label", "Tickers");
+    row.setAttribute("aria-label", i18n.t("Tickers"));
     const range = uiState().range;
     for (const w of watchlist()) {
       const all = pointsOf(w.symbol);
@@ -550,7 +551,7 @@
     }
     const add = el("button", "invest-chip invest-chip-add");
     add.type = "button";
-    add.setAttribute("aria-label", "Add a ticker");
+    add.setAttribute("aria-label", i18n.t("Add a ticker"));
     add.appendChild(ico("plus"));
     add.onclick = () => openWatchModal(null);
     row.appendChild(add);
@@ -562,12 +563,12 @@
   function setupCard(block) {
     const card = el("div", "card invest-setup");
     const tx = el("div", "invest-setup-text");
-    tx.appendChild(el("b", null, block === "key" ? "Add a Tiingo key to see prices" : "Prices need the CORS proxy"));
+    tx.appendChild(el("b", null, block === "key" ? i18n.t("Add a Tiingo key to see prices") : i18n.t("Prices need the CORS proxy")));
     tx.appendChild(el("span", null, block === "key"
-      ? "Free at tiingo.com, for personal use. Paste it under Media lookups; it syncs like your other keys."
-      : "A browser can't call Tiingo directly. Set the proxy URL under Media lookups, or use the phone or desktop app."));
+      ? i18n.t("Free at tiingo.com, for personal use. Paste it under Media lookups; it syncs like your other keys.")
+      : i18n.t("A browser can't call Tiingo directly. Set the proxy URL under Media lookups, or use the phone or desktop app.")));
     card.appendChild(tx);
-    const btn = el("button", "btn", "Open Media lookups");
+    const btn = el("button", "btn", i18n.t("Open Media lookups"));
     btn.type = "button";
     btn.onclick = () => openSettings && openSettings("media");
     card.appendChild(btn);
@@ -587,8 +588,8 @@
     const edit = el("button", "btn btn-icon invest-edit");
     edit.type = "button";
     edit.appendChild(ico("pencil"));
-    edit.setAttribute("aria-label", "Edit " + w.symbol);
-    edit.title = "Target, note, remove";
+    edit.setAttribute("aria-label", i18n.t("Edit {name}", { name: w.symbol }));
+    edit.title = i18n.t("Target, note, remove");
     edit.onclick = () => openWatchModal(w);
     head.appendChild(edit);
     card.appendChild(head);
@@ -603,14 +604,14 @@
       }
       card.appendChild(row);
       const prev = all.length > 1 ? all[all.length - 2][1] : null;
-      card.appendChild(el("div", "invest-meta", "Closed " + Dates().day(last[0], { weekday: true, year: "auto" }) + (prev ? " · " + pct(changeOf(prev, last[1])) + " that day" : "")));
+      card.appendChild(el("div", "invest-meta", i18n.t("Closed {date}", { date: Dates().day(last[0], { weekday: true, year: "auto" }) }) + (prev ? " · " + i18n.t("{pct} that day", { pct: pct(changeOf(prev, last[1])) }) : "")));
     }
     if (w.target || w.note) {
       const note = el("div", "invest-note");
       if (w.target) {
         const gap = last ? changeOf(w.target, last[1]) : null;
-        const words = gap == null ? "" : Math.abs(gap) < 0.0005 ? " · at it" : " · " + Math.abs(gap * 100).toFixed(1) + "% " + (gap > 0 ? "above" : "below");
-        note.appendChild(el("span", "invest-target" + (gap != null && gap <= 0 ? " is-hit" : ""), "Target " + usd(w.target) + words));
+        const words = gap == null ? "" : " · " + (Math.abs(gap) < 0.0005 ? i18n.t("at it") : gap > 0 ? i18n.t("{pct}% above", { pct: Math.abs(gap * 100).toFixed(1) }) : i18n.t("{pct}% below", { pct: Math.abs(gap * 100).toFixed(1) }));
+        note.appendChild(el("span", "invest-target" + (gap != null && gap <= 0 ? " is-hit" : ""), i18n.t("Target {price}", { price: usd(w.target) }) + words));
       }
       if (w.note) note.appendChild(el("span", "invest-note-text", w.note));
       card.appendChild(note);
@@ -619,16 +620,16 @@
     const problem = lastProblem.get(w.symbol);
     if (pts.length > 1) card.appendChild(chart(w, pts, all, last));
     else {
-      const msg = blocker() ? "No prices yet." : problem ? problem : fetching.has(w.symbol) || !prices ? "Getting prices…" : "No prices for this range.";
+      const msg = blocker() ? i18n.t("No prices yet.") : problem ? problem : fetching.has(w.symbol) || !prices ? i18n.t("Getting prices…") : i18n.t("No prices for this range.");
       card.appendChild(el("div", "invest-chart-empty", msg));
     }
-    if (problem && pts.length > 1) card.appendChild(el("p", "invest-problem", problem + ". Showing the prices kept on this device."));
+    if (problem && pts.length > 1) card.appendChild(el("p", "invest-problem", problem + ". " + i18n.t("Showing the prices kept on this device.")));
     card.appendChild(holdingBlock(w, all, last));
     card.appendChild(pinsBlock(w, all));
     return card;
   }
   function rangeWords(range) {
-    return { "1M": "past month", "3M": "past 3 months", "6M": "past 6 months", "YTD": "this year", "1Y": "past year", "5Y": "past 5 years", "Max": "all time" }[range] || "";
+    return { "1M": i18n.t("past month"), "3M": i18n.t("past 3 months"), "6M": i18n.t("past 6 months"), "YTD": i18n.t("this year"), "1Y": i18n.t("past year"), "5Y": i18n.t("past 5 years"), "Max": i18n.t("all time") }[range] || "";
   }
 
   // The chart: a line of closes over the range, a dashed line at the target
@@ -730,16 +731,16 @@
         const m = el("span", "invest-buymark" + (b.sell ? " is-sell" : ""));
         m.style.left = (i / (n - 1) * cw) + "px";
         m.style.top = (y(pts[i][1]) / H * ch) + "px";
-        m.title = (b.sell ? "Sold " : "Bought ") + unitsText(b.units) + " at " + usd(b.price) + " · " + Dates().day(b.date);
+        m.title = (b.sell ? i18n.t("Sold {units} at {price}", { units: unitsText(b.units), price: usd(b.price) }) : i18n.t("Bought {units} at {price}", { units: unitsText(b.units), price: usd(b.price) })) + " · " + Dates().day(b.date);
         box.appendChild(m);
       }
       if (showTarget) {
-        const t = el("span", "invest-tlabel", "Target " + usd(w.target));
+        const t = el("span", "invest-tlabel", i18n.t("Target {price}", { price: usd(w.target) }));
         t.style.top = (y(w.target) / H * ch) + "px";
         box.appendChild(t);
       }
       if (showAvg) {
-        const t = el("span", "invest-tlabel is-avg", "Your average " + usd(hold.avg));
+        const t = el("span", "invest-tlabel is-avg", i18n.t("Your average {price}", { price: usd(hold.avg) }));
         t.style.top = (y(hold.avg) / H * ch) + "px";
         // Off to the right when it would sit on the target's label.
         if (showTarget && Math.abs(y(hold.avg) - y(w.target)) / H * ch < 22) t.classList.add("is-right");
@@ -783,10 +784,10 @@
         const c = compareDays(pts, pts[held][0], day);
         const line = el("span", "invest-tip-cmp");
         line.appendChild(el("span", c.change >= 0 ? "invest-up" : "invest-down", pct(c.change)));
-        line.appendChild(document.createTextNode(" " + signedUsd(c.diff) + " over " + spanLabel(c.days) + (day < pts[held][0] ? " to " : " from ") + Dates().day(pts[held][0], { year: "auto" })));
+        line.appendChild(document.createTextNode(" " + (day < pts[held][0] ? i18n.t("{amount} over {span} to {date}", { amount: signedUsd(c.diff), span: spanLabel(c.days), date: Dates().day(pts[held][0], { year: "auto" }) }) : i18n.t("{amount} over {span} from {date}", { amount: signedUsd(c.diff), span: spanLabel(c.days), date: Dates().day(pts[held][0], { year: "auto" }) }))));
         tip.appendChild(line);
       } else if (held == null) {
-        tip.appendChild(el("span", null, pct(changeOf(pts[0][1], close)) + " from " + Dates().day(pts[0][0], { year: "auto" })));
+        tip.appendChild(el("span", null, i18n.t("{pct} from {date}", { pct: pct(changeOf(pts[0][1], close)), date: Dates().day(pts[0][0], { year: "auto" }) })));
       }
       tip.hidden = false;
       const half = Math.min(130, r.width / 2);
@@ -810,22 +811,22 @@
       bar.innerHTML = "";
       const t = el("span", "invest-held-t");
       t.appendChild(el("b", null, usd(close)));
-      t.appendChild(el("span", null, Dates().day(day, { weekday: true, year: "auto" }) + " · " + pct(changeOf(close, pts[n - 1][1])) + " to the latest close"));
+      t.appendChild(el("span", null, Dates().day(day, { weekday: true, year: "auto" }) + " · " + i18n.t("{pct} to the latest close", { pct: pct(changeOf(close, pts[n - 1][1])) })));
       bar.appendChild(t);
       const pinBtn = el("button", "btn btn-sm invest-pin-btn");
       pinBtn.type = "button";
       pinBtn.appendChild(ico("pin"));
-      pinBtn.appendChild(document.createTextNode("Pin this day"));
+      pinBtn.appendChild(document.createTextNode(i18n.t("Pin this day")));
       pinBtn.onclick = (ev) => { ev.stopPropagation(); openPinModal(null, w, day); };
       bar.appendChild(pinBtn);
       const buyBtn = el("button", "btn btn-sm invest-buy-here");
       buyBtn.type = "button";
-      buyBtn.appendChild(document.createTextNode("+ Buy on this day"));
+      buyBtn.appendChild(document.createTextNode(i18n.t("+ Buy on this day")));
       buyBtn.onclick = (ev) => { ev.stopPropagation(); openBuyModal(null, w, day); };
       bar.appendChild(buyBtn);
       const x2 = el("button", "btn btn-icon btn-sm invest-held-x");
       x2.type = "button";
-      x2.setAttribute("aria-label", "Let the day go");
+      x2.setAttribute("aria-label", i18n.t("Let the day go"));
       x2.appendChild(ico("x"));
       x2.onclick = (ev) => { ev.stopPropagation(); release(); };
       bar.appendChild(x2);
@@ -869,15 +870,15 @@
     const block = el("div", "invest-hold");
     const h = el("h3");
     h.appendChild(ico("coins"));
-    h.appendChild(document.createTextNode("Holding"));
-    const add = el("button", "btn invest-addbuy", "+ Add a buy");
+    h.appendChild(document.createTextNode(i18n.t("Holding")));
+    const add = el("button", "btn invest-addbuy", i18n.t("+ Add a buy"));
     add.type = "button";
     add.onclick = () => openBuyModal(null, w, last ? last[0] : todayStr());
     h.appendChild(add);
     block.appendChild(h);
     const buys = w.buys || [];
     if (!buys.length) {
-      block.appendChild(el("p", "invest-pins-empty", "Log what you bought (and sold) to see what you hold, what it cost and how it's doing."));
+      block.appendChild(el("p", "invest-pins-empty", i18n.t("Log what you bought (and sold) to see what you hold, what it cost and how it's doing.")));
       return block;
     }
     const hd = holdingOf(buys, last ? last[1] : null);
@@ -888,26 +889,26 @@
       s2.appendChild(el("b", cls || null, value));
       stats.appendChild(s2);
     };
-    stat("Shares", hd.units ? (Math.round(hd.units * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 }) : "0");
-    stat("Average cost", hd.avg != null ? usd(hd.avg) : "—");
-    stat("Value", hd.value != null ? usd(hd.value) : hd.units ? "—" : usd(0));
-    stat("Gain", hd.gain != null ? signedUsd(hd.gain) + (hd.gainPct != null ? " (" + pct(hd.gainPct) + ")" : "") : "—",
+    stat(i18n.t("Shares"), hd.units ? (Math.round(hd.units * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 }) : "0");
+    stat(i18n.t("Average cost"), hd.avg != null ? usd(hd.avg) : "—");
+    stat(i18n.t("Value"), hd.value != null ? usd(hd.value) : hd.units ? "—" : usd(0));
+    stat(i18n.t("Gain"), hd.gain != null ? signedUsd(hd.gain) + (hd.gainPct != null ? " (" + pct(hd.gainPct) + ")" : "") : "—",
       hd.gain == null ? "" : hd.gain >= 0 ? "invest-up" : "invest-down");
     block.appendChild(stats);
     if (Math.abs(hd.realized) >= 0.005) {
-      block.appendChild(el("p", "invest-hold-note", "Sales so far made " + signedUsd(hd.realized) + " over what those shares cost."));
+      block.appendChild(el("p", "invest-hold-note", i18n.t("Sales so far made {amount} over what those shares cost.", { amount: signedUsd(hd.realized) })));
     }
     const list = el("div", "invest-buys");
     for (const b of [...sortBuys(buys)].reverse()) {
       const row = el("button", "invest-buy" + (b.sell ? " is-sell" : ""));
       row.type = "button";
-      row.appendChild(el("span", "invest-buy-k", b.sell ? "Sell" : "Buy"));
+      row.appendChild(el("span", "invest-buy-k", b.sell ? i18n.t("Sell") : i18n.t("Buy")));
       const l = el("span", "invest-pin-l");
-      l.appendChild(el("b", null, unitsText(b.units) + " at " + usd(b.price)));
+      l.appendChild(el("b", null, i18n.t("{units} at {price}", { units: unitsText(b.units), price: usd(b.price) })));
       l.appendChild(el("span", null, Dates().day(b.date) + (b.note ? " · " + b.note : "")));
       row.appendChild(l);
       row.appendChild(el("span", "invest-pin-v", usd(b.units * b.price)));
-      row.setAttribute("aria-label", "Edit " + (b.sell ? "sale" : "buy") + " on " + Dates().day(b.date));
+      row.setAttribute("aria-label", (b.sell ? i18n.t("Edit sale on {date}", { date: Dates().day(b.date) }) : i18n.t("Edit buy on {date}", { date: Dates().day(b.date) })));
       row.onclick = () => openBuyModal(b, w);
       list.appendChild(row);
     }
@@ -922,7 +923,7 @@
     const block = el("div", "invest-pins");
     const h = el("h3");
     h.appendChild(ico("pin"));
-    h.appendChild(document.createTextNode("Pins"));
+    h.appendChild(document.createTextNode(i18n.t("Pins")));
     const pins = pinsOf(w.id);
     const comparing = compare && compare.watch === w.id;
     if (pins.length >= 2 || (pins.length === 1 && all.length)) {
@@ -930,17 +931,17 @@
       cmp.type = "button";
       cmp.setAttribute("aria-pressed", String(!!comparing));
       cmp.appendChild(ico(comparing ? "check" : "arrow-left-right"));
-      cmp.appendChild(document.createTextNode(comparing ? "Done" : "Compare"));
+      cmp.appendChild(document.createTextNode(comparing ? i18n.t("Done") : i18n.t("Compare")));
       cmp.onclick = () => { compare = comparing ? null : { watch: w.id, picked: [] }; render({ keepSnapshots: true }); };
       h.appendChild(cmp);
     }
-    const add = el("button", "btn invest-addpin", "+ Pin a date");
+    const add = el("button", "btn invest-addpin", i18n.t("+ Pin a date"));
     add.type = "button";
     add.onclick = () => openPinModal(null, w, all.length ? all[all.length - 1][0] : todayStr());
     h.appendChild(add);
     block.appendChild(h);
     if (!pins.length) {
-      block.appendChild(el("p", "invest-pins-empty", "Pin a day to compare the price then and now — when you bought, a dip, a piece of news. Tap the chart to pin the day under your finger."));
+      block.appendChild(el("p", "invest-pins-empty", i18n.t("Pin a day to compare the price then and now — when you bought, a dip, a piece of news. Tap the chart to pin the day under your finger.")));
       return block;
     }
     const s = pinSteps(pins, all);
@@ -948,8 +949,8 @@
       const row = el("div", "invest-gap");
       if (change != null) {
         row.appendChild(el("span", change >= 0 ? "invest-up" : "invest-down", pct(change)));
-        row.appendChild(el("span", null, signedUsd(to - from) + " over " + spanLabel(days)));
-      } else row.appendChild(el("span", null, "No price for one of these days"));
+        row.appendChild(el("span", null, i18n.t("{amount} over {span}", { amount: signedUsd(to - from), span: spanLabel(days) })));
+      } else row.appendChild(el("span", null, i18n.t("No price for one of these days")));
       return row;
     };
     const pickKey = (st) => (st === "now" ? "now" : st.pin.id);
@@ -964,12 +965,12 @@
       const picked = compare.picked;
       const dayOf = (key) => (key === "now" ? (s.now && s.now.day) : (pins.find((p) => p.id === key) || {}).date);
       const nameOf = (key) => {
-        if (key === "now") return "the latest close";
+        if (key === "now") return i18n.t("the latest close");
         const k = s.steps.findIndex((st) => st.pin.id === key);
-        return k < 0 ? "" : (s.steps[k].pin.label || "Pin " + (k + 1));
+        return k < 0 ? "" : (s.steps[k].pin.label || i18n.t("Pin {n}", { n: k + 1 }));
       };
       const box = el("div", "invest-compare");
-      if (picked.length < 2) box.appendChild(el("span", null, picked.length ? "Now pick a second one." : "Pick two pins, or a pin and the latest close."));
+      if (picked.length < 2) box.appendChild(el("span", null, picked.length ? i18n.t("Now pick a second one.") : i18n.t("Pick two pins, or a pin and the latest close.")));
       else {
         const [a, b] = [...picked].sort((x, y) => String(dayOf(x)).localeCompare(String(dayOf(y))));
         const c = compareDays(all, dayOf(a), dayOf(b));
@@ -978,8 +979,8 @@
         const line = el("span", "invest-compare-v");
         if (c.change != null) {
           line.appendChild(el("b", c.change >= 0 ? "invest-up" : "invest-down", pct(c.change)));
-          line.appendChild(document.createTextNode(" " + signedUsd(c.diff) + " a share over " + spanLabel(c.days)));
-        } else line.appendChild(document.createTextNode("No price for one of these days"));
+          line.appendChild(document.createTextNode(" " + i18n.t("{amount} a share over {span}", { amount: signedUsd(c.diff), span: spanLabel(c.days) })));
+        } else line.appendChild(document.createTextNode(i18n.t("No price for one of these days")));
         box.appendChild(line);
       }
       block.appendChild(box);
@@ -990,16 +991,16 @@
       row.type = "button";
       row.appendChild(el("span", "invest-pin-n", String(k + 1)));
       const l = el("span", "invest-pin-l");
-      l.appendChild(el("b", null, st.pin.label || "Pin " + (k + 1)));
+      l.appendChild(el("b", null, st.pin.label || i18n.t("Pin {n}", { n: k + 1 })));
       l.appendChild(el("span", null, Dates().day(st.pin.date)));
       row.appendChild(l);
       row.appendChild(el("span", "invest-pin-v", st.price != null ? usd(st.price) : "—"));
       if (comparing) {
         row.setAttribute("aria-pressed", String(isPicked(pickKey(st))));
-        row.setAttribute("aria-label", "Compare pin " + (k + 1));
+        row.setAttribute("aria-label", i18n.t("Compare pin {n}", { n: k + 1 }));
         row.onclick = () => pick(pickKey(st));
       } else {
-        row.setAttribute("aria-label", "Edit pin " + (k + 1));
+        row.setAttribute("aria-label", i18n.t("Edit pin {n}", { n: k + 1 }));
         row.onclick = () => openPinModal(st.pin, w);
       }
       block.appendChild(row);
@@ -1017,7 +1018,7 @@
       n.appendChild(ico("clock"));
       row.appendChild(n);
       const l = el("span", "invest-pin-l");
-      l.appendChild(el("b", null, "Latest close"));
+      l.appendChild(el("b", null, i18n.t("Latest close")));
       l.appendChild(el("span", null, Dates().day(s.now.day)));
       row.appendChild(l);
       row.appendChild(el("span", "invest-pin-v", usd(s.now.price)));
@@ -1025,7 +1026,7 @@
     }
     if (s.total != null) {
       const t = el("div", "invest-total");
-      t.appendChild(el("span", null, "Since pin 1 (" + spanLabel(s.totalDays) + ")"));
+      t.appendChild(el("span", null, i18n.t("Since pin 1 ({span})", { span: spanLabel(s.totalDays) })));
       t.appendChild(el("span", s.total >= 0 ? "invest-up" : "invest-down", pct(s.total)));
       block.appendChild(t);
     }
@@ -1048,8 +1049,8 @@
   function listCard(current) {
     const card = el("div", "card invest-list");
     const h = el("h2");
-    h.appendChild(document.createTextNode("Watching"));
-    const add = el("button", "btn", "+ Add ticker");
+    h.appendChild(document.createTextNode(i18n.t("Watching")));
+    const add = el("button", "btn", i18n.t("+ Add ticker"));
     add.type = "button";
     add.onclick = () => openWatchModal(null);
     h.appendChild(add);
@@ -1063,7 +1064,7 @@
       const cost = held.filter((x) => x.value != null).reduce((t, x) => t + x.cost, 0);
       const gain = value - cost;
       const sum = el("div", "invest-sum");
-      sum.appendChild(el("span", null, "You hold"));
+      sum.appendChild(el("span", null, i18n.t("You hold")));
       sum.appendChild(el("b", null, usd(value)));
       if (cost) sum.appendChild(el("span", gain >= 0 ? "invest-up" : "invest-down", signedUsd(gain) + " (" + pct(gain / cost) + ")"));
       card.appendChild(sum);
@@ -1080,7 +1081,7 @@
       const sym = el("b", null, w.symbol);
       if (w.target) {
         const hit = last != null && last <= w.target;
-        sym.appendChild(el("i", hit ? "is-hit" : "", (hit ? "At target " : "Target ") + usd(w.target)));
+        sym.appendChild(el("i", hit ? "is-hit" : "", hit ? i18n.t("At target {price}", { price: usd(w.target) }) : i18n.t("Target {price}", { price: usd(w.target) })));
       }
       t.appendChild(sym);
       const hd = holdingOf(w.buys, last);
@@ -1094,7 +1095,7 @@
       row.onclick = () => { setUi({ selected: w.id }); render({ keepSnapshots: true }); };
       card.appendChild(row);
     }
-    card.appendChild(el("p", "invest-foot", "Prices from Tiingo, adjusted for splits and dividends, updated once a day after the US market closes. Only the tickers are sent."));
+    card.appendChild(el("p", "invest-foot", i18n.t("Prices from Tiingo, adjusted for splits and dividends, updated once a day after the US market closes. Only the tickers are sent.")));
     return card;
   }
 
@@ -1109,7 +1110,7 @@
     await ensureLoaded();
     editingWatch = w || null;
     picked = null;
-    $("#watchModalTitle").textContent = w ? "Edit " + w.symbol : "Watch a ticker";
+    $("#watchModalTitle").textContent = w ? i18n.t("Edit {name}", { name: w.symbol }) : i18n.t("Watch a ticker");
     $("#watchSymbolRow").hidden = !!w;
     $("#watchSymbol").value = "";
     $("#watchResults").innerHTML = "";
@@ -1117,8 +1118,8 @@
     $("#watchTarget").value = w && w.target ? String(w.target) : "";
     $("#watchNote").value = (w && w.note) || "";
     $("#deleteWatchBtn").hidden = !w;
-    $("#watchSaveBtn").textContent = w ? "Save" : "Add to watchlist";
-    $("#watchHint").textContent = !w && blocker() === "key" ? "Without a Tiingo key the ticker is added as typed, and its prices come once you add one." : "";
+    $("#watchSaveBtn").textContent = w ? i18n.t("Save") : i18n.t("Add to watchlist");
+    $("#watchHint").textContent = !w && blocker() === "key" ? i18n.t("Without a Tiingo key the ticker is added as typed, and its prices come once you add one.") : "";
     $("#watchModal").hidden = false;
     setTimeout(() => (w ? $("#watchTarget") : $("#watchSymbol")).focus(), 0);
   }
@@ -1162,20 +1163,20 @@
     const ask = ++searchAsk;
     if (!q) { showResults([]); return; }
     const block = blocker();
-    if (block) { showResults([], block === "key" ? "Add a Tiingo key in Settings → Media lookups to search as you type" : "Searching needs the CORS proxy, in Settings → Media lookups"); return; }
+    if (block) { showResults([], block === "key" ? i18n.t("Add a Tiingo key in Settings → Media lookups to search as you type") : i18n.t("Searching needs the CORS proxy, in Settings → Media lookups")); return; }
     const key = q.toLowerCase();
-    if (searchCache.has(key)) { const hit = searchCache.get(key); showResults(hit, hit.length ? "" : "No US tickers match “" + q + "”"); return; }
-    if ($("#watchResults").hidden || !$("#watchResults").querySelector(".invest-result")) showResults([], "Searching…");
+    if (searchCache.has(key)) { const hit = searchCache.get(key); showResults(hit, hit.length ? "" : i18n.t("No US tickers match “{q}”", { q })); return; }
+    if ($("#watchResults").hidden || !$("#watchResults").querySelector(".invest-result")) showResults([], i18n.t("Searching…"));
     searchTimer = setTimeout(async () => {
       let list = [], status = "";
       try {
         list = await findMatches(q);
         searchCache.set(key, list);
-        if (!list.length) status = "No US tickers match “" + q + "”";
+        if (!list.length) status = i18n.t("No US tickers match “{q}”", { q });
       } catch (e) {
-        status = (e && e.name === "TimeoutError") ? "Tiingo didn't answer — try again in a bit"
-          : e && e.status === 404 ? "Search isn't on your proxy yet — redeploy proxy/worker.js"
-            : (e && e.message) || "Couldn't reach Tiingo";
+        status = (e && e.name === "TimeoutError") ? i18n.t("Tiingo didn't answer — try again in a bit")
+          : e && e.status === 404 ? i18n.t("Search isn't on your proxy yet — redeploy proxy/worker.js")
+            : (e && e.message) || i18n.t("Couldn't reach Tiingo");
       }
       if (ask === searchAsk && !$("#watchModal").hidden) showResults(list, status);
     }, 250);
@@ -1184,7 +1185,7 @@
     await ensureLoaded();
     const targetRaw = $("#watchTarget").value.trim();
     const target = targetRaw ? cleanPrice(targetRaw) : null;
-    if (targetRaw && !target) { toast("A target is a price above zero, like 550", true); return; }
+    if (targetRaw && !target) { toast(i18n.t("A target is a price above zero, like 550"), true); return; }
     const note = $("#watchNote").value;
     if (editingWatch) {
       const w = findWatch(editingWatch.id);
@@ -1200,16 +1201,16 @@
       return;
     }
     const symbol = cleanSymbol(picked ? picked.symbol : $("#watchSymbol").value);
-    if (!symbol) { toast("Type a ticker, like VOO or AAPL", true); return; }
+    if (!symbol) { toast(i18n.t("Type a ticker, like VOO or AAPL"), true); return; }
     const had = watchlist().find((x) => x.symbol === symbol);
-    if (had) { setUi({ selected: had.id }); closeWatchModal(); render({ keepSnapshots: true }); toast(symbol + " is already on your watchlist"); return; }
+    if (had) { setUi({ selected: had.id }); closeWatchModal(); render({ keepSnapshots: true }); toast(i18n.t("{symbol} is already on your watchlist", { symbol })); return; }
     let name = picked ? picked.name : "";
     if (!picked && !blocker()) {
       $("#watchSaveBtn").disabled = true;
       try { const m = await lookup(symbol); name = m.name; }
       catch (e) {
         $("#watchSaveBtn").disabled = false;
-        if (e && e.status === 404) { toast("Tiingo doesn't know " + symbol + " — check the ticker", true); return; }
+        if (e && e.status === 404) { toast(i18n.t("Tiingo doesn't know {symbol} — check the ticker", { symbol }), true); return; }
       }
       $("#watchSaveBtn").disabled = false;
     }
@@ -1231,8 +1232,8 @@
     changed();
     closeWatchModal();
     render({ keepSnapshots: true });
-    toast(`Removed ${w.symbol} from your watchlist`, false, {
-      label: "Undo",
+    toast(i18n.t("Removed {symbol} from your watchlist", { symbol: w.symbol }), false, {
+      label: i18n.t("Undo"),
       onClick: () => {
         doc.watchlist.push(gone.watch);
         doc.pins.push(...gone.pins);
@@ -1250,7 +1251,7 @@
     editingPin = pin || null;
     pinWatch = w || (pin && findWatch(pin.watch)) || null;
     if (!pinWatch) return;
-    $("#investPinModalTitle").textContent = pin ? "Edit pin" : "Pin a date";
+    $("#investPinModalTitle").textContent = pin ? i18n.t("Edit pin") : i18n.t("Pin a date");
     $("#investPinTicker").textContent = pinWatch.symbol + (pinWatch.name ? " · " + pinWatch.name : "");
     $("#investPinDate").value = pin ? pin.date : (day || todayStr());
     $("#investPinDate").max = todayStr();
@@ -1262,7 +1263,7 @@
   function closePinModal() { $("#investPinModal").hidden = true; editingPin = null; pinWatch = null; }
   function savePinFromForm() {
     const date = $("#investPinDate").value;
-    if (!isDay(date)) { toast("Pick a date for the pin", true); return; }
+    if (!isDay(date)) { toast(i18n.t("Pick a date for the pin"), true); return; }
     const label = $("#investPinLabel").value;
     if (editingPin) {
       const p = doc.pins.find((x) => x.id === editingPin.id);
@@ -1288,7 +1289,7 @@
     changed();
     closePinModal();
     render({ keepSnapshots: true });
-    toast("Pin removed", false, { label: "Undo", onClick: () => { doc.pins.push(p); changed(p); render({ keepSnapshots: true }); } });
+    toast(i18n.t("Pin removed"), false, { label: i18n.t("Undo"), onClick: () => { doc.pins.push(p); changed(p); render({ keepSnapshots: true }); } });
   }
 
   // ---------- the buy sheet ----------
@@ -1300,12 +1301,12 @@
       b.classList.toggle("active", on);
       b.setAttribute("aria-pressed", String(on));
     }
-    $("#investBuyModalTitle").textContent = (editingBuy ? "Edit " : "Add a ") + (buyKind === "sell" ? "sale" : "buy");
+    $("#investBuyModalTitle").textContent = buyKind === "sell" ? (editingBuy ? i18n.t("Edit sale") : i18n.t("Add a sale")) : (editingBuy ? i18n.t("Edit buy") : i18n.t("Add a buy"));
     buyTotal();
   }
   function buyTotal() {
     const u = cleanUnits($("#investBuyUnits").value), p = cleanPrice($("#investBuyPrice").value);
-    $("#investBuyTotal").textContent = u && p ? (buyKind === "sell" ? "You got " : "You paid ") + usd(u * p) + " in all." : "The close on that day is filled in; change it to what you paid.";
+    $("#investBuyTotal").textContent = u && p ? (buyKind === "sell" ? i18n.t("You got {amount} in all.", { amount: usd(u * p) }) : i18n.t("You paid {amount} in all.", { amount: usd(u * p) })) : i18n.t("The close on that day is filled in; change it to what you paid.");
   }
   function closeOn(day) {
     const all = buyWatch ? pointsOf(buyWatch.symbol) : [];
@@ -1333,15 +1334,15 @@
     const w = buyWatch && findWatch(buyWatch.id);
     if (!w) { closeBuyModal(); return; }
     const date = $("#investBuyDate").value;
-    if (!isDay(date)) { toast("Pick the day of the " + (buyKind === "sell" ? "sale" : "buy"), true); return; }
-    if (!cleanUnits($("#investBuyUnits").value)) { toast("Shares is a number above zero, like 2.5", true); return; }
-    if (!cleanPrice($("#investBuyPrice").value)) { toast("The price is a number above zero, like 550", true); return; }
+    if (!isDay(date)) { toast(buyKind === "sell" ? i18n.t("Pick the day of the sale") : i18n.t("Pick the day of the buy"), true); return; }
+    if (!cleanUnits($("#investBuyUnits").value)) { toast(i18n.t("Shares is a number above zero, like 2.5"), true); return; }
+    if (!cleanPrice($("#investBuyPrice").value)) { toast(i18n.t("The price is a number above zero, like 550"), true); return; }
     const now = new Date().toISOString();
     const fields = { date, units: $("#investBuyUnits").value, price: $("#investBuyPrice").value, sell: buyKind === "sell", note: $("#investBuyNote").value, updatedAt: now };
     const list = (w.buys || []).slice();
     if (buyKind === "sell") {
       const others = list.filter((b) => !editingBuy || b.id !== editingBuy.id);
-      if (!(holdingOf(others.filter((b) => b.date <= date), null).units > 0)) { toast("Nothing held on that day to sell: log the buy first", true); return; }
+      if (!(holdingOf(others.filter((b) => b.date <= date), null).units > 0)) { toast(i18n.t("Nothing held on that day to sell: log the buy first"), true); return; }
     }
     if (editingBuy) {
       const i = list.findIndex((b) => b.id === editingBuy.id);
@@ -1367,8 +1368,8 @@
     changed(w);
     closeBuyModal();
     render({ keepSnapshots: true });
-    toast((gone.sell ? "Sale" : "Buy") + " removed", false, {
-      label: "Undo",
+    toast(gone.sell ? i18n.t("Sale removed") : i18n.t("Buy removed"), false, {
+      label: i18n.t("Undo"),
       onClick: () => { const x = findWatch(w.id); if (!x) return; x.buys = sortBuys([...(x.buys || []), gone]); changed(x); render({ keepSnapshots: true }); },
     });
   }
@@ -1384,8 +1385,8 @@
     const last = all.length ? all[all.length - 1][1] : null;
     if (!w.target || last == null || last > w.target) { A.targetClear(w.id); return; }
     if (!A.targetHit(w, last)) return;
-    toast(w.symbol + " closed at " + usd(last) + ", under your " + usd(w.target) + " target", false,
-      { label: "Show", onClick: () => { select(w.id); if (openInvest) openInvest(); } });
+    toast(i18n.t("{symbol} closed at {price}, under your {target} target", { symbol: w.symbol, price: usd(last), target: usd(w.target) }), false,
+      { label: i18n.t("Show"), onClick: () => { select(w.id); if (openInvest) openInvest(); } });
   }
   // At launch, on coming back to the app and in Android's background run:
   // the tickers with a target, their prices asked for only when stale (six
@@ -1456,7 +1457,7 @@
       if (rows.length < WIDGET_ROWS) rows.push({
         id: w.id,
         symbol: w.symbol,
-        sub: hidden ? (held ? "Holding" : (w.name || "")) : held ? unitsText(hd.units) + (hd.value != null ? " · " + usd(hd.value) : "") : (w.name || ""),
+        sub: hidden ? (held ? i18n.t("Holding") : (w.name || "")) : held ? unitsText(hd.units) + (hd.value != null ? " · " + usd(hd.value) : "") : (w.name || ""),
         price: hidden ? "•••" : last ? usd(last[1]) : "—",
         day: hidden || dayCh == null ? "" : pct(dayCh),
         up: dayCh == null || dayCh >= 0,
@@ -1472,11 +1473,11 @@
       gain: hidden ? "" : signedUsd(gain) + (cost ? " (" + pct(gain / cost) + ")" : ""),
       gainPct: hidden || !cost ? "" : pct(gain / cost),
       up: gain >= 0,
-      today: hidden ? "" : signedUsd(today) + " today",
-      todayPct: hidden || !base ? "" : pct(today / base) + " today",
+      today: hidden ? "" : i18n.t("{amount} today", { amount: signedUsd(today) }),
+      todayPct: hidden || !base ? "" : i18n.t("{amount} today", { amount: pct(today / base) }),
       todayUp: today >= 0,
     } : null;
-    return { day: lastDay, closed: lastDay ? "Closed " + Dates().day(lastDay, { weekday: true, year: "auto" }) : "", hold, rows };
+    return { day: lastDay, closed: lastDay ? i18n.t("Closed {date}", { date: Dates().day(lastDay, { weekday: true, year: "auto" }) }) : "", hold, rows };
   }
   // The snapshot's `invest`, from what's loaded, else what was worked out
   // last time (the watchlist and prices load after the first push).

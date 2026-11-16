@@ -9,6 +9,7 @@
 // init(ctx), and everything app.js/settings.js still call directly is
 // exposed on window.LifeLogSync.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Local-only (per-device) — when this device last ran each quiet
   // background check, so the cadence in Settings isn't re-evaluated on
   // every app open. Deliberately not synced: each device paces its own
@@ -143,8 +144,8 @@
       if (current == null) continue;
       if (current > b.priceAlert) { A.priceClear(b.id); continue; }
       if (!A.priceHit(b, current)) continue;
-      toast(b.title + " is $" + current.toFixed(2) + ", under your $" + Number(b.priceAlert).toFixed(2), false,
-        { label: "Show", onClick: () => window.LifeLogBacklog && window.LifeLogBacklog.openBacklogModal(b) });
+      toast(i18n.t("{title} is {price}, under your {alert}", { title: b.title, price: "$" + current.toFixed(2), alert: "$" + Number(b.priceAlert).toFixed(2) }), false,
+        { label: i18n.t("Show"), onClick: () => window.LifeLogBacklog && window.LifeLogBacklog.openBacklogModal(b) });
     }
   }
 
@@ -266,7 +267,7 @@
     gameTimesRunning = true;
     let updated = 0, answered = 0, failedInARow = 0, lastError = null;
     try {
-      await window.LifeLogJobs.run({ label: "Game times from How Long to Beat", lane: "media" }, async (job) => {
+      await window.LifeLogJobs.run({ label: i18n.t("Game times from How Long to Beat"), lane: "media" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
           job.progress(i, targets.length, targets[i].title);
           let info;
@@ -291,9 +292,9 @@
         }
         if (updated) { afterDataChange(); await persist(); render(); }
         // Said in Activity, with what went wrong, rather than a quiet
-        // "Nothing new" that looks like it worked.
-        if (!answered && lastError) throw new Error("Couldn't reach Augmented Steam: " + (lastError.message || lastError));
-        job.finish(updated ? `Times for ${updated} game${updated === 1 ? "" : "s"}` : "Nothing new");
+        // i18n.t("Nothing new") that looks like it worked.
+        if (!answered && lastError) throw new Error(i18n.t("Couldn't reach Augmented Steam: {error}", { error: lastError.message || lastError }));
+        job.finish(updated ? i18n.tn(updated, "Times for {n} game", "Times for {n} games") : i18n.t("Nothing new"));
       });
     } catch (e) {
       // quiet — unattended background work
@@ -340,9 +341,9 @@
       // current price still above it shows what the low actually was.
       let text = "$" + current.toFixed(2);
       if (low != null) {
-        text += current <= low + 0.01 ? " (all-time low)" : ` (low $${low.toFixed(2)})`;
+        text += " " + (current <= low + 0.01 ? i18n.t("(all-time low)") : i18n.t("(low {price})", { price: "$" + low.toFixed(2) }));
       }
-      if (b.priceAlert > 0 && current <= b.priceAlert) text += " · under your $" + Number(b.priceAlert).toFixed(2);
+      if (b.priceAlert > 0 && current <= b.priceAlert) text += " · " + i18n.t("under your {price}", { price: "$" + Number(b.priceAlert).toFixed(2) });
       document.querySelectorAll(`.bl-price[data-appid="${b.mediaId}"]`).forEach((elm) => {
         elm.textContent = (elm.dataset.sep ? " · " : "") + text;
       });
@@ -465,23 +466,23 @@
     const ctx = plan.ctx;
     const btn = $("#" + source.id);
     const label = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy(source.lane) ? "Waiting…" : "Syncing…"; }
+    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy(source.lane) ? i18n.t("Waiting…") : i18n.t("Syncing…"); }
     try {
-      await window.LifeLogJobs.run({ label: "Syncing " + source.label, lane: source.lane, again: source.id }, async (job) => {
-        if (btn) btn.textContent = "Syncing…";
+      await window.LifeLogJobs.run({ label: i18n.t("Syncing {name}", { name: source.label }), lane: source.lane, again: source.id }, async (job) => {
+        if (btn) btn.textContent = i18n.t("Syncing…");
         const report = (done, total, detail) => {
           job.progress(done, total, detail);
-          if (btn) btn.textContent = total ? `Fetching… ${done}/${total}` : "Syncing…";
+          if (btn) btn.textContent = total ? i18n.t("Fetching… {done}/{total}", { done, total }) : i18n.t("Syncing…");
         };
         let raw;
         try { raw = await source.fetch(ctx, report, job); }
         catch (e) {
-          const msg = source.label + " failed (" + ((e && e.message) || "network error") + ")";
+          const msg = i18n.t("{name} failed ({why})", { name: source.label, why: (e && e.message) || i18n.t("network error") });
           if (!job.stopping) toast(msg, true);
           throw new Error(msg);
         }
-        if (raw === null) { job.fail(source.label + " couldn't be reached"); return; } // fetch() has already said why
-        if (job.stopping && !raw.length) { job.finish("Stopped before anything was fetched"); return; }
+        if (raw === null) { job.fail(i18n.t("{name} couldn't be reached", { name: source.label })); return; } // fetch() has already said why
+        if (job.stopping && !raw.length) { job.finish(i18n.t("Stopped before anything was fetched")); return; }
         if (!raw.length) { const m = source.empty(ctx); toast(m); job.finish(m); return; }
         // A source makes backlog items unless it says "entry" (the Steam
         // backfill, 0.253.0: things you have played are things you did).
@@ -493,7 +494,7 @@
           const mapped = raw.map((r) => source.toItem(r, ctx));
           return buildImportItems(kind === "entry" ? { entries: mapped, categories: [] } : { backlog: mapped, categories: [] });
         })();
-        if (!built.items.length) { const m = kind === "entry" ? "Nothing new — every game is already logged" : "Nothing new — everything is already in your backlog"; toast(m); job.finish(m); return; }
+        if (!built.items.length) { const m = kind === "entry" ? i18n.t("Nothing new — every game is already logged") : i18n.t("Nothing new — everything is already in your backlog"); toast(m); job.finish(m); return; }
         // Which new rows start ticked: the review's default is every new
         // one, and a source with a lot of noise in it says otherwise.
         if (source.ticked) for (const it of built.items) if (!it.dup) it.checked = source.ticked(it.entry);
@@ -502,7 +503,7 @@
         const skipKey = (it) => (it.entry.mediaSource || "") + ":" + (it.entry.mediaId || "");
         const skips = new Set(((state.data.settings.importSkips || {})[source.skipKey] || []));
         for (const it of built.items) if (!it.dup && it.entry.mediaId && skips.has(skipKey(it))) { it.skipped = true; it.checked = false; }
-        job.finish(job.stopping ? `Stopped — ${raw.length} fetched, sent to review` : `${built.items.length} to review`);
+        job.finish(job.stopping ? i18n.t("Stopped — {n} fetched, sent to review", { n: raw.length }) : i18n.t("{n} to review", { n: built.items.length }));
         const rememberSkips = async (selected) => {
           if (!source.skipKey) return;
           const chosen = new Set(selected);
@@ -536,27 +537,27 @@
   // ---------- Steam wishlist ----------
   const steamWishlistSource = {
     id: "steamWishlistSyncBtn",
-    label: "Steam Wishlist",
+    label: i18n.t("Steam Wishlist"),
     lane: "steam",
     connection: "steam",
     skipKey: "steamWishlist",
-    hint: "Review which wishlisted games to add. Anything already in your backlog is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
+    hint: i18n.t("Review which wishlisted games to add. Anything already in your backlog is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked."),
     plan() {
       const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
       const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
       const steamId = (cfg.steamId || "").trim();
       const category = cfg.wishlistCategory || "";
-      if (!proxyUrl || !steamId) return { error: "Set your proxy URL and SteamID64 first" };
-      if (!category) return { error: "Choose a category to import into first" };
+      if (!proxyUrl || !steamId) return { error: i18n.t("Set your proxy URL and SteamID64 first") };
+      if (!category) return { error: i18n.t("Choose a category to import into first") };
       return { ctx: { proxyUrl, steamId, category } };
     },
     async fetch(ctx, report, job) {
       // window.fetch spelled out: this method is itself called `fetch`, and
       // although shorthand doesn't bind the name, reading it here shouldn't
       // require knowing that.
-      report(0, 0, "Reading your wishlist…");
+      report(0, 0, i18n.t("Reading your wishlist…"));
       const res = await window.fetch(`${ctx.proxyUrl}/steam-wishlist/${encodeURIComponent(ctx.steamId)}`, { signal: job.signal });
-      if (!res.ok) { toast(`Couldn't read your Steam wishlist (Steam answered ${res.status}) — check it's public and try again`, true); return null; }
+      if (!res.ok) { toast(i18n.t("Couldn't read your Steam wishlist (Steam answered {status}) — check it's public and try again", { status: res.status }), true); return null; }
       const data = await res.json();
       const items = (data && data.response && data.response.items) || [];
       ctx.wishlistCount = items.length;
@@ -580,7 +581,7 @@
       });
       const out = [];
       for (let i = 0; i < fresh.length && !job.stopping; i++) {
-        report(i, fresh.length, "Looking up app " + fresh[i].appid);
+        report(i, fresh.length, i18n.t("Looking up app {id}", { id: fresh[i].appid }));
         const appid = fresh[i].appid;
         const info = await fetchSteamAppInfo(ctx.proxyUrl, appid);
         const name = info && info.name;
@@ -614,8 +615,8 @@
     // backlog with nothing left to fill. Telling the second one to check its
     // privacy settings sends you looking for a problem you don't have.
     empty: (ctx) => (ctx.wishlistCount
-      ? "Nothing new — every wishlisted game is already in your backlog, with nothing left to fill in"
-      : "Wishlist came back empty — check it's set to Public in your Steam privacy settings"),
+      ? i18n.t("Nothing new — every wishlisted game is already in your backlog, with nothing left to fill in")
+      : i18n.t("Wishlist came back empty — check it's set to Public in your Steam privacy settings")),
   };
 
   // ---------- Steam: the games you've played (0.253.0) ----------
@@ -644,26 +645,26 @@
   }
   const steamOwnedSource = {
     id: "steamOwnedSyncBtn",
-    label: "Steam games played",
+    label: i18n.t("Steam games played"),
     lane: "steam",
     skipKey: "steamOwned",
     kind: "entry",
-    hint: "Every game with time in it, as an entry in the month you last played it, hours as its length. Two hours or more starts ticked; the rest you can tick. Games already in your Timeline or Backlog are hidden.",
+    hint: i18n.t("Every game with time in it, as an entry in the month you last played it, hours as its length. Two hours or more starts ticked; the rest you can tick. Games already in your Timeline or Backlog are hidden."),
     plan() {
       const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
       const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
       const steamId = (cfg.steamId || "").trim();
       const apiKey = (cfg.apiKey || "").trim();
       const category = cfg.wishlistCategory || "";
-      if (!proxyUrl || !steamId) return { error: "Set your proxy URL and SteamID64 first" };
-      if (!apiKey) return { error: "Paste your Steam Web API key first — Steam only lists owned games with one" };
-      if (!category) return { error: "Choose a category to import into first" };
+      if (!proxyUrl || !steamId) return { error: i18n.t("Set your proxy URL and SteamID64 first") };
+      if (!apiKey) return { error: i18n.t("Paste your Steam Web API key first — Steam only lists owned games with one") };
+      if (!category) return { error: i18n.t("Choose a category to import into first") };
       return { ctx: { proxyUrl, steamId, apiKey, category } };
     },
     async fetch(ctx, report, job) {
-      report(0, 0, "Reading your games…");
+      report(0, 0, i18n.t("Reading your games…"));
       const res = await window.fetch(`${ctx.proxyUrl}/steam-owned/${encodeURIComponent(ctx.steamId)}?key=${encodeURIComponent(ctx.apiKey)}`, { signal: job.signal });
-      if (!res.ok) { toast(`Couldn't read your Steam games (Steam answered ${res.status}) — check the key, and that Game details are public`, true); return null; }
+      if (!res.ok) { toast(i18n.t("Couldn't read your Steam games (Steam answered {status}) — check the key, and that Game details are public", { status: res.status }), true); return null; }
       const data = await res.json();
       const games = (data && data.response && data.response.games) || [];
       ctx.ownedCount = games.length;
@@ -674,10 +675,10 @@
     ticked: (entry) => parseFloat(entry.length) * 60 >= PLAYED_TICK_MINUTES,
     // The review's "Played at least N hrs" line: what's under it is hidden
     // and unticked, so the one-minute demos never need unticking by hand.
-    picker: () => ({ threshold: { label: "Played at least", unit: "hrs", value: 1, step: 0.5, sortLabel: "Most played", of: (item) => parseFloat(item.entry.length) || 0 } }),
+    picker: () => ({ threshold: { label: i18n.t("Played at least"), unit: "hrs", value: 1, step: 0.5, sortLabel: i18n.t("Most played"), of: (item) => parseFloat(item.entry.length) || 0 } }),
     empty: (ctx) => (ctx.ownedCount
-      ? "Nothing new — every game you've played is already logged"
-      : "Steam listed no games — check the key, and that Game details are Public in your privacy settings"),
+      ? i18n.t("Nothing new — every game you've played is already logged")
+      : i18n.t("Steam listed no games — check the key, and that Game details are Public in your privacy settings")),
   };
   const syncSteamOwned = () => runImport(steamOwnedSource);
 
@@ -708,7 +709,7 @@
     const out = [];
     for (let i = 0; i < pulls.length && !job.stopping; i++) {
       const [type, category] = pulls[i];
-      if (report) report(i, pulls.length, type === "ANIME" ? "Reading your anime lists…" : "Reading your manga lists…");
+      if (report) report(i, pulls.length, type === "ANIME" ? i18n.t("Reading your anime lists…") : i18n.t("Reading your manga lists…"));
       // null is a hard failure (network, private list, unknown user), kept
       // distinct from an empty-but-reachable list.
       const media = await window.LifeLogMedia.fetchAniListLists(ctx.userName, type, ctx.token);
@@ -827,13 +828,13 @@
       const target = inBacklog.get(key);
       if (!target || target.startedAt || target.dropped) continue;
       if (it.update && (it.targetKind !== "backlog" || it.targetId !== target.id)) continue;
-      const fills = (it.update ? it.fills : []).concat({ key: "startedAt", label: "started" });
+      const fills = (it.update ? it.fills : []).concat({ key: "startedAt", label: i18n.t("started") });
       Object.assign(it, { update: true, targetId: target.id, targetKind: "backlog", fills, checked: true });
     }
     // Dropping one you have is its own row: the item as it is, plus dropped.
     for (const b of drops.values()) {
       built.items.push({ kind: "backlog", entry: { ...b, dropped: true }, dup: true, update: true, targetId: b.id, targetKind: "backlog",
-        fills: [{ key: "dropped", label: "dropped" }], checked: true });
+        fills: [{ key: "dropped", label: i18n.t("dropped") }], checked: true });
     }
     return built;
   }
@@ -864,16 +865,16 @@
   async function retryUnresolvedSteamTitles() {
     const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
     const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
-    if (!proxyUrl) { toast("Set your proxy URL first", true); return; }
+    if (!proxyUrl) { toast(i18n.t("Set your proxy URL first"), true); return; }
     const targets = unresolvedSteamBacklogItems();
-    if (!targets.length) { toast("Nothing unresolved to retry"); return; }
+    if (!targets.length) { toast(i18n.t("Nothing unresolved to retry")); return; }
     const btn = $("#steamRetryUnresolvedBtn");
-    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("steam") ? "Waiting…" : "Retrying…"; }
+    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("steam") ? i18n.t("Waiting…") : i18n.t("Retrying…"); }
     let resolved = 0, tried = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Retrying unresolved Steam titles", lane: "steam", again: "steamRetry" }, async (job) => {
+      await window.LifeLogJobs.run({ label: i18n.t("Retrying unresolved Steam titles"), lane: "steam", again: "steamRetry" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
-          if (btn) btn.textContent = `Retrying… ${i + 1}/${targets.length}`;
+          if (btn) btn.textContent = i18n.t("Retrying… {done}/{total}", { done: i + 1, total: targets.length });
           job.progress(i, targets.length, targets[i].title);
           const info = await fetchSteamAppInfo(proxyUrl, targets[i].mediaId);
           tried++;
@@ -892,13 +893,13 @@
         afterDataChange();
         await persist();
         const msg = job.stopping
-          ? `Stopped after ${tried} of ${targets.length} — resolved ${resolved}`
-          : `Resolved ${resolved} of ${targets.length} title${targets.length === 1 ? "" : "s"}`;
+          ? i18n.t("Stopped after {tried} of {total} — resolved {n}", { tried, total: targets.length, n: resolved })
+          : i18n.tn(targets.length, "Resolved {done} of {n} title", "Resolved {done} of {n} titles", { done: resolved });
         toast(msg);
         job.finish(msg);
       });
     } catch (e) {
-      toast("Retrying the Steam titles stopped partway (" + ((e && e.message) || "network error") + ") — what it resolved is kept", true);
+      toast(i18n.t("Retrying the Steam titles stopped partway ({why}) — what it resolved is kept", { why: (e && e.message) || i18n.t("network error") }), true);
       if (resolved) { afterDataChange(); persist(); }
     } finally {
       // Recomputes text/visibility from the actual current count, whether
@@ -917,7 +918,7 @@
     const count = unresolvedSteamBacklogItems().length;
     btn.hidden = !count;
     hint.hidden = !count;
-    if (count) window.LifeLogIcons.setLabel(btn, "repeat", `Retry unresolved Steam titles (${count})`);
+    if (count) window.LifeLogIcons.setLabel(btn, "repeat", i18n.t("Retry unresolved Steam titles ({n})", { n: count }));
   }
 
   // Steam-sourced backlog items with a real title but none of RAWG's
@@ -948,16 +949,16 @@
   async function backfillRawgForSteamGames() {
     const rawgKey = state.data.settings.mediaKeys?.rawg;
     const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
-    if (!rawgKey && !proxyUrl) { toast("Set a RAWG API key or your proxy URL first (Settings → Media lookups)", true); return; }
+    if (!rawgKey && !proxyUrl) { toast(i18n.t("Set a RAWG API key or your proxy URL first (Settings → Media lookups)"), true); return; }
     const targets = steamGamesNeedingInfo();
-    if (!targets.length) { toast("Nothing to backfill"); return; }
+    if (!targets.length) { toast(i18n.t("Nothing to backfill")); return; }
     const btn = $("#steamBackfillRawgBtn");
-    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("steam") ? "Waiting…" : "Backfilling…"; }
+    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("steam") ? i18n.t("Waiting…") : i18n.t("Backfilling…"); }
     let filled = 0, tried = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Filling in missing game info", lane: "steam", again: "steamBackfill" }, async (job) => {
+      await window.LifeLogJobs.run({ label: i18n.t("Filling in missing game info"), lane: "steam", again: "steamBackfill" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
-          if (btn) btn.textContent = `Backfilling… ${i + 1}/${targets.length}`;
+          if (btn) btn.textContent = i18n.t("Backfilling… {done}/{total}", { done: i + 1, total: targets.length });
           job.progress(i, targets.length, targets[i].title);
           tried++;
           let touched = false;
@@ -984,13 +985,13 @@
         afterDataChange();
         await persist();
         const msg = job.stopping
-          ? `Stopped after ${tried} of ${targets.length} — filled in ${filled}`
-          : `Filled in info for ${filled} of ${targets.length} game${targets.length === 1 ? "" : "s"}`;
+          ? i18n.t("Stopped after {tried} of {total} — filled in {n}", { tried, total: targets.length, n: filled })
+          : i18n.tn(targets.length, "Filled in info for {done} of {n} game", "Filled in info for {done} of {n} games", { done: filled });
         toast(msg);
         job.finish(msg);
       });
     } catch (e) {
-      toast("Filling in game info stopped partway (" + ((e && e.message) || "network error") + ") — what it found is kept", true);
+      toast(i18n.t("Filling in game info stopped partway ({why}) — what it found is kept", { why: (e && e.message) || i18n.t("network error") }), true);
       if (filled) { afterDataChange(); persist(); }
     } finally {
       if (btn) btn.disabled = false;
@@ -1005,7 +1006,7 @@
     const count = steamGamesNeedingInfo().length;
     btn.hidden = !count;
     hint.hidden = !count;
-    if (count) window.LifeLogIcons.setLabel(btn, "gamepad-2", `Backfill missing game info (${count})`);
+    if (count) window.LifeLogIcons.setLabel(btn, "gamepad-2", i18n.t("Backfill missing game info ({n})", { n: count }));
   }
 
   // A quiet periodic check, paced by Settings → Connections → "Check
@@ -1028,9 +1029,9 @@
     const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
     if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
     try {
-      await window.LifeLogJobs.run({ label: "Checking your Steam wishlist", lane: "steam" }, async (job) => {
+      await window.LifeLogJobs.run({ label: i18n.t("Checking your Steam wishlist"), lane: "steam" }, async (job) => {
         const res = await fetch(`${proxyUrl}/steam-wishlist/${encodeURIComponent(steamId)}`, { signal: job.signal });
-        if (!res.ok) throw new Error(`Steam answered ${res.status}`);
+        if (!res.ok) throw new Error(i18n.t("Steam answered {status}", { status: res.status }));
         const data = await res.json();
         const items = (data && data.response && data.response.items) || [];
         const existingSteamIds = new Set(
@@ -1040,9 +1041,9 @@
         );
         const newCount = items.filter((it) => !existingSteamIds.has(String(it.appid))).length;
         if (newCount > 0) {
-          toast(`${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Connections to sync`);
+          toast(i18n.tn(newCount, "{n} new Steam wishlist game — Settings → Connections to sync", "{n} new Steam wishlist games — Settings → Connections to sync"));
         }
-        job.finish(newCount ? `${newCount} new on your wishlist` : "Nothing new on your wishlist");
+        job.finish(newCount ? i18n.t("{n} new on your wishlist", { n: newCount }) : i18n.t("Nothing new on your wishlist"));
       });
     } catch (e) {
       // quiet — this is an unattended background check, not a user action
@@ -1191,16 +1192,16 @@
 
   async function refreshUpcomingReleases() {
     const targets = backlogAwaitingRelease();
-    if (!targets.length) { toast("Nothing in your backlog is waiting on a release"); return; }
+    if (!targets.length) { toast(i18n.t("Nothing in your backlog is waiting on a release")); return; }
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     const btn = $("#refreshReleasesBtn");
-    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("media") ? "Waiting…" : "Checking…"; }
+    if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("media") ? i18n.t("Waiting…") : i18n.t("Checking…"); }
     let updated = 0, checked = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Re-checking release dates", lane: "media", again: "releases" }, async (job) => {
+      await window.LifeLogJobs.run({ label: i18n.t("Re-checking release dates"), lane: "media", again: "releases" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
-          if (btn) btn.textContent = `Checking… ${i + 1}/${targets.length}`;
+          if (btn) btn.textContent = i18n.t("Checking… {done}/{total}", { done: i + 1, total: targets.length });
           job.progress(i, targets.length, targets[i].title);
           const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
           markAsked([targets[i]]);
@@ -1213,21 +1214,21 @@
         }
         if (updated) { afterDataChange(); await persist(); }
         if (!job.stopping) markReleasesChecked();
-        const stopped = job.stopping ? ` — stopped after ${job.done} of ${targets.length}` : "";
+        const stopped = job.stopping ? " — " + i18n.t("stopped after {done} of {total}", { done: job.done, total: targets.length }) : "";
         if (!checked && !job.stopping) {
-          const m = "None of these sources can be re-checked — they have no lookup by id";
+          const m = i18n.t("None of these sources can be re-checked — they have no lookup by id");
           toast(m, true);
           job.fail(m);
           return;
         }
         const msg = (updated
-          ? `Updated ${updated} release date${updated === 1 ? "" : "s"} of ${checked} checked`
-          : `Checked ${checked} — nothing has changed`) + stopped;
+          ? i18n.tn(updated, "Updated {n} release date of {checked} checked", "Updated {n} release dates of {checked} checked", { checked })
+          : i18n.t("Checked {n} — nothing has changed", { n: checked })) + stopped;
         toast(msg);
         job.finish(msg);
       });
     } catch (e) {
-      toast("Re-checking release dates stopped partway (" + ((e && e.message) || "network error") + ") — what it updated is kept", true);
+      toast(i18n.t("Re-checking release dates stopped partway ({why}) — what it updated is kept", { why: (e && e.message) || i18n.t("network error") }), true);
       if (updated) { afterDataChange(); persist(); }
     } finally {
       if (btn) btn.disabled = false;
@@ -1240,7 +1241,7 @@
     if (!btn) return;
     const count = backlogAwaitingRelease().length;
     btn.disabled = !count;
-    window.LifeLogIcons.setLabel(btn, "telescope", count ? `Re-check release dates (${count})` : "Re-check release dates");
+    window.LifeLogIcons.setLabel(btn, "telescope", count ? i18n.t("Re-check release dates ({n})", { n: count }) : i18n.t("Re-check release dates"));
   }
 
   function markReleasesChecked() {
@@ -1271,7 +1272,7 @@
     const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     let updated = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Re-checking release dates", lane: "media" }, async (job) => {
+      await window.LifeLogJobs.run({ label: i18n.t("Re-checking release dates"), lane: "media" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
           job.progress(i, targets.length, targets[i].title);
           const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
@@ -1281,7 +1282,7 @@
           if (i < targets.length - 1) await job.sleep(300);
         }
         if (updated) { afterDataChange(); await persist(); render(); }
-        job.finish(updated ? `Updated ${updated} release date${updated === 1 ? "" : "s"}` : "Nothing has changed");
+        job.finish(updated ? i18n.tn(updated, "Updated {n} release date", "Updated {n} release dates") : i18n.t("Nothing has changed"));
       });
     } catch (e) {
       // quiet — unattended background work, not a user action
@@ -1477,7 +1478,7 @@
     for (const b of undo.removed) if (!d.backlog.some((x) => x.id === b.id)) d.backlog.push(b);
     afterDataChange();
     await persist();
-    toast("AniList changes undone here — the next sync sends that to AniList");
+    toast(i18n.t("AniList changes undone here — the next sync sends that to AniList"));
   }
 
   // What to send AniList for a title you have: its status with the dates
@@ -1522,7 +1523,7 @@
   // unless something changed here.
   let aniListRun = null, aniListAgain = false;
   function syncAniList(opts = {}) {
-    if (aniListRun) { aniListAgain = aniListAgain || !opts.manual; if (opts.manual) toast("AniList is already syncing"); return aniListRun; }
+    if (aniListRun) { aniListAgain = aniListAgain || !opts.manual; if (opts.manual) toast(i18n.t("AniList is already syncing")); return aniListRun; }
     aniListRun = runAniListSync(opts).finally(() => {
       aniListRun = null;
       if (aniListAgain) { aniListAgain = false; syncAniList({ nudge: true }); }
@@ -1533,26 +1534,26 @@
     const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
     const userName = (cfg.userName || "").trim();
     const say = (msg) => { if (manual) toast(msg, true); };
-    if (!userName) return say("Enter your AniList username first");
-    if (!anilistPulls(cfg).length) return say("Pick a category for anime and/or manga first");
-    if (!window.LifeLogMedia) return say("Media lookups aren't available");
+    if (!userName) return say(i18n.t("Enter your AniList username first"));
+    if (!anilistPulls(cfg).length) return say(i18n.t("Pick a category for anime and/or manga first"));
+    if (!window.LifeLogMedia) return say(i18n.t("Media lookups aren't available"));
     // What GitHub has first: a title finished on another device is already
     // here, not finished a second time from AniList.
     if (whenSynced) await whenSynced();
     const token = (cfg.token || "").trim();
     const btn = manual ? $("#anilistSyncBtn") : null;
     const label = btn ? [...btn.childNodes].map((n) => n.cloneNode(true)) : null;
-    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    if (btn) { btn.disabled = true; btn.textContent = i18n.t("Syncing…"); }
     try {
-      await window.LifeLogJobs.run({ label: manual ? "Syncing AniList" : "Checking your AniList lists", lane: "anilist", again: "anilistSyncBtn" }, async (job) => {
+      await window.LifeLogJobs.run({ label: manual ? i18n.t("Syncing AniList") : i18n.t("Checking your AniList lists"), lane: "anilist", again: "anilistSyncBtn" }, async (job) => {
         const raw = await fetchAniList({ userName, animeCategory: cfg.animeCategory, mangaCategory: cfg.mangaCategory, token }, manual ? (a, b, c) => job.progress(a, b, c) : null, job);
         if (raw === null) {
           const err = window.LifeLogMedia.getLastError();
-          say(err ? "AniList sync failed — " + err : "AniList sync failed");
-          job.fail("AniList couldn't be reached");
+          say(err ? i18n.t("AniList sync failed — {why}", { why: err }) : i18n.t("AniList sync failed"));
+          job.fail(i18n.t("AniList couldn't be reached"));
           return;
         }
-        if (job.stopping) { job.finish("Stopped"); return; }
+        if (job.stopping) { job.finish(i18n.t("Stopped")); return; }
         const base = readAniListBase();
         const skips = new Set(((state.data.settings.importSkips || {}).anilist) || []);
         const plan = planAniList(raw, state.data, base, skips);
@@ -1604,32 +1605,32 @@
         writeAniListBase(base);
         if (failed && token) {
           const err = window.LifeLogMedia.getLastError();
-          toast("Couldn't update AniList" + (err ? " — " + err : "") + ". It's tried again next sync.", true);
+          toast(err ? i18n.t("Couldn't update AniList — {why}. It's tried again next sync.", { why: err }) : i18n.t("Couldn't update AniList. It's tried again next sync."), true);
         }
         const c = result.counts;
         const parts = [];
-        if (c.added) parts.push(c.added + " new");
-        if (c.started) parts.push(c.started + " started");
-        if (c.finished) parts.push(c.finished + " finished");
-        if (c.dropped) parts.push(c.dropped + " dropped");
-        if (c.back) parts.push(c.back + " back to the backlog");
-        if (c.progress) parts.push(c.progress + (c.progress === 1 ? " episode count" : " episode counts"));
+        if (c.added) parts.push(i18n.t("{n} new", { n: c.added }));
+        if (c.started) parts.push(i18n.t("{n} started", { n: c.started }));
+        if (c.finished) parts.push(i18n.t("{n} finished", { n: c.finished }));
+        if (c.dropped) parts.push(i18n.t("{n} dropped", { n: c.dropped }));
+        if (c.back) parts.push(i18n.t("{n} back to the backlog", { n: c.back }));
+        if (c.progress) parts.push(i18n.tn(c.progress, "{n} episode count", "{n} episode counts"));
         if (result.changed) {
           afterDataChange();
           await persist();
-          toast("AniList: " + parts.join(", "), false, { label: "Undo", onClick: () => undoAniListPlan(result.undo) });
+          toast(i18n.t("AniList: {what}", { what: parts.join(", ") }), false, { label: i18n.t("Undo"), onClick: () => undoAniListPlan(result.undo) });
         } else if (manual) {
-          toast(sent ? `AniList is up to date — sent ${sent} change${sent === 1 ? "" : "s"}` : waiting ? "Up to date here — sign in to AniList to send your changes" : "Your AniList lists are up to date");
+          toast(sent ? i18n.tn(sent, "AniList is up to date — sent {n} change", "AniList is up to date — sent {n} changes") : waiting ? i18n.t("Up to date here — sign in to AniList to send your changes") : i18n.t("Your AniList lists are up to date"));
         }
         if (leftovers.length) {
-          const hint = mode === "ask" ? "New on your AniList lists. Completed titles AniList has no dates for are unticked and go under this month. What you leave unticked stays out next time."
-            : "Completed titles AniList has no dates for. Tick the ones to log; they go under this month.";
+          const hint = mode === "ask" ? i18n.t("New on your AniList lists. Completed titles AniList has no dates for are unticked and go under this month. What you leave unticked stays out next time.")
+            : i18n.t("Completed titles AniList has no dates for. Tick the ones to log; they go under this month.");
           const review = () => reviewAndImport("AniList", hint, { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected));
           if (manual) review();
-          else if (mode === "ask") toast(`AniList: ${leftovers.length} new to review`, false, { label: "Review", onClick: review });
-          else if (!result.changed) toast(`${leftovers.length} AniList title${leftovers.length === 1 ? "" : "s"} without dates to review`, false, { label: "Review", onClick: review });
+          else if (mode === "ask") toast(i18n.t("AniList: {n} new to review", { n: leftovers.length }), false, { label: i18n.t("Review"), onClick: review });
+          else if (!result.changed) toast(i18n.tn(leftovers.length, "{n} AniList title without dates to review", "{n} AniList titles without dates to review"), false, { label: i18n.t("Review"), onClick: review });
         }
-        job.finish([parts.join(", "), sent && `sent ${sent}`, leftovers.length && `${leftovers.length} to review`].filter(Boolean).join(" · ") || "Up to date");
+        job.finish([parts.join(", "), sent && i18n.t("sent {n}", { n: sent }), leftovers.length && i18n.t("{n} to review", { n: leftovers.length })].filter(Boolean).join(" · ") || i18n.t("Up to date"));
       });
     } catch (e) {
       // Already said, and kept in Activity.

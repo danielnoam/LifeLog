@@ -559,7 +559,7 @@
       const row = el("div", "sitem drive-row");
       const text = row.appendChild(el("span", "sitem-text"));
       text.appendChild(el("span", "sitem-title", window.LifeLogDates.dateTime(f.at)));
-      text.appendChild(el("span", "sitem-sub", [mb(f.size), f.from && "from " + f.from].filter(Boolean).join(" · ")));
+      text.appendChild(el("span", "sitem-sub", [mb(f.size), f.from && i18n.t("from {where}", { where: f.from })].filter(Boolean).join(" · ")));
       const btns = row.appendChild(el("span", "sitem-btns"));
       const restore = btns.appendChild(el("button", "btn btn-small", i18n.t("Restore")));
       restore.type = "button";
