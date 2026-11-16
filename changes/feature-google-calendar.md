@@ -1,0 +1,2 @@
+### Added
+- Google Calendar in Settings → Connections, read only: your events show on the Timeline's calendar (the time and title on a computer, a bar under the day on a phone, the picked day's list beside or under it). Tap one to add it to the Timeline, as a task or as a note, each opening its sheet filled in, or to open it in Google Calendar. Pick which calendars show. The events stay on the device and aren't synced; in a browser, Sync now fetches again after the hour's sign-in runs out.

@@ -14,16 +14,21 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest;
 import com.google.android.gms.auth.api.identity.AuthorizationResult;
 import com.google.android.gms.auth.api.identity.Identity;
 import com.google.android.gms.common.api.Scope;
+import com.getcapacitor.JSArray;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 /**
- * Google Drive backups (src/drive.js), drive.file scope only: LifeLog sees
+ * Google Drive backups (src/drive.js), drive.file scope: LifeLog sees
  * the files it made and nothing else. Google matches the app by its package
  * name and signing key, so there is no client ID or secret here. The
  * transfers themselves are the page's own fetch; this only gets the token.
  *
- *   authorize({ ask })    { token }; with ask false it never shows a screen
- *                         and rejects "consent" when one would be needed
+ *   authorize({ ask, scopes })  { token }; with ask false it never shows a
+ *                         screen and rejects "consent" when one would be
+ *                         needed. `scopes` asks for those instead of Drive's
+ *                         (Google Calendar, src/gcal.js, read only)
  *   clearToken({ token }) drops Play Services' cached copy of a token Google
  *                         turned down, so the next authorize asks again
  *
@@ -59,8 +64,17 @@ public class DrivePlugin extends Plugin {
     @PluginMethod
     public void authorize(PluginCall call) {
         boolean ask = call.getBoolean("ask", false);
+        List<Scope> scopes = new ArrayList<>();
+        JSArray asked = call.getArray("scopes");
+        if (asked != null) {
+            for (int i = 0; i < asked.length(); i++) {
+                String s = asked.optString(i, "");
+                if (s.startsWith("https://www.googleapis.com/auth/")) scopes.add(new Scope(s));
+            }
+        }
+        if (scopes.isEmpty()) scopes = Collections.singletonList(new Scope(SCOPE));
         AuthorizationRequest req = AuthorizationRequest.builder()
-            .setRequestedScopes(Collections.singletonList(new Scope(SCOPE)))
+            .setRequestedScopes(scopes)
             .build();
         Identity.getAuthorizationClient(getActivity()).authorize(req)
             .addOnSuccessListener((r) -> {

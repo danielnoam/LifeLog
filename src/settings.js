@@ -684,6 +684,78 @@
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(maybeAutoBackup, 5000); });
   }
 
+  // ---------- Google Calendar (src/gcal.js) ----------
+  // Its screen under Connections: connect, Sync now, which calendars show,
+  // disconnect. The events themselves are drawn by the Timeline's calendar.
+  const Gcal = () => window.LifeLogGcal;
+  function renderGcal() {
+    const G = Gcal();
+    if (!G) return;
+    const on = G.on;
+    $("#gcalHintNone").hidden = G.available || on;
+    $("#gcalConnectBtn").hidden = on || !G.available;
+    $("#gcalSyncBtn").hidden = !on;
+    $("#gcalSyncBtn").disabled = G.busy;
+    $("#gcalHintOff").hidden = on;
+    $("#gcalCalsGroup").hidden = !on;
+    $("#gcalInfo").textContent = !on ? i18n.t("Off")
+      : [G.email, i18n.t("read only"), G.busy ? i18n.t("syncing…") : G.at ? i18n.t("synced {when}", { when: window.LifeLogDates.dateTime(G.at) }) : ""].filter(Boolean).join(" · ");
+    const box = $("#gcalCals");
+    box.replaceChildren(...G.calendars.map((c) => {
+      const row = el("label", "sitem toggle-label");
+      const text = row.appendChild(el("span", "sitem-text"));
+      const title = text.appendChild(el("span", "sitem-title gcal-cal"));
+      const dot = title.appendChild(el("span", "gcal-dot"));
+      if (c.color) dot.style.background = c.color;
+      title.appendChild(el("span", null, c.name));
+      const sw = row.appendChild(el("input", "switch"));
+      sw.type = "checkbox";
+      sw.checked = c.on;
+      sw.onchange = () => { G.setCalendar(c.id, sw.checked); syncGcal(); };
+      return row;
+    }));
+  }
+  function gcalError(e) {
+    if (e && (e.code === "cancelled" || e.code === "again")) return;
+    toast((e && e.message) || i18n.t("Google Calendar didn't answer. Try again."), true);
+  }
+  async function connectGcal() {
+    try {
+      const email = await Gcal().connect();
+      toast(email ? i18n.t("Google Calendar connected as {email}", { email }) : i18n.t("Google Calendar connected"));
+    } catch (e) { gcalError(e); }
+    renderGcal();
+    updateStatuses();
+  }
+  async function syncGcal() {
+    const G = Gcal();
+    if (!G || !G.on) return;
+    const now = new Date();
+    const p = G.sync(now.getFullYear(), now.getMonth() + 1, true);
+    renderGcal();
+    try { await p; G.clearError(); } catch (e) { gcalError(e); }
+    renderGcal();
+    render();
+  }
+  function disconnectGcal() {
+    if (!confirm(i18n.t("Disconnect Google Calendar? Its events leave this device's calendar. To take LifeLog's access away at Google too, use your Google Account's Third-party connections page."))) return;
+    Gcal().disconnect();
+    renderGcal();
+    updateStatuses();
+    render();
+    toast(i18n.t("Google Calendar disconnected"));
+  }
+  function wireGcal() {
+    const G = Gcal();
+    if (!G || G.closing) return;
+    $("#gcalConnectBtn").onclick = connectGcal;
+    $("#gcalSyncBtn").onclick = syncGcal;
+    $("#gcalDisconnectBtn").onclick = disconnectGcal;
+    G.onChange(() => { if (currentPage === "conn-gcal") renderGcal(); });
+    // A browser that had to leave for Google's page comes back here.
+    if (G.resume === "connect") setTimeout(connectGcal, 1500);
+  }
+
   function updateFileInfo() {
     updateBoardsFileInfo();
     updatePhoneBackupInfo();
@@ -831,6 +903,7 @@
     if (name === "keyboard" && window.LifeLogKeys) window.LifeLogKeys.renderPage();
     if (name === "sync-space") { spacePictures = null; renderSpacePage(); }
     if (name === "sync") { renderDrive(); loadDriveList(false); }
+    if (name === "conn-gcal") renderGcal();
     if (name === "media") KEY_KINDS.forEach(checkMediaKey);
     if (name === "about") {
       const P = window.LifeLogPlatform;
@@ -1937,6 +2010,7 @@
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#phoneBackupSwitch").onchange = (e) => setPhoneBackup(e.target.checked);
     wireDrive();
+    wireGcal();
     $("#connectBoardsFileBtn").onclick = connectBoardsFile;
     $("#reconnectBoardsFileBtn").onclick = async () => {
       if (await Storage.boards.reconnectFile()) { await window.LifeLogBoards.flush(); toast(i18n.t("Reconnected")); } else toast(i18n.t("Permission denied"), true);

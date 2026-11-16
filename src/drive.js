@@ -51,6 +51,8 @@
       const blob = await drive.download(id);
       try { return JSON.parse(await blob.text()); } catch (e) { throw new Keel.DriveError(i18n.t("That backup can't be read."), "bad"); }
     },
+    // The same clients sign in to Google Calendar (src/gcal.js).
+    clients: { web: WEB_CLIENT, desktop: DESKTOP_CLIENT, secret: DESKTOP_SECRET },
     get available() { return drive.available; },
     get on() { return drive.on; },
     get email() { return drive.email; },
