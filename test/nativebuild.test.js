@@ -214,7 +214,7 @@ const REMOTABLE = new Set(["FrameLayout", "LinearLayout", "RelativeLayout", "Gri
 // Views widgets gained in Android 12, allowed only in a layout the Java
 // reaches for behind a version check — elsewhere they'd be the same box on
 // every phone older than that.
-const FROM_12 = { "widget_row_check.xml": ["CheckBox"] };
+const FROM_12 = { "widget_row_check.xml": ["CheckBox"], "widget_row_head_check.xml": ["CheckBox"] };
 
 test("every widget layout uses only views a home-screen widget can show", () => {
   for (const f of layouts) {
@@ -225,17 +225,21 @@ test("every widget layout uses only views a home-screen widget can show", () => 
 });
 
 test("a layout that needs Android 12 is only ever used behind a check for it", () => {
+  // Each one has one method that inflates it, only called behind SDK_INT >= S.
+  const OWNER = { "widget_row_check.xml": "checkboxRow", "widget_row_head_check.xml": "headCheckRow" };
   for (const f of Object.keys(FROM_12)) {
     const name = f.replace(/\.xml$/, "");
+    const method = OWNER[f];
+    assert.ok(method, f + " has no owning method listed here");
     const uses = [...javaSrc.matchAll(new RegExp("R\\.layout\\." + name + "\\b", "g"))];
     assert.ok(uses.length, name + " is never used");
-    // The one method that inflates it is only called behind SDK_INT >= S.
-    assert.ok(/SDK_INT >= Build\.VERSION_CODES\.S\) return checkboxRow\(/.test(javaSrc), "checkboxRow isn't guarded");
-    const start = javaSrc.search(/RemoteViews checkboxRow\(/);
-    assert.ok(start > -1, "no checkboxRow");
+    assert.ok(new RegExp("SDK_INT >= Build\\.VERSION_CODES\\.S\\) return " + method + "\\(").test(javaSrc), method + " isn't guarded");
+    const start = javaSrc.search(new RegExp("RemoteViews " + method + "\\("));
+    assert.ok(start > -1, "no " + method);
     const owner = javaSrc.slice(start, javaSrc.indexOf("\n    }\n", start));
-    assert.ok(owner.includes("R.layout." + name), name + " isn't inflated in checkboxRow");
-    assert.strictEqual(uses.length, 1, name + " is used outside checkboxRow");
+    assert.ok(owner.includes("R.layout." + name), name + " isn't inflated in " + method);
+    // Inflated nowhere else.
+    assert.strictEqual(uses.length, 1, name + " is inflated outside " + method);
   }
 });
 

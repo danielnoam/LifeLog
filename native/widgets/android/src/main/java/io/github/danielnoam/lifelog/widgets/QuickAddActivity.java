@@ -58,6 +58,10 @@ public class QuickAddActivity extends Activity {
     private JSONObject snap;
     private String kind = "entry";
     private String list = "";
+    /** The Task tab's "+" (0.318.1): what's typed is a new list's name, not an item. */
+    private boolean naming;
+    private String lastId = "";
+    private static final String NEW_LIST = "\u0000new";
     private SharedPreferences prefs;
 
     private LinearLayout form;
@@ -265,7 +269,15 @@ public class QuickAddActivity extends Activity {
             first.setSelection(first.getText().length());
         }
         addButton.setText(ADD_LABELS[indexOf(kind)]);
+        if ("item".equals(kind)) namingLooks();
         refreshAdd();
+    }
+
+    /** The Task tab's field and button say whether they make a list or add an item. */
+    private void namingLooks() {
+        if (text == null) return;
+        text.setHint(naming ? "New list's name" : "Add an item");
+        addButton.setText(naming ? "Make list" : ADD_LABELS[indexOf(kind)]);
     }
 
     private static void fill(EditText e, String s) {
@@ -350,12 +362,15 @@ public class QuickAddActivity extends Activity {
             if (id.equals(last)) lastThere = true;
         }
         if (!listThere) list = lastThere ? last : opts.isEmpty() ? "" : opts.get(0)[0];
-        if (opts.size() > 1) {
-            label("List");
-            chips(opts, list, (id) -> list = id);
-        } else if (opts.size() == 1) {
-            label(opts.get(0)[1]);
-        }
+        naming = opts.isEmpty();
+        opts.add(new String[] { NEW_LIST, "+", "" });
+        label("List");
+        Chips c = chips(opts, naming ? NEW_LIST : list, (id) -> {
+            naming = NEW_LIST.equals(id);
+            if (!naming) list = id;
+            namingLooks();
+        });
+        c.views.get(opts.size() - 1).setContentDescription("New list");
     }
 
     private void dates() {
@@ -497,7 +512,7 @@ public class QuickAddActivity extends Activity {
             case "backlog": return !val(title).isEmpty() && !category.isEmpty();
             case "expense": return amountOf(val(amount)) != null;
             case "note": return !val(text).isEmpty();
-            default: return !val(text).isEmpty() && !list.isEmpty();
+            default: return !val(text).isEmpty() && (naming || !list.isEmpty());
         }
     }
 
@@ -511,7 +526,7 @@ public class QuickAddActivity extends Activity {
     JSONObject item() throws JSONException {
         JSONObject o = new JSONObject();
         o.put("kind", kind);
-        o.put("id", WidgetStore.newId());
+        o.put("id", lastId = WidgetStore.newId());
         switch (kind) {
             case "entry":
                 o.put("title", val(title)).put("category", category).put("date", date);
@@ -535,7 +550,8 @@ public class QuickAddActivity extends Activity {
                 if (!category.isEmpty()) o.put("category", category);
                 break;
             default:
-                o.put("list", list).put("text", val(text));
+                if (naming) o.put("kind", "list").put("text", val(text));
+                else o.put("list", list).put("text", val(text));
         }
         return o;
     }
@@ -545,6 +561,27 @@ public class QuickAddActivity extends Activity {
         try {
             WidgetStore.queueAdd(this, item());
         } catch (JSONException e) {
+            return;
+        }
+        if ("item".equals(kind) && naming) {
+            // Made here, it's picked for what comes next; the app makes it
+            // when it next opens, before the items added to it.
+            String id = lastId;
+            String name = val(text);
+            try {
+                JSONArray all = snap.optJSONArray("lists");
+                if (all == null) snap.put("lists", all = new JSONArray());
+                all.put(new JSONObject().put("id", id).put("name", name).put("color", ""));
+            } catch (JSONException e) {
+                return;
+            }
+            list = id;
+            naming = false;
+            prefs.edit().putString("quick:cat:item", id).remove("quick:draft:item").apply();
+            WidgetsPlugin.onQueued();
+            build();
+            addedLine.setText("Made the list " + name + " — syncs when you open LifeLog");
+            addedLine.setVisibility(View.VISIBLE);
             return;
         }
         prefs.edit().putString("quick:cat:" + kind, "item".equals(kind) ? list : category).apply();

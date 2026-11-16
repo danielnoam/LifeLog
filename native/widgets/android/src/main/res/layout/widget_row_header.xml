@@ -1,35 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A list's heading in the to-do widget. With more than one list showing,
-     the whole heading adds to that list; the + says so (0.199.0). -->
+<!-- A list's heading in the to-do widget, before Android 12. The list is a
+     task itself (0.318.0): its own tick, its name, its day under it. The +
+     (and the name) add to that list (0.199.0). From 12 on,
+     widget_row_head_check draws it with a real checkbox. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
+    android:minHeight="44dp"
     android:orientation="horizontal"
     android:paddingStart="4dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="2dp">
+    android:paddingTop="8dp">
+
+    <FrameLayout
+        android:id="@+id/row_tick_box"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="10dp">
+
+        <TextView
+            android:id="@+id/row_tick"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/widget_tick_off"
+            android:gravity="center"
+            android:textColor="@color/widget_on_accent"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/row_tick_ico"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/row_text"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:maxLines="1"
-        android:textAllCaps="true"
-        android:textColor="@color/widget_muted"
-        android:textSize="11sp"
-        android:textStyle="bold" />
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/widget_text"
+        android:textSize="15sp" />
 
     <TextView
         android:id="@+id/row_add"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
         android:contentDescription="@string/widget_add"
-        android:paddingStart="12dp"
-        android:paddingEnd="6dp"
+        android:gravity="center"
         android:text="+"
         android:textColor="@color/widget_muted"
-        android:textSize="15sp" />
+        android:textSize="18sp" />
 </LinearLayout>

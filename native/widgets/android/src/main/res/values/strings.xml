@@ -20,6 +20,7 @@
     <string name="widget_inprogress_description">What you have going in your Backlog, and since when</string>
     <string name="widget_next_note">Another note</string>
     <string name="widget_add">Add</string>
+    <string name="widget_tick_list">Tick the whole list</string>
     <string name="widget_add_entry">Entry</string>
     <string name="widget_add_expense">Expense</string>
     <string name="widget_add_backlog">Backlog</string>

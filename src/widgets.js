@@ -173,26 +173,34 @@
       seen.set(base, k);
       const name = k > 1 ? `${base} (${k})` : base;
       const color = n.category ? colorOf(n.category) : "";
-      listsOut.push({ id: n.id, name, color });
-      // Tasks (tasks.js): a subtask stays off the widget, and a task's
-      // second line (0.317.0) is its date, then repeats and subtasks done.
+      // The list is a task itself (0.318.0): its heading carries its own
+      // tick, priority and day, as the card's head does.
+      const head = { id: n.id, name, color };
+      if (n.done) head.done = true;
+      else {
+        if (n.priority) head.priority = n.priority;
+        if (n.date) { head.date = n.date; head.dateText = Dates().day(n.date, { year: n.date.slice(0, 4) !== today.slice(0, 4) }); }
+        if (n.time && n.date) head.time = n.time;
+        if (n.repeat) head.meta = "repeats";
+      }
+      listsOut.push(head);
+      // Tasks (tasks.js): a task's second line (0.317.0) is its date, then
+      // whether it repeats. Rows don't nest since 0.318.0.
       // The date goes as a day, not words: the widget words it by the
       // phone's clock ("Overdue", "Today 18:00"), since this snapshot can be
       // days old by the time it's read. `dateText` is for a day further off.
       const all = n.items || [];
-      const ids = new Set(all.map((it) => it.id));
       const row = (it) => {
         const out = { id: it.id, text: it.text, category: name, list: n.id, color, done: !!it.done };
         if (it.done) return out;
-        const kids = all.filter((c) => c.parent === it.id);
-        const meta = [it.repeat ? "repeats" : "", kids.length ? kids.filter((c) => c.done).length + "/" + kids.length + " subtasks" : ""].filter(Boolean).join(" · ");
+        const meta = it.repeat ? "repeats" : "";
         if (it.date) { out.date = it.date; out.dateText = Dates().day(it.date, { year: it.date.slice(0, 4) !== today.slice(0, 4) }); }
         if (it.time && it.date) out.time = it.time;
         if (meta) out.meta = meta;
         if (it.priority) out.priority = it.priority;
         return out;
       };
-      const items = all.filter((it) => !it.parent || !ids.has(it.parent));
+      const items = all;
       const open = items.filter((it) => !it.done);
       const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
@@ -337,6 +345,16 @@
         if (title) note.title = title;
         if ((data.noteCategories || []).some((c) => c.name === it.category)) note.category = it.category;
         notes.unshift(note);
+        changed++;
+      } else if (it.kind === "list") {
+        // A new tasks list from the quick-add window's "+" (0.318.1), on top
+        // as the app's own new notes go. Items the window adds to it come
+        // after it in the queue.
+        const notes = data.notes || (data.notes = []);
+        const text = String(it.text || "").trim();
+        if (!text || notes.some((n) => n.id === it.id)) continue;
+        const at = it.at || new Date().toISOString();
+        notes.unshift({ id: it.id, kind: "list", text, items: [], createdAt: at, editedAt: at });
         changed++;
       } else if (it.kind === "item") {
         // After the list's open items, as the list's own add line puts it.
@@ -484,7 +502,7 @@
       if (it.kind === "expense") return (data.financeEntries || []).some((f) => f.id === it.id);
       if (it.kind === "entry") return (data.entries || []).some((x) => x.id === it.id);
       if (it.kind === "backlog") return (data.backlog || []).some((x) => x.id === it.id);
-      if (it.kind === "note") return (data.notes || []).some((x) => x.id === it.id);
+      if (it.kind === "note" || it.kind === "list") return (data.notes || []).some((x) => x.id === it.id);
       if (it.kind === "item") return (data.notes || []).some((x) => (x.items || []).some((i) => i.id === it.id));
       return false;
     };

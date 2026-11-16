@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A list's heading from Android 12 on (0.318.0): the list's own tick is a
+     real checkbox, as the rows' are, but only the box: ticking a whole list
+     by tapping its name would be too easy. The name and the + add to it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="8dp">
+
+    <CheckBox
+        android:id="@+id/row_check"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/widget_accent"
+        android:contentDescription="@string/widget_tick_list"
+        android:minWidth="44dp"
+        android:minHeight="44dp" />
+
+    <TextView
+        android:id="@+id/row_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/widget_text"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/row_add"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:contentDescription="@string/widget_add"
+        android:gravity="center"
+        android:text="+"
+        android:textColor="@color/widget_muted"
+        android:textSize="18sp" />
+</LinearLayout>
