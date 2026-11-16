@@ -1599,6 +1599,7 @@ Keel.i18n.strings("he", {
   "No date announced": "לא הוכרז תאריך",
   "No date yet": "עוד אין תאריך",
   "No day set": "לא נקבע יום",
+  "no day": "בלי יום",
   "No entries logged in {year}.": "לא נרשמו רשומות ב‑{year}.",
   "No entries match your filters.": "אין רשומות שמתאימות למסננים.",
   "No existing data found at this sync target — open the link from the device that already has your data, or set this up from Settings instead.": "לא נמצאו נתונים ביעד הסנכרון הזה — כדאי לפתוח את הקישור מהמכשיר שכבר יש בו את הנתונים, או להגדיר את זה מההגדרות.",

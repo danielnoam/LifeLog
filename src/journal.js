@@ -1008,13 +1008,14 @@
   // One date picker per date (0.281.0), in place of a year box and a month
   // list each. The entry is still filed by year and month; the day is kept
   // (`day`, and `startedAt` for the start) but nothing reads it yet. An
-  // entry made before then has no day, so its picker shows the 1st: saved
-  // untouched, that 1st isn't stored as a day it never had.
+  // entry with no day has its picker on the 1st, its face reading "November
+  // 2026 · no day" (src/datefield.js): saved untouched, that 1st isn't
+  // stored as a day it never had.
   const ymd = (y, m, d) => y + "-" + String(m).padStart(2, "0") + "-" + String(d || 1).padStart(2, "0");
   function setDateField(input, value, known) {
-    input.value = value;
     input.dataset.orig = value;
     input.dataset.known = known ? "1" : "";
+    input.value = value;
   }
   // { year, month, day } from a picker, with day null when it's the
   // untouched stand-in for an entry that never had one.

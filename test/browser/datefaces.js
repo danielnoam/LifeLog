@@ -6,7 +6,10 @@ const errs = [];
 
 const SEED = {
   categories: [{ id: "g", name: "Games", color: "#5b8cff" }],
-  entries: [{ id: "e1", title: "Hollow Thing", category: "Games", year: 2026, month: 3, day: 9, startedAt: "2026-02-14", createdAt: "2026-03-09T00:00:00.000Z" }],
+  entries: [
+    { id: "e1", title: "Hollow Thing", category: "Games", year: 2026, month: 3, day: 9, startedAt: "2026-02-14", createdAt: "2026-03-09T00:00:00.000Z" },
+    { id: "e2", title: "Month Only", category: "Games", year: 2025, month: 11, createdAt: "2025-11-20T00:00:00.000Z" },
+  ],
   backlog: [],
   notes: [
     { id: "l1", kind: "list", text: "Groceries", items: [{ id: "i1", text: "Milk" }, { id: "i2", text: "Eggs", done: true, doneAt: "2026-03-01T00:00:00.000Z" }], createdAt: "2026-03-01T00:00:00.000Z" },
@@ -37,7 +40,22 @@ const faces = (page) => page.evaluate(() => ["#fStartDate", "#fDate"].map((id) =
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
 
   await load(page, { view: "timeline" });
-  await page.locator(".entry").first().click();
+  // An entry known only to the month: no stand-in 1st on its face.
+  await page.locator('.entry[data-id="e2"]').click();
+  await page.waitForSelector("#entryForm .date-face");
+  let f0 = await faces(page);
+  check("a month-only Finished says so instead of the 1st", f0[1].face === "November 2025 · no day" && f0[1].value === "2025-11-01", f0);
+  await page.evaluate(() => {
+    const i = document.querySelector("#fDate");
+    i.value = "2025-11-07";
+    i.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  f0 = await faces(page);
+  check("picking a day shows the day", f0[1].face === "Nov 7, 2025", f0);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
+  await page.locator('.entry[data-id="e1"]').click();
   await page.waitForSelector("#entryForm .date-face");
   let f = await faces(page);
   check("Started and Finished read in the chosen format", f[0].face === "Feb 14, 2026" && f[1].face === "Mar 9, 2026", f);
