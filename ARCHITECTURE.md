@@ -51,7 +51,8 @@ src/keel/platform.js  where it runs (phone, desktop, browser), app-build.json, l
 src/keel/motion.js  the motion engine: springs sampled into CSS linear(), press feedback, reduced motion and Animations off (from keel)
 src/motion.js       LifeLog's springs given to keel's engine (window.LifeLogMotion); styles.css's --spring-* come from it
 src/keel/i18n.js    languages: picks one, sets lang and dir on <html>, t()/tn() (from keel; runs in <head>)
-src/language.js     LifeLog's languages (English, and Hebrew once its strings are written); no strings translated yet
+src/language.js     LifeLog's languages (English, Hebrew); English-only i18n for Node
+src/lang/he.js      the Hebrew for every English key, loaded only when Hebrew is on
 src/wheel.js        the Spin wheel
 src/keel/           from keel (danielnoam/keel): the setup link's QR codes,
                     github.js, the GitHub calls storage.js makes, errlog.js,
@@ -92,9 +93,29 @@ release there, then `node tools/keel-sync.js v<version>` in a PR here.
 
 ## Right to left
 
-The app is ready to run right to left (Hebrew) though no language but
-English is offered yet. `src/language.js` sets `dir` on `<html>` before
-first paint, and everything else follows from it:
+LifeLog is in English and Hebrew (Settings → Appearance → Language, kept
+per device in localStorage `lifelog.lang`; changing it reloads).
+`src/language.js` sets `lang` and `dir` on `<html>` before first paint, and
+everything else follows from it:
+
+- Every word the app shows goes through `i18n.t("English")` or
+  `i18n.tn(n, "one", "other")`; markup carries `data-t` / `data-t-attr`.
+  The English is the key, `src/lang/he.js` the Hebrew, and
+  `test/i18n.test.js` fails on a key with no Hebrew, Hebrew for a key that's
+  gone, or a placeholder that doesn't match. Only literal calls are found:
+  a table of strings has to be a table of `t()` / `tn()` calls.
+- What's stored stays English: default category names, Scratchpad,
+  lengths ("35 hrs"), CSV headers, merge summaries, commit messages, and
+  everything the bridge says. A user's own titles and names are never
+  translated.
+- Hebrew is gender-neutral: nouns and infinitives ("הוספת פריט", "צריך
+  לבחור"), never a "you" verb.
+- Text of the user's that may be in another script (titles, names, tags)
+  gets `unicode-bidi: plaintext` in the RTL block, so an English title
+  keeps its order and is cut at its end. A signed number ("+2.5%", "+3
+  more") is wrapped in a left-to-right isolate (U+2066…U+2069), in the
+  code (invest.js) or in the Hebrew itself, or its sign moves to the other
+  end. Board text stays anchored at its left edge.
 
 - styles.css uses logical sides (`inset-inline-start`, `margin-inline-end`,
   `text-align: start`), so the layout mirrors by itself. The exceptions are

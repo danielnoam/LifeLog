@@ -29,6 +29,7 @@
 // the task sheet with its Date sheet. The rows on a list's card stay in
 // notes.js with the rest of the card.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Dates = () => (typeof window !== "undefined" && window.LifeLogDates) || require("./dates.js");
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   const Tags = () => (typeof window !== "undefined" && window.LifeLogTags) || require("./tags.js");
@@ -223,39 +224,46 @@
   // ---------- words ----------
   const PRIORITY_NAMES = { 1: "High", 2: "Medium", 3: "Low" };
   function shortDay(day, today) {
-    if (day === today) return "Today";
-    if (day === addDays(today, 1)) return "Tomorrow";
-    if (day === addDays(today, -1)) return "Yesterday";
+    if (day === today) return i18n.t("Today");
+    if (day === addDays(today, 1)) return i18n.t("Tomorrow");
+    if (day === addDays(today, -1)) return i18n.t("Yesterday");
     const D = Dates();
     if (day > today && day <= addDays(today, 6)) return D.WEEKDAYS[dow(day)];
     return D.day(day, { year: "auto", weekday: day > today && day <= addDays(today, 13) });
   }
   function repeatText(rep) {
-    if (!rep) return "Never";
+    if (!rep) return i18n.t("Never");
     const D = Dates();
     const n = rep.every || 1;
-    const many = (u) => (n === 1 ? "Every " + u : `Every ${n} ${u}s`);
+    const many = (u) => (({
+      day: () => i18n.tn(n, "Every day", "Every {n} days"),
+      week: () => i18n.tn(n, "Every week", "Every {n} weeks"),
+      month: () => i18n.tn(n, "Every month", "Every {n} months"),
+      year: () => i18n.tn(n, "Every year", "Every {n} years"),
+    })[u] || (() => (n === 1 ? "Every " + u : `Every ${n} ${u}s`)))();
     let s;
     if (rep.unit === "week" && rep.days && rep.days.length) {
       const work = D.workDays();
       const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
-      const names = same(rep.days, [...work].sort((a, b) => a - b)) ? "weekday" : D.weekOrder().filter((d) => rep.days.includes(d)).map((d) => D.WEEKDAYS[d]).join(", ");
-      s = n === 1 ? "Every " + names : `Every ${n} weeks on ${names}`;
+      const weekdays = same(rep.days, [...work].sort((a, b) => a - b));
+      const names = D.weekOrder().filter((d) => rep.days.includes(d)).map((d) => D.WEEKDAYS[d]).join(", ");
+      s = n === 1 ? (weekdays ? i18n.t("Every weekday") : i18n.t("Every {days}", { days: names }))
+        : weekdays ? i18n.t("Every {n} weeks on weekdays", { n }) : i18n.t("Every {n} weeks on {days}", { n, days: names });
     } else s = many(rep.unit);
-    return s + (rep.fromDone ? ", from when ticked" : "");
+    return rep.fromDone ? i18n.t("{repeat}, from when ticked", { repeat: s }) : s;
   }
   function remindText(it) {
     const m = it.remind;
     if (m == null) return "";
-    if (!it.time) return m === 0 ? "On the day" : m === 1440 ? "The day before" : m % 1440 === 0 ? m / 1440 + " days before" : minutesText(m) + " before 09:00";
-    return m === 0 ? "At the time" : minutesText(m) + " before";
+    if (!it.time) return m === 0 ? i18n.t("On the day") : m === 1440 ? i18n.t("The day before") : m % 1440 === 0 ? i18n.t("{n} days before", { n: m / 1440 }) : i18n.t("{time} before 09:00", { time: minutesText(m) });
+    return m === 0 ? i18n.t("At the time") : i18n.t("{time} before", { time: minutesText(m) });
   }
-  const minutesText = (m) => (m % 1440 === 0 ? (m / 1440 === 1 ? "1 day" : m / 1440 + " days") : m % 60 === 0 ? (m / 60 === 1 ? "1 hour" : m / 60 + " hours") : m + " min");
+  const minutesText = (m) => (m % 1440 === 0 ? i18n.tn(m / 1440, "1 day", "{n} days") : m % 60 === 0 ? i18n.tn(m / 60, "1 hour", "{n} hours") : i18n.t("{min} min", { min: m }));
   // The Date row's one line: "Today 18:00 · Every week · 30 min before".
   function dateSummary(it, today) {
-    if (!it.date) return it.deadline ? "Deadline " + shortDay(it.deadline, today) : "";
+    if (!it.date) return it.deadline ? i18n.t("Deadline {date}", { date: shortDay(it.deadline, today) }) : "";
     return [shortDay(it.date, today) + (it.time ? " " + it.time : ""), it.repeat ? repeatText(it.repeat) : "", remindText(it),
-      it.deadline ? "deadline " + shortDay(it.deadline, today) : ""].filter(Boolean).join(" · ");
+      it.deadline ? i18n.t("deadline {date}", { date: shortDay(it.deadline, today) }) : ""].filter(Boolean).join(" · ");
   }
   // Copy text's lines for a list: subtasks indented, dates in brackets.
   function listLines(items, today) {
@@ -316,18 +324,18 @@
     // A subtask's sheet goes back to its task; a task's moves between lists.
     const close = $("#taskCloseBtn");
     close.replaceChildren(ico(parent ? "chevron-left" : "x"));
-    close.title = parent ? "Back to " + parent.text : "Close";
+    close.title = parent ? i18n.t("Back to {name}", { name: parent.text }) : i18n.t("Close");
     close.setAttribute("aria-label", close.title);
     $("#taskListChip").hidden = !!parent;
     $("#taskCrumb").hidden = !parent;
     if (parent) {
-      $("#taskCrumbText").textContent = (n.text || "Untitled list") + " › " + parent.text;
+      $("#taskCrumbText").textContent = (n.text || i18n.t("Untitled list")) + " › " + parent.text;
       $("#taskCrumb .dot").style.background = n.category ? catColor(n.category) : "";
     } else fillLists(n);
     const tick = $("#taskTick");
     tick.checked = !!it.done;
     tick.className = "todo-check" + (it.priority ? " is-p" + it.priority : "");
-    tick.setAttribute("aria-label", it.done ? "Mark as not done" : "Mark as done");
+    tick.setAttribute("aria-label", it.done ? i18n.t("Mark as not done") : i18n.t("Mark as done"));
     if (document.activeElement !== $("#taskText")) $("#taskText").value = it.text;
     if (document.activeElement !== $("#taskNote")) $("#taskNote").value = it.note || "";
     fillCategory(n, it, parent);
@@ -335,7 +343,7 @@
     if (tagField) tagField.refresh();
     const when = dateSummary(it, today);
     const val = $("#taskDateValue");
-    val.textContent = when || "Add";
+    val.textContent = when || i18n.t("Add");
     val.classList.toggle("is-today", it.date === today && !it.done);
     val.classList.toggle("is-late", !!it.date && it.date < today && !it.done);
     val.classList.toggle("is-empty", !when);
@@ -346,7 +354,7 @@
     for (const l of (state.data.notes || []).filter((x) => x.kind === "list")) {
       const o = document.createElement("option");
       o.value = l.id;
-      o.textContent = l.text || "Untitled list";
+      o.textContent = l.text || i18n.t("Untitled list");
       sel.appendChild(o);
     }
     sel.value = n.id;
@@ -355,10 +363,10 @@
   function fillCategory(n, it, parent) {
     const sel = $("#taskCategory");
     sel.innerHTML = "";
-    const from = parent && (parent.category || n.category) ? [parent.category || n.category, parent.category ? "its task" : "its list"]
-      : n.category ? [n.category, "its list"] : null;
+    const from = parent && (parent.category || n.category) ? [parent.category || n.category, !!parent.category]
+      : n.category ? [n.category, false] : null;
     const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
-    opt("", from ? `${from[0]}, from ${from[1]}` : "None");
+    opt("", from ? (from[1] ? i18n.t("{category}, from its task", { category: from[0] }) : i18n.t("{category}, from its list", { category: from[0] })) : i18n.t("None"));
     for (const c of Notes().noteCats()) opt(c.name, c.name);
     sel.value = it.category && Notes().noteCats().some((c) => c.name === it.category) ? it.category : "";
     const shown = it.category || (from && from[0]) || "";
@@ -437,7 +445,7 @@
     fill();
     render();
     await persist();
-    toast("Moved to " + (to.text || "the list"));
+    toast(to.text ? i18n.t("Moved to {name}", { name: to.text }) : i18n.t("Moved to the list"));
   }
   function copyTask() {
     const { n, it } = current();
@@ -509,14 +517,14 @@
     const D = Dates();
     const has = !!draft.date;
     const now = $("#taskDateNow");
-    now.replaceChildren(ico("calendar"), document.createTextNode(" " + (dateSummary(draft, today) || "No date")));
+    now.replaceChildren(ico("calendar"), document.createTextNode(" " + (dateSummary(draft, today) || i18n.t("No date"))));
     now.classList.toggle("is-today", draft.date === today);
     // Quick picks.
     const quick = $("#taskQuick");
     quick.replaceChildren();
     const nextWeek = addDays(D.startOfWeek(today), 7);
-    for (const [icon, label, day, cls] of [["sun", "Today", today, "is-today"], ["sunrise", "Tomorrow", addDays(today, 1), "is-tomorrow"],
-      ["calendar", "Next week", nextWeek, "is-next"], ["ban", "No date", "", "is-none"]]) {
+    for (const [icon, label, day, cls] of [["sun", i18n.t("Today"), today, "is-today"], ["sunrise", i18n.t("Tomorrow"), addDays(today, 1), "is-tomorrow"],
+      ["calendar", i18n.t("Next week"), nextWeek, "is-next"], ["ban", i18n.t("No date"), "", "is-none"]]) {
       const b = el("button", "task-quick-btn " + cls + (draft.date === day && (day || !has) ? " on" : ""));
       b.type = "button";
       b.append(ico(icon), el("span", "task-quick-label", label), el("span", "task-quick-day", day ? D.WEEKDAYS[dow(day)] + (day === nextWeek ? " " + +day.slice(8) : "") : ""));
@@ -539,7 +547,7 @@
       const b = el("button", "task-cal-day" + (day < today ? " is-past" : "") + (day === today ? " is-today" : "") + (day === draft.date ? " on" : "")
         + (day === draft.deadline ? " is-deadline" : "") + (busy.has(day) ? " has-tasks" : ""), String(d));
       b.type = "button";
-      b.setAttribute("aria-label", D.day(day, { weekday: true }) + (busy.has(day) ? ", has tasks" : "") + (day === draft.deadline ? ", deadline" : ""));
+      b.setAttribute("aria-label", D.day(day, { weekday: true }) + (busy.has(day) ? ", " + i18n.t("has tasks") : "") + (day === draft.deadline ? ", " + i18n.t("deadline") : ""));
       b.setAttribute("aria-pressed", String(day === draft.date));
       b.onclick = () => { draft.date = day; fillDate(); };
       grid.appendChild(b);
@@ -562,9 +570,9 @@
     const rem = $("#taskRemind");
     rem.replaceChildren();
     const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; rem.appendChild(o); };
-    opt("", "Never");
-    const choices = draft.time ? [[0, "At the time"], [5, "5 min before"], [15, "15 min before"], [30, "30 min before"], [60, "1 hour before"], [1440, "1 day before"]]
-      : [[0, "On the day, 09:00"], [1440, "The day before, 09:00"]];
+    opt("", i18n.t("Never"));
+    const choices = draft.time ? [[0, i18n.t("At the time")], [5, i18n.t("5 min before")], [15, i18n.t("15 min before")], [30, i18n.t("30 min before")], [60, i18n.t("1 hour before")], [1440, i18n.t("1 day before")]]
+      : [[0, i18n.t("On the day, 09:00")], [1440, i18n.t("The day before, 09:00")]];
     for (const [v, label] of choices) opt(String(v), label);
     if (draft.remind != null && !choices.some(([v]) => v === draft.remind)) opt(String(draft.remind), remindText(draft));
     rem.value = draft.remind != null ? String(draft.remind) : "";

@@ -6,6 +6,7 @@
 // buttons, and applySteamAppId stay in app.js — the journal entry modal
 // uses them too — and are handed in through ctx.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Wheel = window.LifeLogWheel;
 
   // Shared app plumbing, provided by app.js via init(ctx).
@@ -53,7 +54,7 @@
       CM.register("backlog", backlogMenu);
       // The Timeline's In progress rows: the same, less Select, since the
       // Timeline's selection is of entries.
-      CM.register("progress", (id, h) => (backlogMenu(id, h) || []).filter((it) => it.label !== "Select"));
+      CM.register("progress", (id, h) => (backlogMenu(id, h) || []).filter((it) => it.label !== i18n.t("Select")));
     }
   }
 
@@ -61,18 +62,18 @@
   function agingText(iso) {
     const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
     if (days < 1) return "today";
-    if (days === 1) return "1 day ago";
-    if (days < 30) return days + " days ago";
+    if (days === 1) return i18n.t("1 day ago");
+    if (days < 30) return i18n.tn(days, "{n} day ago", "{n} days ago");
     const months = Math.floor(days / 30);
-    if (months < 12) return months === 1 ? "1 month ago" : months + " months ago";
+    if (months < 12) return i18n.tn(months, "{n} month ago", "{n} months ago");
     const years = Math.floor(months / 12);
-    return years === 1 ? "1 year ago" : years + " years ago";
+    return i18n.tn(years, "{n} year ago", "{n} years ago");
   }
 
   function priorityBadge() {
     const span = el("span", "bpriority");
     span.appendChild(ico("star"));
-    span.title = "Prioritized";
+    span.title = i18n.t("Prioritized");
     return span;
   }
 
@@ -87,8 +88,8 @@
   // line, in the slot the price used to occupy (see appendBacklogMeta) — the
   // plain row is the one with no metadata line to say it in.
   function boughtTag() {
-    const span = el("span", "bl-bought", "Bought");
-    span.title = "Already bought";
+    const span = el("span", "bl-bought", i18n.t("Bought"));
+    span.title = i18n.t("Already bought");
     return span;
   }
 
@@ -114,9 +115,9 @@
     // shows the year that date states.
     const year = yearOf(item);
     if (year) parts.push(String(year));
-    else if (isUnreleased(item)) parts.push("TBA");
+    else if (isUnreleased(item)) parts.push(i18n.t("TBA"));
     // Non-breaking, so "30 h" can't leave its unit on the next line.
-    if (item.length) parts.push(String(item.length).replace(/ /g, "\u00a0"));
+    if (item.length) parts.push(Dates().lengthText(item.length).replace(/ /g, "\u00a0"));
     // Owning it doesn't just hide the price, it takes the price's place:
     // what a shop is charging today is a number about a purchase you've
     // already made, and "Bought" is what you actually wanted that slot to
@@ -129,12 +130,14 @@
     const saved = savedCount(item);
     if (parts.length || hasSteamPrice || (item.bought && !(opts && opts.quietBought)) || item.earlyAccess || airing || saved) {
       const metaLine = el("span", "bl-meta");
-      if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
+      // Each part isolated in Hebrew, so "60 hrs" and "★ 88" keep their order.
+      const iso = (p) => (i18n.dir === "rtl" ? "\u2068" + p + "\u2069" : p);
+      if (parts.length) metaLine.appendChild(document.createTextNode(parts.map(iso).join(" · ")));
       const sep = () => (metaLine.childNodes.length ? " · " : "");
       // Out and playable but not finished — a state neither the year nor TBA
       // can express, so it's marked rather than folded into the plain run.
       if (item.earlyAccess) {
-        metaLine.appendChild(el("span", "bl-ea", sep() + "Early Access"));
+        metaLine.appendChild(el("span", "bl-ea", sep() + i18n.t("Early Access")));
       }
       // How far a show has run: partway marked like Early Access, since it
       // is the same kind of "out, but not all of it", and done in green.
@@ -144,7 +147,7 @@
       if (saved) metaLine.appendChild(savedCountEl(saved, sep()));
       if (item.bought) {
         // The sheet's cover already says so with its lit Bought button.
-        if (!(opts && opts.quietBought)) metaLine.appendChild(el("span", "bl-bought", sep() + "Bought"));
+        if (!(opts && opts.quietBought)) metaLine.appendChild(el("span", "bl-bought", sep() + i18n.t("Bought")));
       } else if (hasSteamPrice) {
         const price = el("span", "bl-price");
         price.dataset.appid = item.mediaId;
@@ -166,7 +169,7 @@
     const n = Math.round(+item.progress || 0);
     if (n <= 0 || isStarted(item) || !item.category || !categoryShows(item.category).progress) return null;
     const manga = /manga/.test(item.mediaSource || "");
-    return { text: (manga ? "Ch " : "Ep ") + n, words: (manga ? "Read " : "Watched ") + n + (manga ? " chapter" : " episode") + (n === 1 ? "" : "s") };
+    return { text: (manga ? i18n.t("Ch {n}", { n }) : i18n.t("Ep {n}", { n })), manga, n, words: (manga ? i18n.tn(n, "Read {n} chapter", "Read {n} chapters") : i18n.tn(n, "Watched {n} episode", "Watched {n} episodes")) };
   }
   function savedCountEl(c, before) {
     const span = el("span", "bl-count", (before || "") + c.text);
@@ -182,15 +185,15 @@
   function airingLabel(b, counted) {
     const manga = /manga/.test(b.mediaSource || "");
     const out = +b.episodesOut || 0, total = +b.episodesTotal || 0;
-    const count = counted ? "" : out && total ? out + " of " + total : out ? out + " out" : "";
-    const season = b.airingSeason ? "S" + b.airingSeason + " " : "";
+    const count = counted ? "" : out && total ? i18n.t("{done} of {total}", { done: out, total }) : out ? i18n.t("{n} out", { n: out }) : "";
+    const season = b.airingSeason ? i18n.t("S{n}", { n: b.airingSeason }) + " " : "";
     const withCount = (s) => s + (count ? " · " + count : "");
     switch (b.airing) {
-      case "airing": return withCount(manga ? "Publishing" : season ? season + "airing" : "Airing");
-      case "between": return (season ? season + "complete" : "Season complete") + " · more coming";
-      case "finished": return "Complete";
-      case "hiatus": return withCount("On hiatus");
-      case "cancelled": return "Cancelled";
+      case "airing": return withCount(manga ? i18n.t("Publishing") : season ? season + i18n.t("airing") : i18n.t("Airing"));
+      case "between": return (season ? season + i18n.t("complete") : i18n.t("Season complete")) + " · " + i18n.t("more coming");
+      case "finished": return i18n.t("Complete");
+      case "hiatus": return withCount(i18n.t("On hiatus"));
+      case "cancelled": return i18n.t("Cancelled");
       default: return "";
     }
   }
@@ -198,16 +201,16 @@
   // and how many are out when it's still going.
   function airingCells(b) {
     const manga = /manga/.test(b.mediaSource || "");
-    const season = b.airingSeason ? "S" + b.airingSeason + " " : "";
+    const season = b.airingSeason ? i18n.t("S{n}", { n: b.airingSeason }) + " " : "";
     const word = {
-      airing: manga ? "Publishing" : season ? season + "airing" : "Airing",
-      between: season ? season + "complete" : "Season done",
-      finished: "Complete", hiatus: "On hiatus", cancelled: "Cancelled",
+      airing: manga ? i18n.t("Publishing") : season ? season + i18n.t("airing") : i18n.t("Airing"),
+      between: season ? season + i18n.t("complete") : i18n.t("Season done"),
+      finished: i18n.t("Complete"), hiatus: i18n.t("On hiatus"), cancelled: i18n.t("Cancelled"),
     }[b.airing];
     if (!word) return [];
-    const cells = [["Status", word]];
+    const cells = [[i18n.t("Status"), word]];
     const out = +b.episodesOut || 0, total = +b.episodesTotal || 0;
-    if ((b.airing === "airing" || b.airing === "hiatus") && out) cells.push(["Out", total ? out + " of " + total : String(out)]);
+    if ((b.airing === "airing" || b.airing === "hiatus") && out) cells.push([i18n.t("Out"), total ? i18n.t("{done} of {total}", { done: out, total }) : String(out)]);
     return cells;
   }
   // Everything that's coming is out: finished, cancelled, or the season
@@ -275,7 +278,7 @@
     render();
     await persist();
     if (window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
-    toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
+    toast(i18n.t("Started — it's at the top of your Timeline"), false, state.view === "timeline" ? null : { label: i18n.t("Show"), onClick: showTimeline });
   }
 
   // Right-click on a backlog row (app.js, contextMenu): ▶ and ✓, the
@@ -285,14 +288,14 @@
     if (!b) return null;
     const started = isStarted(b);
     return [
-      { icon: "pencil", label: "Open", run: () => openBacklogModal(b) },
+      { icon: "pencil", label: i18n.t("Open"), run: () => openBacklogModal(b) },
       h.divider,
-      started ? { icon: "undo-2", label: "Back to backlog", run: () => stopItem(id) }
-        : { icon: "play", label: "Move to In progress", hidden: !categoryShows(b.category).inProgress, run: () => startItem(id) },
-      { icon: "check", label: "Set as Done", run: () => openEntryModal(null, b) },
-      { icon: "star", label: b.priority ? "Unstar" : "Star", fill: !!b.priority, run: () => setFlag(id, "priority") },
-      b.dropped ? { icon: "undo-2", label: "Not dropped", run: () => setFlag(id, "dropped") }
-        : { icon: "ban", label: "Move to Dropped", run: () => setFlag(id, "dropped") },
+      started ? { icon: "undo-2", label: i18n.t("Back to backlog"), run: () => stopItem(id) }
+        : { icon: "play", label: i18n.t("Move to In progress"), hidden: !categoryShows(b.category).inProgress, run: () => startItem(id) },
+      { icon: "check", label: i18n.t("Set as Done"), run: () => openEntryModal(null, b) },
+      { icon: "star", label: b.priority ? i18n.t("Unstar") : i18n.t("Star"), fill: !!b.priority, run: () => setFlag(id, "priority") },
+      b.dropped ? { icon: "undo-2", label: i18n.t("Not dropped"), run: () => setFlag(id, "dropped") }
+        : { icon: "ban", label: i18n.t("Move to Dropped"), run: () => setFlag(id, "dropped") },
       h.divider,
       h.select(id),
       h.del(id, bulkDeleteSelected),
@@ -309,7 +312,7 @@
     render();
     await persist();
     if (flag === "dropped" && window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
-    toast(flag === "priority" ? (on ? "Starred" : "Unstarred") : (on ? "Moved to Dropped" : "Back in your backlog"));
+    toast(flag === "priority" ? (on ? i18n.t("Starred") : i18n.t("Unstarred")) : (on ? i18n.t("Moved to Dropped") : i18n.t("Back in your backlog")));
   }
 
   async function stopItem(id) {
@@ -319,7 +322,7 @@
     render();
     await persist();
     if (window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
-    toast("Back in your backlog");
+    toast(i18n.t("Back in your backlog"));
   }
 
   // ---------- episode count (0.292.0) ----------
@@ -341,11 +344,11 @@
     let text;
     if (going) text = n + (out ? "/" + out : "") + "/" + (total || "?");
     else if (total || (done && out)) text = n + "/" + (total || out);
-    else text = countWord(b) + " " + n;
+    else text = manga ? i18n.t("Ch {n}", { n }) : i18n.t("Ep {n}", { n });
     const unit = manga ? "chapter" : "episode";
-    const words = [(manga ? "Read " : "Watched ") + n + " " + unit + (n === 1 ? "" : "s"),
-      going && out && (out + " out"), total ? total + " in all" : going && "total not known yet",
-      going && (manga ? "still publishing" : "still airing"), done && "all out"].filter(Boolean).join(", ");
+    const words = [(manga ? i18n.tn(n, "Read {n} chapter", "Read {n} chapters") : i18n.tn(n, "Watched {n} episode", "Watched {n} episodes")),
+      going && out && i18n.t("{n} out", { n: out }), total ? i18n.t("{n} in all", { n: total }) : going && i18n.t("total not known yet"),
+      going && (manga ? i18n.t("still publishing") : i18n.t("still airing")), done && i18n.t("all out")].filter(Boolean).join(", ");
     return { text, tone: going ? "is-going" : done ? "is-done" : "", words };
   }
   async function setProgress(b, n) {
@@ -362,14 +365,14 @@
     if (!b) return;
     await setProgress(b, (+b.progress || 0) + 1);
     const total = countTotal(b);
-    if (total && b.progress >= total) toast("That was the last one", false, { label: "Log it", onClick: () => openEntryModal(null, b) });
+    if (total && b.progress >= total) toast(i18n.t("That was the last one"), false, { label: i18n.t("Log it"), onClick: () => openEntryModal(null, b) });
   }
   function progressButton(b) {
     const btn = el("button", "btn btn-sm progress-up");
     btn.type = "button";
     btn.appendChild(ico("plus"));
-    btn.title = (countWord(b) === "Ch" ? "Read chapter " : "Watched episode ") + ((+b.progress || 0) + 1);
-    btn.setAttribute("aria-label", btn.title + " of " + b.title);
+    btn.title = (countWord(b) === "Ch" ? i18n.t("Read chapter {n}", { n: (+b.progress || 0) + 1 }) : i18n.t("Watched episode {n}", { n: (+b.progress || 0) + 1 }));
+    btn.setAttribute("aria-label", i18n.t("{what} of {title}", { what: btn.title, title: b.title }));
     btn.onclick = (ev) => { ev.stopPropagation(); stepProgress(b.id); };
     return btn;
   }
@@ -378,7 +381,7 @@
     const d = new Date(day + "T00:00:00");
     const days = Math.round((new Date(localDay() + "T00:00:00") - d) / 86400000);
     const date = Dates().day(day, { year: "auto" });
-    return "since " + date + (days <= 0 ? " · today" : days === 1 ? " · 1 day" : " · " + days + " days");
+    return i18n.t("since {date}", { date }) + " · " + (days <= 0 ? i18n.t("today") : i18n.tn(days, "{n} day", "{n} days"));
   }
 
   function inProgressRow(b) {
@@ -416,7 +419,7 @@
       since.append(count, " · ");
     }
     const wp = !counted && window.LifeLogWaypage ? window.LifeLogWaypage.progressLabel(b) : "";
-    if (wp) since.append(wp + " in Waypage · ");
+    if (wp) since.append(i18n.t("{progress} in Waypage", { progress: wp }) + " · ");
     since.append(sinceLabel(b.startedAt));
     // The count's colour already says airing, publishing or all out
     // (0.293.1); only what it can't say stays a word.
@@ -428,12 +431,12 @@
     const stop = el("button", "btn btn-sm progress-stop");
     stop.appendChild(ico("undo-2"));
     stop.type = "button";
-    stop.title = "Not now — back to the backlog";
-    stop.setAttribute("aria-label", "Put " + b.title + " back in the backlog");
+    stop.title = i18n.t("Not now — back to the backlog");
+    stop.setAttribute("aria-label", i18n.t("Put {title} back in the backlog", { title: b.title }));
     stop.onclick = (ev) => { ev.stopPropagation(); stopItem(b.id); };
     row.appendChild(stop);
     const done = doneButton(b);
-    done.title = "Finished — log it";
+    done.title = i18n.t("Finished — log it");
     done.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
     row.appendChild(done);
     row.onclick = () => openBacklogModal(b);
@@ -447,12 +450,12 @@
     if (!items.length) return null;
     const block = el("div", "year-block progress-block");
     const head = el("div", "year-head");
-    head.appendChild(el("h2", null)).appendChild(window.LifeLogIcons.labelled("play", "In progress"));
+    head.appendChild(el("h2", null)).appendChild(window.LifeLogIcons.labelled("play", i18n.t("In progress")));
     head.appendChild(el("span", "ycount", String(items.length)));
     const add = el("button", "month-add-btn", "+");
     add.type = "button";
-    add.title = "Start something new";
-    add.setAttribute("aria-label", "Start something new");
+    add.title = i18n.t("Start something new");
+    add.setAttribute("aria-label", i18n.t("Start something new"));
     add.onclick = () => openBacklogModal(null, null, { started: true });
     head.appendChild(add);
     block.appendChild(head);
@@ -583,7 +586,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("clipboard-list", `Already in backlog · ${b.category}`));
+      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("clipboard-list", i18n.t("Already in backlog · {category}", { category: b.category })));
       list.appendChild(item);
     });
 
@@ -607,7 +610,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("check", `Logged ×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
+      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("check", i18n.t("Logged ×{n} · last {month} {year}", { n: m.count, month: MONTHS_SHORT[m.month], year: String(m.year) })));
       list.appendChild(item);
     });
 
@@ -628,9 +631,9 @@
     const inJournal = state.data.entries.some((e) => e.title.trim().toLowerCase() === title);
     if (!inBacklog && !inJournal) { status.hidden = true; return; }
     const parts = [];
-    if (inBacklog) parts.push("already in your backlog");
-    if (inJournal) parts.push("already logged in your timeline");
-    window.LifeLogIcons.setLabel($("#bDuplicateStatusText"), "clipboard-list", "This title is " + parts.join(" and ") + ".");
+    if (inBacklog) parts.push(i18n.t("already in your backlog"));
+    if (inJournal) parts.push(i18n.t("already logged in your timeline"));
+    window.LifeLogIcons.setLabel($("#bDuplicateStatusText"), "clipboard-list", i18n.t("This title is {where}.", { where: i18n.join(parts) }));
     status.hidden = false;
   }
 
@@ -799,9 +802,9 @@
   // Each setting is "always" (a plain rule, never folds), "open" (foldable,
   // starts open) or "collapsed" (foldable, starts folded).
   const FOLD_BANDS = [
-    { band: 2, label: "Early Access", cls: "backlog-ea-sep", setting: "backlogFoldEa" },
-    { band: 3, label: "Unreleased", cls: "backlog-upcoming-sep", setting: "backlogFoldUnreleased" },
-    { band: 4, label: "Dropped", cls: "backlog-dropped-sep", setting: "backlogFoldDropped" },
+    { band: 2, label: i18n.t("Early Access"), cls: "backlog-ea-sep", setting: "backlogFoldEa" },
+    { band: 3, label: i18n.t("Unreleased"), cls: "backlog-upcoming-sep", setting: "backlogFoldUnreleased" },
+    { band: 4, label: i18n.t("Dropped"), cls: "backlog-dropped-sep", setting: "backlogFoldDropped" },
   ];
   const FOLD_BY_BAND = new Map(FOLD_BANDS.map((f) => [f.band, f]));
 
@@ -950,9 +953,9 @@
     5: [1, 5],             // seasons
   };
   const LENGTH_HINTS = {
-    short: "Up to 5 hrs, 250 pages, 13 episodes or 50 chapters",
-    medium: "In between",
-    long: "25 hrs, 500 pages, 40 episodes or 200 chapters and up",
+    short: i18n.t("Up to 5 hrs, 250 pages, 13 episodes or 50 chapters"),
+    medium: i18n.t("In between"),
+    long: i18n.t("25 hrs, 500 pages, 40 episodes or 200 chapters and up"),
   };
   function lengthBand(b) {
     const k = lengthKey(b);
@@ -1122,9 +1125,9 @@
   // category of shows reads "Still airing", one of games "Early Access".
   function unfinishedLabel(items, short) {
     const shows = items.filter((b) => !b.earlyAccess && stillAiring(b)).length;
-    if (!shows) return short ? "EA" : "Early Access";
-    if (shows === items.length) return short ? "airing" : "Still airing";
-    return short ? "EA/airing" : "Early Access or airing";
+    if (!shows) return short ? i18n.t("EA") : i18n.t("Early Access");
+    if (shows === items.length) return short ? i18n.t("airing") : i18n.t("Still airing");
+    return short ? i18n.t("EA/airing") : i18n.t("Early Access or airing");
   }
 
   // The day this item is actually waiting on, for sorting and grouping the
@@ -1289,9 +1292,9 @@
   function makePickGroup(items) {
     const right = el("div", "dsc-bar-right");
     const btn = el("button", "btn btn-sm pick-open-btn");
-    btn.appendChild(window.LifeLogIcons.labelled("dices", "Pick"));
+    btn.appendChild(window.LifeLogIcons.labelled("dices", i18n.t("Pick")));
     btn.type = "button";
-    btn.title = "Pick something for me — from the backlog or your own list";
+    btn.title = i18n.t("Pick something for me — from the backlog or your own list");
     btn.onclick = () => openPickModal(eligibleForPick(items));
     right.appendChild(btn);
     // Last, so the sort sits at the far right as it does in every other view.
@@ -1337,7 +1340,7 @@
     pickToken++;
     if (own) {
       $("#pickCard").hidden = true;
-      Wheel.mount({ custom: true, hint: "Your own options — spin to let it decide." });
+      Wheel.mount({ custom: true, hint: i18n.t("Your own options — spin to let it decide.") });
       return;
     }
     Wheel.unmount();
@@ -1403,14 +1406,14 @@
       wrap.appendChild(el("span", "pick-scope-break"));
     }
     chip(pickStarred, () => { pickStarred = !pickStarred; })
-      .appendChild(window.LifeLogIcons.labelled("star", "Starred"));
+      .appendChild(window.LifeLogIcons.labelled("star", i18n.t("Starred")));
     chip(pickBought, () => { pickBought = !pickBought; })
-      .appendChild(window.LifeLogIcons.labelled("shopping-bag", "Bought"));
+      .appendChild(window.LifeLogIcons.labelled("shopping-bag", i18n.t("Bought")));
     // Length chips stack as "any of these"; a title with no length known
     // drops out once one is on. Only offered when something has a length.
     if (!pickPool.some((b) => lengthBand(b))) return;
     wrap.appendChild(el("span", "pick-scope-break"));
-    for (const [key, label] of [["short", "Short"], ["medium", "Medium"], ["long", "Long"]]) {
+    for (const [key, label] of [["short", i18n.t("Short")], ["medium", i18n.t("Medium")], ["long", i18n.t("Long")]]) {
       const c = chip(pickLengths.has(key), () => {
         if (pickLengths.has(key)) pickLengths.delete(key);
         else pickLengths.add(key);
@@ -1428,16 +1431,16 @@
     pickCurrent = null;
     $("#pickCard").hidden = false;
     $("#pickCard").classList.add("is-empty");
-    $("#pickModalTitle").textContent = "Nothing to pick from";
+    $("#pickModalTitle").textContent = i18n.t("Nothing to pick from");
     const wanted = [];
-    if (pickStarred) wanted.push("starred");
-    if (pickBought) wanted.push("bought");
-    if (pickLengths.size) wanted.push([...pickLengths].join(" or "));
+    if (pickStarred) wanted.push(i18n.t("starred"));
+    if (pickBought) wanted.push(i18n.t("bought"));
+    if (pickLengths.size) wanted.push(i18n.join([...pickLengths].map((k) => ({ short: i18n.t("short"), medium: i18n.t("medium"), long: i18n.t("long") })[k] || k), { type: "disjunction" }));
     $("#pickModalCategory").textContent = "";
     $("#pickMeta").textContent = !pickCats.size
-      ? "Switch a category back on to draw from it."
-      : wanted.length ? "Nothing in the categories you have on is " + wanted.join(" and ") + "."
-        : "Everything here is started, dropped or not out yet.";
+      ? i18n.t("Switch a category back on to draw from it.")
+      : wanted.length ? i18n.t("Nothing in the categories you have on is {what}.", { what: i18n.join(wanted) })
+        : i18n.t("Everything here is started, dropped or not out yet.");
     $("#pickCover").hidden = true;
     $("#pickCoverImg").src = "";
     $("#pickLinks").innerHTML = "";
@@ -1451,7 +1454,7 @@
     const spin = !opts || opts.spin !== false;
     const pool = pickCandidates();
     $("#pickCount").textContent = pool.length
-      ? pool.length + (pool.length === 1 ? " title" : " titles") : "";
+      ? i18n.tn(pool.length, "{n} title", "{n} titles") : "";
     pickToken++;
     if (!pool.length) { Wheel.unmount(); showEmptyPick(); return; }
     if (loadPickPrefs().reveal === "wheel" && pool.length > 1) { revealOnWheel(pool, spin); return; }
@@ -1471,7 +1474,7 @@
     const token = pickToken;
     Wheel.mount({
       hint: pool.length > contenders.length
-        ? contenders.length + " of " + pool.length + " titles on the wheel" : "",
+        ? i18n.t("{n} of {total} titles on the wheel", { n: contenders.length, total: pool.length }) : "",
       items: contenders.map((b) => ({ label: b.title, color: colorOf(b.category), data: b })),
       autoSpin,
       onSpin: syncPickActions,
@@ -1556,7 +1559,7 @@
     if (b.priority) {
       titleEl.appendChild(document.createTextNode(" "));
       const fav = priorityBadge();
-      fav.title = "Starred";
+      fav.title = i18n.t("Starred");
       titleEl.appendChild(fav);
     }
     renderMediaLinks(null, $("#pickLinks"), false, b.mediaSource, b.mediaId);
@@ -1630,10 +1633,10 @@
 
   function countdownText(dateStr) {
     const days = daysUntil(dateStr);
-    if (days <= 0) return "today";
-    if (days === 1) return "tomorrow";
-    if (days < 21) return "in " + days + " days";
-    if (days < 60) return "in " + Math.round(days / 7) + " weeks";
+    if (days <= 0) return i18n.t("today");
+    if (days === 1) return i18n.t("tomorrow");
+    if (days < 21) return i18n.tn(days, "in {n} day", "in {n} days");
+    if (days < 60) return i18n.tn(Math.round(days / 7), "in {n} week", "in {n} weeks");
     return "";
   }
 
@@ -1649,13 +1652,13 @@
     if (precision === "day" && isRealDate(raw.slice(0, 10))) return formatDay(raw.slice(0, 10));
     const month = parseInt(raw.slice(5, 7), 10);
     if (precision === "quarter" && month >= 1 && month <= 12) {
-      return "Q" + (Math.floor((month - 1) / 3) + 1) + " " + raw.slice(0, 4);
+      return i18n.t("Q{q} {year}", { q: Math.floor((month - 1) / 3) + 1, year: raw.slice(0, 4) });
     }
     if (precision === "month" && month >= 1 && month <= 12) {
-      return "Sometime in " + MONTHS_SHORT[month] + " " + raw.slice(0, 4);
+      return i18n.t("Sometime in {when}", { when: MONTHS_SHORT[month] + " " + raw.slice(0, 4) });
     }
     const year = parseInt(raw, 10) || b.releaseYear;
-    return year ? "Sometime in " + year : "No date announced";
+    return year ? i18n.t("Sometime in {when}", { when: String(year) }) : i18n.t("No date announced");
   }
 
   function upcomingRow(b) {
@@ -1739,7 +1742,7 @@
   function outTodayCard(items) {
     const section = el("div", "backlog-section out-card");
     const head = el("div", "backlog-section-head");
-    head.appendChild(el("span", "backlog-section-name", "Out today"));
+    head.appendChild(el("span", "backlog-section-name", i18n.t("Out today")));
     head.appendChild(el("span", "backlog-section-count", String(items.length)));
     section.appendChild(head);
     const list = el("div", "backlog-list");
@@ -1762,7 +1765,7 @@
       .sort((a, b) => a.title.localeCompare(b.title));
     if (!items.length) return;
     try { localStorage.setItem(OUT_SEEN_KEY, JSON.stringify({ day: today })); } catch (e) {}
-    showOutSheet(items, { title: "Out today", count: items.length === 1 ? "1 thing came out today" : items.length + " things came out today" });
+    showOutSheet(items, { title: i18n.t("Out today"), count: i18n.tn(items.length, "{n} thing came out today", "{n} things came out today") });
   }
   // The sheet itself (0.259.0): the grid sizes to how many there are (one
   // tile large and centred, two or three in a row, more as the grid), and
@@ -1808,8 +1811,8 @@
   }
   function showOutLastWeek() {
     const items = outLastWeek();
-    if (!items.length) { toast("Nothing came out in the last 7 days"); return; }
-    showOutSheet(items, { title: "Out this week", count: items.length === 1 ? "1 thing came out in the last 7 days" : items.length + " things came out in the last 7 days", withDay: true });
+    if (!items.length) { toast(i18n.t("Nothing came out in the last 7 days")); return; }
+    showOutSheet(items, { title: i18n.t("Out this week"), count: i18n.tn(items.length, "{n} thing came out in the last 7 days", "{n} things came out in the last 7 days"), withDay: true });
   }
   // The Upcoming bar's right-hand group (0.259.0): the week just gone, as
   // the sheet. The waiting count sits on the bar's left.
@@ -1819,9 +1822,9 @@
     const btn = el("button", "btn btn-sm out-week-btn");
     btn.type = "button";
     btn.appendChild(ico("history"));
-    btn.appendChild(document.createTextNode(" Out in the last 7 days"));
+    btn.appendChild(document.createTextNode(" " + i18n.t("Out in the last 7 days")));
     if (n) btn.appendChild(el("span", "out-week-count", String(n)));
-    btn.title = n ? "What came out in the last seven days" : "Nothing came out in the last seven days";
+    btn.title = n ? i18n.t("What came out in the last seven days") : i18n.t("Nothing came out in the last seven days");
     btn.onclick = showOutLastWeek;
     right.appendChild(btn);
     return right;
@@ -1841,14 +1844,14 @@
       // Distinguish "nothing is coming" from "your filters hid it" — the
       // advice below only makes sense for the former.
       if (state.data.backlog.some(isAwaitingRelease)) {
-        root.appendChild(emptyState("Nothing upcoming matches your filters."));
+        root.appendChild(emptyState(i18n.t("Nothing upcoming matches your filters.")));
         return;
       }
       root.appendChild(emptyState({
         glyph: "telescope",
-        title: "Nothing on the horizon",
-        body: "Backlog items that haven't come out yet show up here in date order — the next episode of something airing, a game with a release date, a film still months away.",
-        hint: "Release dates arrive with the cover art when you sync an item to a media source. Settings → Release dates keeps them current.",
+        title: i18n.t("Nothing on the horizon"),
+        body: i18n.t("Backlog items that haven't come out yet show up here in date order — the next episode of something airing, a game with a release date, a film still months away."),
+        hint: i18n.t("Release dates arrive with the cover art when you sync an item to a media source. Settings → Release dates keeps them current."),
       }));
       return;
     }
@@ -1881,7 +1884,7 @@
       const [year, month] = key.split("-");
       sections.push(makeUpcomingSection(
         key,
-        key === thisMonth ? "This month" : MONTHS_SHORT[+month] + " " + year,
+        key === thisMonth ? i18n.t("This month") : MONTHS_SHORT[+month] + " " + year,
         key === thisMonth ? MONTHS_SHORT[+month] + " " + year : "",
         monthItems
       ));
@@ -1893,13 +1896,13 @@
     // keys in numeric order — and the .sort() says so out loud.
     const byYear = groupBy(undated.filter(yearOf), (b) => String(yearOf(b)));
     for (const year of Object.keys(byYear).sort()) {
-      sections.push(makeUpcomingSection("year-" + year, year, "No month announced", byYear[year]));
+      sections.push(makeUpcomingSection("year-" + year, year, i18n.t("No month announced"), byYear[year]));
     }
     const noDate = undated.filter((b) => !yearOf(b));
     grid.classList.toggle("is-covers", coversLayout());
     if (noDate.length) {
-      sections.push(makeUpcomingSection("undated", "No date yet",
-        "Announced, but nothing dated yet", noDate));
+      sections.push(makeUpcomingSection("undated", i18n.t("No date yet"),
+        i18n.t("Announced, but nothing dated yet"), noDate));
     }
     root.appendChild(grid);
     renderLazySections(grid, sections);
@@ -1921,7 +1924,7 @@
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
       cb.indeterminate = !allSelected && items.some((b) => state.bulk.selected.has(b.id));
-      cb.title = "Select all in " + title;
+      cb.title = i18n.t("Select all in {group}", { group: title });
       cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(items); };
       head.appendChild(cb);
     }
@@ -1960,7 +1963,7 @@
   // Nothing is fetched until you open the mode, and answers are cached for
   // six hours device-side: these lists move daily at most, and the app has
   // no business calling four APIs every time you glance at the Backlog.
-  const DISCOVER_KINDS = [["popular", "Popular"], ["upcoming", "Coming soon"]];
+  const DISCOVER_KINDS = [["popular", i18n.t("Popular")], ["upcoming", i18n.t("Coming soon")]];
   const DISCOVER_CACHE_KEY = "lifelog-discover-v1";
   const DISCOVER_TTL_MS = 6 * 60 * 60 * 1000;
   let discoverKind = "popular";
@@ -2062,10 +2065,9 @@
 
   function discoverUnavailableNote(source) {
     if (String(DISCOVER_STANDIN[source] || "").startsWith("nyt-")) {
-      return "Books have no popularity list of their own. Set a New York Times key or a Hardcover token in Settings → Media lookups and this shows the NYT bestsellers or Hardcover's trending.";
+      return i18n.t("Books have no popularity list of their own. Set a New York Times key or a Hardcover token in Settings → Media lookups and this shows the NYT bestsellers or Hardcover's trending.");
     }
-    return (MEDIA_SOURCE_LABELS[source] || source) +
-      " publishes no popularity list of its own. Set a RAWG key or IGDB's client ID and secret in Settings → Media lookups and this fills in from there instead.";
+    return i18n.t("{source} publishes no popularity list of its own. Set a RAWG key or IGDB's client ID and secret in Settings → Media lookups and this fills in from there instead.", { source: MEDIA_SOURCE_LABELS[source] || source });
   }
 
   function discoverCache() {
@@ -2246,11 +2248,11 @@
     try { next = await window.LifeLogMedia.nextInSeries(entry.mediaId, entry.mediaSource, keys, entry.title, window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl)); } catch (e) { next = null; }
     if (!next || !next.title) return;
     if (discoverOwnedTag(next.title, discoverOwnedIndex())) return;
-    toast("Next in the series: " + next.title, false, {
-      label: "Add to backlog",
+    toast(i18n.t("Next in the series: {title}", { title: next.title }), false, {
+      label: i18n.t("Add to backlog"),
       onClick: () => {
         openBacklogModal(null, entry.category);
-        applyMediaResult(next, keys).catch(() => toast("Couldn't fetch the full details for that one"));
+        applyMediaResult(next, keys).catch(() => toast(i18n.t("Couldn't fetch the full details for that one")));
       },
     });
   }
@@ -2278,8 +2280,8 @@
   function discoverOwnedTag(title, owned) {
     const k = window.LifeLogMedia.titleKey(title);
     if (!k) return "";
-    if (owned.inBacklog.has(k)) return "In backlog";
-    if (owned.logged.has(k)) return "Logged";
+    if (owned.inBacklog.has(k)) return i18n.t("In backlog");
+    if (owned.logged.has(k)) return i18n.t("Logged");
     return "";
   }
 
@@ -2326,7 +2328,7 @@
     row.appendChild(body);
     const add = el("button", "btn btn-sm dsc-add", "+");
     add.type = "button";
-    add.title = "Add to " + catName;
+    add.title = i18n.t("Add to {group}", { group: catName });
     add.setAttribute("aria-label", add.title);
     row.appendChild(add);
     // The modal opens rather than the item being filed silently: the
@@ -2366,7 +2368,7 @@
       openBacklogModal(null, cur.catName);
       const picked = cur.r.lookup ? lookUpListed(cur.r, cur.keys) : Promise.resolve(cur.r);
       picked.then((r) => (r ? applyMediaResult(r, cur.keys) : fillListed(cur.r)))
-        .catch(() => toast("Couldn't fetch the full details for that one"));
+        .catch(() => toast(i18n.t("Couldn't fetch the full details for that one")));
     };
     return row;
   }
@@ -2408,8 +2410,8 @@
     const refresh = el("button", "btn btn-sm dsc-refresh");
     refresh.appendChild(ico("refresh-cw"));
     refresh.type = "button";
-    refresh.title = "Refresh: fetch these lists again, ignoring the six-hour cache";
-    refresh.setAttribute("aria-label", "Refresh");
+    refresh.title = i18n.t("Refresh: fetch these lists again, ignoring the six-hour cache");
+    refresh.setAttribute("aria-label", i18n.t("Refresh"));
     refresh.hidden = !sources.length;
     refresh.onclick = () => { ensureDiscover(sources, { force: true }); render(); };
     right.appendChild(refresh);
@@ -2430,8 +2432,8 @@
       render();
     };
     label.appendChild(cb);
-    label.appendChild(document.createTextNode("Hide owned"));
-    label.title = "Leave out anything already in your backlog or already logged";
+    label.appendChild(document.createTextNode(i18n.t("Hide owned")));
+    label.title = i18n.t("Leave out anything already in your backlog or already logged");
     return label;
   }
 
@@ -2445,7 +2447,7 @@
     if (sw && sw.choices.length > 1) {
       const group = el("div", "seg dsc-switch");
       group.setAttribute("role", "group");
-      group.setAttribute("aria-label", "List for " + title);
+      group.setAttribute("aria-label", i18n.t("List for {title}", { title }));
       for (const s of sw.choices) {
         const btn = el("button", "seg-btn", MEDIA_SOURCE_LABELS[s] || s);
         btn.type = "button";
@@ -2505,10 +2507,8 @@
       // Two different dead ends, and telling them apart matters: one is
       // something you set up, the other is a chip you can click off.
       root.appendChild(emptyState(state.activeCats.size
-        ? "Nothing to discover in the categories you've narrowed to — none of them uses a source that publishes a popularity list. " +
-          "Clear the category chips to see the rest, or set a source in Settings → Media lookups."
-        : "Discover follows the media sources your categories use, and none of the ones you've set publishes a popularity list. " +
-          "RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media lookups."));
+        ? i18n.t("Nothing to discover in the categories you've narrowed to — none of them uses a source that publishes a popularity list. Clear the category chips to see the rest, or set a source in Settings → Media lookups.")
+        : i18n.t("Discover follows the media sources your categories use, and none of the ones you've set publishes a popularity list. RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media lookups.")));
       return;
     }
     const sources = [...lists.keys()];
@@ -2534,11 +2534,11 @@
       const hidden = run ? run.rows.length - rows.length : 0;
       const parts = [];
       if (!run || run.status === "loading") {
-        parts.push({ key: "__loading", kind: "note", text: "Loading…" });
+        parts.push({ key: "__loading", kind: "note", text: i18n.t("Loading…") });
       } else if (!run.rows.length) {
-        parts.push({ key: "__none", kind: "note", text: "Nothing came back. Check this source's API key in Settings → Media lookups." });
+        parts.push({ key: "__none", kind: "note", text: i18n.t("Nothing came back. Check this source's API key in Settings → Media lookups.") });
       } else if (!rows.length) {
-        parts.push({ key: "__owned", kind: "note", text: "You already have all " + run.rows.length + " of these." });
+        parts.push({ key: "__owned", kind: "note", text: i18n.t("You already have all {n} of these.", { n: run.rows.length }) });
       } else {
         applyDiscoverEarlyAccess(rows, discoverEaCache());
         applyDiscoverAiring(source, rows, discoverAiringCache());
@@ -2552,7 +2552,7 @@
         loadDiscoverAiring(source, discoverKind, rows, keys);
         // Says the filter did something, so a short list doesn't read as a
         // thin one from the source.
-        if (hidden) parts.push({ key: "__hidden", kind: "note", text: hidden + " already yours, hidden" });
+        if (hidden) parts.push({ key: "__hidden", kind: "note", text: i18n.tn(hidden, "{n} already yours, hidden", "{n} already yours, hidden") });
       }
       cards.push({ key: "src:" + cats.join("|"), title: cats.join(" · "), sourceLabel: MEDIA_SOURCE_LABELS[source] || source, parts, sw: { choices: choices.get(source) || [source], current: source, cats } });
     }
@@ -2582,7 +2582,7 @@
   // "List" since 0.231.0, when each tab's first mode got a name of its own
   // (it was "Entries", like the others'). It was "By category" with the id
   // "category" until 0.128.0; applySavedUi in app.js translates the stored one.
-  const MODES = [["entries", "List", "star"], ["upcoming", "Next releases", "clock"], ["discover", "Discover", "compass"]];
+  const MODES = [["entries", i18n.t("List"), "star"], ["upcoming", i18n.t("Next releases"), "clock"], ["discover", i18n.t("Discover"), "compass"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.
@@ -2590,7 +2590,7 @@
     const bar = el("div", "backlog-mode-bar");
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
-      bar.appendChild(el("span", "backlog-mode-count", n ? n + (n === 1 ? " title" : " titles") + " waiting" : "Nothing waiting"));
+      bar.appendChild(el("span", "backlog-mode-count", n ? i18n.tn(n, "{n} title waiting", "{n} titles waiting") : i18n.t("Nothing waiting")));
       bar.appendChild(upcomingWeekGroup());
     } else if (state.backlogMode === "entries") {
       // What's been started is on the Timeline's In progress card (0.218.0).
@@ -2627,7 +2627,7 @@
     // phone (the name is what shrinks — see .backlog-section-name). The row
     // badge below says "Early Access" in full, and it reads unambiguously
     // among the others.
-    const asides = [[ea, unfinishedLabel(unfinished, true)], [pending, "unreleased"], [dropped, "dropped"]].filter(([n]) => n);
+    const asides = [ea && i18n.t("+{n} {what}", { n: ea, what: unfinishedLabel(unfinished, true) }), pending && i18n.t("+{n} unreleased", { n: pending }), dropped && i18n.t("+{n} dropped", { n: dropped })].filter(Boolean);
     // Nothing set aside, or a single aside that accounts for the whole
     // category: either way the split would be one number and a parenthesis
     // saying the same thing twice.
@@ -2635,7 +2635,7 @@
     if (!rest && asides.length === 1) return span;
     span.textContent = String(rest);
     span.appendChild(el("span", "bl-count-pending",
-      "(" + asides.map(([n, label]) => "+" + n + " " + label).join(", ") + ")"));
+      "(" + asides.join(", ") + ")"));
     return span;
   }
 
@@ -2666,17 +2666,17 @@
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
         glyph: "star",
-        title: "Your backlog is empty",
-        body: "Add things you want to get to. They sit here grouped by category and sorted by priority, until the day you log them.",
-        action: "Add to backlog",
+        title: i18n.t("Your backlog is empty"),
+        body: i18n.t("Add things you want to get to. They sit here grouped by category and sorted by priority, until the day you log them."),
+        action: i18n.t("Add to backlog"),
         onAction: () => openBacklogModal(null),
-        hint: "Higher-priority items rise to the top of their category.",
+        hint: i18n.t("Higher-priority items rise to the top of their category."),
       }));
       return;
     }
     if (state.backlogMode === "upcoming") { renderUpcoming(root); return; }
     if (!items.length) {
-      root.appendChild(emptyState("No backlog items match your filters."));
+      root.appendChild(emptyState(i18n.t("No backlog items match your filters.")));
       return;
     }
     const byCat = groupBy(items, (b) => b.category);
@@ -2701,7 +2701,7 @@
         const cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
         cb.indeterminate = !allSelected && selectable.some((b) => state.bulk.selected.has(b.id));
-        cb.title = "Select all in " + catName;
+        cb.title = i18n.t("Select all in {group}", { group: catName });
         cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(selectable); };
         head.appendChild(cb);
       }
@@ -2718,7 +2718,7 @@
       if (!state.bulk.active) {
         const addBtn = el("button", "month-add-btn", "+");
         addBtn.type = "button";
-        addBtn.title = "Add to " + catName;
+        addBtn.title = i18n.t("Add to {group}", { group: catName });
         addBtn.setAttribute("aria-label", addBtn.title);
         addBtn.onclick = (ev) => { ev.stopPropagation(); openBacklogModal(null, catName); };
         head.appendChild(addBtn);
@@ -2849,7 +2849,7 @@
   function fillBandToggle(node, label, n, open) {
     node.classList.toggle("is-open", open);
     node.setAttribute("aria-expanded", open ? "true" : "false");
-    node.title = (open ? "Hide " : "Show ") + label.toLowerCase();
+    node.title = (open ? i18n.t("Hide {what}", { what: label.toLowerCase() }) : i18n.t("Show {what}", { what: label.toLowerCase() }));
     const lbl = node.querySelector(".bdt-label");
     if (lbl) lbl.textContent = `${open ? "\u25be" : "\u25b8"} ${label} ${n}`;
   }
@@ -2893,8 +2893,8 @@
     const btn = el("button", "btn btn-sm bl-done");
     btn.appendChild(ico("check"));
     btn.type = "button";
-    btn.title = "Done — move to your log";
-    btn.setAttribute("aria-label", "Done: " + b.title);
+    btn.title = i18n.t("Done — move to your log");
+    btn.setAttribute("aria-label", i18n.t("Done: {title}", { title: b.title }));
     btn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
     return btn;
   }
@@ -2904,8 +2904,8 @@
     const btn = el("button", "btn btn-sm bl-start");
     btn.appendChild(ico("play"));
     btn.type = "button";
-    btn.title = "Start — move to In progress";
-    btn.setAttribute("aria-label", "Start " + b.title);
+    btn.title = i18n.t("Start — move to In progress");
+    btn.setAttribute("aria-label", i18n.t("Start {title}", { title: b.title }));
     btn.onclick = (ev) => { ev.stopPropagation(); startItem(b.id); };
     return btn;
   }
@@ -2937,9 +2937,9 @@
     const art = el("div", "bl-tile-art");
     art.appendChild(tileCover(b.coverUrl, b.category));
     const marks = el("div", "bl-tile-marks");
-    if (b.priority) marks.appendChild(tileMark("star", "Starred", "is-star"));
-    if (b.bought) marks.appendChild(tileMark("shopping-bag", "Bought"));
-    else if (b.priceAlert > 0 && b.mediaSource === "steam") marks.appendChild(tileMark("bell", "Price alert"));
+    if (b.priority) marks.appendChild(tileMark("star", i18n.t("Starred"), "is-star"));
+    if (b.bought) marks.appendChild(tileMark("shopping-bag", i18n.t("Bought")));
+    else if (b.priceAlert > 0 && b.mediaSource === "steam") marks.appendChild(tileMark("bell", i18n.t("Price alert")));
     appendTileInfo(art, b, { price: true });
     if (marks.firstChild) art.appendChild(marks);
     if (state.bulk.active) art.appendChild(bulkCheckbox(b));
@@ -2970,37 +2970,37 @@
   // a phone would never see it, and the Covers layout is its whole list.
   const canHover = () => !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches);
   const RATING_SOURCES = { OL: "Open Library", Jikan: "MyAnimeList" };
-  const HLTB_SHORT = [["story", "Main"], ["extras", "+ Extras"], ["complete", "Complete"]];
+  const HLTB_SHORT = [["story", i18n.t("Main")], ["extras", i18n.t("+ Extras")], ["complete", i18n.t("Complete")]];
   function appendTileInfo(art, item, opts) {
     if (!canHover()) return;
     const rows = [];
     const add = (label, value) => { if (value) rows.push([label, value]); };
     const year = yearOf(item);
-    add("Release", year ? String(year) : isUnreleased(item) ? "TBA" : "");
-    if (item.earlyAccess) add("Status", "Early Access");
-    else add("Status", airingLabel(item));
+    add(i18n.t("Release"), year ? String(year) : isUnreleased(item) ? i18n.t("TBA") : "");
+    if (item.earlyAccess) add(i18n.t("Status"), i18n.t("Early Access"));
+    else add(i18n.t("Status"), airingLabel(item));
     const saved = savedCount(item);
-    if (saved) add(/^Ch/.test(saved.text) ? "Read" : "Watched", saved.text.replace(/^\S+ /, ""));
+    if (saved) add(saved.manga ? i18n.t("Read") : i18n.t("Watched"), String(saved.n));
     const ext = String(item.externalRating || "").trim();
     const m = /^(\S+)\s+(.+)$/.exec(ext);
-    if (m) add(RATING_SOURCES[m[2]] || m[2], m[1]); else add("Rating", ext);
+    if (m) add(RATING_SOURCES[m[2]] || m[2], m[1]); else add(i18n.t("Rating"), ext);
     const reviews = item.reviews || {};
     if (reviews.opencritic) add("OpenCritic", String(reviews.opencritic.score));
     // Metacritic's user score only where the source's own isn't Metacritic,
     // as on the sheet (0.282.2).
-    if (reviews.metauser && !/Metacritic$/.test(ext)) add("Metacritic users", String(reviews.metauser.score));
+    if (reviews.metauser && !/Metacritic$/.test(ext)) add(i18n.t("Metacritic users"), String(reviews.metauser.score));
     const hltb = item.hltb || {};
     const timed = HLTB_SHORT.filter(([k]) => hltb[k] > 0);
     if (timed.length) for (const [k, label] of timed) add(label, window.LifeLogMedia.gameHours(hltb[k]));
-    else add("Length", item.length);
+    else add(i18n.t("Length"), Dates().lengthText(item.length));
     const box = el("div", "tile-info");
     box.setAttribute("aria-hidden", "true");
     for (const [label, value] of rows) box.appendChild(tileInfoRow(label, document.createTextNode(value)));
     if (opts && opts.price && item.mediaSource === "steam" && item.mediaId && !item.bought) {
       const price = el("span", "bl-price");
       price.dataset.appid = item.mediaId;
-      box.appendChild(tileInfoRow("Price", price)).classList.add("is-price");
-      if (item.priceAlert > 0) box.appendChild(tileInfoRow("Alert at", document.createTextNode("$" + Number(item.priceAlert).toFixed(2))));
+      box.appendChild(tileInfoRow(i18n.t("Price"), price)).classList.add("is-price");
+      if (item.priceAlert > 0) box.appendChild(tileInfoRow(i18n.t("Alert at"), document.createTextNode("$" + Number(item.priceAlert).toFixed(2))));
     }
     if (box.firstChild) art.appendChild(box);
   }
@@ -3079,9 +3079,9 @@
       // Steam has no search (CORS-blocked) — its App ID can only be entered
       // manually per item, so it's skipped here rather than attempted.
       const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-      if (!item) { markBulkItem(id, "skipped", "no longer in your backlog"); skipped++; }
-      else if (!source) { markBulkItem(id, "skipped", `no media source set for ${item.category}`); skipped++; }
-      else if (source === "steam") { markBulkItem(id, "skipped", "Steam needs an App ID per item"); skipped++; }
+      if (!item) { markBulkItem(id, "skipped", i18n.t("no longer in your backlog")); skipped++; }
+      else if (!source) { markBulkItem(id, "skipped", i18n.t("no media source set for {category}", { category: item.category })); skipped++; }
+      else if (source === "steam") { markBulkItem(id, "skipped", i18n.t("Steam needs an App ID per item")); skipped++; }
       else {
         try {
           // fetchMediaMatch swallows its own errors and returns no match, so a
@@ -3099,8 +3099,8 @@
             const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
             if (err) lastErr = err;
             markBulkItem(id, "skipped", found.closest
-              ? `no match for this title — closest was “${found.closest.title}”`
-              : (err || "no match found"));
+              ? i18n.t("no match for this title — closest was “{title}”", { title: found.closest.title })
+              : (err || i18n.t("no match found")));
           } else {
             const r = found.match;
             const filled = [];
@@ -3154,7 +3154,7 @@
       // A dead key or a blocked network fails identically on every title —
       // no reason to spend the rest of the selection proving it.
       if (streak >= 3) {
-        ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", "stopped after 3 failures in a row"));
+        ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", i18n.t("stopped after 3 failures in a row")));
         skipped += ids.length - ids.indexOf(id) - 1;
         break;
       }
@@ -3170,9 +3170,9 @@
     state.bulk.selected.clear();
     render();
     await persist();
-    const bits = [`Synced ${synced} item${synced === 1 ? "" : "s"}`];
-    if (skipped) bits.push(`skipped ${skipped}`);
-    if (failed) bits.push(`${failed} failed`);
+    const bits = [i18n.tn(synced, "Synced {n} item", "Synced {n} items")];
+    if (skipped) bits.push(i18n.t("skipped {n}", { n: skipped }));
+    if (failed) bits.push(i18n.tn(failed, "{n} failed", "{n} failed"));
     const base = bits.join(", ");
     toast(lastErr ? base + " — " + lastErr : base, !!(failed || (skipped && lastErr)));
   }
@@ -3185,19 +3185,19 @@
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Moved ${n} item${n === 1 ? "" : "s"} to “${categoryName}”`);
+    toast(i18n.tn(n, "Moved {n} item to “{category}”", "Moved {n} items to “{category}”", { category: categoryName }));
   }
 
   async function bulkDeleteSelected() {
     const ids = state.bulk.selected;
     const n = ids.size;
-    if (!confirm(`Remove ${n} item${n === 1 ? "" : "s"} from your backlog?`)) return;
+    if (!confirm(i18n.tn(n, "Remove {n} item from your backlog?", "Remove {n} items from your backlog?"))) return;
     state.data.backlog = state.data.backlog.filter((b) => !ids.has(b.id));
     state.bulk.active = false;
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Removed ${n} item${n === 1 ? "" : "s"} from backlog`);
+    toast(i18n.tn(n, "Removed {n} item from backlog", "Removed {n} items from backlog"));
   }
 
   // ---------- backlog modal ----------
@@ -3278,7 +3278,7 @@
 
   function openBacklogModal(item, presetCategory, opts) {
     const editing = !!item;
-    $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
+    $("#backlogModalTitle").textContent = editing ? i18n.t("Edit backlog item") : i18n.t("Add to backlog");
     $("#backlogId").value = editing ? item.id : "";
     $("#bTitle").value = editing ? item.title : ((opts && opts.title) || "");
     fillCategorySelect($("#bCategory"), state.data.categories,
@@ -3309,7 +3309,7 @@
     updateMoreMenu();
     const aging = $("#backlogAgingLine");
     if (editing && item.createdAt) {
-      aging.textContent = "Added " + Dates().day(item.createdAt) + " — " + agingText(item.createdAt);
+      aging.textContent = i18n.t("Added {date} — {ago}", { date: Dates().day(item.createdAt), ago: agingText(item.createdAt) });
       aging.hidden = false;
     } else aging.hidden = true;
     lastSyncedBacklogTitle = editing ? item.title : "";
@@ -3350,7 +3350,7 @@
     $("#bStarted").checked = to === "progress";
     $("#bDropped").checked = to === "dropped";
     updateStartedBtn();
-    await saveBacklogFromForm(null, { toast: to === "dropped" ? "Moved to Dropped" : to === "backlog" ? "Back in your backlog" : null });
+    await saveBacklogFromForm(null, { toast: to === "dropped" ? i18n.t("Moved to Dropped") : to === "backlog" ? i18n.t("Back in your backlog") : null });
   }
   async function setDoneFromSheet() {
     const id = $("#backlogId").value;
@@ -3378,8 +3378,8 @@
     if (!on) return;
     const src = $("#bMediaSource").value, total = +$("#bEpisodesTotal").value || 0, out = +$("#bEpisodesOut").value || 0;
     const airing = ["airing", "hiatus"].includes($("#bAiring").value) && out;
-    $("#bProgressLabel").textContent = /manga/.test(src) ? "Chapters read" : "Episodes watched";
-    $("#bProgressOf").textContent = airing ? (total ? out + " of " + total + " out" : out + " out") : total ? "of " + total : "";
+    $("#bProgressLabel").textContent = /manga/.test(src) ? i18n.t("Chapters read") : i18n.t("Episodes watched");
+    $("#bProgressOf").textContent = airing ? (total ? i18n.t("{done} of {total} out", { done: out, total }) : i18n.t("{n} out", { n: out })) : total ? i18n.t("of {total}", { total }) : "";
   }
   function nudgeProgressField(by) {
     const n = Math.max(0, (parseInt($("#bProgress").value, 10) || 0) + by);
@@ -3391,7 +3391,7 @@
     const btn = $("#bPriorityBtn");
     btn.replaceChildren(ico("star", on ? "is-fill" : ""));
     btn.classList.toggle("active", on);
-    btn.title = on ? "Prioritized — click to remove" : "Prioritize";
+    btn.title = on ? i18n.t("Prioritized — click to remove") : i18n.t("Prioritize");
     btn.setAttribute("aria-label", btn.title);
     btn.setAttribute("aria-pressed", String(on));
   }
@@ -3404,7 +3404,7 @@
     const btn = $("#bBoughtBtn");
     const on = $("#bBought").checked;
     btn.classList.toggle("active", on);
-    btn.title = on ? "Already bought — click to unmark" : "Mark as already bought";
+    btn.title = on ? i18n.t("Already bought — click to unmark") : i18n.t("Mark as already bought");
     btn.setAttribute("aria-label", btn.title);
     btn.setAttribute("aria-pressed", String(on));
   }
@@ -3420,7 +3420,7 @@
     const btn = $("#bStartedBtn");
     const on = $("#bStarted").checked;
     btn.classList.toggle("active", on);
-    btn.title = on ? "In progress — click to put it back in the backlog" : "Start — move to In progress";
+    btn.title = on ? i18n.t("In progress — click to put it back in the backlog") : i18n.t("Start — move to In progress");
     btn.setAttribute("aria-label", btn.title);
     btn.setAttribute("aria-pressed", String(on));
   }
@@ -3528,21 +3528,21 @@
       if (saved) loadBacklogPrices([saved]);
     }
     if (opts.quiet) return true;
-    if (startedNow) toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
-    else toast(opts.toast || (id ? "Backlog item updated" : "Added to backlog"));
+    if (startedNow) toast(i18n.t("Started — it's at the top of your Timeline"), false, state.view === "timeline" ? null : { label: i18n.t("Show"), onClick: showTimeline });
+    else toast(opts.toast || (id ? i18n.t("Backlog item updated") : i18n.t("Added to backlog")));
     return true;
   }
 
   async function deleteCurrentBacklogItem() {
     const id = $("#backlogId").value;
     if (!id) return;
-    if (!confirm("Remove this from your backlog?")) return;
+    if (!confirm(i18n.t("Remove this from your backlog?"))) return;
     if (window.LifeLogSync) window.LifeLogSync.aniListRemoved(state.data.backlog.find((x) => x.id === id));
     state.data.backlog = state.data.backlog.filter((x) => x.id !== id);
     closeBacklogModal();
     render();
     await persist();
-    toast("Removed from backlog");
+    toast(i18n.t("Removed from backlog"));
   }
 
   // ---------- data lifecycle ----------

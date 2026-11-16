@@ -10,6 +10,7 @@
 // lifelog.json stays small and every save stays cheap; see NOTES.md
 // "Pictures in notes (0.297.0)" for why the branch is separate.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const DB_NAME = "lifelog-images";
   const STORE = "images";
   const SCHEME = "lifelog-img:";
@@ -59,7 +60,7 @@
     let boards = [];
     if (B && B.allBoards) {
       await B.ensureLoaded(true);
-      if (S && S.boards && S.boards.error) throw new Error("Couldn't load your boards, so their images can't be checked. Try again when GitHub is reachable");
+      if (S && S.boards && S.boards.error) throw new Error(i18n.t("Couldn't load your boards, so their images can't be checked. Try again when GitHub is reachable"));
       boards = B.allBoards() || [];
     }
     return usedIds(data && data.notes, boards);
@@ -119,7 +120,7 @@
     let bmp;
     try { bmp = await createImageBitmap(blob, { imageOrientation: "from-image" }); }
     catch (e) {
-      throw new Error(/heic|heif/i.test(blob.type || "") ? "That's an iPhone HEIC photo, which this app can't open — export it as JPEG first" : "That file isn't a picture this app can open");
+      throw new Error(/heic|heif/i.test(blob.type || "") ? i18n.t("That's an iPhone HEIC photo, which this app can't open — export it as JPEG first") : i18n.t("That file isn't a picture this app can open"));
     }
     const w0 = bmp.width, h0 = bmp.height;
     const keepExt = KEEP_TYPES[blob.type];
@@ -138,7 +139,7 @@
     g.drawImage(bmp, 0, 0, w, h);
     bmp.close && bmp.close();
     const out = await new Promise((res) => canvas.toBlob(res, "image/jpeg", QUALITY));
-    if (!out) throw new Error("Couldn't shrink that picture");
+    if (!out) throw new Error(i18n.t("Couldn't shrink that picture"));
     return { blob: out, ext: "jpg", w, h };
   }
 

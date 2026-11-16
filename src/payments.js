@@ -7,6 +7,7 @@
 // anywhere else.
 (function () {
   "use strict";
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
 
   let ctx = null;
   let last = { on: false, access: false, notify: "granted" };
@@ -31,15 +32,15 @@
     fix.hidden = true;
     if (!last.on) { sub.textContent = ""; return; }
     if (!last.access) {
-      sub.textContent = "Needs notification access before it can see a payment";
-      fix.textContent = "Give notification access";
+      sub.textContent = i18n.t("Needs notification access before it can see a payment");
+      fix.textContent = i18n.t("Give notification access");
       fix.hidden = false;
     } else if (last.notify !== "granted") {
-      sub.textContent = "LifeLog's notifications are off, so the offer can't show";
-      fix.textContent = "Allow notifications";
+      sub.textContent = i18n.t("LifeLog's notifications are off, so the offer can't show");
+      fix.textContent = i18n.t("Allow notifications");
       fix.hidden = false;
     } else {
-      sub.textContent = "Watching for Google Wallet payments";
+      sub.textContent = i18n.t("Watching for Google Wallet payments");
     }
   }
 
@@ -61,7 +62,7 @@
   async function setOn(on) {
     const W = plugin();
     if (!W) return;
-    try { await W.setPayments({ on }); } catch (e) { ctx.toast("Couldn't change that: " + (e.message || e), true); }
+    try { await W.setPayments({ on }); } catch (e) { ctx.toast(i18n.t("Couldn't change that: {error}", { error: e.message || e }), true); }
     await refresh();
     if (!on) return;
     // Straight to what's missing: there's nothing to see until both are given.

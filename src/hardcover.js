@@ -27,6 +27,7 @@
 // insert_user_book_read) aren't in its docs; they're the ones its KOReader
 // plugin uses with a personal token.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let ctx = null;
 
   const STATUS_IDS = { want: 1, reading: 2, read: 3, paused: 4, dnf: 5 };
@@ -272,7 +273,7 @@
       const d = await q(Q_LIST, { u: userId, o });
       if (!d || !Array.isArray(d.user_books)) return null;
       for (const row of d.user_books) { const r = readUserBook(row); if (r) out.push(r); }
-      if (job) job.progress(out.length, 0, "Reading your Hardcover library…");
+      if (job) job.progress(out.length, 0, i18n.t("Reading your Hardcover library…"));
       if (d.user_books.length < 100) break;
     }
     return out;
@@ -321,7 +322,7 @@
   // ---------- the sync ----------
   let running = null, again = false;
   function sync(opts = {}) {
-    if (running) { again = again || !opts.manual; if (opts.manual) ctx.toast("Hardcover is already syncing"); return running; }
+    if (running) { again = again || !opts.manual; if (opts.manual) ctx.toast(i18n.t("Hardcover is already syncing")); return running; }
     running = runSync(opts).finally(() => { running = null; if (again) { again = false; sync({ nudge: true }); } });
     return running;
   }
@@ -329,24 +330,24 @@
   async function runSync({ manual } = {}) {
     const cfg = cfgOf();
     const say = (msg) => { if (manual) ctx.toast(msg, true); };
-    if (!hasToken()) return say("Add your Hardcover token in Media lookups first");
-    if (!cfg.category || !ctx.state.data.categories.some((c) => c.name === cfg.category)) return say("Pick a category for your Hardcover books first");
-    if (!window.LifeLogMedia || !window.LifeLogMedia.hardcoverQuery) return say("Media lookups aren't available");
+    if (!hasToken()) return say(i18n.t("Add your Hardcover token in Media lookups first"));
+    if (!cfg.category || !ctx.state.data.categories.some((c) => c.name === cfg.category)) return say(i18n.t("Pick a category for your Hardcover books first"));
+    if (!window.LifeLogMedia || !window.LifeLogMedia.hardcoverQuery) return say(i18n.t("Media lookups aren't available"));
     if (ctx.whenSynced) await ctx.whenSynced();
     const btn = manual ? document.getElementById("hardcoverSyncBtn") : null;
     const label = btn ? [...btn.childNodes].map((n) => n.cloneNode(true)) : null;
-    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    if (btn) { btn.disabled = true; btn.textContent = i18n.t("Syncing…"); }
     const lastErr = () => window.LifeLogMedia.getLastError();
     try {
-      await window.LifeLogJobs.run({ label: manual ? "Syncing Hardcover" : "Checking Hardcover", lane: "hardcover", again: "hardcoverSyncBtn" }, async (job) => {
+      await window.LifeLogJobs.run({ label: manual ? i18n.t("Syncing Hardcover") : i18n.t("Checking Hardcover"), lane: "hardcover", again: "hardcoverSyncBtn" }, async (job) => {
         const me = await whoAmI();
-        if (!me) { say("Hardcover sync failed — " + (lastErr() || "it didn't say who the token belongs to")); job.fail("Hardcover couldn't be reached"); return; }
+        if (!me) { say(i18n.t("Hardcover sync failed — {why}", { why: lastErr() || i18n.t("it didn't say who the token belongs to") })); job.fail(i18n.t("Hardcover couldn't be reached")); return; }
         if (me.username !== cfg.username) await setSetting("username", me.username);
         const remote = await fetchLibrary(me.id, job);
         if (!remote) {
-          if (job.stopping) { job.finish("Stopped"); return; }
-          say("Hardcover sync failed — " + (lastErr() || "couldn't read your library"));
-          job.fail("Hardcover couldn't be read");
+          if (job.stopping) { job.finish(i18n.t("Stopped")); return; }
+          say(i18n.t("Hardcover sync failed — {why}", { why: lastErr() || i18n.t("couldn't read your library") }));
+          job.fail(i18n.t("Hardcover couldn't be read"));
           return;
         }
         const data = ctx.state.data;
@@ -400,21 +401,21 @@
         }
         writeJson(MISS_KEY, misses);
         writeJson(BASE_KEY, base);
-        if (failures) ctx.toast("Couldn't update Hardcover" + (lastErr() ? " — " + lastErr() : "") + ". It's tried again next sync.", true);
+        if (failures) ctx.toast(lastErr() ? i18n.t("Couldn't update Hardcover — {why}. It's tried again next sync.", { why: lastErr() }) : i18n.t("Couldn't update Hardcover. It's tried again next sync."), true);
 
         const c = result.counts;
         const parts = [];
-        if (c.started) parts.push(c.started + " started");
-        if (c.finished) parts.push(c.finished + " finished");
-        if (c.dropped) parts.push(c.dropped + " dropped");
-        if (c.back) parts.push(c.back + " back to the backlog");
+        if (c.started) parts.push(i18n.t("{n} started", { n: c.started }));
+        if (c.finished) parts.push(i18n.t("{n} finished", { n: c.finished }));
+        if (c.dropped) parts.push(i18n.t("{n} dropped", { n: c.dropped }));
+        if (c.back) parts.push(i18n.t("{n} back to the backlog", { n: c.back }));
         if (result.changed || linkedNew) {
           ctx.afterDataChange();
           await ctx.persist();
           ctx.render();
         }
-        if (result.changed && parts.length) ctx.toast("Hardcover: " + parts.join(", "), false, { label: "Undo", onClick: () => undoPlan(result.undo) });
-        else if (manual && (!p.fresh.length || (C && C.newMode("hardcover") === "none"))) ctx.toast(sent ? `Hardcover is up to date — sent ${sent} change${sent === 1 ? "" : "s"}` : "Your Hardcover library is up to date");
+        if (result.changed && parts.length) ctx.toast(i18n.t("Hardcover: {what}", { what: parts.join(", ") }), false, { label: i18n.t("Undo"), onClick: () => undoPlan(result.undo) });
+        else if (manual && (!p.fresh.length || (C && C.newMode("hardcover") === "none"))) ctx.toast(sent ? i18n.tn(sent, "Hardcover is up to date — sent {n} change", "Hardcover is up to date — sent {n} changes") : i18n.t("Your Hardcover library is up to date"));
 
         // New on Hardcover: through the review.
         const recs = freshRecords(p.fresh, cfg.category, today);
@@ -428,7 +429,7 @@
           n = built.items.filter((it) => !it.dup && !it.skipped).length;
         }
         const mode = C ? C.newMode("hardcover") : "ask";
-        job.finish([parts.join(", "), sent && `sent ${sent}`, n && mode !== "none" && (mode === "add" ? `${n} new` : `${n} to review`)].filter(Boolean).join(" · ") || "Up to date");
+        job.finish([parts.join(", "), sent && i18n.t("sent {n}", { n: sent }), n && mode !== "none" && (mode === "add" ? i18n.t("{n} new", { n }) : i18n.t("{n} to review", { n }))].filter(Boolean).join(" · ") || i18n.t("Up to date"));
         if (n && C) C.route("hardcover", { built, title: "Hardcover", hint: HINT, manual, onSkips: (selected, rows) => rememberSkips(rows, selected, base), onAdded: (rows) => rememberSkips(rows, rows, base) });
         else if (n) ctx.reviewAndImport("Hardcover", HINT, built, (selected) => rememberSkips(built.items, selected, base));
       });
@@ -439,7 +440,7 @@
       renderSettings();
     }
   }
-  const HINT = "Books on your Hardcover lists that aren't in LifeLog yet. Read books go to your Timeline on the day you finished; ones Hardcover has no date for are unticked. What you leave unticked stays out next time.";
+  const HINT = i18n.t("Books on your Hardcover lists that aren't in LifeLog yet. Read books go to your Timeline on the day you finished; ones Hardcover has no date for are unticked. What you leave unticked stays out next time.");
 
   // Unticked rows stay out of the way next time. Ticked ones are agreed
   // on, so the next sync starts from them.
@@ -476,7 +477,7 @@
     ctx.afterDataChange();
     await ctx.persist();
     ctx.render();
-    ctx.toast("Hardcover changes undone here — the next sync sends that to Hardcover");
+    ctx.toast(i18n.t("Hardcover changes undone here — the next sync sends that to Hardcover"));
   }
 
   async function maybeAutoCheck() {
@@ -522,12 +523,12 @@
     if (!ctx || !$("hardcoverSyncBtn")) return;
     const cfg = cfgOf();
     const sel = $("hardcoverCategory");
-    sel.replaceChildren(new Option("Don't sync", ""));
+    sel.replaceChildren(new Option(i18n.t("Don't sync"), ""));
     for (const c of ctx.state.data.categories) sel.appendChild(new Option(c.name, c.name));
     sel.value = ctx.state.data.categories.some((c) => c.name === cfg.category) ? cfg.category : "";
     $("hardcoverAutoSyncDays").value = String(cfg.autoSyncDays || "0");
-    $("hardcoverState").textContent = !hasToken() ? "Add your token in Media lookups"
-      : !cfg.category ? "Pick a category to start" : cfg.username ? "Syncing as @" + cfg.username : "Ready: syncs on the next check";
+    $("hardcoverState").textContent = !hasToken() ? i18n.t("Add your token in Media lookups")
+      : !cfg.category ? i18n.t("Pick a category to start") : cfg.username ? i18n.t("Syncing as @{name}", { name: cfg.username }) : i18n.t("Ready: syncs on the next check");
   }
   function wire() {
     if (!$("hardcoverSyncBtn")) return;

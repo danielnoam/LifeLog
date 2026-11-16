@@ -14,6 +14,7 @@
 //   - updating: Tauri's updater when the release carries its signed files,
 //     else the release page.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const P = window.LifeLogPlatform;
   const T = () => (P && P.desktop && P.tauri) || null;
   const FIRED_KEY = "lifelog-desktop-rung-v1";
@@ -72,7 +73,7 @@
   }
   async function ring(n) {
     if (!T()) return;
-    const buttons = n.habitId ? [["Done", "done-habit:" + n.habitId]] : [];
+    const buttons = n.habitId ? [[i18n.t("Done"), "done-habit:" + n.habitId]] : [];
     try {
       await invoke("toast", { tag: String(notifyId(n.key)), title: String(n.title), body: String(n.body || ""), action: n.action || "", buttons });
       return;
@@ -96,8 +97,8 @@
       const late = nowMin - minutesOf(t);
       const key = "habit:" + h.id + ":" + today;
       if (late < 0 || late > LATE_HABIT_MIN || fired[key]) continue;
-      const when = !h.period || h.period === "day" ? "today" : "this " + h.period;
-      out.push({ key, title: h.name, body: "Still to do " + when, action: "open-habit:" + h.id, habit: true, habitId: h.id });
+      const body = ({ week: i18n.t("Still to do this week"), month: i18n.t("Still to do this month"), year: i18n.t("Still to do this year") })[h.period] || i18n.t("Still to do today");
+      out.push({ key, title: h.name, body, action: "open-habit:" + h.id, habit: true, habitId: h.id });
     }
     for (const a of alerts) {
       if (!a || a.day !== today || !a.time || fired["alert:" + a.id]) continue;
@@ -227,7 +228,7 @@
   async function pickFolder() {
     const D = T() && T().dialog;
     if (!D) return null;
-    const p = await D.open({ directory: true, multiple: false, title: "Keep LifeLog's data in" });
+    const p = await D.open({ directory: true, multiple: false, title: i18n.t("Keep LifeLog's data in") });
     return typeof p === "string" ? p : null;
   }
   const openDataFolder = () => invoke("open_data_folder");
@@ -267,7 +268,7 @@
 
   // Settings → Notifications' Send a test notification.
   function ringTest() {
-    return ring({ key: "test:" + Date.now(), title: "LifeLog", body: "Notifications work on this computer.", action: "" });
+    return ring({ key: "test:" + Date.now(), title: "LifeLog", body: i18n.t("Notifications work on this computer."), action: "" });
   }
 
   // ctx: { state, runAction, hidden, refresh }

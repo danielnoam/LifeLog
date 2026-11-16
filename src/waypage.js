@@ -27,6 +27,7 @@
 // make one item, not two. Something removed here isn't brought back: its id
 // is in `seen`.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let state, $, el, toast, persist, afterDataChange, render, whenSynced;
 
   function init(ctx) {
@@ -361,8 +362,8 @@
     const res = await fetch("https://api.github.com/repos/" + c.repo + "/contents/" + FILE, { headers, cache: "no-store" });
     if (res.status === 304) return { same: true, text: cache.text };
     if (res.status === 404) { writeCache({ repo: c.repo, checkedAt: Date.now() }); return { none: true }; }
-    if (res.status === 401 || res.status === 403) throw new Error("GitHub refused the token. It needs Contents: Read-only on " + c.repo + ".");
-    if (!res.ok) throw new Error("GitHub said " + res.status + ".");
+    if (res.status === 401 || res.status === 403) throw new Error(i18n.t("GitHub refused the token. It needs Contents: Read-only on {repo}.", { repo: c.repo }));
+    if (!res.ok) throw new Error(i18n.t("GitHub said {status}.", { status: res.status }));
     const body = await res.text();
     writeCache({ repo: c.repo, etag: res.headers.get("ETag") || "", text: body, checkedAt: Date.now() });
     return { text: body };
@@ -378,8 +379,8 @@
   }
   async function run({ manual, reapply } = {}) {
     const c = cfgNow();
-    if (!connected(c)) { if (manual) toast("Add your waypage-data repo and token first", true); return; }
-    if (c.paused) { if (manual) toast("Reading from Waypage is turned off", true); return; }
+    if (!connected(c)) { if (manual) toast(i18n.t("Add your waypage-data repo and token first"), true); return; }
+    if (c.paused) { if (manual) toast(i18n.t("Reading from Waypage is turned off"), true); return; }
     const cache = readCache();
     if (!manual && !reapply && c.every === "manual") return;
     if (!manual && !reapply && cache.checkedAt && Date.now() - cache.checkedAt < (EVERY_MS[c.every] || EVERY)) return;
@@ -389,21 +390,21 @@
       if (reapply) body = cache.repo === c.repo ? cache.text : null;
       else {
         const got = await fetchFile(c, manual);
-        if (got.none) { lastStatus = "No reading shared yet: turn on Share reading activity in Waypage, then sync it."; paintStatus(); if (manual) toast("Nothing shared from Waypage yet"); return; }
+        if (got.none) { lastStatus = i18n.t("No reading shared yet: turn on Share reading activity in Waypage, then sync it."); paintStatus(); if (manual) toast(i18n.t("Nothing shared from Waypage yet")); return; }
         if (got.same && !manual) { writeCache({ ...readCache(), checkedAt: Date.now() }); return; }
         body = got.text;
       }
     } catch (e) {
-      lastStatus = e.message || "Couldn't reach GitHub.";
+      lastStatus = e.message || i18n.t("Couldn't reach GitHub.");
       paintStatus();
       if (manual) toast(lastStatus, true);
       return;
     }
     const act = body ? parseActivity(body) : null;
-    if (!act) { if (manual) toast("That file isn't Waypage's reading activity", true); return; }
+    if (!act) { if (manual) toast(i18n.t("That file isn't Waypage's reading activity"), true); return; }
     const cfg = cfgNow();
     const { changed, counts } = apply(state.data, cfg, act, localDay(), new Date().toISOString());
-    lastStatus = "Read " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " · " + act.items.length + " in the file";
+    lastStatus = i18n.t("Read {time} · {n} in the file", { time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), n: act.items.length });
     if (changed) {
       state.data.settings.waypage = cfg;
       afterDataChange();
@@ -415,9 +416,9 @@
     paintStatus();
     paintReview();
     paintLinked();
-    const said = [counts.added && counts.added + " started", counts.finished && counts.finished + " finished", counts.review && counts.review + " to review"].filter(Boolean);
-    if (said.length && (manual || counts.added || counts.finished)) toast("Waypage: " + said.join(", "));
-    else if (manual) toast("Waypage is up to date");
+    const said = [counts.added && i18n.t("{n} started", { n: counts.added }), counts.finished && i18n.t("{n} finished", { n: counts.finished }), counts.review && i18n.t("{n} to review", { n: counts.review })].filter(Boolean);
+    if (said.length && (manual || counts.added || counts.finished)) toast(i18n.t("Waypage: {what}", { what: said.join(", ") }));
+    else if (manual) toast(i18n.t("Waypage is up to date"));
   }
 
   let timer = null;
@@ -440,8 +441,8 @@
     const s = $("#waypageStatus");
     if (!s) return;
     const c = cfgNow();
-    const how = { "5m": "every few minutes", open: "every open", day: "once a day", manual: "when you tap Check" }[c.every];
-    s.textContent = !c.repo ? "Not connected" : !c.token ? "Add a token to read it" : c.paused ? "Turned off: nothing is read" : lastStatus || "Connected — reads " + how;
+    const how = { "5m": i18n.t("Connected — reads every few minutes"), open: i18n.t("Connected — reads every open"), day: i18n.t("Connected — reads once a day"), manual: i18n.t("Connected — reads when you tap Check") }[c.every];
+    s.textContent = !c.repo ? i18n.t("Not connected") : !c.token ? i18n.t("Add a token to read it") : c.paused ? i18n.t("Turned off: nothing is read") : lastStatus || how;
   }
 
   function fillKinds() {
@@ -456,7 +457,7 @@
       label.appendChild(el("span", "sitem-title", KIND_NAMES[k]));
       row.appendChild(label);
       const sel = el("select");
-      sel.appendChild(new Option("Don't bring in", ""));
+      sel.appendChild(new Option(i18n.t("Don't bring in"), ""));
       for (const n of names) sel.appendChild(new Option(n, n));
       sel.value = names.includes(c.kinds[k]) ? c.kinds[k] : "";
       sel.onchange = () => { const x = cfgNow(); x.kinds[k] = sel.value; save(x, { reapply: true }); };
@@ -469,12 +470,12 @@
     const sel = $("#waypageHabit");
     if (!sel) return;
     const c = cfgNow();
-    sel.replaceChildren(new Option("None", ""));
+    sel.replaceChildren(new Option(i18n.t("None"), ""));
     for (const h of state.data.habits || []) if (h.unit === "min") sel.appendChild(new Option(h.name, h.id));
     sel.value = [...sel.options].some((o) => o.value === c.habit) ? c.habit : "";
   }
 
-  const REASONS = { logged: "Already on your Timeline. A re-read?", author: "Matches a backlog item by a different author", new: "New from Waypage" };
+  const REASONS = { logged: i18n.t("Already on your Timeline. A re-read?"), author: i18n.t("Matches a backlog item by a different author"), new: i18n.t("New from Waypage") };
   function paintReview() {
     const box = $("#waypageReview");
     if (!box) return;
@@ -486,10 +487,10 @@
     for (const [id, r] of rows) {
       const row = el("div", "sitem sitem-stack wp-review-row");
       const t = el("span", "sitem-text");
-      t.append(el("span", "sitem-title", r.title + (r.author ? " · " + r.author : "")), el("span", "sitem-sub", REASONS[r.reason] || "Needs a look"));
+      t.append(el("span", "sitem-title", r.title + (r.author ? " · " + r.author : "")), el("span", "sitem-sub", REASONS[r.reason] || i18n.t("Needs a look")));
       row.appendChild(t);
       const btns = el("div", "wp-review-btns");
-      const acts = r.reason === "new" ? [["add", "Add"], ["never", "Never"]] : [["same", "Same one"], ["add", r.finishedAt ? "Add as re-read" : "Add"], ["never", "Never"]];
+      const acts = r.reason === "new" ? [["add", i18n.t("Add")], ["never", i18n.t("Never")]] : [["same", i18n.t("Same one")], ["add", r.finishedAt ? i18n.t("Add as re-read") : i18n.t("Add")], ["never", i18n.t("Never")]];
       for (const [act, label] of acts) {
         const b = el("button", "btn btn-sm", label);
         b.type = "button";
@@ -531,28 +532,28 @@
     const d = state.data;
     const dayText = (e) => e.year + "-" + pad2(e.month) + (e.day ? "-" + pad2(e.day) : "");
     const rows = [
-      ...(d.backlog || []).filter((b) => b.waypageId).map((b) => ({ list: "backlog", x: b, sort: "9" + (b.startedAt || ""), sub: (b.dropped ? "Dropped" : isDay(b.startedAt) ? "Reading" : "In your backlog") + (progressLabel(b) ? " · " + progressLabel(b) : "") })),
-      ...(d.entries || []).filter((e) => e.waypageId).map((e) => ({ list: "entries", x: e, sort: "1" + dayText(e), sub: "Finished " + dayText(e) + " · on your Timeline" })),
+      ...(d.backlog || []).filter((b) => b.waypageId).map((b) => ({ list: "backlog", x: b, sort: "9" + (b.startedAt || ""), sub: (b.dropped ? i18n.t("Dropped") : isDay(b.startedAt) ? i18n.t("Reading") : i18n.t("In your backlog")) + (progressLabel(b) ? " · " + progressLabel(b) : "") })),
+      ...(d.entries || []).filter((e) => e.waypageId).map((e) => ({ list: "entries", x: e, sort: "1" + dayText(e), sub: i18n.t("Finished {date} · on your Timeline", { date: dayText(e) }) })),
     ].sort((a, b) => (a.sort < b.sort ? 1 : -1));
     box.replaceChildren();
     for (const r of rows.slice(0, LINKED_SHOWN)) {
-      box.appendChild(smallRow(r.x.title + (r.x.author ? " · " + r.x.author : ""), r.sub, "Unlink", async () => {
+      box.appendChild(smallRow(r.x.title + (r.x.author ? " · " + r.x.author : ""), r.sub, i18n.t("Unlink"), async () => {
         const x = cfgNow();
         if (!unlink(state.data, x, r.list, r.x.id)) return;
         await save(x);
         render();
         paintLinked();
-        toast("Unlinked: Waypage won't change it");
+        toast(i18n.t("Unlinked: Waypage won't change it"));
       }));
     }
-    if (rows.length > LINKED_SHOWN) box.appendChild(el("div", "sitem sitem-sub", "And " + (rows.length - LINKED_SHOWN) + " more"));
+    if (rows.length > LINKED_SHOWN) box.appendChild(el("div", "sitem sitem-sub", i18n.t("And {n} more", { n: rows.length - LINKED_SHOWN })));
     $("#waypageLinkedGroup").hidden = !rows.length;
     const kept = $("#waypageKeptOut");
     const names = titlesFromCache();
     const out = Object.entries(c.never);
     kept.replaceChildren();
     for (const [id, v] of out) {
-      kept.appendChild(smallRow(typeof v === "string" ? v : names.get(id) || "A book from Waypage", "Kept out", "Allow again", async () => {
+      kept.appendChild(smallRow(typeof v === "string" ? v : names.get(id) || i18n.t("A book from Waypage"), i18n.t("Kept out"), i18n.t("Allow again"), async () => {
         const x = cfgNow();
         if (!allowAgain(x, id)) return;
         await save(x, { reapply: true });
@@ -647,7 +648,7 @@
       writeCache({});
       await save(c);
       renderSettings();
-      toast("Disconnected from Waypage. What it brought in stays");
+      toast(i18n.t("Disconnected from Waypage. What it brought in stays"));
     };
   }
 

@@ -92,6 +92,12 @@ A swipe or arrow key that moves sideways goes through `rtlX()`. Text that
 shows a number or a date formats it with the language's locale, never a
 fixed `"en-US"`. See ARCHITECTURE.md, "Right to left".
 
+**Every word has its Hebrew.** UI text goes through `i18n.t()` or
+`i18n.tn()` (markup: `data-t`), with its Hebrew added to `src/lang/he.js`
+in the same change, gender-neutral (nouns and infinitives, no "you"
+verbs). `test/i18n.test.js` checks it. Stored data and the bridge stay
+English.
+
 **Ask first for big things.** A new look, a reworked screen or a big change
 is shown or explained to Daniel (a mockup, a screenshot, a short write-up)
 and waits for his OK before it's built. Don't stack extra changes on top of

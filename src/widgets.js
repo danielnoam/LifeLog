@@ -17,6 +17,7 @@
 // snapshotOf and applyQueue are pure and tested in test/widgets.test.js; the
 // rest is wiring that only runs in the app.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
 
@@ -515,10 +516,10 @@
       else added++;
     }
     const said = [];
-    if (added) said.push(added === 1 ? "1 thing from your home screen" : added + " things from your home screen");
-    if (ticks) said.push(ticks === 1 ? "a tick from your home-screen widget" : ticks + " ticks from your home-screen widget");
-    if (paid) said.push(paid === 1 ? "a Google Wallet payment to the Ledger" : paid + " Google Wallet payments to the Ledger");
-    return said.length ? "Added " + said.join(" and ") : "Your home-screen widget is up to date";
+    if (added) said.push(i18n.tn(added, "{n} thing from your home screen", "{n} things from your home screen"));
+    if (ticks) said.push(i18n.tn(ticks, "a tick from your home-screen widget", "{n} ticks from your home-screen widget"));
+    if (paid) said.push(i18n.tn(paid, "a Google Wallet payment to the Ledger", "{n} Google Wallet payments to the Ledger"));
+    return said.length ? i18n.t("Added {what}", { what: i18n.join(said) }) : i18n.t("Your home-screen widget is up to date");
   }
 
   // One ask at a time: at launch the start-up ask and a lifelog:// link's
@@ -561,7 +562,7 @@
   // The plugin keeps the job itself; the choice is told to it again at
   // every launch, so an app updated or restored keeps its schedule.
   const BACKGROUND_KEY = "lifelog-background-v1";
-  const BACKGROUND_CHOICES = [["0", "Off"], ["15", "Every 15 minutes"], ["30", "Every 30 minutes"], ["60", "Every hour"], ["180", "Every 3 hours"]];
+  const BACKGROUND_CHOICES = [["0", i18n.t("Off")], ["15", i18n.t("Every 15 minutes")], ["30", i18n.t("Every 30 minutes")], ["60", i18n.t("Every hour")], ["180", i18n.t("Every 3 hours")]];
   const backgroundMinutes = () => {
     try { return Math.max(0, parseInt(JSON.parse(localStorage.getItem(BACKGROUND_KEY)).minutes, 10) || 0); } catch (e) { return 0; }
   };

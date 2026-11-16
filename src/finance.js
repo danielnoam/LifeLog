@@ -7,6 +7,7 @@
 // (view renderers, modal openers, sanitizers for the shared import
 // infrastructure) is exposed on window.LifeLogFinance.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Numbers in the reader's language (src/language.js); en-US where
   // there's no page (the bridge, Node tests), as before.
   const numLocale = () => (typeof window === "object" && window.i18n && window.i18n.lang !== "en" ? window.i18n.lang : "en-US");
@@ -79,7 +80,7 @@
     if (CM) CM.register("finance", (id, h) => {
       const f = state.data.financeEntries.find((x) => x.id === id);
       if (!f) return null;
-      return [{ icon: "pencil", label: "Open", run: () => openFinanceModal(f) }, h.divider, h.select(id), h.del(id, bulkDeleteFinanceSelected)];
+      return [{ icon: "pencil", label: i18n.t("Open"), run: () => openFinanceModal(f) }, h.divider, h.select(id), h.del(id, bulkDeleteFinanceSelected)];
     });
   }
 
@@ -222,7 +223,7 @@
       if (got.currency && got.currency !== sel.value && [...sel.options].some((o) => o.value === got.currency)) {
         sel.value = got.currency;
         sel.onchange && sel.onchange();
-        toast("Currency set to " + got.currency);
+        toast(i18n.t("Currency set to {currency}", { currency: got.currency }));
       }
       input.dispatchEvent(new Event("input"));
     });
@@ -952,19 +953,19 @@
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Moved ${n} entr${n === 1 ? "y" : "ies"} to “${catLabel(parseSubKey(categoryName))}”`);
+    toast(i18n.tn(n, "Moved {n} entry to “{category}”", "Moved {n} entries to “{category}”", { category: catLabel(parseSubKey(categoryName)) }));
   }
 
   async function bulkDeleteFinanceSelected() {
     const ids = state.bulk.selected;
     const n = ids.size;
-    if (!confirm(`Delete ${n} entr${n === 1 ? "y" : "ies"} from your finance log?`)) return;
+    if (!confirm(i18n.tn(n, "Delete {n} entry from your finance log?", "Delete {n} entries from your finance log?"))) return;
     state.data.financeEntries = state.data.financeEntries.filter((f) => !ids.has(f.id));
     state.bulk.active = false;
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
+    toast(i18n.tn(n, "Deleted {n} entry", "Deleted {n} entries"));
   }
 
   // ---------- Ledger view ----------
@@ -983,17 +984,17 @@
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState({
         glyph: currencyGlyph(),
-        title: "No finance entries yet",
-        body: "Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend.",
-        action: "Add finance entry",
+        title: i18n.t("No finance entries yet"),
+        body: i18n.t("Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend."),
+        action: i18n.t("Add finance entry"),
         onAction: () => openFinanceModal(null),
-        hint: "Recurring expenses can generate their entries automatically.",
+        hint: i18n.t("Recurring expenses can generate their entries automatically."),
       }));
       return;
     }
     const items = getFilteredFinance();
     if (!items.length) {
-      root.appendChild(emptyState("No finance entries match your filters."));
+      root.appendChild(emptyState(i18n.t("No finance entries match your filters.")));
       return;
     }
     const sort = ledgerSort();
@@ -1008,7 +1009,7 @@
       const block = el("div", "year-block");
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
-      head.appendChild(el("span", "ycount", `${byYear[y].filter((f) => !f.skipped).length} entries`));
+      head.appendChild(el("span", "ycount", i18n.tn(byYear[y].filter((f) => !f.skipped).length, "{n} entry", "{n} entries")));
       block.appendChild(head);
 
       const grid = el("div", "month-grid");
@@ -1118,23 +1119,23 @@
     if (f.virtual) {
       const badge = el("span", "recur-badge");
       badge.appendChild(window.LifeLogIcons.labelled("repeat", f.extra ? "+" : (f.overridden ? "*" : "")));
-      badge.title = f.extra ? "A one-off charge on a recurring expense"
-        : (f.overridden ? "Recurring — custom amount/note for this date" : "Recurring");
+      badge.title = f.extra ? i18n.t("A one-off charge on a recurring expense")
+        : (f.overridden ? i18n.t("Recurring — custom amount/note for this date") : i18n.t("Recurring"));
       row.appendChild(badge);
     }
-    if (f.skipped) row.appendChild(el("span", "skipped-badge", f.paused ? "Paused" : "Skipped"));
+    if (f.skipped) row.appendChild(el("span", "skipped-badge", f.paused ? i18n.t("Paused") : i18n.t("Skipped")));
     // What you actually handed over, beside what it came to. The home figure
     // stays in the amount column so the column still lines up and still adds
     // up; the foreign one is the smaller note next to it.
     const fx = fxOf(f);
     if (fx) {
       const tag = el("span", "fx-paid", formatIn(fx.amount, fx.currency));
-      tag.title = "Paid " + formatIn(fx.amount, fx.currency) + " at " + fx.rate + " " + homeCurrency() + " per " + fx.currency;
+      tag.title = i18n.t("Paid {amount} at {rate} {home} per {currency}", { amount: formatIn(fx.amount, fx.currency), rate: String(fx.rate), home: homeCurrency(), currency: fx.currency });
       row.appendChild(tag);
     }
     const amt = el("span", "famount fnegative"
       + (fx && isProvisional(f) ? " is-provisional" : ""), formatMoney(f.amount));
-    if (fx && isProvisional(f)) amt.title = "Provisional — this project hasn't been converted yet";
+    if (fx && isProvisional(f)) amt.title = i18n.t("Provisional — this project hasn't been converted yet");
     row.appendChild(amt);
     return row;
   }
@@ -1202,7 +1203,7 @@
     // to a saved row is the button that matters most on this header.
     const add = el("button", "proj-group-add", "+");
     add.type = "button";
-    add.title = "Add an expense to " + project;
+    add.title = i18n.t("Add an expense to {project}", { project });
     add.setAttribute("aria-label", add.title);
     fresh.appendChild(add);
     // Opens the project itself, not the expense — the head names the group,
@@ -1210,7 +1211,7 @@
     const edit = el("button", "proj-group-edit");
     edit.appendChild(ico("pencil"));
     edit.type = "button";
-    edit.title = "Edit " + project;
+    edit.title = i18n.t("Edit {name}", { name: project });
     edit.setAttribute("aria-label", edit.title);
     fresh.appendChild(edit);
     adopt(head, fresh);
@@ -1336,7 +1337,7 @@
           // cut that off on any render landing mid-flight. The ex-projects
           // line rides alongside rather than inside, for the same reason.
           const totalRow = el("div", "month-total");
-          totalRow.appendChild(el("span", null, "Total"));
+          totalRow.appendChild(el("span", null, i18n.t("Total")));
           totalRow.appendChild(el("span", "famount fnegative"));
           return totalRow;
         }
@@ -1355,11 +1356,11 @@
           animatedNumberText(node.lastChild, part.animKey, part.total, formatMoney);
           node.classList.toggle("is-provisional", !!part.provisional);
           node.title = part.provisional
-            ? "Includes provisional figures — a project here hasn't been converted yet" : "";
+            ? i18n.t("Includes provisional figures — a project here hasn't been converted yet") : "";
           return;
         }
         if (part.kind === "ex") {
-          node.textContent = formatMoney(part.total) + " excluding projects";
+          node.textContent = i18n.t("{amount} excluding projects", { amount: formatMoney(part.total) });
           return;
         }
         if (part.kind === "cats") {
@@ -1396,11 +1397,11 @@
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState({
         glyph: currencyGlyph(),
-        title: "No finance entries yet",
-        body: "Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend.",
-        action: "Add finance entry",
+        title: i18n.t("No finance entries yet"),
+        body: i18n.t("Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend."),
+        action: i18n.t("Add finance entry"),
         onAction: () => openFinanceModal(null),
-        hint: "Recurring expenses can generate their entries automatically.",
+        hint: i18n.t("Recurring expenses can generate their entries automatically."),
       }));
       return;
     }
@@ -1409,26 +1410,26 @@
     // and a skipped month was never really spent.
     const items = getFilteredFinance().filter((f) => !f.skipped);
     if (!items.length) {
-      root.appendChild(emptyState("No finance entries match your filters."));
+      root.appendChild(emptyState(i18n.t("No finance entries match your filters.")));
       return;
     }
 
     const expense = items.reduce((s, f) => s + f.amount, 0);
 
     const big = el("div", "card");
-    big.appendChild(el("h2", null, "Expenses"));
+    big.appendChild(el("h2", null, i18n.t("Expenses")));
     const bigRow = el("div", "stat-big");
-    bigRow.appendChild(moneyStatItem(expense, "total", "var(--expense)"));
+    bigRow.appendChild(moneyStatItem(expense, i18n.t("total"), "var(--expense)"));
     big.appendChild(bigRow);
     root.appendChild(big);
     renderFinanceHighlights(root, items);
     renderFinancePaceCard(root);
 
     const grid = el("div", "stats-grid");
-    grid.appendChild(financeCategoryCard("By category", items));
+    grid.appendChild(financeCategoryCard(i18n.t("By category"), items));
 
     const yearCard = el("div", "card");
-    yearCard.appendChild(el("h2", null, "By year"));
+    yearCard.appendChild(el("h2", null, i18n.t("By year")));
     const yearTotals = {};
     for (const f of items) {
       const y = financeYearOf(f);
@@ -1474,13 +1475,13 @@
     // against Spend trend looking like an overlap. The uniform-gap check in
     // test/panelgaps is what makes the next omission fail rather than ship.
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Projects"));
+    card.appendChild(el("h2", null, i18n.t("Projects")));
     const max = Math.max(1, ...rows.map((r) => r.total));
     for (const r of rows) {
       const line = el("div", "proj-stat");
       const bar = barRow(r.p.name, r.total, max, r.p.color, null, formatMoney);
       line.appendChild(bar);
-      line.appendChild(el("div", "proj-stat-meta", r.n + (r.n === 1 ? " expense" : " expenses")));
+      line.appendChild(el("div", "proj-stat-meta", i18n.tn(r.n, "{n} expense", "{n} expenses")));
       // Same target as the pill's ✎ — one place to rename, recolour or redate.
       line.onclick = () => openProjectModal(r.p);
       card.appendChild(line);
@@ -1530,15 +1531,15 @@
 
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Highlights"));
+    card.appendChild(el("h2", null, i18n.t("Highlights")));
     const row = el("div", "stat-big");
 
     if (monthKeys.length) {
       const avg = monthKeys.reduce((s, k) => s + monthTotals[k], 0) / monthKeys.length;
-      row.appendChild(moneyStatItem(avg, "avg / month", "var(--expense)"));
+      row.appendChild(moneyStatItem(avg, i18n.t("avg / month"), "var(--expense)"));
       let bigK = monthKeys[0];
       for (const k of monthKeys) if (monthTotals[k] > monthTotals[bigK]) bigK = k;
-      row.appendChild(moneyStatItem(monthTotals[bigK], "biggest (" + monthKeyLabel(bigK, false) + ")", "var(--expense)"));
+      row.appendChild(moneyStatItem(monthTotals[bigK], i18n.t("biggest ({month})", { month: monthKeyLabel(bigK, false) }), "var(--expense)"));
     }
 
     // Top category — a text (not money) stat, tinted to the category.
@@ -1546,7 +1547,7 @@
     const catN = el("div", "n", topCat);
     catN.style.color = financeColorOf(topCat);
     catItem.appendChild(catN);
-    catItem.appendChild(el("div", "l", "top category"));
+    catItem.appendChild(el("div", "l", i18n.t("top category")));
     row.appendChild(catItem);
 
     // This calendar year vs last — a signed money delta (formatMoney already
@@ -1555,7 +1556,7 @@
     if (lastYear) {
       const dItem = el("div", "item");
       dItem.appendChild(el("div", "n", (delta > 0 ? "+" : "") + formatMoney(delta)));
-      dItem.appendChild(el("div", "l", "vs " + (thisYear - 1)));
+      dItem.appendChild(el("div", "l", i18n.t("vs {year}", { year: String(thisYear - 1) })));
       row.appendChild(dItem);
     }
 
@@ -1585,13 +1586,13 @@
     const card = el("div", "card pace-card");
     card.style.marginTop = "20px";
     const h2 = el("h2", null);
-    h2.appendChild(window.LifeLogIcons.labelled("activity", `${MONTHS[now.getMonth() + 1]} so far`));
-    h2.appendChild(el("span", "pace-day", `day ${pace.day} of ${pace.daysIn}`));
+    h2.appendChild(window.LifeLogIcons.labelled("activity", i18n.t("{month} so far", { month: MONTHS[now.getMonth() + 1] })));
+    h2.appendChild(el("span", "pace-day", i18n.t("day {day} of {days}", { day: pace.day, days: pace.daysIn })));
     card.appendChild(h2);
     const legend = el("div", "pace-legend");
-    legend.appendChild(el("span", "pace-key pace-key-spent", "spent"));
-    if (pace.judged) legend.appendChild(el("span", "pace-key pace-key-proj", "heading for"));
-    legend.appendChild(el("span", "pace-key pace-key-usual", pace.months === 1 ? "last month" : `usual month (${pace.months}-month average)`));
+    legend.appendChild(el("span", "pace-key pace-key-spent", i18n.t("spent")));
+    if (pace.judged) legend.appendChild(el("span", "pace-key pace-key-proj", i18n.t("heading for")));
+    legend.appendChild(el("span", "pace-key pace-key-usual", pace.months === 1 ? i18n.t("last month") : i18n.t("usual month ({n}-month average)", { n: pace.months })));
     card.appendChild(legend);
     const whole = (n) => moneyWhole(Math.round(n));
     for (const l of lines) {
@@ -1601,13 +1602,13 @@
       const dot = el("span", "dot");
       dot.style.background = color;
       name.appendChild(dot);
-      name.appendChild(document.createTextNode(bySub && l.sample ? (l.sample.subcategory || "Only " + l.sample.category) : l.name));
+      name.appendChild(document.createTextNode(bySub && l.sample ? (l.sample.subcategory || i18n.t("Only {category}", { category: l.sample.category })) : l.name));
       row.appendChild(name);
       let say;
-      if (!pace.judged) say = `${whole(l.spent)} so far · usually ${whole(l.usual)}`;
-      else if (l.over) say = l.usual > 0 ? `${whole(l.projected)} by month end · usually ${whole(l.usual)}` : `${whole(l.projected)} by month end · new this month`;
-      else if (!l.spent && !l.projected) say = `Nothing yet · usually ${whole(l.usual)}`;
-      else say = `On track · usually ${whole(l.usual)}`;
+      if (!pace.judged) say = i18n.t("{spent} so far · usually {usual}", { spent: whole(l.spent), usual: whole(l.usual) });
+      else if (l.over) say = l.usual > 0 ? i18n.t("{projected} by month end · usually {usual}", { projected: whole(l.projected), usual: whole(l.usual) }) : i18n.t("{projected} by month end · new this month", { projected: whole(l.projected) });
+      else if (!l.spent && !l.projected) say = i18n.t("Nothing yet · usually {usual}", { usual: whole(l.usual) });
+      else say = i18n.t("On track · usually {usual}", { usual: whole(l.usual) });
       const val = el("span", "pace-say");
       if (l.over) val.appendChild(ico("trending-up"));
       val.appendChild(el("span", null, say));
@@ -1633,8 +1634,8 @@
       card.appendChild(row);
     }
     card.appendChild(el("p", "hint", pace.judged
-      ? "Flagged when a category is heading 25% or more over its usual month. Bills count at their price; trips and other projects are left out."
-      : `Where each category is heading shows from day ${PACE.fromDay}.`));
+      ? i18n.t("Flagged when a category is heading 25% or more over its usual month. Bills count at their price; trips and other projects are left out.")
+      : i18n.t("Where each category is heading shows from day {day}.", { day: PACE.fromDay })));
     root.appendChild(card);
   }
 
@@ -1650,7 +1651,7 @@
     const start = Math.max(Math.min(...keys), end - 11);
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Spend trend"));
+    card.appendChild(el("h2", null, i18n.t("Spend trend")));
     const window = [];
     for (let k = start; k <= end; k++) window.push(k);
     const max = Math.max(1, ...window.map((k) => monthTotals[k] || 0));
@@ -1685,11 +1686,11 @@
       t[k].n++;
     }
     order.sort((a, b) => totals[b] - totals[a]).forEach((n) => {
-      card.appendChild(barRow(n, totals[n], max, financeColorOf(n), counts[n], formatMoney, "entries"));
+      card.appendChild(barRow(n, totals[n], max, financeColorOf(n), counts[n], formatMoney, i18n.t("entries")));
       const t = bySub[n];
       if (!t || !Object.keys(t).some((k) => k)) return;
       Object.keys(t).sort((a, b) => (!a) - (!b) || t[b].total - t[a].total).forEach((k) => {
-        const row = barRow(k || "No subcategory", t[k].total, max, financeColorOf(n) + "99", t[k].n, formatMoney, "entries");
+        const row = barRow(k || i18n.t("No subcategory"), t[k].total, max, financeColorOf(n) + "99", t[k].n, formatMoney, i18n.t("entries"));
         row.classList.add("is-sub");
         card.appendChild(row);
       });
@@ -1733,7 +1734,7 @@
 
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "By month"));
+    card.appendChild(el("h2", null, i18n.t("By month")));
 
     const yearNav = el("div", "yir-years");
     for (const y of allYears) {
@@ -1781,9 +1782,9 @@
 
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Recurring"));
+    card.appendChild(el("h2", null, i18n.t("Recurring")));
     const max = Math.max(1, ...rows.map((r) => r.total));
-    rows.forEach((r) => card.appendChild(barRow(r.label, r.total, max, r.color, r.count, formatMoney, "entries")));
+    rows.forEach((r) => card.appendChild(barRow(r.label, r.total, max, r.color, r.count, formatMoney, i18n.t("entries"))));
     root.appendChild(card);
   }
 
@@ -1800,11 +1801,11 @@
     if (!top.length) return;
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Top expenses"));
+    card.appendChild(el("h2", null, i18n.t("Top expenses")));
     const max = Math.max(1, ...top.map((f) => f.amount));
     top.forEach((f) => {
       const label = f.note || f.category;
-      const row = barRow(label, f.amount, max, financeColorOf(f.category), f.count > 1 ? f.count : null, formatMoney, "charges");
+      const row = barRow(label, f.amount, max, financeColorOf(f.category), f.count > 1 ? f.count : null, formatMoney, i18n.t("charges"));
       row.querySelector(".lbl").title = f.project ? label + " · " + f.project : label;
       card.appendChild(row);
       // The biggest expenses of a year are usually the trip ones, and "which
@@ -1894,14 +1895,14 @@
     $("#finCategory").value = subKey(hit.category, hit.subcategory);
     $("#finCategory").dataset.prevValue = $("#finCategory").value;
     hint.replaceChildren(ico("history"), document.createTextNode(
-      `${catLabel(hit)}, as your last “${note.trim()}” on ${Dates().day(hit.date)}`));
+      i18n.t("{category}, as your last “{note}” on {date}", { category: catLabel(hit), note: note.trim(), date: Dates().day(hit.date) })));
     hint.hidden = false;
     return true;
   }
 
   function openFinanceModal(entry, presetDate, prefill) {
     const editing = !!entry;
-    $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
+    $("#financeModalTitle").textContent = editing ? i18n.t("Edit finance entry") : i18n.t("Add finance entry");
     $("#financeId").value = editing ? entry.id : "";
     $("#finDate").value = editing ? entry.date
       : (presetDate ? presetDateStr(presetDate) : todayStr());
@@ -1996,15 +1997,15 @@
     const amount = readAmount("#finAmount");
     const rate = parseFloat($("#finRate").value);
     if (!isFinite(rate) || rate <= 0) {
-      preview.textContent = "1 " + code + " = how many " + homeCurrency() + "?";
+      preview.textContent = i18n.t("1 {currency} = how many {home}?", { currency: code, home: homeCurrency() });
       preview.hidden = false;
       return;
     }
-    const at = " at " + rate + " " + homeCurrency() + " per " + code
-      + (from ? " (from " + from.name + ")" : "") + fxNote(code, rate);
+    const at = " " + i18n.t("at {rate} {home} per {currency}", { rate: String(rate), home: homeCurrency(), currency: code })
+      + (from ? " " + i18n.t("(from {project})", { project: from.name }) : "") + fxNote(code, rate);
     preview.textContent = amount
       ? formatIn(amount, code) + " = " + formatMoney(amount * rate) + at
-      : "Converted" + at;
+      : i18n.t("Converted") + at;
     preview.hidden = false;
   }
 
@@ -2022,15 +2023,15 @@
     const amount = readAmount("#recAmount");
     const rate = parseFloat($("#recRate").value);
     if (!isFinite(rate) || rate <= 0) {
-      preview.textContent = "1 " + code + " = how many " + homeCurrency() + "?";
+      preview.textContent = i18n.t("1 {currency} = how many {home}?", { currency: code, home: homeCurrency() });
       preview.hidden = false;
       return;
     }
-    const at = " at " + rate + " " + homeCurrency() + " per " + code + fxNote(code, rate);
+    const at = " " + i18n.t("at {rate} {home} per {currency}", { rate: String(rate), home: homeCurrency(), currency: code }) + fxNote(code, rate);
     preview.textContent = (amount
       ? formatIn(amount, code) + " = " + formatMoney(amount * rate) + at
-      : "Converted" + at)
-      + " — used for any date without a rate of its own. “Look up past rates” freezes one per charge.";
+      : i18n.t("Converted") + at)
+      + " — " + i18n.t("used for any date without a rate of its own. “Look up past rates” freezes one per charge.");
     preview.hidden = false;
   }
 
@@ -2066,9 +2067,9 @@
   }
 
   function fillProjectSelect(sel, val) {
-    fillSelect(sel, [{ value: "", label: "— none —" }]
+    fillSelect(sel, [{ value: "", label: i18n.t("— none —") }]
       .concat((state.data.projects || []).map((p) => ({ value: p.name, label: p.name })))
-      .concat([{ value: ADD_PROJECT_OPTION, label: "+ New project…" }]), val || "");
+      .concat([{ value: ADD_PROJECT_OPTION, label: i18n.t("+ New project…") }]), val || "");
     sel.dataset.prevValue = val || "";
   }
 
@@ -2087,7 +2088,7 @@
     const rate = foreign ? parseFloat($("#finRate").value) : 0;
     if (!date || !typed) return;
     if (foreign && (!isFinite(rate) || rate <= 0)) {
-      toast("Give a rate for " + code + ", or switch back to " + homeCurrency(), true);
+      toast(i18n.t("Give a rate for {currency}, or switch back to {home}", { currency: code, home: homeCurrency() }), true);
       return;
     }
     // What gets stored in `amount` is always the home figure. See the note on
@@ -2121,19 +2122,19 @@
     buildYearFilter();
     render();
     await persist();
-    toast(id ? "Finance entry updated" : "Finance entry added");
+    toast(id ? i18n.t("Finance entry updated") : i18n.t("Finance entry added"));
   }
 
   async function deleteCurrentFinanceEntry() {
     const id = $("#financeId").value;
     if (!id) return;
-    if (!confirm("Delete this finance entry?")) return;
+    if (!confirm(i18n.t("Delete this finance entry?"))) return;
     state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== id);
     closeFinanceModal();
     buildYearFilter();
     render();
     await persist();
-    toast("Finance entry deleted");
+    toast(i18n.t("Finance entry deleted"));
   }
 
   // ---------- recurring expenses (modals + card) ----------
@@ -2147,8 +2148,8 @@
   function openRecurringModal(rec, prefill) {
     const editing = !!rec;
     const p = prefill || {};
-    $("#recurringModalTitle").textContent = editing ? "Edit recurring expense"
-      : (p.convertFromId || (p.linkIds || []).length ? "Make recurring" : "Add recurring expense");
+    $("#recurringModalTitle").textContent = editing ? i18n.t("Edit recurring expense")
+      : (p.convertFromId || (p.linkIds || []).length ? i18n.t("Make recurring") : i18n.t("Add recurring expense"));
     pendingConvertEntryId = editing ? null : (p.convertFromId || null);
     pendingLinkIds = editing ? [] : (p.linkIds || []);
     $("#recConvertHint").hidden = !pendingConvertEntryId;
@@ -2207,10 +2208,10 @@
     // stacking a second button for it just to sit greyed out most of the
     // time isn't worth the row.
     const pausedNow = editing && isPausedOn(rec, todayStr());
-    if (pausedNow) window.LifeLogIcons.setLabel($("#pauseBtn"), "play", "Resume now"); else window.LifeLogIcons.setLabel($("#pauseBtn"), "pause", "Pause…");
+    if (pausedNow) window.LifeLogIcons.setLabel($("#pauseBtn"), "play", i18n.t("Resume now")); else window.LifeLogIcons.setLabel($("#pauseBtn"), "pause", i18n.t("Pause…"));
     $("#pauseBtn").title = pausedNow
-      ? "End the current pause so this bill starts generating occurrences again"
-      : "Suspend this bill for a stretch of time without deleting it";
+      ? i18n.t("End the current pause so this bill starts generating occurrences again")
+      : i18n.t("Suspend this bill for a stretch of time without deleting it");
 
     const occWrap = $("#recOccurrences");
     if (editing) {
@@ -2227,18 +2228,18 @@
           // What you were billed, beside what it came to — the same pairing
           // the ledger row uses, so the two read alike.
           const tag = el("span", "fx-paid", formatIn(ofx.amount, ofx.currency));
-          tag.title = "Billed " + formatIn(ofx.amount, ofx.currency) + " at " + ofx.rate
-            + " " + homeCurrency() + " per " + ofx.currency;
+          tag.title = i18n.t("Billed {amount} at {rate} {home} per {currency}", { amount: formatIn(ofx.amount, ofx.currency), rate: String(ofx.rate), home: homeCurrency(), currency: ofx.currency })
+            ;
           row.appendChild(tag);
         }
         const amtEl = el("span", "rec-occ-amount" + (ofx && !o.rateFrozen && !o.skipped ? " is-provisional" : ""),
-          o.paused ? "Paused" : (o.skipped ? "Skipped" : "-" + formatMoney(o.amount)));
+          o.paused ? i18n.t("Paused") : (o.skipped ? i18n.t("Skipped") : "-" + formatMoney(o.amount)));
         row.appendChild(amtEl);
-        row.title = o.paused ? "Paused — edit the pause above to change this"
-          : (o.skipped ? "Skipped — click to restore or edit"
+        row.title = o.paused ? i18n.t("Paused — edit the pause above to change this")
+          : (o.skipped ? i18n.t("Skipped — click to restore or edit")
             : (ofx && !o.rateFrozen
-              ? "At the plan's fallback rate — use “Look up past rates” to freeze the rate this charge really had"
-              : (o.extra ? "Edit this one-off charge" : "Edit this occurrence")));
+              ? i18n.t("At the plan's fallback rate — use “Look up past rates” to freeze the rate this charge really had")
+              : (o.extra ? i18n.t("Edit this one-off charge") : i18n.t("Edit this occurrence"))));
         row.onclick = () => openRecurringOccModal(rec, o);
         list.appendChild(row);
       });
@@ -2252,9 +2253,13 @@
   // "Charged on": a day of the month for a monthly plan, a weekday for a
   // weekly one, a month and day for a yearly one. It follows the start date
   // until you pick one of your own.
-  const ordinal = (n) => n + (n >= 11 && n <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th");
-  const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const ordinal = (n) => (i18n.lang !== "en" ? String(n) : n + (n >= 11 && n <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th"));
+  const WEEKDAY_NAMES = Dates().WEEKDAY_NAMES;
+  const MONTH_NAMES = Dates().MONTH_NAMES;
+  // "monthly" in a sentence, or "Monthly" to start one.
+  const intervalWord = (iv, cap) => (cap
+    ? { weekly: i18n.t("Weekly"), monthly: i18n.t("Monthly"), yearly: i18n.t("Yearly") }
+    : { weekly: i18n.t("weekly"), monthly: i18n.t("monthly"), yearly: i18n.t("yearly") })[iv] || iv;
   // 29 for February: a plan billed on the 29th lands on the 28th in other years.
   const daysInMonthOf = (m) => new Date(2024, m, 0).getDate();
   // What the form's start date and interval would charge on by themselves.
@@ -2283,7 +2288,7 @@
       fillDayOptions(daySel, 1, daysInMonthOf(own.month), String);
       daySel.value = String(Math.min(own.day, daysInMonthOf(own.month)));
     } else {
-      fillDayOptions(daySel, 1, 31, (d) => "the " + ordinal(d));
+      fillDayOptions(daySel, 1, 31, (d) => i18n.t("the {nth}", { nth: ordinal(d) }));
       daySel.value = String(own.day);
     }
     daySel.dataset.followsStart = String(chargeOnPicked().same);
@@ -2331,9 +2336,9 @@
       row.appendChild(el("span", "plan-trail-range", r.startDate + " → " + (r.endDate || "now")));
       row.appendChild(el("span", "plan-trail-terms", formatMoney(r.amount) + " · " + r.interval));
       if (isCurrent) {
-        row.title = "This plan";
+        row.title = i18n.t("This plan");
       } else {
-        row.title = "Open this plan";
+        row.title = i18n.t("Open this plan");
         row.onclick = () => openRecurringModal(r);
       }
       list.appendChild(row);
@@ -2354,14 +2359,14 @@
       chain.forEach((x) => seen.add(x.id));
       candidates.push(chain[chain.length - 1]);
     }
-    if (!candidates.length) { toast("No other recurring expenses to merge with", true); return; }
+    if (!candidates.length) { toast(i18n.t("No other recurring expenses to merge with"), true); return; }
     openImportPicker({
-      title: "Merge with…",
-      hint: `The ones you pick and ${rec.note || rec.category} become one recurring expense, oldest first. Every charge stays: where two ran at the same time, the older one's charges from then on are kept as one-off charges.`,
+      title: i18n.t("Merge with…"),
+      hint: i18n.t("The ones you pick and {plan} become one recurring expense, oldest first. Every charge stays: where two ran at the same time, the older one's charges from then on are kept as one-off charges.", { plan: rec.note || rec.category }),
       mode: "link",
       items: candidates.map((r) => ({ kind: "recurring", entry: r, dup: false, checked: false })),
       searchable: true,
-      confirmLabel: "Merge",
+      confirmLabel: i18n.t("Merge"),
       onConfirm: async (selected) => {
         if (!selected.length) return;
         const before = all.map((r) => JSON.parse(JSON.stringify(r)));
@@ -2371,13 +2376,13 @@
         buildYearFilter();
         render();
         await persist();
-        toast(`Merged into one recurring expense` + (kept ? `, ${kept} overlapping charge${kept === 1 ? "" : "s"} kept as one-off` : ""), false, { label: "Undo", onClick: async () => {
+        toast((kept ? i18n.tn(kept, "Merged into one recurring expense, {n} overlapping charge kept as one-off", "Merged into one recurring expense, {n} overlapping charges kept as one-off") : i18n.t("Merged into one recurring expense")), false, { label: i18n.t("Undo"), onClick: async () => {
           state.data.recurringExpenses = before;
           closeRecurringModal();
           buildYearFilter();
           render();
           await persist();
-          toast("Merge undone");
+          toast(i18n.t("Merge undone"));
         } });
         openRecurringModal(current);
       },
@@ -2386,7 +2391,7 @@
 
   // ---------- pauses (list + modal) ----------
   function pauseLabel(p) {
-    return p.from + " → " + (p.to || "still paused");
+    return p.from + " → " + (p.to || i18n.t("still paused"));
   }
   function renderPauses(rec) {
     const wrap = $("#recPauses");
@@ -2399,8 +2404,8 @@
       const live = today >= p.from && (!p.to || today <= p.to);
       const row = el("div", "pause-row" + (live ? " is-live" : ""));
       row.appendChild(el("span", "pause-range", pauseLabel(p)));
-      if (live) row.appendChild(el("span", "pause-tag", "now"));
-      row.title = "Edit this pause";
+      if (live) row.appendChild(el("span", "pause-tag", i18n.t("now")));
+      row.title = i18n.t("Edit this pause");
       row.onclick = () => openPauseModal(rec, i);
       list.appendChild(row);
     });
@@ -2410,7 +2415,7 @@
   function openPauseModal(rec, index) {
     const editing = index != null && index >= 0;
     const p = editing ? rec.pauses[index] : null;
-    $("#pauseModalTitle").textContent = editing ? "Edit pause" : "Pause this expense";
+    $("#pauseModalTitle").textContent = editing ? i18n.t("Edit pause") : i18n.t("Pause this expense");
     $("#pauseRecId").value = rec.id;
     $("#pauseIndex").value = editing ? String(index) : "";
     $("#pauseFrom").value = editing ? p.from : todayStr();
@@ -2427,13 +2432,13 @@
     const from = $("#pauseFrom").value;
     const to = $("#pauseTo").value;
     if (!from) return;
-    if (to && to < from) { toast("A pause can't end before it starts", true); return; }
+    if (to && to < from) { toast(i18n.t("A pause can't end before it starts"), true); return; }
     const idxRaw = $("#pauseIndex").value;
     setPause(rec, idxRaw === "" ? null : +idxRaw, to ? { from, to } : { from });
     closePauseModal();
     render();
     await persist();
-    toast(to ? `Paused ${from} → ${to}` : `Paused from ${from} — resume whenever`);
+    toast(to ? i18n.t("Paused {from} → {to}", { from, to }) : i18n.t("Paused from {from} — resume whenever", { from }));
     openRecurringModal(rec);
   }
 
@@ -2445,7 +2450,7 @@
     closePauseModal();
     render();
     await persist();
-    toast("Pause removed — those occurrences are back");
+    toast(i18n.t("Pause removed — those occurrences are back"));
     openRecurringModal(rec);
   }
 
@@ -2456,7 +2461,7 @@
     if (!resumeOn(rec, todayStr())) return;
     render();
     await persist();
-    toast("Resumed — this bill is generating occurrences again");
+    toast(i18n.t("Resumed — this bill is generating occurrences again"));
     openRecurringModal(rec);
   }
 
@@ -2475,7 +2480,7 @@
       occ = { date: todayStr(), amount: rec.amount, note: "",
         ...(pfx ? { currency: pfx.currency, fxAmount: pfx.amount, rate: pfx.rate } : {}) };
     }
-    $("#recurringOccModalTitle").textContent = extra ? (occ.extraId ? "One-off charge" : "Add a one-off charge") : occ.date;
+    $("#recurringOccModalTitle").textContent = extra ? (occ.extraId ? i18n.t("One-off charge") : i18n.t("Add a one-off charge")) : occ.date;
     $("#recOccRecId").value = rec.id;
     $("#recOccExtraId").value = extra ? (occ.extraId || "") : "";
     $("#recOccDate").value = occ.date;
@@ -2483,13 +2488,13 @@
     $("#recOccDate").required = extra;
     $("#recOccSkipLabel").hidden = extra;
     $("#recOccHint").textContent = extra
-      ? "A charge of its own on " + (rec.note || rec.category) + ", outside its schedule. Every other charge stays as it is."
-      : "Only changes this one date — every other occurrence keeps following the template.";
-    $("#resetRecOccBtn").textContent = extra ? "Delete" : "Reset to template";
+      ? i18n.t("A charge of its own on {plan}, outside its schedule. Every other charge stays as it is.", { plan: rec.note || rec.category })
+      : i18n.t("Only changes this one date — every other occurrence keeps following the template.");
+    $("#resetRecOccBtn").textContent = extra ? i18n.t("Delete") : i18n.t("Reset to template");
     // On a foreign plan this box edits the sum you were billed, not the home
     // figure — that one is the rate's business, and it has its own box below.
     const ofx = fxOf(occ);
-    $("#recOccAmountLabel").textContent = ofx ? "Amount billed (" + ofx.currency + ")" : "Amount";
+    $("#recOccAmountLabel").textContent = ofx ? i18n.t("Amount billed ({currency})", { currency: ofx.currency }) : i18n.t("Amount");
     $("#recOccAmount").value = ofx ? ofx.amount : occ.amount;
     $("#recOccRateLabel").hidden = !ofx;
     $("#recOccRate").value = ofx ? ofx.rate : "";
@@ -2517,14 +2522,14 @@
     const amount = readAmount("#recOccAmount");
     const rate = parseFloat($("#recOccRate").value);
     if (!isFinite(rate) || rate <= 0) {
-      preview.textContent = "1 " + code + " = how many " + homeCurrency() + "?";
+      preview.textContent = i18n.t("1 {currency} = how many {home}?", { currency: code, home: homeCurrency() });
       preview.hidden = false;
       return;
     }
     preview.textContent = (amount
       ? formatIn(amount, code) + " = " + formatMoney(amount * rate)
-      : "Converted")
-      + " at " + rate + " " + homeCurrency() + " per " + code + fxNote(code, rate);
+      : i18n.t("Converted"))
+      + " " + i18n.t("at {rate} {home} per {currency}", { rate: String(rate), home: homeCurrency(), currency: code }) + fxNote(code, rate);
     preview.hidden = false;
   }
 
@@ -2543,7 +2548,7 @@
     if (planFx) {
       rate = parseFloat($("#recOccRate").value);
       if (!isFinite(rate) || rate <= 0) {
-        toast("Give a rate for " + planFx.currency + " on this date", true);
+        toast(i18n.t("Give a rate for {currency} on this date", { currency: planFx.currency }), true);
         return;
       }
       // Freezing it is the same act "Look up past rates" performs in bulk —
@@ -2554,7 +2559,7 @@
     closeRecurringOccModal();
     render();
     await persist();
-    toast("Occurrence updated");
+    toast(i18n.t("Occurrence updated"));
     if (reopenTemplate) openRecurringModal(rec);
   }
   async function saveExtraFromForm(rec) {
@@ -2565,7 +2570,7 @@
     const x = { id: $("#recOccExtraId").value || uid(), date, amount: typed };
     if (m) {
       const rate = parseFloat($("#recOccRate").value);
-      if (!isFinite(rate) || rate <= 0) { toast("Give a rate for " + m[1] + " on this date", true); return; }
+      if (!isFinite(rate) || rate <= 0) { toast(i18n.t("Give a rate for {currency} on this date", { currency: m[1] }), true); return; }
       Object.assign(x, { currency: m[1], fxAmount: typed, rate, amount: Math.round(typed * rate * 100) / 100 });
     }
     const note = $("#recOccNote").value.trim();
@@ -2579,7 +2584,7 @@
     buildYearFilter();
     render();
     await persist();
-    toast(old ? "One-off charge updated" : "One-off charge added");
+    toast(old ? i18n.t("One-off charge updated") : i18n.t("One-off charge added"));
     if (reopenTemplate) openRecurringModal(rec);
   }
   async function resetRecurringOcc() {
@@ -2593,7 +2598,7 @@
       buildYearFilter();
       render();
       await persist();
-      toast("One-off charge deleted");
+      toast(i18n.t("One-off charge deleted"));
       if (reopen) openRecurringModal(rec);
       return;
     }
@@ -2602,7 +2607,7 @@
     closeRecurringOccModal();
     render();
     await persist();
-    toast("Reset to template amount");
+    toast(i18n.t("Reset to template amount"));
     if (reopenTemplate && rec) openRecurringModal(rec);
   }
 
@@ -2638,14 +2643,14 @@
     const category = $("#recCategory").value;
     const note = $("#recNote").value.trim();
     if (!startDate || !typed) return;
-    if (endDate && endDate < startDate) { toast("The stop date can't be before the start date", true); return; }
+    if (endDate && endDate < startDate) { toast(i18n.t("The stop date can't be before the start date"), true); return; }
     // Same rule as the expense form: the typed figure is what you're billed,
     // and `amount` is always the home-currency one it works out to.
     const code = $("#recCurrency").value;
     const foreign = !!code && code !== homeCurrency();
     const rate = foreign ? parseFloat($("#recRate").value) : 0;
     if (foreign && (!isFinite(rate) || rate <= 0)) {
-      toast("Give a rate for " + code + ", or switch back to " + homeCurrency(), true);
+      toast(i18n.t("Give a rate for {currency}, or switch back to {home}", { currency: code, home: homeCurrency() }), true);
       return;
     }
     const amount = foreign ? Math.round(typed * rate * 100) / 100 : typed;
@@ -2693,14 +2698,14 @@
     render();
     await persist();
     if (linking.length) {
-      toast(`Made recurring — its ${linking.length} past expenses are its charges now`);
+      toast(i18n.tn(linking.length, "Made recurring — its {n} past expense is its charge now", "Made recurring — its {n} past expenses are its charges now"));
       return;
     }
-    const done = id ? "Recurring expense updated" : (converted ? "Converted to a recurring expense" : "Recurring expense added");
+    const done = id ? i18n.t("Recurring expense updated") : (converted ? i18n.t("Converted to a recurring expense") : i18n.t("Recurring expense added"));
     // A bill you just made recurring has usually been logged by hand before.
     const toLink = created ? linkSuggestionCount(created) : 0;
-    if (toLink) toast(`${done}. ${toLink} past expense${toLink === 1 ? "" : "s"} look${toLink === 1 ? "s" : ""} like it.`, false,
-      { label: "Link", onClick: () => openLinkPastExpensesPicker(created) });
+    if (toLink) toast(done + ". " + i18n.tn(toLink, "{n} past expense looks like it.", "{n} past expenses look like it."), false,
+      { label: i18n.t("Link"), onClick: () => openLinkPastExpensesPicker(created) });
     else toast(done);
   }
 
@@ -2748,8 +2753,8 @@
     $("#planRecId").value = rec.id;
     const pfx = fxOf(rec);
     $("#planCurrent").textContent = pfx
-      ? `Currently ${formatIn(pfx.amount, pfx.currency)} ${rec.interval} (${formatMoney(rec.amount)} at ${pfx.rate}), ${rec.category}, since ${rec.startDate}.`
-      : `Currently ${formatMoney(rec.amount)} ${rec.interval}, ${rec.category}, since ${rec.startDate}.`;
+      ? i18n.t("Currently {amount} {interval} ({home} at {rate}), {category}, since {start}.", { amount: formatIn(pfx.amount, pfx.currency), interval: intervalWord(rec.interval), home: formatMoney(rec.amount), rate: String(pfx.rate), category: rec.category, start: rec.startDate })
+      : i18n.t("Currently {amount} {interval}, {category}, since {start}.", { amount: formatMoney(rec.amount), interval: intervalWord(rec.interval), category: rec.category, start: rec.startDate });
     $("#planFrom").value = nextOccurrenceDateAfter(rec, todayStr());
     $("#planFrom").min = addDaysStr(rec.startDate, 1);
     $("#planInterval").value = rec.interval;
@@ -2770,11 +2775,11 @@
     const amount = readAmount("#planAmount");
     if (!effectiveFrom || !amount) return;
     if (effectiveFrom <= rec.startDate) {
-      toast("That's on or before this plan's start date — edit the plan itself instead", true);
+      toast(i18n.t("That's on or before this plan's start date — edit the plan itself instead"), true);
       return;
     }
     if (rec.endDate && effectiveFrom > rec.endDate) {
-      toast(`This plan already stops on ${rec.endDate} — pick an earlier date`, true);
+      toast(i18n.t("This plan already stops on {date} — pick an earlier date", { date: rec.endDate }), true);
       return;
     }
     const planFx = fxOf(rec);
@@ -2796,8 +2801,8 @@
     buildYearFilter();
     render();
     await persist();
-    toast(`New plan from ${effectiveFrom} — earlier occurrences keep the old one`
-      + (dropped.length ? `. ${dropped.length} per-occurrence edit${dropped.length === 1 ? "" : "s"} dropped (the new schedule doesn't land on those dates)` : ""));
+    toast(i18n.t("New plan from {date} — earlier occurrences keep the old one", { date: effectiveFrom })
+      + (dropped.length ? ". " + i18n.tn(dropped.length, "{n} per-occurrence edit dropped (the new schedule doesn't land on that date)", "{n} per-occurrence edits dropped (the new schedule doesn't land on those dates)") : ""));
     openRecurringModal(created);
   }
 
@@ -2812,7 +2817,7 @@
     if (!r) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const occs = planCharges(r, today).filter((o) => !o.skipped);
-    if (!confirm(`Convert this recurring expense into ${occs.length} one-off entr${occs.length === 1 ? "y" : "ies"}? It stops generating new ones, and each entry becomes editable on its own.`)) return;
+    if (!confirm(i18n.tn(occs.length, "Convert this recurring expense into {n} one-off entry? It stops generating new ones, and each entry becomes editable on its own.", "Convert this recurring expense into {n} one-off entries? It stops generating new ones, and each entry becomes editable on its own."))) return;
     const now = new Date().toISOString();
     occs.forEach((o) => {
       const entry = { id: uid(), date: o.date, type: "expense", amount: o.amount, category: o.category, createdAt: now };
@@ -2825,7 +2830,7 @@
     buildYearFilter();
     render();
     await persist();
-    toast(`Converted to ${occs.length} one-off entr${occs.length === 1 ? "y" : "ies"}`);
+    toast(i18n.tn(occs.length, "Converted to {n} one-off entry", "Converted to {n} one-off entries"));
   }
 
   // Removes the template outright. Its occurrences are generated on the fly,
@@ -2839,13 +2844,13 @@
     if (!r) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const n = planCharges(r, today).length;
-    if (!confirm(`Delete this recurring expense and the ${n} occurrence${n === 1 ? "" : "s"} it generated? To keep that history, cancel and use “Convert to entries” instead.`)) return;
+    if (!confirm(i18n.tn(n, "Delete this recurring expense and the {n} occurrence it generated? To keep that history, cancel and use “Convert to entries” instead.", "Delete this recurring expense and the {n} occurrences it generated? To keep that history, cancel and use “Convert to entries” instead."))) return;
     state.data.recurringExpenses = state.data.recurringExpenses.filter((x) => x.id !== id);
     closeRecurringModal();
     buildYearFilter();
     render();
     await persist();
-    toast("Recurring expense deleted");
+    toast(i18n.t("Recurring expense deleted"));
   }
 
   // One-off → recurring: opens the recurring modal prefilled from an
@@ -2951,19 +2956,19 @@
 
   function openLinkPastExpensesPicker(rec) {
     const candidates = linkCandidates(rec);
-    if (!candidates.length) { toast("No expenses in " + rec.category + " to link", true); return; }
+    if (!candidates.length) { toast(i18n.t("No expenses in {category} to link", { category: rec.category }), true); return; }
     const suggested = candidates.filter((c) => c.suggested).length;
     const items = candidates.map((c) => ({ kind: "finance", entry: c.entry, dup: false, checked: c.suggested }));
     openImportPicker({
-      title: "Link past expenses",
+      title: i18n.t("Link past expenses"),
       hint: (suggested
-        ? `${suggested} look like this bill and are ticked. `
+        ? i18n.tn(suggested, "{n} looks like this bill and is ticked.", "{n} look like this bill and are ticked.") + " "
         : "")
-        + `Linked expenses become this plan's charges and are removed from the list. Each keeps the amount and note it was logged with. If any predate ${rec.startDate}, the plan starts earlier to cover them.`,
+        + i18n.t("Linked expenses become this plan's charges and are removed from the list. Each keeps the amount and note it was logged with. If any predate {date}, the plan starts earlier to cover them.", { date: rec.startDate }),
       mode: "link",
       items,
       searchable: true,
-      confirmLabel: "Link",
+      confirmLabel: i18n.t("Link"),
       onConfirm: async (selected) => {
         if (!selected.length) return;
         const { minDate, movedStart } = linkEntriesToPlan(rec, selected.map((i) => i.entry));
@@ -2971,7 +2976,7 @@
         buildYearFilter();
         render();
         await persist();
-        toast(`Linked ${selected.length} expense${selected.length === 1 ? "" : "s"}` + (movedStart ? `, now starts ${minDate}` : ""));
+        toast((movedStart ? i18n.tn(selected.length, "Linked {n} expense, now starts {date}", "Linked {n} expenses, now starts {date}", { date: minDate }) : i18n.tn(selected.length, "Linked {n} expense", "Linked {n} expenses")));
         openRecurringModal(rec);
       },
     });
@@ -2982,7 +2987,7 @@
   function renderLinkOffer(rec) {
     const n = rec ? linkSuggestionCount(rec) : 0;
     $("#recLinkOffer").hidden = !n;
-    if (n) $("#recLinkOfferText").textContent = `${n} logged expense${n === 1 ? " looks" : "s look"} like this bill.`;
+    if (n) $("#recLinkOfferText").textContent = i18n.tn(n, "{n} logged expense looks like this bill.", "{n} logged expenses look like this bill.");
   }
 
   // Spotted bills (0.309.0) the Ledger's filters let through: none while
@@ -3003,20 +3008,20 @@
     const card = el("div", "bill-suggest");
     card.appendChild(el("span", "bill-suggest-ico")).appendChild(ico("repeat"));
     const text = el("div", "bill-suggest-text");
-    text.appendChild(el("b", null, `${b.note} looks like a ${b.interval} bill`));
+    text.appendChild(el("b", null, (b.interval === "weekly" ? i18n.t("{name} looks like a weekly bill", { name: b.note }) : i18n.t("{name} looks like a monthly bill", { name: b.note }))));
     const n = b.entries.length;
-    const when = b.interval === "weekly" ? `on ${WEEKDAY_NAMES[b.day]}s` : `around the ${ordinal(b.day)} each month`;
+    const when = b.interval === "weekly" ? i18n.t("on {day}s", { day: WEEKDAY_NAMES[b.day] }) : i18n.t("around the {nth} each month", { nth: ordinal(b.day) });
     const price = b.low === b.high ? moneyWhole(b.low) : `${moneyWhole(b.low)}–${moneyWhole(b.high)}`;
-    text.appendChild(el("span", null, `${n} expenses, ${when}, ${price}. Make it recurring and these ${n} become its charges.`));
+    text.appendChild(el("span", null, i18n.t("{n} expenses, {when}, {price}. Make it recurring and these {n} become its charges.", { n, when, price })));
     const dots = el("div", "bill-suggest-dates");
     b.entries.forEach((e) => dots.appendChild(el("span", null, `${Dates().dayMonth(+e.date.slice(8, 10), +e.date.slice(5, 7))} · ${moneyWhole(+e.amount)}`)));
     text.appendChild(dots);
     card.appendChild(text);
     const btns = el("div", "bill-suggest-btns");
-    const no = el("button", "btn", "Not a bill");
+    const no = el("button", "btn", i18n.t("Not a bill"));
     no.type = "button";
     no.onclick = () => dismissBillSuggestion(b);
-    const yes = el("button", "btn btn-primary", "Make recurring");
+    const yes = el("button", "btn btn-primary", i18n.t("Make recurring"));
     yes.type = "button";
     yes.onclick = () => {
       const first = b.entries[0], last = b.entries[b.entries.length - 1];
@@ -3047,8 +3052,8 @@
     state.data.settings.importSkips = all;
     render();
     await persist();
-    toast(`Won't suggest ${b.note} again`, false, {
-      label: "Undo",
+    toast(i18n.t("Won't suggest {name} again", { name: b.note }), false, {
+      label: i18n.t("Undo"),
       onClick: async () => {
         const now = { ...(state.data.settings.importSkips || {}) };
         now.bills = (now.bills || []).filter((k) => k !== b.key);
@@ -3082,14 +3087,14 @@
     const block = el("div", "year-block recur-block");
     const head = el("div", "year-head");
     const h2 = el("h2", null);
-    h2.appendChild(window.LifeLogIcons.labelled("repeat", "Recurring"));
-    h2.dataset.jumpLabel = "Recurring"; // a third of a phone's bottom bar
+    h2.appendChild(window.LifeLogIcons.labelled("repeat", i18n.t("Recurring")));
+    h2.dataset.jumpLabel = i18n.t("Recurring"); // a third of a phone's bottom bar
     head.appendChild(h2);
-    head.appendChild(el("span", "ycount", `${active.length} active`));
+    head.appendChild(el("span", "ycount", i18n.t("{n} active", { n: active.length })));
     const add = el("button", "month-add-btn", "+");
     add.type = "button";
-    add.title = "Add a recurring expense";
-    add.setAttribute("aria-label", "Add a recurring expense");
+    add.title = i18n.t("Add a recurring expense");
+    add.setAttribute("aria-label", i18n.t("Add a recurring expense"));
     add.onclick = () => openRecurringModal(null);
     head.appendChild(add);
     block.appendChild(head);
@@ -3118,14 +3123,14 @@
       const t = el("span", "etitle", r.note || r.category);
       t.title = r.note || r.category;
       text.appendChild(t);
-      const when = [r.interval.charAt(0).toUpperCase() + r.interval.slice(1)];
-      if (r.interval === "monthly") when[0] += ", on the " + ordinal(chargeDayOf(r));
-      else if (r.interval === "weekly") when[0] += ", on " + WEEKDAY_NAMES[chargeWeekdayOf(r)] + "s";
-      else when[0] += ", on " + Dates().dayMonth(chargeDayOf(r), chargeMonthOf(r));
-      if (isEnded) when.push("ended " + shortDate(r.endDate));
+      const when = [intervalWord(r.interval, true)];
+      if (r.interval === "monthly") when[0] += ", " + i18n.t("on the {nth}", { nth: ordinal(chargeDayOf(r)) });
+      else if (r.interval === "weekly") when[0] += ", " + i18n.t("on {day}s", { day: WEEKDAY_NAMES[chargeWeekdayOf(r)] });
+      else when[0] += ", " + i18n.t("on {date}", { date: Dates().dayMonth(chargeDayOf(r), chargeMonthOf(r)) });
+      if (isEnded) when.push(i18n.t("ended {date}", { date: shortDate(r.endDate) }));
       else if (isPausedOn(r, today)) {
         const p = r.pauses[livePauseIndex(r, today)];
-        when.push(p.to ? "paused until " + shortDate(p.to) : "paused");
+        when.push(p.to ? i18n.t("paused until {date}", { date: shortDate(p.to) }) : i18n.t("paused"));
       }
       text.appendChild(el("span", "recur-when", when.join(" · ")));
       row.appendChild(text);
@@ -3134,8 +3139,9 @@
       const rfx = fxOf(r);
       if (rfx) {
         const tag = el("span", "fx-paid", formatIn(rfx.amount, rfx.currency));
-        tag.title = "Billed " + formatIn(rfx.amount, rfx.currency) + " each " + r.interval.replace(/ly$/, "")
-          + " period, at " + rfx.rate + " " + homeCurrency() + " per " + rfx.currency;
+        const fxv = { amount: formatIn(rfx.amount, rfx.currency), rate: String(rfx.rate), home: homeCurrency(), currency: rfx.currency };
+        tag.title = ({ weekly: i18n.t("Billed {amount} each week, at {rate} {home} per {currency}", fxv), yearly: i18n.t("Billed {amount} each year, at {rate} {home} per {currency}", fxv) })[r.interval] || i18n.t("Billed {amount} each month, at {rate} {home} per {currency}", fxv)
+          ;
         row.appendChild(tag);
       }
       row.appendChild(el("span", "famount fnegative", formatMoney(r.amount)));
@@ -3173,7 +3179,7 @@
         const edit = el("button", "proj-group-edit");
         edit.appendChild(ico("pencil"));
         edit.type = "button";
-        edit.title = "Edit " + name;
+        edit.title = i18n.t("Edit {name}", { name });
         edit.setAttribute("aria-label", edit.title);
         edit.onclick = (ev) => {
           ev.stopPropagation();
@@ -3192,7 +3198,7 @@
     byProject(active.slice().sort((a, b) => a.startDate.localeCompare(b.startDate)), false);
     if (ended.length) {
       const sub = el("div", "recur-subhead");
-      sub.appendChild(el("span", null, `Ended (${ended.length})`));
+      sub.appendChild(el("span", null, i18n.t("Ended ({n})", { n: ended.length })));
       card.appendChild(sub);
       byProject(ended.slice().sort((a, b) => b.endDate.localeCompare(a.endDate)), true);
     }
@@ -3218,7 +3224,7 @@
   function openProjectModal(proj, opts) {
     const editing = !!proj;
     pendingProjectReturn = (opts && opts.returnTo) || null;
-    $("#projectModalTitle").textContent = editing ? "Edit project" : "New project";
+    $("#projectModalTitle").textContent = editing ? i18n.t("Edit project") : i18n.t("New project");
     $("#projOrigName").value = editing ? proj.name : "";
     $("#projName").value = editing ? proj.name : "";
     $("#projColorInput").value = editing ? proj.color : "#3bb2e2";
@@ -3235,8 +3241,8 @@
         .sort((a, b) => String(b.date).localeCompare(String(a.date)));
       const total = items.reduce((sum, f) => sum + f.amount, 0);
       uses.textContent = items.length
-        ? `${items.length} expense${items.length === 1 ? "" : "s"}, ${formatMoney(total)}`
-        : "No expenses yet";
+        ? i18n.tn(items.length, "{n} expense, {amount}", "{n} expenses, {amount}", { amount: formatMoney(total) })
+        : i18n.t("No expenses yet");
       uses.hidden = false;
       fillProjectExpenses(list, items);
     } else { uses.hidden = true; list.hidden = true; }
@@ -3262,7 +3268,7 @@
       if (f.virtual) {
         const badge = el("span", "recur-badge");
         badge.appendChild(ico("repeat"));
-        badge.title = "From a recurring expense";
+        badge.title = i18n.t("From a recurring expense");
         row.appendChild(badge);
       }
       const fx = fxOf(f);
@@ -3307,7 +3313,7 @@
     const projects = state.data.projects;
 
     if (!orig) {
-      if (projects.some(clash)) { toast("That project already exists", true); return; }
+      if (projects.some(clash)) { toast(i18n.t("That project already exists"), true); return; }
       const now = new Date().toISOString();
       const item = { id: uid(), name, color, createdAt: now, updatedAt: now };
       projects.push(item);
@@ -3315,7 +3321,7 @@
       const proj = projects.find((p) => p.name === orig);
       if (!proj) return;
       if (name !== proj.name && projects.some((p) => p !== proj && clash(p))) {
-        toast("A project with that name already exists", true);
+        toast(i18n.t("A project with that name already exists"), true);
         return;
       }
       proj.color = color;
@@ -3339,7 +3345,7 @@
     }
     render();
     await persist();
-    toast(orig ? "Project updated" : "Project added");
+    toast(orig ? i18n.t("Project updated") : i18n.t("Project added"));
   }
 
   // ---------- convert ----------
@@ -3465,15 +3471,15 @@
   // rate yet, and writing today's would dress a forecast up as a fact.
   async function fetchPastRatesFor(rec, btn) {
     const home = homeCurrency();
-    if (!rec || !rec.currency || rec.currency === home) { toast("This plan is already in " + home); return; }
+    if (!rec || !rec.currency || rec.currency === home) { toast(i18n.t("This plan is already in {currency}", { currency: home })); return; }
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const missing = recurringOccurrences(rec, today)
       .filter((o) => !o.skipped && o.date <= todayStr() && !(rec.rates && rec.rates[o.date]))
       .map((o) => o.date);
-    if (!missing.length) { toast("Every past charge already has its own rate"); return; }
+    if (!missing.length) { toast(i18n.t("Every past charge already has its own rate")); return; }
 
     const label = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "Looking up " + missing.length + " rates…"; }
+    if (btn) { btn.disabled = true; btn.textContent = i18n.tn(missing.length, "Looking up {n} rate…", "Looking up {n} rates…"); }
     try {
       const found = new Map();
       // The range starts a week early on purpose. A charge on the 15th of a
@@ -3491,14 +3497,14 @@
       if (stillMissing.length) {
         for (const [d, r] of await fetchRatesOneByOne(rec.currency, home, stillMissing)) found.set(d, r);
       }
-      if (!found.size) { toast("Couldn't reach rates for " + rec.currency + " — set them per charge instead", true); return; }
+      if (!found.size) { toast(i18n.t("Couldn't reach rates for {currency} — set them per charge instead", { currency: rec.currency }), true); return; }
       rec.rates = { ...(rec.rates || {}), ...Object.fromEntries(found) };
       const short = missing.length - found.size;
       render();
       await persist();
       toast(short
-        ? "Froze " + found.size + " rates — " + short + " dates couldn't be reached"
-        : "Froze the rate for " + found.size + (found.size === 1 ? " charge" : " charges"), !!short);
+        ? i18n.t("Froze {n} rates — {short} dates couldn't be reached", { n: found.size, short })
+        : i18n.tn(found.size, "Froze the rate for {n} charge", "Froze the rate for {n} charges"), !!short);
       // Reopen so the occurrence list shows what the charges actually came to.
       openRecurringModal(state.data.recurringExpenses.find((x) => x.id === rec.id));
     } finally {
@@ -3517,20 +3523,20 @@
     const pretty = /^\d{4}-\d{2}-\d{2}$/.test(d)
       ? Dates().day(d, { year: false })
       : "";
-    return pretty ? ` — ${lastFx.source} rate for ${pretty}` : "";
+    return pretty ? " — " + i18n.t("{source} rate for {date}", { source: lastFx.source, date: pretty }) : "";
   }
 
   // Shared by both buttons: the lookup, the button's own busy state, and the
   // one toast that says why nothing happened.
   async function runRateLookup(btn, code, date, onRate) {
     const home = homeCurrency();
-    if (!code || code === home) { toast("Pick a currency other than " + home); return; }
+    if (!code || code === home) { toast(i18n.t("Pick a currency other than {currency}", { currency: home })); return; }
     const label = btn.textContent;
     btn.disabled = true;
     btn.textContent = "…";
     try {
       const got = await fetchRate(code, home, date);
-      if (!got) { toast("Couldn't reach a rate for " + code + " — type it in", true); return; }
+      if (!got) { toast(i18n.t("Couldn't reach a rate for {currency} — type it in", { currency: code }), true); return; }
       lastFx = { code, rate: got.rate, date: got.date, source: got.source };
       onRate(got);
     } finally {
@@ -3544,9 +3550,9 @@
     const codes = projectCurrencies(proj);
     fillSelect($("#convCurrency"), codes.map((c) => ({ value: c, label: c })), codes[0] || "");
     $("#convCurrencyLabel").hidden = codes.length < 2;
-    $("#convertModalTitle").textContent = "Convert " + proj.name;
+    $("#convertModalTitle").textContent = i18n.t("Convert {project}", { project: proj.name });
     $("#convProjName").value = proj.name;
-    $("#convTotalLabel").firstChild.textContent = "Total charged in " + homeCurrency() + " ";
+    $("#convTotalLabel").firstChild.textContent = i18n.t("Total charged in {currency}", { currency: homeCurrency() }) + " ";
     $("#convTotal").value = "";
     $("#convRate").value = "";
     updateConvertIntro();
@@ -3563,11 +3569,12 @@
     const own = projectExpenses(proj, code);
     const fxTotal = own.reduce((sum, f) => sum + (+f.fxAmount || 0), 0);
     const rates = [...new Set(own.map((f) => f.rate))];
-    $("#convIntro").textContent = own.length + " expense" + (own.length === 1 ? "" : "s")
-      + " totalling " + formatIn(fxTotal, code)
-      + (rates.length === 1
-        ? (own.every((f) => f.rateConfirmed) ? ", converted at " + rates[0] : ", provisionally at " + rates[0])
-        : ", at " + rates.length + " different rates") + ".";
+    const convv = { total: formatIn(fxTotal, code), rate: String(rates[0]), rates: rates.length };
+    $("#convIntro").textContent = rates.length === 1
+      ? (own.every((f) => f.rateConfirmed)
+        ? i18n.tn(own.length, "{n} expense totalling {total}, converted at {rate}.", "{n} expenses totalling {total}, converted at {rate}.", convv)
+        : i18n.tn(own.length, "{n} expense totalling {total}, provisionally at {rate}.", "{n} expenses totalling {total}, provisionally at {rate}.", convv))
+      : i18n.tn(own.length, "{n} expense totalling {total}, at {rates} different rates.", "{n} expenses totalling {total}, at {rates} different rates.", convv);
     if (!$("#convRate").value && rates.length === 1) $("#convRate").value = rates[0];
     updateConvertSummary();
   }
@@ -3616,7 +3623,7 @@
     const proj = convertingProject;
     if (!proj) return;
     const rate = parseFloat($("#convRate").value);
-    if (!isFinite(rate) || rate <= 0) { toast("Give a rate, or a total to work it out from", true); return; }
+    if (!isFinite(rate) || rate <= 0) { toast(i18n.t("Give a rate, or a total to work it out from"), true); return; }
     const code = $("#convCurrency").value;
     const own = projectExpenses(proj, code);
     for (const f of own) {
@@ -3630,7 +3637,7 @@
     closeConvertModal();
     render();
     await persist();
-    toast(`Converted ${own.length} expense${own.length === 1 ? "" : "s"} at ${rate}`);
+    toast(i18n.tn(own.length, "Converted {n} expense at {rate}", "Converted {n} expenses at {rate}", { rate: String(rate) }));
   }
 
   async function deleteCurrentProject() {
@@ -3640,7 +3647,7 @@
     // Un-grouped, not deleted, and not moved to a fallback: the expenses are
     // real and stay exactly where they are in their months. Only the grouping
     // goes, which is the thing being deleted.
-    if (n > 0 && !confirm(`Delete “${proj.name}”? Its ${n} expense${n === 1 ? "" : "s"} stay where they are, just no longer grouped.`)) return;
+    if (n > 0 && !confirm(i18n.tn(n, "Delete “{project}”? Its {n} expense stays where it is, just no longer grouped.", "Delete “{project}”? Its {n} expenses stay where they are, just no longer grouped.", { project: proj.name }))) return;
     state.data.projects = state.data.projects.filter((p) => p !== proj);
     renameProject(state.data, proj.name, null);
     closeProjectModal();
@@ -3648,12 +3655,12 @@
     buildProjectFilter();
     render();
     await persist();
-    toast("Project deleted");
+    toast(i18n.t("Project deleted"));
   }
 
   function openFinanceCatModal(cat) {
     const editing = !!cat;
-    $("#financeCatModalTitle").textContent = editing ? "Edit finance category" : "Add finance category";
+    $("#financeCatModalTitle").textContent = editing ? i18n.t("Edit finance category") : i18n.t("Add finance category");
     $("#finCatOrigName").value = editing ? cat.name : "";
     $("#finCatName").value = editing ? cat.name : "";
     $("#finCatColorInput").value = editing ? cat.color : "#3bb2e2";
@@ -3661,7 +3668,7 @@
     if (editing) {
       const n = (countBy(state.data.financeEntries, (f) => f.category)[cat.name] || 0)
         + (countBy(state.data.recurringExpenses, (r) => r.category)[cat.name] || 0);
-      uses.textContent = n + (n === 1 ? " entry uses this" : " entries use this");
+      uses.textContent = i18n.tn(n, "{n} entry uses this", "{n} entries use this");
       uses.hidden = false;
     } else uses.hidden = true;
     $("#deleteFinanceCatBtn").hidden = !editing;
@@ -3682,13 +3689,13 @@
       const input = document.createElement("input");
       input.type = "text";
       input.value = x.name;
-      input.setAttribute("aria-label", "Subcategory " + (i + 1));
+      input.setAttribute("aria-label", i18n.t("Subcategory {n}", { n: i + 1 }));
       input.oninput = () => { x.name = input.value; };
       input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); $("#finCatNewSub").focus(); } };
       const del = el("button", "note-list-del");
       del.appendChild(ico("x"));
       del.type = "button";
-      del.setAttribute("aria-label", "Remove subcategory " + x.name);
+      del.setAttribute("aria-label", i18n.t("Remove subcategory {name}", { name: x.name }));
       del.onclick = () => { catSheetSubs.splice(i, 1); renderCatSheetSubs(); };
       row.append(input, del);
       wrap.appendChild(row);
@@ -3714,11 +3721,13 @@
     addCatSheetSub();
     const draft = catSheetSubs.map((x) => ({ ...x, name: x.name.trim() })).filter((x) => x.name);
     const names = draft.map((x) => x.name.toLowerCase());
-    if (new Set(names).size !== names.length) { toast("Two subcategories can't share a name", true); return null; }
+    if (new Set(names).size !== names.length) { toast(i18n.t("Two subcategories can't share a name"), true); return null; }
     const kept = new Set(draft.map((x) => x.id));
     const removed = ((cat && cat.subs) || []).filter((x) => !kept.has(x.id));
     const used = removed.reduce((n, x) => n + subUses(cat.name, x.name), 0);
-    if (used && !confirm(`${used} expense${used === 1 ? " uses" : "s use"} ${removed.length === 1 ? "“" + removed[0].name + "”" : "the subcategories you removed"}. They stay in “${cat.name}”, with no subcategory. Remove?`)) return null;
+    if (used && !confirm(removed.length === 1
+      ? i18n.tn(used, "{n} expense uses “{sub}”. It stays in “{category}”, with no subcategory. Remove?", "{n} expenses use “{sub}”. They stay in “{category}”, with no subcategory. Remove?", { sub: removed[0].name, category: cat.name })
+      : i18n.tn(used, "{n} expense uses the subcategories you removed. It stays in “{category}”, with no subcategory. Remove?", "{n} expenses use the subcategories you removed. They stay in “{category}”, with no subcategory. Remove?", { category: cat.name }))) return null;
     return { draft, removed };
   }
   // Applies a checked draft to `cat`, which already carries its new name.
@@ -3756,7 +3765,7 @@
 
     if (!orig) { // adding a new category
       if (state.data.financeCategories.some(clash)) {
-        toast("That category already exists", true);
+        toast(i18n.t("That category already exists"), true);
         return;
       }
       const now = new Date().toISOString();
@@ -3770,7 +3779,7 @@
       closeFinanceCatModal();
       rebuildFinanceColorMap(); buildCatFilter(); render();
       await persist();
-      toast("Finance category added");
+      toast(i18n.t("Finance category added"));
       resolvePendingCatSelect(newName);
       return;
     }
@@ -3778,7 +3787,7 @@
     const cat = state.data.financeCategories.find((c) => c.name === orig);
     if (!cat) return;
     if (newName !== cat.name && state.data.financeCategories.some((c) => c !== cat && clash(c))) {
-      toast("A category with that name already exists", true);
+      toast(i18n.t("A category with that name already exists"), true);
       return;
     }
     const plan = planCatSheetSubs(cat);
@@ -3803,7 +3812,7 @@
     closeFinanceCatModal();
     rebuildFinanceColorMap(); buildCatFilter(); render();
     await persist();
-    toast("Finance category saved");
+    toast(i18n.t("Finance category saved"));
   }
 
   function deleteCurrentFinanceCategory() {
@@ -3819,22 +3828,22 @@
     const n = (counts[cat.name] || 0) + (recurCounts[cat.name] || 0);
     if (n > 0) {
       if (cat.name === "Other") {
-        toast("Can't delete “Other” while it's in use", true);
+        toast(i18n.t("Can't delete “Other” while it's in use"), true);
         return;
       }
-      if (!confirm(`“${cat.name}” is used by ${n} entr${n === 1 ? "y" : "ies"}. Move them to “Other” and delete?`)) return;
+      if (!confirm(i18n.tn(n, "“{category}” is used by {n} entry. Move it to “Other” and delete?", "“{category}” is used by {n} entries. Move them to “Other” and delete?", { category: cat.name }))) return;
       let other = state.data.financeCategories.find((c) => c.name === "Other");
       if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.financeCategories.push(other); }
       renameFinanceCategory(state.data, cat.name, "Other", true);
     } else {
-      if (!confirm(`Delete category “${cat.name}”?`)) return;
+      if (!confirm(i18n.t("Delete category “{category}”?", { category: cat.name }))) return;
     }
     state.data.financeCategories = state.data.financeCategories.filter((c) => c !== cat);
     for (const k of [...state.financeActiveCats]) if (k === cat.name || k.startsWith(cat.name + SUB_SEP)) state.financeActiveCats.delete(k);
     rebuildFinanceColorMap();
     buildCatFilter(); render();
     await persist();
-    toast("Finance category deleted");
+    toast(i18n.t("Finance category deleted"));
   }
 
   // ---------- import / export ----------
@@ -3885,7 +3894,7 @@
         if (amount) undated.push({ date: `${currentYear}-01-01`, amount, category: "Other", note: label });
       }
     }
-    if (currentYear === null) throw new Error("No year blocks found — is this the right CSV export?");
+    if (currentYear === null) throw new Error(i18n.t("No year blocks found — is this the right CSV export?"));
     return { monthly, undated };
   }
   function importFinanceCsv(file) {
@@ -3897,8 +3906,8 @@
           const { monthly, undated } = parseFinanceCsv(reader.result);
           return buildImportItems({ financeEntries: [...monthly, ...undated] });
         })();
-        reviewAndImport("Import Ledger CSV", "Pick which entries to add, disable whole years/months at once, and choose which new categories to bring in. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.", built);
-      } catch (e) { toast("Import failed: " + (e.message || e), true); }
+        reviewAndImport(i18n.t("Import Ledger CSV"), i18n.t("Pick which entries to add, disable whole years/months at once, and choose which new categories to bring in. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway."), built);
+      } catch (e) { toast(i18n.t("Import failed: {error}", { error: e.message || e }), true); }
     };
     reader.readAsText(file);
   }
@@ -3938,7 +3947,7 @@
         recurringExpenses.push({ ...rec, startDate: date.trim(), interval: (repeats || "").trim(), ...((ends || "").trim() ? { endDate: ends.trim() } : {}) });
       } else financeEntries.push({ ...rec, date: date.trim() });
     }
-    if (!financeEntries.length && !recurringExpenses.length) throw new Error("No rows found — is this a Ledger CSV export?");
+    if (!financeEntries.length && !recurringExpenses.length) throw new Error(i18n.t("No rows found — is this a Ledger CSV export?"));
     return { financeEntries, recurringExpenses };
   }
   // The Ledger block of an everything-in-one CSV (see allCsvText in io.js).
@@ -3950,22 +3959,22 @@
     } catch (e) { return null; }
   }
   function exportFinanceCsv() {
-    if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) { toast("Nothing in the Ledger to export"); return; }
+    if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) { toast(i18n.t("Nothing in the Ledger to export")); return; }
     const items = [
       ...state.data.financeEntries.map((entry) => ({ kind: "finance", entry, dup: false, checked: true })),
       ...state.data.recurringExpenses.map((entry) => ({ kind: "recurring", entry, dup: false, checked: true })),
     ];
     openImportPicker({
-      title: "Export Ledger CSV",
-      hint: "Pick which expenses and recurring expenses to export.",
+      title: i18n.t("Export Ledger CSV"),
+      hint: i18n.t("Pick which expenses and recurring expenses to export."),
       mode: "export",
       items,
-      confirmLabel: "Export",
+      confirmLabel: i18n.t("Export"),
       onConfirm: (selected) => {
-        if (!selected.length) { toast("Nothing selected"); return; }
+        if (!selected.length) { toast(i18n.t("Nothing selected")); return; }
         const of = (k) => selected.filter((i) => i.kind === k).map((i) => i.entry);
         download("lifelog-ledger.csv", financeCsvText(of("finance"), of("recurring")), "text/csv");
-        toast(`Exported ${selected.length} row${selected.length === 1 ? "" : "s"}`);
+        toast(i18n.tn(selected.length, "Exported {n} row", "Exported {n} rows"));
       },
     });
   }

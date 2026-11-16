@@ -18,33 +18,34 @@
 // board has every key then, so they share keys with the rest of the app
 // freely and only clash with each other and the board's fixed keys.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const ACTIONS = [
-    { id: "add", label: "Add entry", defaults: ["KeyN"] },
-    { id: "search", label: "Search", defaults: ["KeyF", "Slash"] },
-    { id: "settings", label: "Open or close Settings", defaults: ["Tab"] },
-    { id: "help", label: "Show keyboard shortcuts", defaults: ["Shift+Slash"] },
-    { id: "noteMode", label: "Switch a note between Read and Edit", defaults: ["Ctrl+KeyE"], sub: "While a note is open" },
+    { id: "add", label: i18n.t("Add entry"), defaults: ["KeyN"] },
+    { id: "search", label: i18n.t("Search"), defaults: ["KeyF", "Slash"] },
+    { id: "settings", label: i18n.t("Open or close Settings"), defaults: ["Tab"] },
+    { id: "help", label: i18n.t("Show keyboard shortcuts"), defaults: ["Shift+Slash"] },
+    { id: "noteMode", label: i18n.t("Switch a note between Read and Edit"), defaults: ["Ctrl+KeyE"], sub: i18n.t("While a note is open") },
   ];
   const BOARD_ACTIONS = [
-    { id: "board:select", label: "Select", defaults: ["KeyV"] },
-    { id: "board:hand", label: "Move the board", defaults: ["KeyH"] },
-    { id: "board:pen", label: "Pen", defaults: ["KeyP"] },
-    { id: "board:eraser", label: "Eraser", defaults: ["KeyE"] },
-    { id: "board:rect", label: "Rectangle", defaults: ["KeyR"] },
-    { id: "board:ellipse", label: "Ellipse", defaults: ["KeyO"] },
-    { id: "board:arrow", label: "Arrow", defaults: ["KeyA"] },
-    { id: "board:line", label: "Line", defaults: ["KeyL"] },
-    { id: "board:text", label: "Text", defaults: ["KeyT"] },
-    { id: "board:image", label: "Add a picture", defaults: ["KeyI"] },
+    { id: "board:select", label: i18n.t("Select"), defaults: ["KeyV"] },
+    { id: "board:hand", label: i18n.t("Move the board"), defaults: ["KeyH"] },
+    { id: "board:pen", label: i18n.t("Pen"), defaults: ["KeyP"] },
+    { id: "board:eraser", label: i18n.t("Eraser"), defaults: ["KeyE"] },
+    { id: "board:rect", label: i18n.t("Rectangle"), defaults: ["KeyR"] },
+    { id: "board:ellipse", label: i18n.t("Ellipse"), defaults: ["KeyO"] },
+    { id: "board:arrow", label: i18n.t("Arrow"), defaults: ["KeyA"] },
+    { id: "board:line", label: i18n.t("Line"), defaults: ["KeyL"] },
+    { id: "board:text", label: i18n.t("Text"), defaults: ["KeyT"] },
+    { id: "board:image", label: i18n.t("Add a picture"), defaults: ["KeyI"] },
   ];
   // What a board does with these itself (handleKey in boards.js), ahead of
   // any tool; a tool can't take them.
   const BOARD_FIXED = {
-    Escape: "Step out of a text box, then a selection, then the board",
-    Space: "Hold to move the board", Delete: "Delete what's selected", Backspace: "Delete what's selected",
-    Equal: "Zoom in", "Shift+Equal": "Zoom in", NumpadAdd: "Zoom in", Minus: "Zoom out", NumpadSubtract: "Zoom out",
-    Digit0: "Fit the drawing on screen", "Ctrl+KeyZ": "Undo", "Ctrl+Shift+KeyZ": "Redo", "Ctrl+KeyY": "Redo",
-    "Ctrl+KeyA": "Select everything", "Ctrl+KeyC": "Copy", "Ctrl+KeyX": "Cut", "Ctrl+KeyV": "Paste",
+    Escape: i18n.t("Step out of a text box, then a selection, then the board"),
+    Space: i18n.t("Hold to move the board"), Delete: i18n.t("Delete what's selected"), Backspace: i18n.t("Delete what's selected"),
+    Equal: i18n.t("Zoom in"), "Shift+Equal": i18n.t("Zoom in"), NumpadAdd: i18n.t("Zoom in"), Minus: i18n.t("Zoom out"), NumpadSubtract: i18n.t("Zoom out"),
+    Digit0: i18n.t("Fit the drawing on screen"), "Ctrl+KeyZ": i18n.t("Undo"), "Ctrl+Shift+KeyZ": i18n.t("Redo"), "Ctrl+KeyY": i18n.t("Redo"),
+    "Ctrl+KeyA": i18n.t("Select everything"), "Ctrl+KeyC": i18n.t("Copy"), "Ctrl+KeyX": i18n.t("Cut"), "Ctrl+KeyV": i18n.t("Paste"),
   };
   const MAX_KEYS = 2;
   const MAX_TABS = 9;
@@ -233,7 +234,7 @@
       const snap = snapshot();
       resetAll();
       changed();
-      ui.toast("Every key is back to its default", false, { label: "Undo", onClick: () => { restore(snap); changed(); } });
+      ui.toast(i18n.t("Every key is back to its default"), false, { label: "Undo", onClick: () => { restore(snap); changed(); } });
     };
     // Ahead of every other key handler while waiting for a key, so the
     // key pressed is the key kept rather than a shortcut fired.
@@ -263,11 +264,11 @@
     if (!combo) return;
     const { id, replacing } = listening;
     if (isBoard(id) && BOARD_FIXED[combo]) {
-      ui.toast(label(combo) + " is a fixed key on boards (" + BOARD_FIXED[combo].toLowerCase() + ")", true);
+      ui.toast(i18n.t("{key} is a fixed key on boards ({what})", { key: label(combo), what: i18n.lang === "en" ? BOARD_FIXED[combo].toLowerCase() : BOARD_FIXED[combo] }), true);
       return;
     }
     if (id.startsWith("tab:") && hasShift(combo) && otherModeOn()) {
-      ui.toast("Pick a key without Shift — Shift with a tab's key opens its other mode", true);
+      ui.toast(i18n.t("Pick a key without Shift — Shift with a tab's key opens its other mode"), true);
       return;
     }
     listening = null;
@@ -276,7 +277,7 @@
     const taken = assign(id, combo, replacing);
     changed();
     if (taken.length) {
-      ui.toast(label(combo) + " moved from " + taken.map(nameOf).join(", "), false, { label: "Undo", onClick: () => { restore(snap); changed(); } });
+      ui.toast(i18n.t("{key} moved from {from}", { key: label(combo), from: taken.map(nameOf).join(", ") }), false, { label: i18n.t("Undo"), onClick: () => { restore(snap); changed(); } });
     }
     focusRow(id);
   }
@@ -301,9 +302,9 @@
     const name = nameOf(id);
     const chip = el("span", "kb-chip");
     if (listening && listening.id === id && listening.replacing === combo) {
-      const b = el("button", "kb-key listening", "Press a key…");
+      const b = el("button", "kb-key listening", i18n.t("Press a key…"));
       b.type = "button";
-      b.setAttribute("aria-label", "Press the new key for " + name + ", or Esc to cancel");
+      b.setAttribute("aria-label", i18n.t("Press the new key for {name}, or Esc to cancel", { name }));
       b.onclick = stopListening;
       chip.appendChild(b);
       return chip;
@@ -311,18 +312,18 @@
     const b = el("button", "kb-key");
     b.type = "button";
     b.textContent = label(combo);
-    b.setAttribute("aria-label", "Change " + label(combo) + " for " + name);
+    b.setAttribute("aria-label", i18n.t("Change {key} for {name}", { key: label(combo), name }));
     b.onclick = () => startListening(id, combo);
     const x = el("button", "kb-x");
     x.type = "button";
     x.appendChild(icon("x", "×"));
-    x.setAttribute("aria-label", "Remove " + label(combo) + " from " + name);
-    x.title = "Remove";
+    x.setAttribute("aria-label", i18n.t("Remove {key} from {name}", { key: label(combo), name }));
+    x.title = i18n.t("Remove");
     x.onclick = () => {
       const snap = snapshot();
       setKeys(id, keysFor(id).filter((c) => c !== combo));
       changed();
-      ui.toast(label(combo) + " removed from " + name, false, { label: "Undo", onClick: () => { restore(snap); changed(); } });
+      ui.toast(i18n.t("{key} removed from {name}", { key: label(combo), name }), false, { label: i18n.t("Undo"), onClick: () => { restore(snap); changed(); } });
       focusRow(id);
     };
     chip.append(b, x);
@@ -346,14 +347,14 @@
     text.appendChild(el("span", "sitem-sub", sub || ""));
     const keys = el("span", "kb-keys");
     const list = keysFor(id);
-    if (!list.length && !(listening && listening.id === id)) keys.appendChild(el("span", "kb-none", "None"));
+    if (!list.length && !(listening && listening.id === id)) keys.appendChild(el("span", "kb-none", i18n.t("None")));
     for (const c of list) keys.appendChild(keyChip(id, c));
     if (listening && listening.id === id && !listening.replacing) keys.appendChild(keyChip(id, null));
     else if (list.length < MAX_KEYS) {
       const add = el("button", "kb-add", "+");
       add.type = "button";
-      add.title = list.length ? "Add another key" : "Add a key";
-      add.setAttribute("aria-label", (list.length ? "Add another key for " : "Add a key for ") + title);
+      add.title = list.length ? i18n.t("Add another key") : i18n.t("Add a key");
+      add.setAttribute("aria-label", list.length ? i18n.t("Add another key for {name}", { name: title }) : i18n.t("Add a key for {name}", { name: title }));
       add.onclick = () => startListening(id, null);
       keys.appendChild(add);
     }
@@ -361,8 +362,8 @@
       const rs = el("button", "kb-reset");
       rs.type = "button";
       rs.appendChild(icon("rotate-ccw", "↺"));
-      rs.title = "Back to " + (defaults(id).map(label).join(", ") || "none");
-      rs.setAttribute("aria-label", "Put " + title + " back to " + (defaults(id).map(label).join(" and ") || "no key"));
+      rs.title = i18n.t("Back to {keys}", { keys: defaults(id).map(label).join(", ") || i18n.t("none") });
+      rs.setAttribute("aria-label", i18n.t("Put {name} back to {keys}", { name: title, keys: i18n.join(defaults(id).map(label)) || i18n.t("no key") }));
       rs.onclick = () => { reset(id); changed(); focusRow(id); };
       keys.appendChild(rs);
     }

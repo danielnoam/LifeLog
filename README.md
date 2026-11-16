@@ -317,7 +317,8 @@ that tab instead, for bulk work.
 ## Settings
 
 Pages with their own search: sync, import and export, history, app lock,
-four themes (Default, Light, Nord, Dracula), fonts and layout, which day the
+English or Hebrew (right to left), four themes (Default, Light, Nord,
+Dracula), fonts and layout, which day the
 week starts on and how dates are written (on every device), tabs, media
 lookups, imports, release dates, notifications on the phones, and About
 with what's new, the credits, the errors on this device and Test builds.

@@ -7,6 +7,7 @@
 // and arrive through ctx. Storage is read off window.LifeLogStorage directly,
 // same as app.js does.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Storage = window.LifeLogStorage;
 
   // Shared app plumbing, provided by app.js via init(ctx).
@@ -64,8 +65,8 @@
     $("#ghClassicWarn").hidden = !(on && gi.tokenKind === "classic");
     updateGithubSpace();
     if (on) {
-      info.textContent = "Connected: " + gi.owner + "/" + gi.repo + " (" + gi.path + " on " + gi.branch + "), auto-syncing.";
-      conn.textContent = "Update connection";
+      info.textContent = i18n.t("Connected: {repo} ({path} on {branch}), auto-syncing.", { repo: gi.owner + "/" + gi.repo, path: gi.path, branch: gi.branch });
+      conn.textContent = i18n.t("Update connection");
       disc.hidden = false;
       const frag = Storage.setupFragment();
       if (frag) {
@@ -88,8 +89,8 @@
         share.hidden = false;
       } else share.hidden = true;
     } else {
-      info.textContent = "Not connected";
-      conn.textContent = "Connect GitHub";
+      info.textContent = i18n.t("Not connected");
+      conn.textContent = i18n.t("Connect GitHub");
       disc.hidden = true;
       share.hidden = true;
     }
@@ -98,14 +99,14 @@
   // How much room the data repo has left (2026-11), as Waypage shows it,
   // against the 5 GB GitHub asks a repo to stay under. Asks GitHub again
   // at most every 10 minutes, and redraws when the number moved.
-  const formatSize = (b) => b >= 9.995e8 ? (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + " GB"
-    : b >= 9.995e5 ? (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+  const formatSize = (b) => b >= 9.995e8 ? i18n.t("{size} GB", { size: (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) })
+    : b >= 9.995e5 ? i18n.t("{size} MB", { size: (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) }) : i18n.t("{size} KB", { size: String(Math.max(1, Math.round(b / 1e3))) });
   function paintSpaceRow(row, used, all) {
     const part = Math.min(1, used / all);
     row.classList.toggle("full", part > 0.9);
-    row.querySelector(".sitem-title").textContent = formatSize(Math.max(0, all - used)) + " left";
+    row.querySelector(".sitem-title").textContent = i18n.t("{size} left", { size: formatSize(Math.max(0, all - used)) });
     const sub = row.querySelector(".sitem-sub");
-    sub.textContent = formatSize(Math.max(used, 1000)) + " of " + formatSize(all) + " used, history and pictures included";
+    sub.textContent = i18n.t("{used} of {all} used, history and pictures included", { used: formatSize(Math.max(used, 1000)), all: formatSize(all) });
     sub.classList.toggle("tb-warn", part > 0.9);
     const bar = row.querySelector(".space-bar");
     bar.setAttribute("aria-valuenow", String(Math.round(part * 100)));
@@ -129,12 +130,12 @@
   // History is GitHub's total less all that. GitHub packs what it stores, so
   // that last one is rough, and the page says so.
   const SPACE_PARTS = [
-    ["Notes", "notebook-pen", ["notes", "noteCategories", "todos", "todoCategories"]],
-    ["Timeline", "clock", ["entries", "categories", "accomplishments"]],
-    ["Backlog", "star", ["backlog"]],
-    ["Ledger", "receipt", ["financeEntries", "recurringExpenses", "financeCategories", "projects"]],
-    ["Habits", "repeat", ["habits"]],
-    ["Settings", "settings", ["settings"]],
+    [i18n.t("Notes"), "notebook-pen", ["notes", "noteCategories", "todos", "todoCategories"]],
+    [i18n.t("Timeline"), "clock", ["entries", "categories", "accomplishments"]],
+    [i18n.t("Backlog"), "star", ["backlog"]],
+    [i18n.t("Ledger"), "receipt", ["financeEntries", "recurringExpenses", "financeCategories", "projects"]],
+    [i18n.t("Habits"), "repeat", ["habits"]],
+    [i18n.t("Settings"), "settings", ["settings"]],
   ];
   let spacePictures = null, spaceAsking = null;
   const bytesOf = (v) => new Blob([JSON.stringify(v, null, 2)]).size;
@@ -153,18 +154,18 @@
       counted += b;
       parts.push({ name, icon, bytes: b });
     }
-    parts.push({ name: "Everything else in lifelog.json", icon: "archive", bytes: Math.max(0, bytesOf(d) - counted) });
-    const files = [["Boards", "presentation", Storage.boards], ["Investments", "trending-up", Storage.invest]];
+    parts.push({ name: i18n.t("Everything else in lifelog.json"), icon: "archive", bytes: Math.max(0, bytesOf(d) - counted) });
+    const files = [[i18n.t("Boards"), "presentation", Storage.boards], [i18n.t("Investments"), "trending-up", Storage.invest]];
     for (const [name, icon, st] of files) parts.push({ name, icon, bytes: st && st.cachedSize ? await st.cachedSize().catch(() => 0) : 0 });
     if (!spacePictures && !spaceAsking && Storage.images.connected()) {
       spaceAsking = Storage.images.sizes().then((p) => { spacePictures = p; }).catch(() => { spacePictures = { failed: true }; })
         .finally(() => { spaceAsking = null; if (currentPage === "sync-space") renderSpacePage(); });
     }
     const pics = spacePictures;
-    parts.push({ name: "Pictures", icon: "image", bytes: pics && !pics.failed ? pics.bytes : 0, pictures: true,
-      note: !pics ? "Counting…" : pics.failed ? "Couldn't count them — GitHub didn't answer" : pics.count ? pics.count + (pics.count === 1 ? " picture" : " pictures") + (pics.partial ? " or more" : "") : "None yet" });
+    parts.push({ name: i18n.t("Pictures"), icon: "image", bytes: pics && !pics.failed ? pics.bytes : 0, pictures: true,
+      note: !pics ? i18n.t("Counting…") : pics.failed ? i18n.t("Couldn't count them — GitHub didn't answer") : pics.count ? (pics.partial ? i18n.tn(pics.count, "{n} picture or more", "{n} pictures or more") : i18n.tn(pics.count, "{n} picture", "{n} pictures")) : i18n.t("None yet") });
     const now = parts.reduce((t, p) => t + p.bytes, 0);
-    if (used != null && pics && !pics.failed) parts.push({ name: "History", icon: "history", bytes: Math.max(0, used - now), note: "Earlier saves and removed pictures, a rough figure" });
+    if (used != null && pics && !pics.failed) parts.push({ name: i18n.t("History"), icon: "history", bytes: Math.max(0, used - now), note: i18n.t("Earlier saves and removed pictures, a rough figure") });
     // An empty list is a few bytes of brackets: not worth a row.
     const shown = parts.filter((p) => p.bytes >= 200 || p.note).sort((a, b) => b.bytes - a.bytes);
     const most = Math.max(1, ...shown.map((p) => p.bytes));
@@ -185,7 +186,7 @@
       row.append(ic, text);
       if (p.pictures && pics && pics.count) {
         const btns = el("span", "sitem-btns");
-        const b = el("button", "btn btn-small", "Clean up");
+        const b = el("button", "btn btn-small", i18n.t("Clean up"));
         b.type = "button";
         // The same Clean up as Settings → Import & export → Images in notes.
         b.onclick = () => { const go = $("#cleanUpImagesBtn"); if (go) { spacePictures = null; go.click(); } };
@@ -200,8 +201,8 @@
   let historyCache = []; // last fetched list, so restore can look it up
 
   function formatHistoryDate(iso) {
-    if (!iso) return "Unknown time";
-    return window.LifeLogDates.dateTime(iso) || "Unknown time";
+    if (!iso) return i18n.t("Unknown time");
+    return window.LifeLogDates.dateTime(iso) || i18n.t("Unknown time");
   }
 
   async function updateHistoryPanel() {
@@ -214,11 +215,11 @@
   // categories, whose removal usually reassigns/cascades into other items
   // rather than being a simple "oops, undo" case.
   const TRASH_COLLECTIONS = {
-    entries: { kind: "Entry", label: (e) => e.title },
-    backlog: { kind: "Backlog item", label: (b) => b.title },
-    notes: { kind: "Note", label: (n) => (n.title || n.text || "").split("\n")[0].slice(0, 60) },
-    financeEntries: { kind: "Finance entry", label: (f) => f.note || f.category },
-    recurringExpenses: { kind: "Recurring expense", label: (r) => r.note || r.category },
+    entries: { kind: i18n.t("Entry"), label: (e) => e.title },
+    backlog: { kind: i18n.t("Backlog item"), label: (b) => b.title },
+    notes: { kind: i18n.t("Note"), label: (n) => (n.title || n.text || "").split("\n")[0].slice(0, 60) },
+    financeEntries: { kind: i18n.t("Finance entry"), label: (f) => f.note || f.category },
+    recurringExpenses: { kind: i18n.t("Recurring expense"), label: (r) => r.note || r.category },
   };
 
   // Walks adjacent pairs of local history snapshots (oldest→newest) to spot
@@ -261,7 +262,7 @@
       const row = el("div", "history-row");
       const head = el("div", "history-row-head");
       head.appendChild(el("span", "history-date", meta.kind + " · " + formatHistoryDate(d.deletedAt)));
-      const btn = el("button", "btn btn-small", "Restore");
+      const btn = el("button", "btn btn-small", i18n.t("Restore"));
       btn.type = "button";
       btn.onclick = () => restoreDeletedItem(d);
       head.appendChild(btn);
@@ -273,10 +274,10 @@
 
   async function restoreDeletedItem(d) {
     const meta = TRASH_COLLECTIONS[d.key];
-    const label = meta.label(d.item) || "(untitled)";
-    if (!confirm(`Restore "${label}"?`)) return;
+    const label = meta.label(d.item) || i18n.t("(untitled)");
+    if (!confirm(i18n.t('Restore "{label}"?', { label }))) return;
     if ((state.data[d.key] || []).some((x) => x.id === d.item.id)) {
-      toast("Already restored", true);
+      toast(i18n.t("Already restored"), true);
       refreshTrashList();
       return;
     }
@@ -285,7 +286,7 @@
     render();
     await persist();
     refreshTrashList();
-    toast("Restored " + label);
+    toast(i18n.t("Restored {label}", { label }));
   }
 
   // Normalizes a local history entry ({id, savedAt, summary, snapshot}) and
@@ -302,7 +303,7 @@
     const controls = $("#historyControls");
     const status = $("#historyStatus");
     const list = $("#historyList");
-    status.textContent = "Loading…";
+    status.textContent = i18n.t("Loading…");
     list.innerHTML = "";
     try {
       const local = (await Storage.listLocalHistory()).map((e) => normalizeHistoryEntry(e, "local"));
@@ -327,16 +328,16 @@
       controls.hidden = !combined.length;
       if (!combined.length) { status.textContent = ""; return; }
 
-      status.textContent = `Showing the last ${combined.length} save${combined.length === 1 ? "" : "s"}.`;
+      status.textContent = i18n.tn(combined.length, "Showing the last {n} save.", "Showing the last {n} saves.");
       combined.forEach((c, i) => {
         const row = el("div", "history-row");
         const head = el("div", "history-row-head");
         head.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
-        if (i === 0) head.appendChild(el("span", "history-badge", "Current"));
+        if (i === 0) head.appendChild(el("span", "history-badge", i18n.t("Current")));
         if (c.bridge) {
           const tag = el("span", "history-badge history-badge-ai");
           tag.appendChild(window.LifeLogIcons.labelled("sparkles", c.bridge.by || "AI"));
-          tag.title = "Made through the AI bridge";
+          tag.title = i18n.t("Made through the AI bridge");
           head.appendChild(tag);
         }
         // Undoing needs the save before it, to know what the change was, so
@@ -344,20 +345,20 @@
         // commit's parent: the list around it holds other devices' saves.
         const older = c.bridge && c.parent ? { sha: c.parent } : combined[i + 1];
         if (older) {
-          const undo = el("button", "btn btn-small", "Undo");
+          const undo = el("button", "btn btn-small", i18n.t("Undo"));
           undo.type = "button";
-          undo.title = "Undo just this change, and keep everything since";
+          undo.title = i18n.t("Undo just this change, and keep everything since");
           undo.onclick = () => undoHistoryChange(c, older);
           head.appendChild(undo);
         }
-        const btn = el("button", "btn btn-small", i === 0 ? "Current" : "Restore");
+        const btn = el("button", "btn btn-small", i === 0 ? i18n.t("Current") : i18n.t("Restore"));
         btn.type = "button";
         btn.disabled = i === 0;
-        btn.title = i === 0 ? "" : "Go back to exactly this save, dropping everything since";
+        btn.title = i === 0 ? "" : i18n.t("Go back to exactly this save, dropping everything since");
         btn.onclick = () => restoreHistoryVersion(c);
         head.appendChild(btn);
         row.appendChild(head);
-        row.appendChild(el("div", "history-msg", c.summary || "(no summary)"));
+        row.appendChild(el("div", "history-msg", c.summary || i18n.t("(no summary)")));
         list.appendChild(row);
       });
     } catch (e) {
@@ -365,28 +366,26 @@
       controls.hidden = false;
       status.textContent = "";
       list.innerHTML = "";
-      list.appendChild(el("p", "warn", "Couldn't load history: " + (e.message || e)));
+      list.appendChild(el("p", "warn", i18n.t("Couldn't load history: {error}", { error: e.message || e })));
     }
   }
 
   async function restoreHistoryVersion(entry) {
     const when = formatHistoryDate(entry.savedAt);
     if (!confirm(
-      "Restore the version from " + when + "?\n\n" +
-      "This loads that version's data and saves it as your new current state " +
-      "(it becomes a new save — nothing already in your history is deleted)."
+      i18n.t("Restore the version from {when}?\n\nThis loads that version's data and saves it as your new current state (it becomes a new save — nothing already in your history is deleted).", { when })
     )) return;
     try {
-      setSyncing("Restoring…");
+      setSyncing(i18n.t("Restoring…"));
       const data = entry.snapshot ? structuredClone(entry.snapshot) : await Storage.getVersion(entry.sha);
       state.data = normalize(data);
       afterDataChange();
       await persist();
       await refreshHistoryList();
       refreshTrashList();
-      toast("Restored version from " + when);
+      toast(i18n.t("Restored version from {when}", { when }));
     } catch (e) {
-      toast("Restore failed: " + (e.message || e), true);
+      toast(i18n.t("Restore failed: {error}", { error: e.message || e }), true);
       refreshStorageStatus();
     }
   }
@@ -408,26 +407,23 @@
         entry.snapshot || Storage.getVersion(entry.sha),
         older.snapshot || Storage.getVersion(older.sha),
       ]);
-    } catch (e) { toast("Couldn't read that save: " + (e.message || e), true); return; }
+    } catch (e) { toast(i18n.t("Couldn't read that save: {error}", { error: e.message || e }), true); return; }
     const M = window.LifeLogMerge;
     const next = normalize(M.mergeAllSources(normalize(structuredClone(after)), state.data, normalize(structuredClone(before))));
     const summary = M.diffSnapshots(state.data, next);
     if (summary === "No changes") {
-      toast("Nothing to undo there — later changes have already replaced it");
+      toast(i18n.t("Nothing to undo there — later changes have already replaced it"));
       return;
     }
-    if (!confirm("Undo the change from " + when + "?\n\n" +
-      "It was: " + (entry.summary || "(no summary)") + "\n" +
-      "Undoing it: " + summary + "\n\n" +
-      "Everything since stays as it is.")) return;
+    if (!confirm(i18n.t("Undo the change from {when}?\n\nIt was: {was}\nUndoing it: {undo}\n\nEverything since stays as it is.", { when, was: entry.summary || i18n.t("(no summary)"), undo: summary }))) return;
     const was = state.data;
     state.data = next;
     afterDataChange();
     await persist();
     await refreshHistoryList();
     refreshTrashList();
-    toast("Undid the change from " + when, false, {
-      label: "Put it back",
+    toast(i18n.t("Undid the change from {when}", { when }), false, {
+      label: i18n.t("Put it back"),
       onClick: async () => { state.data = was; afterDataChange(); await persist(); await refreshHistoryList(); },
     });
   }
@@ -435,27 +431,27 @@
   // What a backup's settings are called when Restore settings asks about
   // them (below). Values are never shown — half of these are API keys.
   const SETTING_LABELS = {
-    "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
-    "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
-    "mediaKeys.igdb": "IGDB client ID", "mediaKeys.igdbSecret": "IGDB client secret", "mediaKeys.hardcover": "Hardcover API token",
-    "mediaKeys.googlePlaces": "Google Places API key", "mediaKeys.nyt": "New York Times API key", "mediaKeys.tiingo": "Tiingo API token",
-    "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID", "steam.apiKey": "Steam Web API key",
-    "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
-    "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
-    "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
-    "anilist.clientId": "AniList client ID", "anilist.token": "AniList access token", "anilist.connectedAt": "AniList sign-in time",
-    "stremio.email": "Stremio email", "stremio.authKey": "Stremio sign-in key", "stremio.movieCategory": "Stremio movie category",
-    "hardcover.category": "Hardcover category", "hardcover.autoSyncDays": "Hardcover auto-sync", "hardcover.connectedAt": "Hardcover start time", "hardcover.username": "Hardcover username",
-    "stremio.showCategory": "Stremio show category", "stremio.autoSyncDays": "Stremio auto-check", "stremio.connectedAt": "Stremio sign-in time",
-    "waypage.repo": "Waypage sync repo", "waypage.token": "Waypage token", "waypage.kinds": "Waypage categories", "waypage.habit": "Waypage minutes habit",
-    "releases.autoRefreshDays": "release-date refresh",
-    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.stremio": "Stremio skips", "importSkips.hardcover": "Hardcover skips", "importSkips.bills": "Not a bill answers",
-    timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
+    "mediaKeys.rawg": i18n.t("RAWG API key"), "mediaKeys.tmdb": i18n.t("TMDB API key"),
+    "mediaKeys.ggdeals": i18n.t("GG.deals API key"), "mediaKeys.steamgriddb": i18n.t("SteamGridDB API key"),
+    "mediaKeys.igdb": i18n.t("IGDB client ID"), "mediaKeys.igdbSecret": i18n.t("IGDB client secret"), "mediaKeys.hardcover": i18n.t("Hardcover API token"),
+    "mediaKeys.googlePlaces": i18n.t("Google Places API key"), "mediaKeys.nyt": i18n.t("New York Times API key"), "mediaKeys.tiingo": i18n.t("Tiingo API token"),
+    "steam.proxyUrl": i18n.t("Steam proxy URL"), "steam.steamId": i18n.t("Steam ID"), "steam.apiKey": i18n.t("Steam Web API key"),
+    "steam.wishlistCategory": i18n.t("Steam wishlist category"), "steam.autoSyncDays": i18n.t("Steam auto-sync"),
+    "anilist.userName": i18n.t("AniList user name"), "anilist.animeCategory": i18n.t("AniList anime category"),
+    "anilist.mangaCategory": i18n.t("AniList manga category"), "anilist.autoSyncDays": i18n.t("AniList auto-sync"),
+    "anilist.clientId": i18n.t("AniList client ID"), "anilist.token": i18n.t("AniList access token"), "anilist.connectedAt": i18n.t("AniList sign-in time"),
+    "stremio.email": i18n.t("Stremio email"), "stremio.authKey": i18n.t("Stremio sign-in key"), "stremio.movieCategory": i18n.t("Stremio movie category"),
+    "hardcover.category": i18n.t("Hardcover category"), "hardcover.autoSyncDays": i18n.t("Hardcover auto-sync"), "hardcover.connectedAt": i18n.t("Hardcover start time"), "hardcover.username": i18n.t("Hardcover username"),
+    "stremio.showCategory": i18n.t("Stremio show category"), "stremio.autoSyncDays": i18n.t("Stremio auto-check"), "stremio.connectedAt": i18n.t("Stremio sign-in time"),
+    "waypage.repo": i18n.t("Waypage sync repo"), "waypage.token": i18n.t("Waypage token"), "waypage.kinds": i18n.t("Waypage categories"), "waypage.habit": i18n.t("Waypage minutes habit"),
+    "releases.autoRefreshDays": i18n.t("release-date refresh"),
+    "importSkips.steamWishlist": i18n.t("Steam wishlist skips"), "importSkips.steamOwned": i18n.t("Steam played-games skips"), "importSkips.anilist": i18n.t("AniList skips"), "importSkips.stremio": i18n.t("Stremio skips"), "importSkips.hardcover": i18n.t("Hardcover skips"), "importSkips.bills": i18n.t("Not a bill answers"),
+    timelineSort: i18n.t("Timeline sort"), ledgerSort: i18n.t("Ledger sort"), backlogSort: i18n.t("Backlog sort"), currency: i18n.t("Home currency"),
   };
   function settingLabel(path) {
     if (SETTING_LABELS[path]) return SETTING_LABELS[path];
     const m = path.match(/^mediaCategory(Fallback)?Sources\.(.+)$/);
-    if (m) return m[2] + (m[1] ? " fallback source" : " media source");
+    if (m) return (m[1] ? i18n.t("{category} fallback source", { category: m[2] }) : i18n.t("{category} media source", { category: m[2] }));
     return path;
   }
 
@@ -469,21 +465,21 @@
     reader.onload = async () => {
       let incoming;
       try { incoming = JSON.parse(reader.result).settings; }
-      catch (e) { toast("That isn't a LifeLog backup: " + (e.message || e), true); return; }
-      if (!incoming || typeof incoming !== "object") { toast("That file has no settings in it — export Everything as JSON to get one that does", true); return; }
+      catch (e) { toast(i18n.t("That isn't a LifeLog backup: {error}", { error: e.message || e }), true); return; }
+      if (!incoming || typeof incoming !== "object") { toast(i18n.t("That file has no settings in it — export Everything as JSON to get one that does"), true); return; }
       const { settings, filled, changed } = window.LifeLogMerge.settingsFromBackup(state.data.settings, incoming);
-      if (!filled.length && !changed.length) { toast("Your settings already match that file"); return; }
-      const lines = (paths) => paths.slice(0, 8).map((p) => "  • " + settingLabel(p)).join("\n") + (paths.length > 8 ? "\n  • and " + (paths.length - 8) + " more" : "");
+      if (!filled.length && !changed.length) { toast(i18n.t("Your settings already match that file")); return; }
+      const lines = (paths) => paths.slice(0, 8).map((p) => "  • " + settingLabel(p)).join("\n") + (paths.length > 8 ? "\n  • " + i18n.t("and {n} more", { n: paths.length - 8 }) : "");
       const parts = [];
-      if (filled.length) parts.push(`Filled in (empty now):\n${lines(filled)}`);
-      if (changed.length) parts.push(`Changed to the file's:\n${lines(changed)}`);
+      if (filled.length) parts.push(i18n.t("Filled in (empty now):") + "\n" + lines(filled));
+      if (changed.length) parts.push(i18n.t("Changed to the file's:") + "\n" + lines(changed));
       const n = filled.length + changed.length;
-      if (!confirm(`Restore ${n} setting${n === 1 ? "" : "s"} from ${file.name}?\n\n${parts.join("\n\n")}\n\nNothing the file leaves empty is cleared, and your data isn't touched.`)) return;
+      if (!confirm(i18n.tn(n, "Restore {n} setting from {file}?", "Restore {n} settings from {file}?", { file: file.name }) + "\n\n" + parts.join("\n\n") + "\n\n" + i18n.t("Nothing the file leaves empty is cleared, and your data isn't touched."))) return;
       state.data.settings = settings;
       afterDataChange();
       updateMediaSettings();
       await persist();
-      toast(`Restored ${n} setting${n === 1 ? "" : "s"}`);
+      toast(i18n.tn(n, "Restored {n} setting", "Restored {n} settings"));
     };
     reader.readAsText(file);
   }
@@ -496,9 +492,9 @@
     $("#backupFileSection").hidden = pb.available;
     if (!pb.available) return;
     $("#phoneBackupSwitch").checked = pb.on;
-    $("#phoneBackupInfo").textContent = !pb.on ? "Off — your data is on this phone only in the app"
-      : pb.error ? "Couldn't save: " + pb.error
-      : pb.last ? pb.folder + " · saved " + window.LifeLogDates.dateTime(pb.last, { year: true })
+    $("#phoneBackupInfo").textContent = !pb.on ? i18n.t("Off — your data is on this phone only in the app")
+      : pb.error ? i18n.t("Couldn't save: {error}", { error: pb.error })
+      : pb.last ? i18n.t("{folder} · saved {when}", { folder: pb.folder, when: window.LifeLogDates.dateTime(pb.last, { year: true }) })
       : pb.folder;
   }
   async function setPhoneBackup(on) {
@@ -508,10 +504,10 @@
       if (on) {
         const boards = window.LifeLogBoards ? { boards: await window.LifeLogBoards.boardsForExport(), exportedAt: new Date().toISOString() } : null;
         await Storage.enablePhoneBackup(boards);
-        toast("Backed up to " + Storage.phoneBackup.folder);
+        toast(i18n.t("Backed up to {folder}", { folder: Storage.phoneBackup.folder }));
       } else Storage.disablePhoneBackup();
     } catch (e) {
-      toast("Couldn't turn on the phone backup: " + (e.message || e), true);
+      toast(i18n.t("Couldn't turn on the phone backup: {error}", { error: e.message || e }), true);
     } finally {
       sw.disabled = false;
       updatePhoneBackupInfo();
@@ -526,7 +522,7 @@
   const Drive = () => window.LifeLogDrive;
   let driveBackups = null, driveBusy = false;
   const deviceName = () => { const P = window.LifeLogPlatform || {}; return P.android ? "Android" : P.ios ? "iPhone" : P.windows ? "Windows" : P.linux ? "Linux" : "Browser"; };
-  const mb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
+  const mb = (n) => (n >= 1048576 ? i18n.t("{size} MB", { size: (n / 1048576).toFixed(1) }) : i18n.t("{size} KB", { size: String(Math.max(1, Math.round(n / 1024))) }));
 
   async function driveBackupText() {
     const B = window.LifeLogBoards, I = window.LifeLogInvest;
@@ -546,12 +542,12 @@
     for (const id of ["#driveBackupBtn", "#driveAutoRow", "#driveEveryRow", "#driveOffCard", "#driveHintOn"]) $(id).hidden = !on;
     $("#driveHintOff").hidden = on;
     $("#driveBackupBtn").disabled = driveBusy;
-    if (!on) { $("#driveInfo").textContent = "Off"; $("#driveList").hidden = true; driveBackups = null; return; }
+    if (!on) { $("#driveInfo").textContent = i18n.t("Off"); $("#driveList").hidden = true; driveBackups = null; return; }
     $("#driveAuto").checked = D.auto;
     $("#driveEvery").value = String(D.every);
     $("#driveEveryRow").hidden = !D.auto;
     const last = D.last;
-    $("#driveInfo").textContent = [D.email, driveBusy ? "backing up…" : last ? "last backup " + window.LifeLogDates.dateTime(last.at) : "no backup yet"].filter(Boolean).join(" · ");
+    $("#driveInfo").textContent = [D.email, driveBusy ? i18n.t("backing up…") : last ? i18n.t("last backup {when}", { when: window.LifeLogDates.dateTime(last.at) }) : i18n.t("no backup yet")].filter(Boolean).join(" · ");
     renderDriveList();
   }
 
@@ -563,14 +559,14 @@
       const row = el("div", "sitem drive-row");
       const text = row.appendChild(el("span", "sitem-text"));
       text.appendChild(el("span", "sitem-title", window.LifeLogDates.dateTime(f.at)));
-      text.appendChild(el("span", "sitem-sub", [mb(f.size), f.from && "from " + f.from].filter(Boolean).join(" · ")));
+      text.appendChild(el("span", "sitem-sub", [mb(f.size), f.from && i18n.t("from {where}", { where: f.from })].filter(Boolean).join(" · ")));
       const btns = row.appendChild(el("span", "sitem-btns"));
-      const restore = btns.appendChild(el("button", "btn btn-small", "Restore"));
+      const restore = btns.appendChild(el("button", "btn btn-small", i18n.t("Restore")));
       restore.type = "button";
       restore.onclick = () => restoreDrive(f);
-      const del = btns.appendChild(el("button", "btn btn-small", "Delete"));
+      const del = btns.appendChild(el("button", "btn btn-small", i18n.t("Delete")));
       del.type = "button";
-      del.setAttribute("aria-label", "Delete the backup from " + window.LifeLogDates.dateTime(f.at));
+      del.setAttribute("aria-label", i18n.t("Delete the backup from {when}", { when: window.LifeLogDates.dateTime(f.at) }));
       del.onclick = () => deleteDrive(f);
       return row;
     }));
@@ -590,13 +586,13 @@
 
   function driveError(e) {
     if (e && e.code === "cancelled") return;
-    toast((e && e.message) || "Google Drive didn't answer. Try again.", true);
+    toast((e && e.message) || i18n.t("Google Drive didn't answer. Try again."), true);
   }
 
   async function connectDrive() {
     try {
       const email = await Drive().connect();
-      toast("Google Drive connected" + (email ? " as " + email : ""));
+      toast((email ? i18n.t("Google Drive connected as {email}", { email }) : i18n.t("Google Drive connected")));
       await loadDriveList(false);
     } catch (e) { driveError(e); }
     renderDrive();
@@ -613,7 +609,7 @@
       if (!quiet) await D.getToken(true, "backup");
       await D.upload(await driveBackupText(), deviceName());
       driveBackups = await D.list().catch(() => driveBackups);
-      if (!quiet) toast("Backed up to Google Drive");
+      if (!quiet) toast(i18n.t("Backed up to Google Drive"));
     } catch (e) {
       if (!quiet || e.code !== "signin") driveError(e);
     } finally {
@@ -633,12 +629,11 @@
 
   async function restoreDrive(f) {
     const when = window.LifeLogDates.dateTime(f.at);
-    if (!confirm("Restore the backup from " + when + "?\n\nYour entries, notes, boards and watchlist are replaced with the backup's. " +
-      "It becomes a new save, so History can undo it. Your API keys stay as they are.")) return;
+    if (!confirm(i18n.t("Restore the backup from {when}?\n\nYour entries, notes, boards and watchlist are replaced with the backup's. It becomes a new save, so History can undo it. Your API keys stay as they are.", { when }))) return;
     try {
-      setSyncing("Restoring…");
+      setSyncing(i18n.t("Restoring…"));
       const got = await Drive().download(f.id);
-      if (!got || got.backupOf !== "lifelog" || !Array.isArray(got.entries)) throw new Error("That file isn't a LifeLog backup.");
+      if (!got || got.backupOf !== "lifelog" || !Array.isArray(got.entries)) throw new Error(i18n.t("That file isn't a LifeLog backup."));
       const { boards, watchlist, pins, backupOf, backedUpAt, ...data } = got;
       state.data = normalize(Storage.withSecretsFrom(data, state.data));
       afterDataChange();
@@ -646,30 +641,30 @@
       if (Array.isArray(boards) && window.LifeLogBoards) await window.LifeLogBoards.replaceAll(boards);
       if (Array.isArray(watchlist) && window.LifeLogInvest) await window.LifeLogInvest.replaceDoc({ watchlist, pins: pins || [] });
       refreshHistoryList().catch(() => {});
-      toast("Restored the backup from " + when);
+      toast(i18n.t("Restored the backup from {when}", { when }));
     } catch (e) {
-      toast("Restore failed: " + (e.message || e), true);
+      toast(i18n.t("Restore failed: {error}", { error: e.message || e }), true);
       refreshStorageStatus();
     }
   }
 
   async function deleteDrive(f) {
-    if (!confirm("Delete the backup from " + window.LifeLogDates.dateTime(f.at) + " from Google Drive? It can't be brought back.")) return;
+    if (!confirm(i18n.t("Delete the backup from {when} from Google Drive? It can't be brought back.", { when: window.LifeLogDates.dateTime(f.at) }))) return;
     try {
       await Drive().remove(f.id);
       driveBackups = (driveBackups || []).filter((x) => x.id !== f.id);
-      toast("Backup deleted");
+      toast(i18n.t("Backup deleted"));
     } catch (e) { driveError(e); }
     renderDrive();
   }
 
   async function disconnectDrive() {
-    if (!confirm("Disconnect Google Drive? Backups stop. The ones already there stay in your Drive's LifeLog folder.")) return;
+    if (!confirm(i18n.t("Disconnect Google Drive? Backups stop. The ones already there stay in your Drive's LifeLog folder."))) return;
     await Drive().disconnect();
     driveBackups = null;
     renderDrive();
     updateStatuses();
-    toast("Google Drive disconnected");
+    toast(i18n.t("Google Drive disconnected"));
   }
 
   function wireDrive() {
@@ -699,24 +694,24 @@
     const disc = $("#disconnectFileBtn");
     if (!Storage.fsSupported) {
       info.innerHTML =
-        "Saving to a chosen file isn't enabled in this browser." +
-        "<br>• Chrome and Edge support it out of the box." +
-        "<br>• Some browsers (e.g. Brave) ship it off by default — enable it from that browser's flags page (search “File System Access API”, set to Enabled, relaunch), then reload." +
-        "<br>• Until then your data is saved in this browser only — use <strong>Export JSON</strong> for backups.";
+        i18n.t("Saving to a chosen file isn't enabled in this browser.") +
+        "<br>• " + i18n.t("Chrome and Edge support it out of the box.") +
+        "<br>• " + i18n.t("Some browsers (e.g. Brave) ship it off by default — enable it from that browser's flags page (search “File System Access API”, set to Enabled, relaunch), then reload.") +
+        "<br>• " + i18n.t("Until then your data is saved in this browser only — use <strong>Export JSON</strong> for backups.");
       connect.hidden = true; recon.hidden = true; disc.hidden = true;
       return;
     }
     if (Storage.fileName && !Storage.needsReconnect) {
-      info.textContent = "Connected: " + Storage.fileName + " (auto-saving here).";
-      connect.textContent = "Change data file…";
+      info.textContent = i18n.t("Connected: {file} (auto-saving here).", { file: Storage.fileName });
+      connect.textContent = i18n.t("Change data file…");
       recon.hidden = true; disc.hidden = false;
     } else if (Storage.fileName && Storage.needsReconnect) {
-      info.textContent = "File “" + Storage.fileName + "” needs permission again (browsers ask after a restart).";
+      info.textContent = i18n.t("File “{file}” needs permission again (browsers ask after a restart).", { file: Storage.fileName });
       recon.hidden = false; disc.hidden = false;
-      connect.textContent = "Choose a different file…";
+      connect.textContent = i18n.t("Choose a different file…");
     } else {
-      info.textContent = "No file connected. Data is auto-saved in this browser only.";
-      connect.textContent = "Choose data file…";
+      info.textContent = i18n.t("No file connected. Data is auto-saved in this browser only.");
+      connect.textContent = i18n.t("Choose data file…");
       recon.hidden = true; disc.hidden = true;
     }
   }
@@ -730,24 +725,24 @@
     const B = Storage.boards;
     const info = $("#boardsFileInfo"), connect = $("#connectBoardsFileBtn"), recon = $("#reconnectBoardsFileBtn"), disc = $("#disconnectBoardsFileBtn");
     if (B.fileConnected) {
-      info.textContent = "Connected: " + B.fileName + " (every board save goes here too).";
-      connect.textContent = "Change boards file…"; recon.hidden = true; disc.hidden = false;
+      info.textContent = i18n.t("Connected: {file} (every board save goes here too).", { file: B.fileName });
+      connect.textContent = i18n.t("Change boards file…"); recon.hidden = true; disc.hidden = false;
     } else if (B.fileNeedsReconnect) {
-      info.textContent = "File “" + B.fileName + "” needs permission again.";
-      connect.textContent = "Choose a different file…"; recon.hidden = false; disc.hidden = false;
+      info.textContent = i18n.t("File “{file}” needs permission again.", { file: B.fileName });
+      connect.textContent = i18n.t("Choose a different file…"); recon.hidden = false; disc.hidden = false;
     } else {
-      info.textContent = "Not backed up to a file.";
-      connect.textContent = "Choose boards file…"; recon.hidden = true; disc.hidden = true;
+      info.textContent = i18n.t("Not backed up to a file.");
+      connect.textContent = i18n.t("Choose boards file…"); recon.hidden = true; disc.hidden = true;
     }
   }
   async function connectBoardsFile() {
     try {
       const boards = await window.LifeLogBoards.boardsForExport();
       const name = await Storage.boards.connectFile({ boards });
-      toast("Boards backed up to " + name);
+      toast(i18n.t("Boards backed up to {file}", { file: name }));
     } catch (e) {
       if (e && e.name === "AbortError") return;
-      toast("Couldn't connect file: " + (e.message || e), true);
+      toast(i18n.t("Couldn't connect file: {error}", { error: e.message || e }), true);
     }
     updateBoardsFileInfo();
   }
@@ -794,7 +789,7 @@
           .replace(/^## \[([^\]]+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/, (m, ver, d) =>
             "## " + ver + " · " + window.LifeLogDates.day(d)));
       } catch (e) {
-        body.textContent = "Couldn't load the changelog. It's on GitHub as CHANGELOG.md.";
+        body.textContent = i18n.t("Couldn't load the changelog. It's on GitHub as CHANGELOG.md.");
         more.hidden = true;
         return;
       }
@@ -814,12 +809,12 @@
     const box = $("#errLogList");
     box.textContent = "";
     $("#errLogHint").textContent = all.length
-      ? (all.length === 1 ? "1 recorded" : all.length + " recorded") + " · copy them into a bug report or a chat with Claude"
-      : "None recorded";
+      ? i18n.tn(all.length, "{n} recorded · copy them into a bug report or a chat with Claude", "{n} recorded · copy them into a bug report or a chat with Claude")
+      : i18n.t("None recorded");
     $("#errLogCopyBtn").hidden = $("#errLogClearBtn").hidden = !all.length;
     if (!all.length) {
       const row = box.appendChild(el("div", "sitem"));
-      row.appendChild(el("span", "sitem-sub", "If something breaks, what went wrong shows up here."));
+      row.appendChild(el("span", "sitem-sub", i18n.t("If something breaks, what went wrong shows up here.")));
       return;
     }
     all.slice(-ERRLOG_SHOWN).reverse().forEach((x) => {
@@ -827,7 +822,7 @@
       const text = row.appendChild(el("span", "sitem-text"));
       text.appendChild(el("span", "sitem-title", x.msg));
       const when = window.LifeLogDates.dateTime(x.at, { year: true });
-      text.appendChild(el("span", "sitem-sub", [when, x.v && "v" + x.v, x.n > 1 && x.n + " times"].filter(Boolean).join(" · ")));
+      text.appendChild(el("span", "sitem-sub", [when, x.v && "v" + x.v, x.n > 1 && i18n.tn(x.n, "{n} time", "{n} times")].filter(Boolean).join(" · ")));
       box.appendChild(row);
     });
   }
@@ -839,7 +834,7 @@
     if (name === "media") KEY_KINDS.forEach(checkMediaKey);
     if (name === "about") {
       const P = window.LifeLogPlatform;
-      $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
+      $("#aboutVersion").textContent = i18n.t("Version {version} · {kind}", { version: APP_VERSION, kind: P.android ? i18n.t("Android app") : P.ios ? i18n.t("iOS app") : i18n.t("Web app") });
       $("#changelogFold").open = false;
       renderErrLog();
       if (window.LifeLogTestBuilds) window.LifeLogTestBuilds.render();
@@ -860,8 +855,8 @@
     const parent = (pageEl && pageEl.dataset.parent) || "";
     const parentEl = parent ? document.querySelector('#settingsModal .settings-page[data-page="' + parent + '"]') : null;
     const back = $("#settingsBackBtn");
-    back.lastChild.textContent = parentEl ? parentEl.dataset.title : "Settings";
-    back.setAttribute("aria-label", parentEl ? "Back to " + parentEl.dataset.title : "Back to all settings");
+    back.lastChild.textContent = parentEl ? parentEl.dataset.title : i18n.t("Settings");
+    back.setAttribute("aria-label", parentEl ? i18n.t("Back to {page}", { page: parentEl.dataset.title }) : i18n.t("Back to all settings"));
     if (parent === "imports") renderConnectionRows();
     document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => {
       const on = r.dataset.page === (parent || currentPage);
@@ -926,31 +921,31 @@
   // Daniel: the old status lines ran to two lines and said too much). Only
   // something that needs you still shows: sync off or broken, errors recorded.
   const ABOUT_ROW = {
-    sync: "Keep your devices in step",
-    io: "Back up or bring data in",
-    history: "Undo saves, restore deleted",
-    lock: "A PIN to open the app",
-    desktop: "Startup, tray and data folder",
-    notifications: "Reminders and alerts",
-    appearance: "Theme, font and layout",
-    tabs: "Show, hide and order tabs",
-    keyboard: "Shortcuts",
-    media: "Keys for covers and details",
-    imports: "Steam, AniList, Hardcover, Stremio, Waypage",
-    releases: "Upcoming release checks",
+    sync: i18n.t("Keep your devices in step"),
+    io: i18n.t("Back up or bring data in"),
+    history: i18n.t("Undo saves, restore deleted"),
+    lock: i18n.t("A PIN to open the app"),
+    desktop: i18n.t("Startup, tray and data folder"),
+    notifications: i18n.t("Reminders and alerts"),
+    appearance: i18n.t("Theme, font and layout"),
+    tabs: i18n.t("Show, hide and order tabs"),
+    keyboard: i18n.t("Shortcuts"),
+    media: i18n.t("Keys for covers and details"),
+    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage"),
+    releases: i18n.t("Upcoming release checks"),
   };
 
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   function statusOf(page) {
     if (page === "sync" && !Storage.githubConnected && !Storage.phoneBackup.on && !(window.LifeLogDrive && window.LifeLogDrive.on)) {
-      if (Storage.fileName && Storage.needsReconnect) return { text: "The backup file needs permission again", tone: "warn" };
-      if (!Storage.fileName) return { text: "Not synced — on this device only", tone: "warn" };
+      if (Storage.fileName && Storage.needsReconnect) return { text: i18n.t("The backup file needs permission again"), tone: "warn" };
+      if (!Storage.fileName) return { text: i18n.t("Not synced — on this device only"), tone: "warn" };
     }
     if (page === "about") {
       const n = window.Keel && window.Keel.errlog ? window.Keel.errlog.list().length : 0;
-      return n ? { text: "Version " + APP_VERSION + " · " + (n === 1 ? "1 error" : n + " errors") + " recorded", tone: "warn" }
-        : { text: "Version " + APP_VERSION + " · what's new, credits" };
+      return n ? { text: i18n.tn(n, "Version {version} · {n} error recorded", "Version {version} · {n} errors recorded", { version: APP_VERSION }), tone: "warn" }
+        : { text: i18n.t("Version {version} · what's new, credits", { version: APP_VERSION }) };
     }
     return ABOUT_ROW[page] ? { text: ABOUT_ROW[page] } : null;
   }
@@ -973,7 +968,7 @@
   // the words in the language. The lists that rows are drawn into (tab
   // switches, history, categories) are data, not settings, and are skipped.
   const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList, #homeSectionRows";
-  const VIEW_NAMES = { home: "Home", timeline: "Timeline", backlog: "Backlog", finance: "Ledger", habits: "Habits", notes: "Notebook" };
+  const VIEW_NAMES = { home: i18n.t("Home"), timeline: i18n.t("Timeline"), backlog: i18n.t("Backlog"), finance: i18n.t("Ledger"), habits: i18n.t("Habits"), notes: i18n.t("Notebook") };
   // Habits is a mode of the Notes tab, but its options are its own.
   const viewKey = (view) => (view === "notes" && state.notesMode === "habits" ? "habits" : view);
   const squash = (t) => (t || "").replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
@@ -994,12 +989,12 @@
       }
     };
     document.querySelectorAll("#settingsModal .settings-page").forEach((p) => {
-      out.push({ text: p.dataset.title, where: "Settings", go: { page: p.dataset.page }, el: null, extra: p.dataset.keywords || "" });
+      out.push({ text: p.dataset.title, where: i18n.t("Settings"), go: { page: p.dataset.page }, el: null, extra: p.dataset.keywords || "" });
       add(p, p.dataset.title, { page: p.dataset.page });
     });
     document.querySelectorAll("#viewOptionsModal [data-for]").forEach((sec) => {
       const view = sec.dataset.for.split(" ")[0];
-      const where = sec.dataset.for.split(" ").map((v) => VIEW_NAMES[v]).join(" and ") + " → View";
+      const where = i18n.t("{views} → View", { views: i18n.join(sec.dataset.for.split(" ").map((v) => VIEW_NAMES[v])) });
       add(sec, where, { view });
     });
     return out;
@@ -1043,9 +1038,9 @@
     out.innerHTML = "";
     if (!searching) return;
     const hits = searchSettings(q);
-    out.appendChild(el("div", "sgroup-label", hits.length ? plural(hits.length, "result", "results") : "No results"));
+    out.appendChild(el("div", "sgroup-label", hits.length ? i18n.tn(hits.length, "{n} result", "{n} results") : i18n.t("No results")));
     const card = el("div", "sgroup-card");
-    if (!hits.length) card.appendChild(el("p", "srow-empty", "Nothing matches. Try “key”, “sync” or “theme”."));
+    if (!hits.length) card.appendChild(el("p", "srow-empty", i18n.t("Nothing matches. Try “key”, “sync” or “theme”.")));
     for (const h of hits) {
       const row = el("button", "srow srow-result");
       row.type = "button";
@@ -1133,7 +1128,7 @@
     $("#openNotifSettingsBtn").hidden = !!D;
     $("#testNotifBtn").hidden = !D;
     if (D) {
-      $("#notifyLede").textContent = "What this computer may ring, while LifeLog is open or in the tray.";
+      $("#notifyLede").textContent = i18n.t("What this computer may ring, while LifeLog is open or in the tray.");
       D.startsAtLogin().then((on) => {
         $("#startAtLogin").checked = !!on;
         $("#startAtLogin").disabled = on == null;
@@ -1170,7 +1165,7 @@
       }
     } else if (view !== state.view && switchToView) switchToView(view);
     fillViewOptions();
-    $("#viewOptionsTitle").textContent = (VIEW_NAMES[view] || "View") + " view";
+    $("#viewOptionsTitle").textContent = (VIEW_NAMES[view] ? i18n.t("{view} view", { view: VIEW_NAMES[view] }) : i18n.t("View"));
     document.querySelectorAll("#viewOptionsModal [data-for]").forEach((sec) => {
       sec.hidden = !sec.dataset.for.split(" ").includes(view);
     });
@@ -1199,7 +1194,7 @@
     // produced items with no store link and no price.
     const fallbackSources = sources.filter((s) => s.value && s.value !== "steam");
     if (!state.data.categories.length) {
-      container.appendChild(el("p", "muted", "No categories yet — add categories first."));
+      container.appendChild(el("p", "muted", i18n.t("No categories yet — add categories first.")));
       return;
     }
     for (const cat of state.data.categories) {
@@ -1216,7 +1211,7 @@
       });
 
       const fallbackSel = el("select", "media-cat-sel media-cat-fallback");
-      const noneOpt = el("option", null, "No fallback");
+      const noneOpt = el("option", null, i18n.t("No fallback"));
       noneOpt.value = "";
       fallbackSel.appendChild(noneOpt);
       fallbackSources.forEach((s) => {
@@ -1239,7 +1234,7 @@
 
       // Labelled rather than joined by an arrow: two selects side by side
       // don't fit a phone without cutting the source names off.
-      for (const [text, select] of [["Source", sel], ["Fallback", fallbackSel]]) {
+      for (const [text, select] of [[i18n.t("Source"), sel], [i18n.t("Fallback"), fallbackSel]]) {
         const pick = el("label", "media-cat-pick");
         pick.appendChild(el("span", "media-cat-pick-label", text));
         pick.appendChild(select);
@@ -1278,7 +1273,7 @@
 
   function showAniListTokenState(text) {
     const a = state.data.settings.anilist || {};
-    $("#anilistTokenState").textContent = text || (a.token ? "Signed in — changes here go to AniList" : "Not signed in — AniList is only read");
+    $("#anilistTokenState").textContent = text || (a.token ? i18n.t("Signed in — changes here go to AniList") : i18n.t("Not signed in — AniList is only read"));
   }
   // Fills one of the two AniList category selects. Unlike the Steam picker,
   // each leads with a "Don't import" blank option so a user can sync only
@@ -1288,7 +1283,7 @@
     if (!sel) return;
     const cur = current || sel.value;
     sel.innerHTML = "";
-    const none = el("option", null, "Don't import");
+    const none = el("option", null, i18n.t("Don't import"));
     none.value = "";
     sel.appendChild(none);
     state.data.categories.forEach((cat) => {
@@ -1350,9 +1345,9 @@
       const viewOn = !offViews.includes(view);
       const card = el("div", "sgroup-card");
       const r = row("tab-toggle-view", label);
-      r.appendChild(iconBtn("tab-up", "arrow-up", "Move " + label + " left", ti === 0, () => moveView(view, -1)));
-      r.appendChild(iconBtn("tab-down", "arrow-down", "Move " + label + " right", ti === tabs.length - 1, () => moveView(view, 1)));
-      r.appendChild(toggle("Show " + label, viewOn, false, (on) => setViewEnabled(view, on)));
+      r.appendChild(iconBtn("tab-up", "arrow-up", i18n.t("Move {tab} left", { tab: label }), ti === 0, () => moveView(view, -1)));
+      r.appendChild(iconBtn("tab-down", "arrow-down", i18n.t("Move {tab} right", { tab: label }), ti === tabs.length - 1, () => moveView(view, 1)));
+      r.appendChild(toggle(i18n.t("Show {tab}", { tab: label }), viewOn, false, (on) => setViewEnabled(view, on)));
       card.appendChild(r);
 
       if (modes.length) {
@@ -1360,18 +1355,18 @@
         modes.forEach(([id, modeLabel], mi) => {
           const modeOn = !(offModes[view] || []).includes(id);
           const isDefault = id === landing && modes.length > 1;
-          const m = row("tab-toggle-mode" + (isDefault ? " is-default" : ""), modeLabel, isDefault ? "Opens here" : "");
+          const m = row("tab-toggle-mode" + (isDefault ? " is-default" : ""), modeLabel, isDefault ? i18n.t("Opens here") : "");
           const star = iconBtn("mode-default", isDefault ? "star is-fill" : "star",
-            isDefault ? label + " opens on " + modeLabel : "Open " + label + " on " + modeLabel,
+            isDefault ? i18n.t("{tab} opens on {mode}", { tab: label, mode: modeLabel }) : i18n.t("Open {tab} on {mode}", { tab: label, mode: modeLabel }),
             !viewOn || !modeOn || modes.length < 2, () => setDefaultMode(view, id));
           star.setAttribute("aria-pressed", String(isDefault));
           m.appendChild(star);
-          m.appendChild(iconBtn("mode-up", "arrow-up", "Move " + modeLabel + " earlier", mi === 0, () => moveMode(view, id, -1)));
-          m.appendChild(iconBtn("mode-down", "arrow-down", "Move " + modeLabel + " later", mi === modes.length - 1, () => moveMode(view, id, 1)));
+          m.appendChild(iconBtn("mode-up", "arrow-up", i18n.t("Move {mode} earlier", { mode: modeLabel }), mi === 0, () => moveMode(view, id, -1)));
+          m.appendChild(iconBtn("mode-down", "arrow-down", i18n.t("Move {mode} later", { mode: modeLabel }), mi === modes.length - 1, () => moveMode(view, id, 1)));
           // A mode of a tab you've turned off is not a separate decision —
           // greyed rather than hidden, so turning the tab back on shows you
           // what its modes were still set to.
-          m.appendChild(toggle("Show " + modeLabel, modeOn, !viewOn, (on) => setModeEnabled(view, id, on)));
+          m.appendChild(toggle(i18n.t("Show {tab}", { tab: modeLabel }), modeOn, !viewOn, (on) => setModeEnabled(view, id, on)));
           sub.appendChild(m);
         });
         card.appendChild(sub);
@@ -1425,7 +1420,7 @@
     const off = new Set(state.visual.disabledViews || []);
     if (on) off.delete(view); else off.add(view);
     if (off.size >= viewToggles().length) {
-      toast("Something has to be on screen — keep at least one tab", true);
+      toast(i18n.t("Something has to be on screen — keep at least one tab"), true);
       renderTabToggles();
       return;
     }
@@ -1439,7 +1434,7 @@
     const off = new Set(map[view] || []);
     if (on) off.delete(mode); else off.add(mode);
     if (off.size >= all.length) {
-      toast("A tab needs at least one of its modes", true);
+      toast(i18n.t("A tab needs at least one of its modes"), true);
       renderTabToggles();
       return;
     }
@@ -1484,11 +1479,11 @@
     const keys = state.data.settings.mediaKeys || {};
     const id = kind + "|" + key + "|" + proxy + (kind === "igdb" ? "|" + String(keys.igdbSecret || "").trim() : "");
     const seen = keyWorks.get(id);
-    if (seen && Date.now() - seen < 10 * 60 * 1000) { paintKeyStatus(kind, { state: "ok", label: "Working", detail: "The key works" }); return; }
-    paintKeyStatus(kind, { state: "checking", label: "Checking", detail: "" });
+    if (seen && Date.now() - seen < 10 * 60 * 1000) { paintKeyStatus(kind, { state: "ok", label: i18n.t("Working"), detail: i18n.t("The key works") }); return; }
+    paintKeyStatus(kind, { state: "checking", label: i18n.t("Checking"), detail: "" });
     let r;
     try { r = await window.LifeLogMedia.checkKey(kind, key, proxy, keys); }
-    catch (e) { r = { state: "down", label: "Can't reach", detail: "" }; }
+    catch (e) { r = { state: "down", label: i18n.t("Can't reach"), detail: "" }; }
     if (ask !== keyAsk[kind]) return;
     if (r && r.state === "ok") keyWorks.set(id, Date.now());
     paintKeyStatus(kind, r);
@@ -1547,7 +1542,7 @@
     $("#versionSkew").hidden = !behind;
     if (!behind) return;
     $("#versionSkewInfo").textContent =
-      `This device is running LifeLog v${APP_VERSION}, but your data has already been saved by v${behind} on another device.`;
+      i18n.t("This device is running LifeLog v{version}, but your data has already been saved by v{newer} on another device.", { version: APP_VERSION, newer: behind });
   }
 
   // page: open straight onto one (the storage line in the header opens Sync).
@@ -1599,21 +1594,21 @@
     $("#setBioBtn").hidden = !bioAvailable;
     $("#privacyBioUnavailable").hidden = bioAvailable;
     $("#privacyBioUnavailable").textContent = bio === "none-enrolled"
-      ? "This phone has no fingerprint or face unlock set up — add one in the phone's settings, then come back here."
-      : "Fingerprint/Face ID isn't available on this device or browser.";
+      ? i18n.t("This phone has no fingerprint or face unlock set up — add one in the phone's settings, then come back here.")
+      : i18n.t("Fingerprint/Face ID isn't available on this device or browser.");
   }
 
   function refreshPrivacyUI() {
     $("#privacyPinStatus").textContent = state.privacy.pinHash
-      ? "A PIN is set on this device." : "No PIN set yet.";
-    $("#setPinBtn").textContent = state.privacy.pinHash ? "Change PIN" : "Set PIN";
+      ? i18n.t("A PIN is set on this device.") : i18n.t("No PIN set yet.");
+    $("#setPinBtn").textContent = state.privacy.pinHash ? i18n.t("Change PIN") : i18n.t("Set PIN");
     $("#removePinBtn").hidden = !state.privacy.pinHash;
 
     $("#setBioBtn").disabled = !state.privacy.pinHash;
-    $("#setBioBtn").title = state.privacy.pinHash ? "" : "Set a PIN first";
+    $("#setBioBtn").title = state.privacy.pinHash ? "" : i18n.t("Set a PIN first");
     $("#privacyBioStatus").textContent = state.privacy.credentialId
-      ? "Fingerprint/Face ID is set up on this device."
-      : (state.privacy.pinHash ? "Not set up yet." : "Set a PIN first to enable this.");
+      ? i18n.t("Fingerprint/Face ID is set up on this device.")
+      : (state.privacy.pinHash ? i18n.t("Not set up yet.") : i18n.t("Set a PIN first to enable this."));
     $("#removeBioBtn").hidden = !state.privacy.credentialId;
     $("#privacyBioOnOpenRow").hidden = !state.privacy.credentialId;
   }
@@ -1737,10 +1732,10 @@
       const name = await Storage.connectFile(state.data);
       refreshStorageStatus();
       updateFileInfo();
-      toast(Storage.githubConnected ? "Local backup file connected: " + name : "Connected & saved to " + name);
+      toast(Storage.githubConnected ? i18n.t("Local backup file connected: {file}", { file: name }) : i18n.t("Connected & saved to {file}", { file: name }));
     } catch (e) {
       if (e && e.name === "AbortError") return;
-      toast("Couldn't connect file: " + (e.message || e), true);
+      toast(i18n.t("Couldn't connect file: {error}", { error: e.message || e }), true);
     }
   }
   async function reconnectFile() {
@@ -1750,19 +1745,19 @@
       if (fresh) { state.data = normalize(fresh); afterDataChange(); }
       await persist();
       refreshStorageStatus(); updateFileInfo();
-      toast("Reconnected");
-    } else toast("Permission denied", true);
+      toast(i18n.t("Reconnected"));
+    } else toast(i18n.t("Permission denied"), true);
   }
   async function disconnectFile() {
     await Storage.disconnect();
     refreshStorageStatus();
     updateFileInfo();
-    toast(Storage.githubConnected ? "Local backup file disconnected (GitHub still syncing)" : "Local file disconnected (browser storage only)");
+    toast(Storage.githubConnected ? i18n.t("Local backup file disconnected (GitHub still syncing)") : i18n.t("Local file disconnected (browser storage only)"));
   }
 
   async function connectGithub() {
     const token = $("#ghToken").value.trim();
-    if (!token) { toast("Paste your access token", true); return; }
+    if (!token) { toast(i18n.t("Paste your access token"), true); return; }
     // A whole setup link, pasted where the token goes. A link opens a
     // browser, which is fine for joining in a browser and no use at all for
     // the Android app — it has no address bar to open one in. The token box
@@ -1774,7 +1769,7 @@
     const repoRaw = $("#ghRepo").value.trim();
     if (repoRaw) {
       const m = repoRaw.match(/^([^/\s]+)\/([^/\s]+?)(?:\.git)?$/);
-      if (!m) { toast("Advanced repo must be owner/repo", true); return; }
+      if (!m) { toast(i18n.t("Advanced repo must be owner/repo"), true); return; }
       owner = m[1]; repo = m[2];
     }
     const cfg = {
@@ -1788,7 +1783,7 @@
 
   async function connectGithubFrom(connect, { join = false } = {}) {
     try {
-      toast("Connecting to GitHub…");
+      toast(i18n.t("Connecting to GitHub…"));
       const res = await connect();
       if (join && res && res.existed && res.data) {
         // A setup link joins; it never asks which copy wins. The question
@@ -1803,9 +1798,7 @@
         await persist();
       } else if (res.existed && res.data && Array.isArray(res.data.entries)) {
         const useRemote = confirm(
-          "That repo already has a log with " + res.data.entries.length + " entries.\n\n" +
-          "OK = load it onto this device.\n" +
-          "Cancel = overwrite it with this device's " + state.data.entries.length + " entries."
+          i18n.t("That repo already has a log with {theirs} entries.\n\nOK = load it onto this device.\nCancel = overwrite it with this device's {ours} entries.", { theirs: res.data.entries.length, ours: state.data.entries.length })
         );
         if (useRemote) { state.data = normalize(res.data); afterDataChange(); }
         else { await persist(); } // overwrite remote with local
@@ -1814,10 +1807,10 @@
       refreshStorageStatus();
       updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
       schedulePoll();
-      toast(Storage.fileConnected ? "GitHub connected — syncing, file kept as backup" : "GitHub connected — syncing here");
+      toast(Storage.fileConnected ? i18n.t("GitHub connected — syncing, file kept as backup") : i18n.t("GitHub connected — syncing here"));
     } catch (e) {
       if (e && e.name === "AbortError") return;
-      toast("GitHub: " + (e.message || e), true);
+      toast(i18n.t("GitHub: {error}", { error: e.message || e }), true);
     }
   }
 
@@ -1838,13 +1831,13 @@
     if (window.LifeLogPlatform && window.LifeLogPlatform.ios) return;
     const { available } = await S.isGoogleBarcodeScannerModuleAvailable();
     if (available) return;
-    toast("Getting the scanner ready…");
+    toast(i18n.t("Getting the scanner ready…"));
     await new Promise((resolve, reject) => {
       let handle = null;
       const done = (fn, arg) => { if (handle) handle.remove(); fn(arg); };
       Promise.resolve(S.addListener("googleBarcodeScannerModuleInstallProgress", (ev) => {
         if (ev.state === 4) done(resolve);                          // COMPLETED
-        else if (ev.state === 3 || ev.state === 5) done(reject, new Error("The scanner couldn't be installed"));
+        else if (ev.state === 3 || ev.state === 5) done(reject, new Error(i18n.t("The scanner couldn't be installed")));
       })).then((h) => { handle = h; return S.installGoogleBarcodeScannerModule(); }).catch(reject);
     });
   }
@@ -1860,12 +1853,12 @@
     } catch (e) {
       // Backing out of the scanner is a choice, not an error.
       if (/cancel/i.test(String(e && e.message || e))) return;
-      toast("Couldn't scan: " + (e && e.message || e), true);
+      toast(i18n.t("Couldn't scan: {error}", { error: e && e.message || e }), true);
       return;
     }
     if (!text) return;
     if (!Storage.hashHasSetup(text)) {
-      toast("That QR code isn't a LifeLog setup link — use the one in Settings on a connected device", true);
+      toast(i18n.t("That QR code isn't a LifeLog setup link — use the one in Settings on a connected device"), true);
       return;
     }
     $("#ghToken").value = text;
@@ -1877,7 +1870,7 @@
     refreshStorageStatus();
     updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
     schedulePoll();
-    toast(Storage.fileConnected ? "GitHub disconnected (still saving to local file)" : "GitHub disconnected (browser storage only)");
+    toast(Storage.fileConnected ? i18n.t("GitHub disconnected (still saving to local file)") : i18n.t("GitHub disconnected (browser storage only)"));
   }
 
   // ---------- events ----------
@@ -1892,7 +1885,8 @@
     const combo = K && K.keysFor("help")[0];
     foot.hidden = !combo;
     if (!combo) return;
-    foot.replaceChildren("Press ", ...K.parts(combo).flatMap((k, i) => (i ? [" ", el("kbd", null, k)] : [el("kbd", null, k)])), " for keyboard shortcuts");
+    const [pre, post] = i18n.t("Press {keys} for keyboard shortcuts").split("{keys}");
+    foot.replaceChildren(pre, ...K.parts(combo).flatMap((k, i) => (i ? [" ", el("kbd", null, k)] : [el("kbd", null, k)])), post || "");
   }
 
   function wire() {
@@ -1902,7 +1896,7 @@
         // The tabs as the bar has them, without the ones turned off.
         tabs: () => viewToggles()
           .filter(([v]) => !(state.visual.disabledViews || []).includes(v))
-          .map(([view, name, modes]) => ({ view, name, sub: modes.length > 1 ? "Again for the next mode" : "" })),
+          .map(([view, name, modes]) => ({ view, name, sub: modes.length > 1 ? i18n.t("Again for the next mode") : "" })),
         onChange: () => { updateStatuses(); updateKeysFoot(); },
       });
     }
@@ -1943,10 +1937,10 @@
     wireDrive();
     $("#connectBoardsFileBtn").onclick = connectBoardsFile;
     $("#reconnectBoardsFileBtn").onclick = async () => {
-      if (await Storage.boards.reconnectFile()) { await window.LifeLogBoards.flush(); toast("Reconnected"); } else toast("Permission denied", true);
+      if (await Storage.boards.reconnectFile()) { await window.LifeLogBoards.flush(); toast(i18n.t("Reconnected")); } else toast(i18n.t("Permission denied"), true);
       updateBoardsFileInfo();
     };
-    $("#disconnectBoardsFileBtn").onclick = async () => { await Storage.boards.disconnectFile(); updateBoardsFileInfo(); toast("Boards file disconnected"); };
+    $("#disconnectBoardsFileBtn").onclick = async () => { await Storage.boards.disconnectFile(); updateBoardsFileInfo(); toast(i18n.t("Boards file disconnected")); };
     $("#boardHistoryBtn").onclick = () => window.LifeLogBoards.renderHistory($("#boardHistoryList"), $("#boardHistoryStatus"));
     $("#ghConnectBtn").onclick = connectGithub;
     // Only where there's a scanner to ask: a browser already has the camera.
@@ -1957,22 +1951,22 @@
     $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghSetupLink").onclick = (e) => e.target.select();
     $("#errLogCopyBtn").onclick = async () => {
-      try { await navigator.clipboard.writeText(window.Keel.errlog.asText()); toast("Errors copied"); }
-      catch (e) { toast("Couldn't copy — your browser blocked the clipboard", true); }
+      try { await navigator.clipboard.writeText(window.Keel.errlog.asText()); toast(i18n.t("Errors copied")); }
+      catch (e) { toast(i18n.t("Couldn't copy — your browser blocked the clipboard"), true); }
     };
     $("#errLogClearBtn").onclick = () => {
       const kept = window.Keel.errlog.list();
       window.Keel.errlog.clear();
       renderErrLog();
-      toast("Errors cleared", false, { label: "Undo", onClick: () => {
+      toast(i18n.t("Errors cleared"), false, { label: i18n.t("Undo"), onClick: () => {
         window.Keel.errlog.restore(kept);
         renderErrLog();
       } });
     };
     $("#ghCopyLinkBtn").onclick = async () => {
       const v = $("#ghSetupLink").value;
-      try { await navigator.clipboard.writeText(v); toast("Setup link copied"); }
-      catch (e) { $("#ghSetupLink").select(); try { document.execCommand("copy"); } catch (_) {} toast("Setup link copied"); }
+      try { await navigator.clipboard.writeText(v); toast(i18n.t("Setup link copied")); }
+      catch (e) { $("#ghSetupLink").select(); try { document.execCommand("copy"); } catch (_) {} toast(i18n.t("Setup link copied")); }
     };
     $("#monthMin").onchange = onLayoutChange;
     $("#monthMax").onchange = onLayoutChange;
@@ -1981,6 +1975,14 @@
     $("#weekStart").onchange = onDateSettingChange;
     $("#dateFormat").onchange = onDateSettingChange;
     $("#forceLayout").onchange = onForceLayoutChange;
+    const langSel = $("#langSelect");
+    [{ code: "", name: i18n.t("System") }, ...i18n.list()].forEach((l) => {
+      const o = langSel.appendChild(el("option", null, l.name));
+      o.value = l.code;
+      if (l.code) o.lang = l.code;
+    });
+    langSel.value = i18n.choice || "";
+    langSel.onchange = () => { if (i18n.set(langSel.value)) location.reload(); };
     $("#motionSwitch").onchange = onMotionChange;
     $("#timelineLayout").onchange = onLayoutChange;
     $("#backlogLayout").onchange = onLayoutChange;
@@ -2058,7 +2060,7 @@
     $("#anilistClientId").oninput = () => setAniListSetting("clientId", $("#anilistClientId").value.trim());
     $("#anilistSignInBtn").onclick = () => {
       const id = $("#anilistClientId").value.trim();
-      if (!/^\d+$/.test(id)) { toast("Paste your AniList client ID first (Settings → Developer on anilist.co)", true); return; }
+      if (!/^\d+$/.test(id)) { toast(i18n.t("Paste your AniList client ID first (Settings → Developer on anilist.co)"), true); return; }
       window.open("https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token", "_blank");
     };
     // A pasted token is checked with AniList before it's kept, so a wrong
@@ -2069,17 +2071,17 @@
       const token = $("#anilistToken").value.trim();
       const mine = ++tokenCheck;
       if (!token) { await setAniListSetting("token", ""); showAniListTokenState(); return; }
-      showAniListTokenState("Checking…");
+      showAniListTokenState(i18n.t("Checking…"));
       const who = await window.LifeLogMedia.aniListViewer(token);
       if (mine !== tokenCheck) return;
-      if (!who) { showAniListTokenState(window.LifeLogMedia.getLastError() || "AniList didn't accept that token"); return; }
+      if (!who) { showAniListTokenState(window.LifeLogMedia.getLastError() || i18n.t("AniList didn't accept that token")); return; }
       const a = state.data.settings.anilist || (state.data.settings.anilist = { ...DEFAULT_SETTINGS.anilist });
       a.token = token;
       a.connectedAt = new Date().toISOString();
       if (!a.userName) { a.userName = who.name; $("#anilistUserName").value = who.name; }
       await persist();
-      showAniListTokenState("Signed in as " + who.name);
-      if (who.name.toLowerCase() !== String(a.userName).toLowerCase()) toast("That token is " + who.name + "'s, but the username above is " + a.userName, true);
+      showAniListTokenState(i18n.t("Signed in as {name}", { name: who.name }));
+      if (who.name.toLowerCase() !== String(a.userName).toLowerCase()) toast(i18n.t("That token is {name}'s, but the username above is {user}", { name: who.name, user: a.userName }), true);
     };
 
     $("#releasesAutoRefreshDays").onchange = async () => {
@@ -2102,7 +2104,7 @@
       const box = $("#startAtLogin");
       try { await window.LifeLogDesktop.setStartsAtLogin(box.checked); } catch (e) {
         box.checked = !box.checked;
-        toast("Couldn't change that: " + ((e && e.message) || e), true);
+        toast(i18n.t("Couldn't change that: {error}", { error: (e && e.message) || e }), true);
       }
       $("#loginOpensRow").hidden = !box.checked;
       updateStatuses();
@@ -2120,34 +2122,34 @@
         if (!custom) { sel.value = was.mode; return; }
       }
       const where = sel.value === "custom" ? custom : sel.value === "lifelog" ? was.lifelog : was.appdata;
-      if (!confirm("Move LifeLog's data to " + where + "?\n\nLifeLog restarts and copies everything there. The copy where it is now stays until you remove it here.")) {
+      if (!confirm(i18n.t("Move LifeLog's data to {folder}?\n\nLifeLog restarts and copies everything there. The copy where it is now stays until you remove it here.", { folder: where }))) {
         sel.value = was.mode;
         return;
       }
       try {
-        if (!(await D.chooseDataFolder(sel.value, custom))) { toast("Already kept there"); fillDataFolder(); }
+        if (!(await D.chooseDataFolder(sel.value, custom))) { toast(i18n.t("Already kept there")); fillDataFolder(); }
       } catch (e) {
         sel.value = was.mode;
-        toast("Couldn't move it: " + ((e && e.message) || e), true);
+        toast(i18n.t("Couldn't move it: {error}", { error: (e && e.message) || e }), true);
       }
     };
     $("#dataFolderOpenBtn").onclick = () => {
-      window.LifeLogDesktop.openDataFolder().catch((e) => toast("Couldn't open the folder: " + ((e && e.message) || e), true));
+      window.LifeLogDesktop.openDataFolder().catch((e) => toast(i18n.t("Couldn't open the folder: {error}", { error: (e && e.message) || e }), true));
     };
     $("#dataFolderOldBtn").onclick = async () => {
       if (!dataFolderNow || !dataFolderNow.old) return;
-      if (!confirm("Delete the copy at " + dataFolderNow.old + "?\n\nIt's what LifeLog had before the move. Your data in " + dataFolderNow.dir + " isn't touched.")) return;
+      if (!confirm(i18n.t("Delete the copy at {old}?\n\nIt's what LifeLog had before the move. Your data in {dir} isn't touched.", { old: dataFolderNow.old, dir: dataFolderNow.dir }))) return;
       try {
         await window.LifeLogDesktop.removeOldDataCopy();
-        toast("Old copy removed");
+        toast(i18n.t("Old copy removed"));
       } catch (e) {
-        toast("Couldn't remove it: " + ((e && e.message) || e), true);
+        toast(i18n.t("Couldn't remove it: {error}", { error: (e && e.message) || e }), true);
       }
       fillDataFolder();
     };
     $("#testNotifBtn").onclick = async () => {
       await window.LifeLogDesktop.ringTest();
-      toast("Sent. Nothing showed? Check Do not disturb and your system's notification settings");
+      toast(i18n.t("Sent. Nothing showed? Check Do not disturb and your system's notification settings"));
     };
     $("#openNotifSettingsBtn").onclick = () => {
       const W = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
@@ -2158,7 +2160,7 @@
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;
       if (checked && !state.privacy.pinHash) {
-        toast("Set a PIN first", true);
+        toast(i18n.t("Set a PIN first"), true);
         $("#privacyEnabled").checked = false;
         return;
       }
@@ -2199,8 +2201,8 @@
     $("#cancelPinBtn").onclick = hidePinForm;
     $("#savePinBtn").onclick = async () => {
       const a = $("#newPin").value, b = $("#confirmPin").value;
-      if (!/^\d{4,8}$/.test(a)) { toast("PIN must be 4–8 digits", true); return; }
-      if (a !== b) { toast("PINs don't match", true); return; }
+      if (!/^\d{4,8}$/.test(a)) { toast(i18n.t("PIN must be 4–8 digits"), true); return; }
+      if (a !== b) { toast(i18n.t("PINs don't match"), true); return; }
       const salt = randomHex(16);
       state.privacy.pinSalt = salt;
       state.privacy.pinKdf = "pbkdf2";
@@ -2209,13 +2211,13 @@
       savePrivacySettings();
       hidePinForm();
       refreshPrivacyUI();
-      toast("PIN set");
+      toast(i18n.t("PIN set"));
     };
     $("#removePinBtn").onclick = () => {
       const alsoBio = !!state.privacy.credentialId;
       const msg = alsoBio
-        ? "Remove the PIN from this device? Fingerprint/Face ID requires a PIN fallback, so this will remove that too."
-        : "Remove the PIN from this device?";
+        ? i18n.t("Remove the PIN from this device? Fingerprint/Face ID requires a PIN fallback, so this will remove that too.")
+        : i18n.t("Remove the PIN from this device?");
       if (!confirm(msg)) return;
       state.privacy.pinHash = null; state.privacy.pinSalt = null; state.privacy.pinKdf = null;
       if (alsoBio) state.privacy.credentialId = null;
@@ -2226,19 +2228,19 @@
       refreshPrivacyUI();
     };
     $("#setBioBtn").onclick = async () => {
-      if (!state.privacy.pinHash) { toast("Set a PIN first", true); return; }
+      if (!state.privacy.pinHash) { toast(i18n.t("Set a PIN first"), true); return; }
       try {
         state.privacy.credentialId = await registerBiometric();
         savePrivacySettings();
         refreshPrivacyUI();
-        toast("Fingerprint/Face ID set up");
+        toast(i18n.t("Fingerprint/Face ID set up"));
       } catch (e) {
         if (e && e.cancelled) return;
-        toast("Couldn't set up: " + (e.message || e), true);
+        toast(i18n.t("Couldn't set up: {error}", { error: e.message || e }), true);
       }
     };
     $("#removeBioBtn").onclick = () => {
-      if (!confirm("Remove Fingerprint/Face ID from this device?")) return;
+      if (!confirm(i18n.t("Remove Fingerprint/Face ID from this device?"))) return;
       state.privacy.credentialId = null;
       savePrivacySettings();
       refreshPrivacyUI();

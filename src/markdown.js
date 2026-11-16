@@ -7,6 +7,7 @@
 // never innerHTML — a note is whatever was typed or imported, and none of it
 // may become markup. Links are kept only when they're http(s) or mailto.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
   const TASK = /^\s*[-*+]\s+\[( |x|X)\]\s+(.*)$/;
   const BULLET = /^\s*[-*+]\s+(.*)$/;
@@ -118,7 +119,7 @@
     chip.className = "md-img-missing";
     if (href) { chip.href = href; chip.target = "_blank"; chip.rel = "noopener noreferrer"; }
     const name = n.alt || String(n.src).replace(/^.*[\\/]/, "");
-    chip.textContent = (href ? "Image: " : "Image not brought in: ") + name;
+    chip.textContent = href ? i18n.t("Image: {name}", { name }) : i18n.t("Image not brought in: {name}", { name });
     return chip;
   }
 

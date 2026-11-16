@@ -12,6 +12,7 @@
 // null is dropped outright — a recap that pads itself with "0 notes written"
 // is a report again, which is the thing this isn't.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const rtl = () => document.documentElement.dir === "rtl";
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
@@ -45,7 +46,6 @@
   // ---------- gathering ----------
   const yearOf = (iso) => +String(iso || "").slice(0, 4);
   const monthOf = (iso) => +String(iso || "").slice(5, 7);
-  const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   // "up 12 on last year" / "down 3" / "" when there's nothing to compare to.
   // Deliberately silent at zero rather than saying "the same as last year",
@@ -54,7 +54,7 @@
     if (!before) return "";
     const d = now - before;
     if (!d) return "";
-    return (d > 0 ? "up " + d : "down " + -d) + " on " + (before === 0 ? "nothing" : "last year");
+    return d > 0 ? i18n.t("up {n} on last year", { n: d }) : i18n.t("down {n} on last year", { n: -d });
   }
 
   function countByKey(list, keyOf) {
@@ -103,7 +103,7 @@
       const anything = g.entries.length || g.notes.length || g.todosDone.length || g.spend.length
         || g.achievements.length || g.habits.length;
       if (!anything) return null;
-      return { id: "opening", kind: "title", headline: String(g.year), sub: "Here's your year." };
+      return { id: "opening", kind: "title", headline: String(g.year), sub: i18n.t("Here's your year.") };
     },
 
     function logged(g) {
@@ -116,8 +116,8 @@
       return {
         id: "logged", kind: "big", view: "timeline",
         value: g.entries.length,
-        headline: g.entries.length === 1 ? "thing logged" : "things logged",
-        sub: unique < g.entries.length ? unique + " of them different" : "",
+        headline: i18n.tn(g.entries.length, "thing logged", "things logged"),
+        sub: unique < g.entries.length ? i18n.t("{n} of them different", { n: unique }) : "",
         foot: delta(g.entries.length, g.prevEntries.length),
       };
     },
@@ -130,8 +130,8 @@
       return {
         id: "month", kind: "big", view: "timeline",
         value: MONTHS_LONG()[month],
-        headline: "was your busiest month",
-        sub: plural(n, "thing", "things") + " logged",
+        headline: i18n.t("was your busiest month"),
+        sub: i18n.tn(n, "{n} thing logged", "{n} things logged"),
       };
     },
 
@@ -142,7 +142,7 @@
       const top = topOf(counts, 4);
       return {
         id: "categories", kind: "bars", view: "timeline",
-        headline: "What you spent your time on",
+        headline: i18n.t("What you spent your time on"),
         bars: top.map(([label, n]) => ({ label, n })),
         max: top[0][1],
       };
@@ -178,11 +178,11 @@
       }
       return {
         id: "gallery", kind: "gallery", view: "timeline",
-        headline: "Everything you logged",
-        sub: items.length + (items.length === 1 ? " thing" : " things") + ", all in one place",
+        headline: i18n.t("Everything you logged"),
+        sub: i18n.tn(items.length, "{n} thing, all in one place", "{n} things, all in one place"),
         items: shown,
         groups,
-        foot: items.length > GALLERY_MAX ? "Showing the first " + GALLERY_MAX : "",
+        foot: items.length > GALLERY_MAX ? i18n.t("Showing the first {n}", { n: GALLERY_MAX }) : "",
       };
     },
 
@@ -200,9 +200,9 @@
       const avg = rated.reduce((s, e) => s + e.rating, 0) / rated.length;
       return {
         id: "rated", kind: "list", view: "timeline",
-        headline: top[0].rating === 5 ? "The ones you loved" : "Your best of the year",
+        headline: top[0].rating === 5 ? i18n.t("The ones you loved") : i18n.t("Your best of the year"),
         list: top.filter((t) => t.rating >= 4).map((t) => ({ label: t.title, note: "★".repeat(t.rating), category: t.category, coverUrl: t.coverUrl })),
-        foot: "You rated " + plural(rated.length, "thing", "things") + ", averaging " + avg.toFixed(1) + "★",
+        foot: i18n.tn(rated.length, "You rated {n} thing, averaging {avg}★", "You rated {n} things, averaging {avg}★", { avg: avg.toFixed(1) }),
       };
     },
 
@@ -214,8 +214,8 @@
       return {
         id: "repeated", kind: "big", view: "timeline",
         value: example.title,
-        headline: "you came back to " + n + " times",
-        sub: "More than anything else this year",
+        headline: i18n.t("you came back to {n} times", { n }),
+        sub: i18n.t("More than anything else this year"),
       };
     },
 
@@ -231,8 +231,8 @@
       return {
         id: "backlog", kind: "big", view: "backlog",
         value: cleared.length,
-        headline: cleared.length === 1 ? "thing off your backlog" : "things off your backlog",
-        sub: longest > 60 ? "One had been waiting " + Math.round(longest / 30) + " months" : "",
+        headline: i18n.tn(cleared.length, "thing off your backlog", "things off your backlog"),
+        sub: longest > 60 ? i18n.t("One had been waiting {n} months", { n: Math.round(longest / 30) }) : "",
       };
     },
 
@@ -242,11 +242,11 @@
       return {
         id: "backlog-grew", kind: "big", view: "backlog",
         value: g.backlogAdded.length,
-        headline: "added to the backlog",
+        headline: i18n.t("added to the backlog"),
         sub: cleared
           ? (g.backlogAdded.length > cleared
-            ? "and " + cleared + " taken off — it grew by " + (g.backlogAdded.length - cleared)
-            : "and " + cleared + " taken off — you're ahead")
+            ? i18n.t("and {n} taken off — it grew by {grew}", { n: cleared, grew: g.backlogAdded.length - cleared })
+            : i18n.t("and {n} taken off — you're ahead", { n: cleared }))
           : "",
       };
     },
@@ -272,11 +272,11 @@
       return {
         id: "notes", kind: "cards", view: "notes",
         value: g.notes.length,
-        headline: g.notes.length + (g.notes.length === 1 ? " note" : " notes") + " written",
-        sub: leads ? "Most of them in " + MONTHS_LONG()[month] : "",
+        headline: i18n.tn(g.notes.length, "{n} note written", "{n} notes written"),
+        sub: leads ? i18n.t("Most of them in {month}", { month: MONTHS_LONG()[month] }) : "",
         cards,
         foot: [delta(g.notes.length, g.prevNotes.length),
-          g.notes.length > NOTE_CARDS_MAX ? "Showing the most recent " + NOTE_CARDS_MAX : ""]
+          g.notes.length > NOTE_CARDS_MAX ? i18n.t("Showing the most recent {n}", { n: NOTE_CARDS_MAX }) : ""]
           .filter(Boolean).join(" · "),
       };
     },
@@ -286,7 +286,7 @@
       return {
         id: "todos", kind: "big", view: "notes", mode: "notes",
         value: g.todosDone.length,
-        headline: "tasks ticked off",
+        headline: i18n.t("tasks ticked off"),
         sub: "",
       };
     },
@@ -300,9 +300,9 @@
       return {
         id: "habit-streak", kind: "big", view: "notes", mode: "habits",
         value: top.best,
-        headline: top.best === 1 ? "day in a row" : "days in a row",
-        sub: "your best run of " + top.habit.name,
-        foot: top.due ? "kept it " + top.kept + " of " + top.due + " days it asked for" : "",
+        headline: i18n.tn(top.best, "day in a row", "days in a row"),
+        sub: i18n.t("your best run of {name}", { name: top.habit.name }),
+        foot: top.due ? i18n.t("kept it {kept} of {due} days it asked for", { kept: top.kept, due: top.due }) : "",
       };
     },
 
@@ -312,10 +312,10 @@
       const ranked = g.habits.slice().sort((a, b) => (b.rate || 0) - (a.rate || 0));
       return {
         id: "habits-kept", kind: "bars", view: "notes", mode: "habits",
-        headline: "How the habits went",
+        headline: i18n.t("How the habits went"),
         bars: ranked.slice(0, 5).map((x) => ({ label: x.habit.name, n: x.kept, color: x.habit.color })),
         max: ranked.reduce((m, x) => Math.max(m, x.kept), 0),
-        foot: "days kept in " + g.year,
+        foot: i18n.t("days kept in {year}", { year: String(g.year) }),
       };
     },
 
@@ -331,9 +331,9 @@
       return {
         id: "spend", kind: "big", view: "finance",
         value: fmt(total),
-        headline: "spent across " + plural(g.spend.length, "expense", "expenses"),
-        sub: topCat ? "Most of it on " + topCat + " (" + fmt(topAmount) + ")" : "",
-        foot: prevTotal && pct ? (pct > 0 ? pct + "% more than " : Math.abs(pct) + "% less than ") + (g.year - 1) : "",
+        headline: i18n.tn(g.spend.length, "spent across {n} expense", "spent across {n} expenses"),
+        sub: topCat ? i18n.t("Most of it on {category} ({amount})", { category: topCat, amount: fmt(topAmount) }) : "",
+        foot: prevTotal && pct ? (pct > 0 ? i18n.t("{pct}% more than {year}", { pct, year: String(g.year - 1) }) : i18n.t("{pct}% less than {year}", { pct: Math.abs(pct), year: String(g.year - 1) })) : "",
       };
     },
 
@@ -351,7 +351,7 @@
       };
       return {
         id: "spend-categories", kind: "bars", view: "finance",
-        headline: "Where the money went",
+        headline: i18n.t("Where the money went"),
         bars: top.map(([label, n]) => ({ label: label || "Other", n, text: fmt(n), color: colorOf(label) })),
         max: top[0][1],
       };
@@ -368,10 +368,10 @@
       const [peak, peakAmount] = months.reduce((a, b) => (b[1] > a[1] ? b : a));
       return {
         id: "spend-months", kind: "bars", view: "finance",
-        headline: "How the year moved",
+        headline: i18n.t("How the year moved"),
         bars: months.map(([m, n]) => ({ label: MONTHS_LONG()[m].slice(0, 3), n, text: fmt(n), color: "var(--accent)" })),
         max: peakAmount,
-        foot: "Most in " + MONTHS_LONG()[peak],
+        foot: i18n.t("Most in {month}", { month: MONTHS_LONG()[peak] }),
       };
     },
 
@@ -379,23 +379,23 @@
       if (!g.achievements.length) return null;
       return {
         id: "achievements", kind: "list", view: "timeline", mode: "stats",
-        headline: g.achievements.length === 1 ? "The thing you're proud of" : "The things you're proud of",
+        headline: i18n.tn(g.achievements.length, "The thing you're proud of", "The things you're proud of"),
         list: g.achievements.slice(0, 8).map((a) => ({ label: a.text, note: "✦" })),
       };
     },
 
     function closing(g) {
       const bits = [];
-      if (g.entries.length) bits.push(plural(g.entries.length, "thing logged", "things logged"));
-      if (g.notes.length) bits.push(plural(g.notes.length, "note", "notes"));
-      if (g.todosDone.length) bits.push(plural(g.todosDone.length, "task done", "tasks done"));
+      if (g.entries.length) bits.push(i18n.tn(g.entries.length, "{n} thing logged", "{n} things logged"));
+      if (g.notes.length) bits.push(i18n.tn(g.notes.length, "{n} note", "{n} notes"));
+      if (g.todosDone.length) bits.push(i18n.tn(g.todosDone.length, "{n} task done", "{n} tasks done"));
       const habitDays = g.habits.reduce((n, x) => n + x.kept, 0);
-      if (habitDays) bits.push(plural(habitDays, "day of a habit kept", "days of habits kept"));
+      if (habitDays) bits.push(i18n.tn(habitDays, "{n} day of a habit kept", "{n} days of habits kept"));
       if (!bits.length) return null;
       return {
         id: "closing", kind: "title",
-        headline: "That was " + g.year + ".",
-        sub: bits.join(", ") + ". On to the next one.",
+        headline: i18n.t("That was {year}.", { year: String(g.year) }),
+        sub: i18n.t("{what}. On to the next one.", { what: bits.join(", ") }),
       };
     },
   ];
@@ -415,7 +415,7 @@
   // .recap-note-text), so this strips per line rather than flattening.
   function noteCardText(n) {
     if (n.kind === "list") {
-      return [n.title || n.text || "Untitled list"]
+      return [n.title || n.text || i18n.t("Untitled list")]
         .concat((n.items || []).map((i) => (i.done ? "✓ " : "· ") + i.text)).join("\n");
     }
     if (n.kind === "quote") {
@@ -532,7 +532,7 @@
       data.financeEntries = window.LifeLogFinance.getEffectiveFinanceEntries();
     }
     slides = buildRecap(data, year, fmt, reachable);
-    if (!slides.length) { toast("Nothing logged in " + year + " to recap yet"); return false; }
+    if (!slides.length) { toast(i18n.t("Nothing logged in {year} to recap yet", { year: String(year) })); return false; }
     recapYear = year;
     at = 0;
     onClosed = (opts && opts.onClosed) || null;

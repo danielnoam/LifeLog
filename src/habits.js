@@ -22,6 +22,7 @@
 // streaks and the rates are what this feature actually is, and they are
 // covered by test/habits.test.js without a browser.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   // Where a week starts and how a date reads (0.301.0). Under Node (the
   // bridge, the tests) nothing loaded dates.js as a script.
@@ -37,13 +38,13 @@
       const h = (state.data.habits || []).find((x) => x.id === id);
       if (!h) return null;
       return [
-        { icon: "pencil", label: "Edit", run: () => openHabitModal(h) },
-        { icon: "archive", label: h.archivedAt ? "Start again" : "Archive", run: () => archiveHabit(id) },
+        { icon: "pencil", label: i18n.t("Edit"), run: () => openHabitModal(h) },
+        { icon: "archive", label: h.archivedAt ? i18n.t("Start again") : i18n.t("Archive"), run: () => archiveHabit(id) },
         hp.divider,
         // The sheet only asks when there's history to lose; a right-click
         // is an easier slip, so it always asks.
         { icon: "trash", label: "Delete", danger: true, run: () => {
-          if (!Object.keys(h.marks || {}).length && !confirm(`Delete “${h.name}”?`)) return;
+          if (!Object.keys(h.marks || {}).length && !confirm(i18n.t("Delete “{name}”?", { name: h.name }))) return;
           deleteHabit(id);
         } },
       ];
@@ -80,7 +81,10 @@
   const MAX_WEEKS = 1070;
 
   // ---------- the model ----------
-  const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DAY_LABELS = Dates().WEEKDAYS;
+  // One letter a day for the grid: Intl's narrow form outside English ("א׳").
+  const DAY_LETTERS = i18n.lang === "en" ? DAY_LABELS.map((d) => d.slice(0, 1))
+    : [0, 1, 2, 3, 4, 5, 6].map((i) => new Intl.DateTimeFormat(i18n.lang, { weekday: "narrow" }).format(new Date(2026, 10, 15 + i)));
   const KNOWN_HABIT_KEYS = new Set([
     "id", "name", "color", "cadence", "target", "order",
     "startedAt", "archivedAt", "createdAt", "updatedAt", "marks", "avoid", "limit",
@@ -155,14 +159,14 @@
 
   function cadenceLabel(habit) {
     const c = habit && habit.cadence;
-    if (!c || c === "daily") return "Every day";
+    if (!c || c === "daily") return i18n.t("Every day");
     const days = c.days || [];
     // Which days are the weekend follows the week (0.301.0): a week that
     // starts on Saturday has Friday and Saturday off.
     const D = Dates();
     const same = (set) => days.length === set.length && set.every((d) => days.includes(d));
-    if (same(D.workDays())) return "Weekdays";
-    if (same(D.weekendDays())) return "Weekends";
+    if (same(D.workDays())) return i18n.t("Weekdays");
+    if (same(D.weekendDays())) return i18n.t("Weekends");
     return D.weekOrder().filter((d) => days.includes(d)).map((d) => DAY_LABELS[d]).join(", ");
   }
 
@@ -211,10 +215,10 @@
   // "1 hour", "90 min", "2 h 30 min".
   function minutesLabel(n) {
     n = Math.max(0, Math.round(+n || 0));
-    if (n < 60) return n + " min";
+    if (n < 60) return i18n.t("{n} min", { n });
     const h = Math.floor(n / 60), m = n % 60;
-    if (!m) return h + (h === 1 ? " hour" : " hours");
-    return h + " h " + m + " min";
+    if (!m) return i18n.tn(h, "{n} hour", "{n} hours");
+    return i18n.t("{h} h {min} min", { h, min: m });
   }
   // Shorter, for a button: "25m", "1h", "2h30".
   function minutesShort(n) {
@@ -223,7 +227,7 @@
     const h = Math.floor(n / 60), m = n % 60;
     return m ? h + "h" + String(m).padStart(2, "0") : h + "h";
   }
-  const amountLabel = (habit, n) => (isMinutes(habit) ? minutesLabel(n) : n === 1 ? "once" : n === 2 ? "twice" : n + " times");
+  const amountLabel = (habit, n) => (isMinutes(habit) ? minutesLabel(n) : n === 1 ? i18n.t("once") : n === 2 ? i18n.t("twice") : i18n.t("{n} times", { n }));
 
   // "3 times a week", "1 hour a day", "Weekdays · 30 min".
   function goalLabel(habit) {
@@ -232,24 +236,30 @@
     const t = habit.target || 1;
     if (period !== "day") {
       const amount = amountLabel(habit, t);
-      return amount.charAt(0).toUpperCase() + amount.slice(1) + " a " + period;
+      return ({ week: i18n.t("{amount} a week", { amount }), month: i18n.t("{amount} a month", { amount }), year: i18n.t("{amount} a year", { amount }) })[period].replace(/^./, (c) => c.toUpperCase());
     }
     if (isMinutes(habit)) {
       const c = habit.cadence;
-      return (!c || c === "daily") ? minutesLabel(t) + " a day" : cadenceLabel(habit) + " · " + minutesLabel(t);
+      return (!c || c === "daily") ? i18n.t("{amount} a day", { amount: minutesLabel(t) }) : cadenceLabel(habit) + " · " + minutesLabel(t);
     }
     return cadenceLabel(habit) + (t > 1 ? " · " + t + "×" : "");
   }
 
   // How a period reads on a button and in the left-to-do list.
   function periodName(period, dateStr, short) {
-    if (period === "week") return "this week";
-    if (period === "month") return short ? "in " + MONTHS[+dateStr.slice(5, 7) - 1] : MONTH_NAMES[+dateStr.slice(5, 7) - 1];
-    if (period === "year") return short ? "in " + dateStr.slice(0, 4) : dateStr.slice(0, 4);
-    return "today";
+    if (period === "week") return i18n.t("this week");
+    if (period === "month") return short ? i18n.t("in {month}", { month: MONTHS[+dateStr.slice(5, 7) - 1] }) : MONTH_NAMES[+dateStr.slice(5, 7) - 1];
+    if (period === "year") return short ? i18n.t("in {year}", { year: dateStr.slice(0, 4) }) : dateStr.slice(0, 4);
+    return i18n.t("today");
   }
   const PERIOD_UNIT = { day: ["day", "days"], week: ["week", "weeks"], month: ["month", "months"], year: ["year", "years"] };
   const periodWord = (period, n) => PERIOD_UNIT[period][n === 1 ? 0 : 1];
+  // "3 days", "1 week": a count in the period's own word, in the reader's language.
+  const periodCount = (period, n) => ({
+    week: i18n.tn(n, "{n} week", "{n} weeks"),
+    month: i18n.tn(n, "{n} month", "{n} months"),
+    year: i18n.tn(n, "{n} year", "{n} years"),
+  })[period] || i18n.tn(n, "{n} day", "{n} days");
 
   // The periods from the one `fromStr` is in to the one `toStr` is in, as
   // [start, end] pairs. Bounded, so corrupt dates can't spin.
@@ -638,9 +648,9 @@
     if (!(state.data.habits || []).length) {
       root.appendChild(emptyState({
         glyph: "square-check-big",
-        title: "No habits yet",
-        body: "A habit is something you keep doing rather than something you finish — reading before bed, running on Tuesdays, no screens after ten. Tick it each day and the streak takes care of itself.",
-        action: "Add your first habit",
+        title: i18n.t("No habits yet"),
+        body: i18n.t("A habit is something you keep doing rather than something you finish — reading before bed, running on Tuesdays, no screens after ten. Tick it each day and the streak takes care of itself."),
+        action: i18n.t("Add your first habit"),
         onAction: () => openHabitModal(null),
       }));
       return;
@@ -663,14 +673,14 @@
       root.appendChild(list);
     } else {
       root.appendChild(emptyState(state.search.trim()
-        ? "No habits match your search."
-        : "Every habit is archived. Open one below to start it again."));
+        ? i18n.t("No habits match your search.")
+        : i18n.t("Every habit is archived. Open one below to start it again.")));
     }
 
     const archived = (state.data.habits || []).filter((x) => x.archivedAt);
     if (archived.length) {
       const wrap = el("div", "habit-archived");
-      wrap.appendChild(el("p", "hint", archived.length + (archived.length === 1 ? " archived habit" : " archived habits")));
+      wrap.appendChild(el("p", "hint", i18n.tn(archived.length, "{n} archived habit", "{n} archived habits")));
       for (const h of archived.sort(byOrder)) {
         const row = el("button", "habit-archived-row");
         row.type = "button";
@@ -678,7 +688,7 @@
         dot.style.background = h.color;
         row.appendChild(dot);
         row.appendChild(el("span", "habit-archived-name", h.name));
-        row.appendChild(el("span", "habit-archived-when", "stopped " + h.archivedAt));
+        row.appendChild(el("span", "habit-archived-when", i18n.t("stopped {date}", { date: h.archivedAt })));
         row.onclick = () => openHabitModal(h);
         if (window.LifeLogContextMenu) window.LifeLogContextMenu.attach(row, "habit", h.id);
         wrap.appendChild(row);
@@ -696,13 +706,13 @@
     const L = leftToDo(habits, today);
     if (!L.left && !L.done.length) return null;
     const box = el("section", "habit-left");
-    box.setAttribute("aria-label", "Left to do");
+    box.setAttribute("aria-label", i18n.t("Left to do"));
     const head = el("div", "habit-left-head");
     if (L.left) {
       head.appendChild(el("span", "habit-today-count", String(L.left)));
-      head.appendChild(el("span", "habit-today-label", "left to do"));
+      head.appendChild(el("span", "habit-today-label", i18n.t("left to do")));
     } else {
-      head.appendChild(el("span", "habit-today-label habit-left-clear", "Nothing left for now"));
+      head.appendChild(el("span", "habit-today-label habit-left-clear", i18n.t("Nothing left for now")));
     }
     box.appendChild(head);
     if (L.groups.length) {
@@ -710,10 +720,10 @@
       for (const g of L.groups) {
         const wrap = el("div", "habit-left-group");
         const title = el("div", "habit-left-title");
-        title.appendChild(el("span", null, g.period === "day" ? "Today" : g.period === "week" ? "This week"
+        title.appendChild(el("span", null, g.period === "day" ? i18n.t("Today") : g.period === "week" ? i18n.t("This week")
           : periodName(g.period, today)));
-        title.appendChild(el("span", null, g.period === "day" ? "ends tonight"
-          : g.daysLeft === 0 ? "last day" : g.daysLeft + (g.daysLeft === 1 ? " day left" : " days left")));
+        title.appendChild(el("span", null, g.period === "day" ? i18n.t("ends tonight")
+          : g.daysLeft === 0 ? i18n.t("last day") : i18n.tn(g.daysLeft, "{n} day left", "{n} days left")));
         wrap.appendChild(title);
         for (const it of g.items) wrap.appendChild(leftRow(it, today));
         groups.appendChild(wrap);
@@ -732,31 +742,31 @@
     row.appendChild(dot);
     const name = el("button", "habit-left-name", h.name);
     name.type = "button";
-    name.title = "Go to this habit";
+    name.title = i18n.t("Go to this habit");
     name.onclick = () => {
       const card = document.querySelector('.habit-card[data-id="' + h.id + '"]');
       if (card) card.scrollIntoView({ block: "center", behavior: "smooth" });
     };
     row.appendChild(name);
     const mins = isMinutes(h);
-    const left = it.done === 0 && it.target === 1 ? "not yet"
-      : mins ? minutesLabel(it.left) + " left"
-      : it.period === "day" ? it.done + " of " + it.target
-      : it.left + " more";
+    const left = it.done === 0 && it.target === 1 ? i18n.t("not yet")
+      : mins ? i18n.t("{amount} left", { amount: minutesLabel(it.left) })
+      : it.period === "day" ? i18n.t("{done} of {total}", { done: it.done, total: it.target })
+      : i18n.t("{n} more", { n: it.left });
     row.appendChild(el("span", "habit-left-left", left));
     const btn = el("button", "habit-left-do");
     btn.type = "button";
     if (mins) {
       btn.textContent = "+15";
-      btn.setAttribute("aria-label", "Add 15 minutes to " + h.name);
+      btn.setAttribute("aria-label", i18n.t("Add 15 minutes to {name}", { name: h.name }));
       btn.onclick = () => addMinutes(h.id, today, 15);
     } else if (it.target === 1 && it.period === "day") {
       btn.appendChild(ico("check"));
-      btn.setAttribute("aria-label", "Mark " + h.name + " done");
+      btn.setAttribute("aria-label", i18n.t("Mark {name} done", { name: h.name }));
       btn.onclick = () => tick(h.id, today);
     } else {
       btn.textContent = "+1";
-      btn.setAttribute("aria-label", "One more for " + h.name);
+      btn.setAttribute("aria-label", i18n.t("One more for {name}", { name: h.name }));
       btn.onclick = () => (isPeriodic(h) ? tickPeriod(h.id, today) : tick(h.id, today));
     }
     row.appendChild(btn);
@@ -781,14 +791,14 @@
     head.appendChild(dot);
     const name = el("button", "habit-name", h.name);
     name.type = "button";
-    name.title = "Edit this habit";
+    name.title = i18n.t("Edit this habit");
     name.onclick = () => openHabitModal(h);
     head.appendChild(name);
     const run = streakOf(h, today);
     if (run) {
       const s = el("span", "habit-streak");
       s.appendChild(window.LifeLogIcons.labelled("flame", String(run)));
-      s.title = run + " " + periodWord(periodOf(h), run) + " in a row";
+      s.title = i18n.t("{count} in a row", { count: periodCount(periodOf(h), run) });
       head.appendChild(s);
     }
     // In the Android app, its reminder (see reminders.js).
@@ -801,7 +811,7 @@
     // ninety days as numbers. The longer story is the grid's, and a tap
     // away in the title.
     sub.appendChild(el("span", null, h.avoid
-      ? cadenceLabel(h) + " · avoid" + (limitOf(h) ? " · ≤" + limitOf(h) : "")
+      ? cadenceLabel(h) + " · " + i18n.t("avoid") + (limitOf(h) ? " · ≤" + limitOf(h) : "")
       : goalLabel(h)));
     const period = periodOf(h);
     const best = bestStreakOf(h, today);
@@ -809,13 +819,13 @@
     const window90 = period === "year" ? statsFor(h, h.startedAt || today, today) : statsFor(h, addDaysStr(today, -89), today);
     const life = statsFor(h, h.startedAt || today, today);
     const bits = [];
-    if (best) bits.push("best " + best + (SHORT_PERIOD[period] ? " " + SHORT_PERIOD[period] : ""));
+    if (best) bits.push(({ week: i18n.t("best {n} wk", { n: best }), month: i18n.t("best {n} mo", { n: best }), year: i18n.t("best {n} yr", { n: best }) })[period] || i18n.t("best {n}", { n: best }));
     if (window90.due) bits.push(Math.round(window90.rate * 100) + "%");
     let right = null;
     if (bits.length) {
       right = el("span", "habit-sub-right", bits.join(" · "));
-      right.title = (window90.due && period !== "year" ? Math.round(window90.rate * 100) + "% of the last 90 days. " : "")
-        + "Since " + prettyDate(h.startedAt) + ": " + life.done + " of " + life.due + " " + periodWord(period, life.due) + " kept.";
+      right.title = (window90.due && period !== "year" ? i18n.t("{pct}% of the last 90 days.", { pct: Math.round(window90.rate * 100) }) + " " : "")
+        + i18n.t("Since {date}: {done} of {count} kept.", { date: prettyDate(h.startedAt), done: life.done, count: periodCount(period, life.due) });
     }
     card.appendChild(sub);
 
@@ -840,12 +850,12 @@
       if (isDone(h, today)) mark.appendChild(ico("check"));
       btn.appendChild(mark);
       btn.appendChild(el("span", "habit-tick-label",
-        h.target > 1 ? n + " of " + h.target : (isDone(h, today) ? "Done" : "Mark done")));
+        h.target > 1 ? i18n.t("{done} of {total}", { done: n, total: h.target }) : (isDone(h, today) ? i18n.t("Done") : i18n.t("Mark done"))));
       btn.style.setProperty("--habit-colour", h.color);
       btn.onclick = () => tick(h.id, today);
       actions.appendChild(btn);
     } else {
-      actions.appendChild(el("p", "habit-notdue", "Not due today"));
+      actions.appendChild(el("p", "habit-notdue", i18n.t("Not due today")));
     }
 
     // The best run and rate share Insights' line: both are the longer view.
@@ -865,11 +875,11 @@
     box.open = insightsOpen.has(h.id);
     box.ontoggle = () => { if (box.open) insightsOpen.add(h.id); else insightsOpen.delete(h.id); };
     const sum = el("summary", null);
-    sum.appendChild(window.LifeLogIcons.labelled("chart-column", "Insights"));
+    sum.appendChild(window.LifeLogIcons.labelled("chart-column", i18n.t("Insights")));
     box.appendChild(sum);
     const life = statsFor(h, h.startedAt || today, today);
     if (!life.due) {
-      box.appendChild(el("p", "hint", "Nothing to say yet — it starts counting from " + prettyDate(h.startedAt) + "."));
+      box.appendChild(el("p", "hint", i18n.t("Nothing to say yet — it starts counting from {date}.", { date: prettyDate(h.startedAt) })));
       return box;
     }
     const facts = el("div", "habit-facts");
@@ -880,29 +890,29 @@
       facts.appendChild(f);
     };
     const period = periodOf(h);
-    fact(Math.round(life.rate * 100) + "%", life.done + " of " + life.due + " " + periodWord(period, life.due) + " since " + prettyDate(h.startedAt));
+    fact(Math.round(life.rate * 100) + "%", i18n.t("{done} of {count} since {date}", { done: life.done, count: periodCount(period, life.due), date: prettyDate(h.startedAt) }));
     const best = bestRunOf(h, today);
-    if (best.days) fact(best.days + " " + periodWord(period, best.days), "longest run, " + dayRangeLabel(best.from, best.to));
+    if (best.days) fact(periodCount(period, best.days), i18n.t("longest run, {dates}", { dates: dayRangeLabel(best.from, best.to) }));
     if (isMinutes(h)) {
       const total = amountBetween(h, h.startedAt || today, today);
-      if (total) fact(minutesLabel(total), "in all since " + prettyDate(h.startedAt));
+      if (total) fact(minutesLabel(total), i18n.t("in all since {date}", { date: prettyDate(h.startedAt) }));
     }
     const days = weekdayRates(h, today).filter((d) => d.due);
     if (days.length > 1) {
       const top = days.slice().sort((a, b) => b.rate - a.rate || b.due - a.due);
       const hi = top[0], lo = top[top.length - 1];
-      fact(hi.label, "best day, " + Math.round(hi.rate * 100) + "%");
-      if (lo.rate < hi.rate) fact(lo.label, "weakest day, " + Math.round(lo.rate * 100) + "%");
+      fact(hi.label, i18n.t("best day, {pct}%", { pct: Math.round(hi.rate * 100) }));
+      if (lo.rate < hi.rate) fact(lo.label, i18n.t("weakest day, {pct}%", { pct: Math.round(lo.rate * 100) }));
     }
     box.appendChild(facts);
     const months = monthRates(h, today).filter((m) => m.due);
     if (months.length > 1) {
       const bars = el("div", "habit-months");
       bars.setAttribute("role", "img");
-      bars.setAttribute("aria-label", "Kept per month: " + months.map((m) => m.label + " " + Math.round(m.rate * 100) + "%").join(", "));
+      bars.setAttribute("aria-label", i18n.t("Kept per month: {months}", { months: months.map((m) => m.label + " " + Math.round(m.rate * 100) + "%").join(", ") }));
       for (const m of months) {
         const col = el("div", "habit-month");
-        col.title = m.label + ": " + m.kept + " of " + m.due + " " + periodWord(period, m.due);
+        col.title = m.label + ": " + i18n.t("{done} of {count}", { done: m.kept, count: periodCount(period, m.due) });
         const bar = el("div", "habit-month-bar");
         const fill = el("div", "habit-month-fill");
         fill.style.height = Math.round(m.rate * 100) + "%";
@@ -930,10 +940,10 @@
     // One line of one size, like the daily "2 of 3": a big count beside
     // smaller words sat off-centre.
     const done = mins ? minutesShort(p.done) : String(p.done);
-    const of = " of " + (mins ? minutesShort(p.target) : p.target);
+    const of = " " + i18n.t("of {total}", { total: mins ? minutesShort(p.target) : p.target });
     // No "this week": the line under the name already says "3 hours a week".
     btn.appendChild(el("span", "habit-tick-label", done + of));
-    btn.title = mins ? "Set today's time" : p.met ? "Met — tap to take back today's" : "Tap to add one today";
+    btn.title = mins ? i18n.t("Set today's time") : p.met ? i18n.t("Met — tap to take back today's") : i18n.t("Tap to add one today");
     btn.style.setProperty("--habit-colour", h.color);
     btn.onclick = () => (mins ? openAmountSheet(h.id, today) : tickPeriod(h.id, today));
     return btn;
@@ -943,7 +953,7 @@
   // in. Short labels so the goal and all three fit one row on a phone.
   function stepButtons(h, today) {
     const row = el("div", "habit-steps");
-    for (const [n, label, full] of [[15, "+15m", "Add 15 minutes"], [30, "+30m", "Add 30 minutes"], [60, "+1h", "Add an hour"]]) {
+    for (const [n, label, full] of [[15, "+15m", i18n.t("Add 15 minutes")], [30, "+30m", i18n.t("Add 30 minutes")], [60, "+1h", i18n.t("Add an hour")]]) {
       const b = el("button", "btn", label);
       b.type = "button";
       b.title = full;
@@ -964,8 +974,8 @@
     if (!kept) mark.appendChild(ico("x")); else if (!limit) mark.appendChild(ico("check"));
     btn.appendChild(mark);
     // The mark already carries the count, so the label doesn't repeat it.
-    btn.appendChild(el("span", "habit-tick-label", kept ? "Kept" : "Slipped"));
-    btn.title = kept ? (limit ? n + " of " + limit + " slips today — tap to log one" : "Tap to log a slip") : "Tap to undo";
+    btn.appendChild(el("span", "habit-tick-label", kept ? i18n.t("Kept") : i18n.t("Slipped")));
+    btn.title = kept ? (limit ? i18n.t("{n} of {limit} slips today — tap to log one", { n, limit }) : i18n.t("Tap to log a slip")) : i18n.t("Tap to undo");
     btn.style.setProperty("--habit-colour", h.color);
     btn.onclick = () => tick(h.id, today);
     return btn;
@@ -1012,8 +1022,8 @@
     if (again && !again.disabled) again.focus();
   }
 
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const MONTHS = Dates().MONTHS;
+  const MONTH_NAMES = Dates().MONTH_NAMES;
   const monthOf = (s) => MONTHS[+s.slice(5, 7) - 1];
   const prettyDate = (s) => isDateStr(s) ? Dates().day(s) : "";
   // "3–16 Mar 2026", "28 Feb – 3 Mar 2026", "30 Dec 2025 – 2 Jan 2026", or
@@ -1045,13 +1055,13 @@
       const back = el("button", "habit-page", "‹");
       back.type = "button";
       back.dataset.dir = "1";
-      back.title = "Earlier weeks";
+      back.title = i18n.t("Earlier weeks");
       back.disabled = off >= max;
       back.onclick = () => pageGrid(h.id, 1);
       const fwd = el("button", "habit-page", "›");
       fwd.type = "button";
       fwd.dataset.dir = "-1";
-      fwd.title = "Later weeks";
+      fwd.title = i18n.t("Later weeks");
       fwd.disabled = off === 0;
       fwd.onclick = () => pageGrid(h.id, -1);
       nav.appendChild(back);
@@ -1072,7 +1082,7 @@
       const line = el("div", "habit-grid-row");
       // Every row named. Until 0.235.0 a full week labelled only Mon, Wed
       // and Fri, the GitHub way, which read as a habit due on those days.
-      const lbl = el("span", "habit-grid-day", DAY_LABELS[row].slice(0, 1));
+      const lbl = el("span", "habit-grid-day", DAY_LETTERS[row]);
       line.appendChild(lbl);
       for (let col = 0; col < GRID_WEEKS; col++) {
         const date = addDaysStr(start, col * 7 + Dates().weekPos(row));
@@ -1086,7 +1096,7 @@
         } else if (!isDue(h, date)) {
           cell.classList.add("is-off");
           cell.disabled = true;
-          cell.title = date + " — not due";
+          cell.title = date + " — " + i18n.t("not due");
         } else {
           const n = markOf(h, date);
           const done = isDone(h, date);
@@ -1100,20 +1110,20 @@
               if (n) cell.style.background = h.color + "66";
               else { cell.classList.add("is-kept"); cell.style.boxShadow = `inset 0 0 0 2px ${h.color}`; }
             } else cell.classList.add("is-slip");
-            cell.title = date + (done ? (n ? ` — ${n} of at most ${limitOf(h)}` : " — kept") : " — slipped");
+            cell.title = date + (done ? (n ? " — " + i18n.t("{n} of at most {limit}", { n, limit: limitOf(h) }) : " — " + i18n.t("kept")) : " — " + i18n.t("slipped"));
           } else if (isPeriodic(h)) {
             // A day of a weekly goal isn't missed for having nothing in it,
             // so a blank one stays blank; a day with something is filled.
             if (n) { cell.classList.add("is-done"); cell.style.background = h.color; }
-            cell.title = date + (n ? " — " + (isMinutes(h) ? minutesLabel(n) : n === 1 ? "done" : n + " times") : "");
+            cell.title = date + (n ? " — " + (isMinutes(h) ? minutesLabel(n) : n === 1 ? i18n.t("done") : i18n.t("{n} times", { n })) : "");
           } else if (isMinutes(h)) {
             if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
             else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
-            cell.title = date + (n ? " — " + minutesLabel(n) + " of " + minutesLabel(h.target) : " — missed");
+            cell.title = date + (n ? " — " + i18n.t("{done} of {total}", { done: minutesLabel(n), total: minutesLabel(h.target) }) : " — " + i18n.t("missed"));
           } else {
             if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
             else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
-            cell.title = date + (done ? " — done" : n ? ` — ${n} of ${h.target}` : " — missed");
+            cell.title = date + " — " + (done ? i18n.t("done") : n ? i18n.t("{done} of {total}", { done: n, total: h.target }) : i18n.t("missed"));
           }
           if (anchor && anchor.id === h.id && anchor.date === date) cell.classList.add("is-anchor");
           cell.onclick = isMinutes(h) ? () => openAmountSheet(h.id, date) : (ev) => onCellPress(h.id, date, ev);
@@ -1124,7 +1134,7 @@
     }
     if (anchor && anchor.id === h.id) {
       wrap.appendChild(el("p", "habit-range-hint",
-        "Tap the day this run ends on — or the same day again to stop."));
+        i18n.t("Tap the day this run ends on — or the same day again to stop.")));
     }
     // Filling a run with minutes would be guessing how long each day was.
     if (!isMinutes(h)) longPressCells(wrap, h.id);
@@ -1219,8 +1229,8 @@
     if (Object.keys(marks).length) h.marks = marks; else delete h.marks;
     render();
     await persist();
-    toast((clearing ? "Cleared " : h.avoid ? "Marked as slipped: " : "Filled in ") + n + (n === 1 ? " day" : " days"), false,
-      { label: "Undo", onClick: () => revert(undo) });
+    toast((clearing ? i18n.tn(n, "Cleared {n} day", "Cleared {n} days") : h.avoid ? i18n.tn(n, "Marked as slipped: {n} day", "Marked as slipped: {n} days") : i18n.tn(n, "Filled in {n} day", "Filled in {n} days")), false,
+      { label: i18n.t("Undo"), onClick: () => revert(undo) });
   }
 
   function repaintGrid(id) {
@@ -1281,8 +1291,8 @@
     const next = Math.min(1440, markOf(h, dateStr) + n);
     const was = await setMark(id, dateStr, next);
     const p = progressOf(h, dateStr);
-    toast("Added " + minutesLabel(n) + " — " + (p.met ? "done" : minutesLabel(p.left) + " to go") + (p.period === "day" ? "" : " " + periodName(p.period, dateStr, true)),
-      false, { label: "Undo", onClick: () => setMark(id, dateStr, was) });
+    toast(i18n.t("Added {amount}", { amount: minutesLabel(n) }) + " — " + (p.met ? i18n.t("done") : i18n.t("{amount} to go", { amount: minutesLabel(p.left) })) + (p.period === "day" ? "" : " " + periodName(p.period, dateStr, true)),
+      false, { label: i18n.t("Undo"), onClick: () => setMark(id, dateStr, was) });
   }
 
   // ---------- the time sheet ----------
@@ -1294,8 +1304,8 @@
     amountFor = { id, date: dateStr };
     $("#habitAmountTitle").textContent = h.name;
     const p = progressOf(h, dateStr);
-    $("#habitAmountWhen").textContent = (dateStr === todayStr() ? "Today" : prettyDate(dateStr)) + " · goal " + goalLabel(h).toLowerCase()
-      + (p.period === "day" ? "" : " · " + minutesLabel(p.done) + " so far " + periodName(p.period, dateStr, true));
+    $("#habitAmountWhen").textContent = (dateStr === todayStr() ? i18n.t("Today") : prettyDate(dateStr)) + " · " + i18n.t("goal {goal}", { goal: goalLabel(h).toLowerCase() })
+      + (p.period === "day" ? "" : " · " + i18n.t("{amount} so far {when}", { amount: minutesLabel(p.done), when: periodName(p.period, dateStr, true) }));
     $("#habitAmountInput").value = markOf(h, dateStr) || "";
     $("#habitAmountClear").hidden = !markOf(h, dateStr);
     $("#habitAmountModal").hidden = false;
@@ -1309,7 +1319,7 @@
     const n = Math.max(0, Math.min(1440, Math.round(+$("#habitAmountInput").value) || 0));
     closeAmountModal();
     const was = await setMark(id, date, n);
-    if (was !== n) toast(n ? "Saved " + minutesLabel(n) : "Cleared", false, { label: "Undo", onClick: () => setMark(id, date, was) });
+    if (was !== n) toast(n ? i18n.t("Saved {amount}", { amount: minutesLabel(n) }) : i18n.t("Cleared"), false, { label: i18n.t("Undo"), onClick: () => setMark(id, date, was) });
   }
 
   // ---------- the modal ----------
@@ -1318,7 +1328,7 @@
 
   function openHabitModal(habit) {
     editingId = habit ? habit.id : null;
-    $("#habitModalTitle").textContent = habit ? "Edit habit" : "Add habit";
+    $("#habitModalTitle").textContent = habit ? i18n.t("Edit habit") : i18n.t("Add habit");
     $("#habitName").value = habit ? habit.name : "";
     $("#habitKind").value = habit && habit.avoid ? "avoid" : "do";
     // Minutes that make whole hours show as hours: "1 hour a day" is what
@@ -1352,7 +1362,7 @@
     applyStartUI();
     $("#deleteHabitBtn").hidden = !habit;
     $("#archiveHabitBtn").hidden = !habit;
-    if (habit && habit.archivedAt) window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "undo-2", "Un-archive"); else window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "archive", "Archive");
+    if (habit && habit.archivedAt) window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "undo-2", i18n.t("Un-archive")); else window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "archive", i18n.t("Archive"));
     applyKindUI();
     applyGoalUI();
     // Reminders live on the phone, not in the habit (see reminders.js).
@@ -1383,14 +1393,14 @@
     const period = periodFromForm();
     const n = targetFromForm();
     const unit = $("#habitUnit").value;
-    const amount = unit === "times" ? (n === 1 ? "Once" : n === 2 ? "Twice" : n + " times") : minutesLabel(n);
+    const amount = unit === "times" ? (n === 1 ? i18n.t("once") : n === 2 ? i18n.t("twice") : i18n.t("{n} times", { n })) : minutesLabel(n);
     const h = editingId ? (state.data.habits || []).find((x) => x.id === editingId) : null;
     const unitChanged = h && !avoid && Object.keys(h.marks || {}).length && isMinutes(h) !== (unit !== "times");
     const bits = [];
     if (!avoid && period !== "day") {
-      bits.push(amount + " a " + period + ", on any days." + (period === "week" ? " A week runs " + weekSpan() + ", like the grid's columns." : ""));
+      bits.push(({ week: i18n.t("{amount} a week", { amount }), month: i18n.t("{amount} a month", { amount }), year: i18n.t("{amount} a year", { amount }) })[period].replace(/^./, (c) => c.toUpperCase()) + ", " + i18n.t("on any days.") + (period === "week" ? " " + i18n.t("A week runs {span}, like the grid's columns.", { span: weekSpan() }) : ""));
     }
-    if (unitChanged) bits.push("Days already recorded keep their numbers, so a tick becomes " + (unit === "times" ? "a count" : "a minute") + " — fix any in the grid that matter.");
+    if (unitChanged) bits.push((unit === "times" ? i18n.t("Days already recorded keep their numbers, so a tick becomes a count — fix any in the grid that matter.") : i18n.t("Days already recorded keep their numbers, so a tick becomes a minute — fix any in the grid that matter.")));
     $("#habitGoalHint").textContent = bits.join(" ");
     $("#habitGoalHint").hidden = !bits.length;
   }
@@ -1407,11 +1417,11 @@
   // other kind (1 a day, none at all) is swapped in.
   function applyKindUI(switched) {
     const avoid = $("#habitKind").value === "avoid";
-    $("#habitTargetText").textContent = avoid ? "At most a day" : "Goal";
+    $("#habitTargetText").textContent = avoid ? i18n.t("At most a day") : i18n.t("Goal");
     const t = $("#habitTarget");
     t.min = avoid ? "0" : "1";
     if (switched) t.value = avoid ? "0" : "1";
-    $("#habitName").placeholder = avoid ? "e.g. No coffee" : "e.g. Read before bed";
+    $("#habitName").placeholder = avoid ? i18n.t("e.g. No coffee") : i18n.t("e.g. Read before bed");
     const R = window.LifeLogReminders;
     $("#habitRemindLabel").hidden = !(R && R.available()) || avoid;
   }
@@ -1435,8 +1445,7 @@
     // those days, so the record quietly stops counting. Say so.
     const orphans = isDateStr(v) && v > was && h ? orphanedMarks(h, v) : 0;
     hint.textContent = orphans
-      ? orphans + (orphans === 1 ? " recorded day is" : " recorded days are") +
-        " before this date. They're kept, but stop counting until you move it back."
+      ? i18n.tn(orphans, "{n} recorded day is before this date. It's kept, but stops counting until you move it back.", "{n} recorded days are before this date. They're kept, but stop counting until you move it back.")
       : "";
     hint.hidden = !orphans;
 
@@ -1449,8 +1458,8 @@
     const target = targetFromForm();
     const mins = $("#habitUnit").value !== "times";
     $("#habitFillText").textContent = days.length
-      ? "Mark those " + days.length + (days.length === 1 ? " day" : " days") + " as done" +
-        (mins ? " (" + minutesLabel(target) + " each)" : target > 1 ? " (" + target + "× each)" : "")
+      ? i18n.tn(days.length, "Mark that {n} day as done", "Mark those {n} days as done") +
+        (mins ? " " + i18n.t("({amount} each)", { amount: minutesLabel(target) }) : target > 1 ? " " + i18n.t("({n}× each)", { n: target }) : "")
       : "";
     label.hidden = !days.length;
     if (!days.length) $("#habitFill").checked = false;
@@ -1475,7 +1484,7 @@
   // "Sunday to Saturday", "Saturday to Friday".
   function weekSpan() {
     const D = Dates(), o = D.weekOrder();
-    return D.WEEKDAY_NAMES[o[0]] + " to " + D.WEEKDAY_NAMES[o[6]];
+    return i18n.t("{from} to {to}", { from: D.WEEKDAY_NAMES[o[0]], to: D.WEEKDAY_NAMES[o[6]] });
   }
 
   function cadenceFromForm() {
@@ -1490,11 +1499,11 @@
     if (!name) return;
     const days = checkedDays();
     if ($("#habitCadence").value === "days" && !days.length) {
-      toast("Pick at least one day, or switch back to every day", true);
+      toast(i18n.t("Pick at least one day, or switch back to every day"), true);
       return;
     }
     const startedAt = isDateStr($("#habitStart").value) ? $("#habitStart").value : todayStr();
-    if (startedAt > todayStr()) { toast("A habit can't start in the future", true); return; }
+    if (startedAt > todayStr()) { toast(i18n.t("A habit can't start in the future"), true); return; }
     const avoid = $("#habitKind").value === "avoid";
     const period = !avoid && periodFromForm() !== "day" ? periodFromForm() : undefined;
     const shape = {
@@ -1546,10 +1555,10 @@
     render();
     await persist();
     if (filled) {
-      toast("Filled in " + filled + (filled === 1 ? " day" : " days"), false,
-        { label: "Undo", onClick: () => revert(undo) });
+      toast(i18n.tn(filled, "Filled in {n} day", "Filled in {n} days"), false,
+        { label: i18n.t("Undo"), onClick: () => revert(undo) });
     } else {
-      toast(wasEditing ? "Habit updated" : "Habit added");
+      toast(wasEditing ? i18n.t("Habit updated") : i18n.t("Habit added"));
     }
   }
 
@@ -1564,7 +1573,7 @@
     if (Object.keys(snap.marks).length) h.marks = { ...snap.marks }; else delete h.marks;
     render();
     await persist();
-    toast("Put back");
+    toast(i18n.t("Put back"));
   }
 
   function applyBackfill(habit, fromStr, toStr) {
@@ -1602,19 +1611,19 @@
     closeHabitModal();
     render();
     await persist();
-    toast(was ? "Archived — its history stays" : "Back in the list");
+    toast(was ? i18n.t("Archived — its history stays") : i18n.t("Back in the list"));
   }
 
   async function deleteHabit(id) {
     const h = (state.data.habits || []).find((x) => x.id === id);
     if (!h) return;
     const n = Object.keys(h.marks || {}).length;
-    if (n && !confirm(`Delete “${h.name}”? Its ${n} recorded ${n === 1 ? "day goes" : "days go"} with it. Archive instead to keep them.`)) return;
+    if (n && !confirm(i18n.tn(n, "Delete “{name}”? Its {n} recorded day goes with it. Archive instead to keep it.", "Delete “{name}”? Its {n} recorded days go with it. Archive instead to keep them.", { name: h.name }))) return;
     state.data.habits = state.data.habits.filter((x) => x.id !== h.id);
     closeHabitModal();
     render();
     await persist();
-    toast("Habit deleted");
+    toast(i18n.t("Habit deleted"));
   }
 
   function wire() {

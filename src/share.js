@@ -15,6 +15,7 @@
 // running, and anything else asks, Backlog or Note, since text with no link
 // could be either. A Google Maps link is never taken for a site's name.
 (() => {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const MAPS = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)/i;
   // Sites a share is a title from. `slug` is the part of the path that spells
   // the title, when the site puts it there; the shared text usually carries
@@ -95,7 +96,7 @@
     if (s.kind === "media" && backlog) { toBacklog(s); return; }
     if (backlog && !notes) { toBacklog(s); return; }
     if (notes && !backlog) { toNote(s); return; }
-    if (!backlog && !notes) { ctx.toast("Backlog and Notes are both off — turn one on in Settings → Tabs to share into it", true); return; }
+    if (!backlog && !notes) { ctx.toast(i18n.t("Backlog and Notes are both off — turn one on in Settings → Tabs to share into it"), true); return; }
     pending = s;
     $("#sharePreview").textContent = [s.title, s.text !== s.title ? s.text : "", s.url].filter(Boolean).join("\n");
     $("#shareModal").hidden = false;

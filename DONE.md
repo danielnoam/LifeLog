@@ -11,7 +11,7 @@ Every release that adds a feature adds its line here in the same commit.
 
 ## The app as a whole
 
-- Ready for right to left: the layout, swipes, drags, arrow keys, icons and animations mirror when the page is right to left, and dates and numbers follow the language; no second language offered yet (next release)
+- English and Hebrew, picked in Settings → Appearance → Language (System follows the device): the whole app in gender-neutral Hebrew, right to left, with dates and numbers in the language; titles and names stay as typed (next release)
 - Five tabs: Home, and Notebook, Timeline, Backlog, Ledger, each with modes (0.126.0, Home 0.306.0; Travel taken out, next release)
 - Home in the middle of the bar, where a fresh start opens: In progress covers, Coming up for two weeks (releases and episodes known to the day, recurring charges, habits left), a synced scratchpad with Make a note, notes pinned from a note's ⋯ menu; sections ordered and hidden under View (0.306.0)
 - On a computer, Home sections next to each other (Coming up, Scratchpad, Pinned notes) share one row, two or three across (0.307.0)

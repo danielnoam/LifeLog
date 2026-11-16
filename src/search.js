@@ -11,11 +11,12 @@
 // (`hay`) and how to open it (`open`); the view modules don't know about
 // the page, they just open their sheets as a row click would.
 (() => {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let ctx = null;
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const lower = (v) => String(v == null ? "" : v).toLowerCase();
-  const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTHS = ["", ...(typeof window === "object" && window.LifeLogDates || require("./dates.js")).MONTHS];
   const MAX_PER_GROUP = 8;
 
   const dateLabel = (s) => {
@@ -70,7 +71,7 @@
     if (modeEnabled("notes", "notes")) {
       const Notes = ctx.Notes;
       out.push({
-        view: "notes", label: "Notes", icon: "notebook-text", filter: "notes",
+        view: "notes", label: i18n.t("Notes"), icon: "notebook-text", filter: "notes",
         // A list's name is its text; a plain note's first line stands in
         // for the title it may not have.
         items: () => Notes.searchable().map((n) => ({
@@ -79,14 +80,14 @@
             f([...(n.tags || []), ...(n.items || []).flatMap((i) => i.tags || [])].map((t) => "#" + t).join(" "), "tags")],
           meta: [n.category, dateLabel(n.createdAt)].filter(Boolean).join(" · "),
           // What the card calls a nameless list.
-          untitled: n.kind === "list" ? "Untitled list" : "Untitled",
+          untitled: n.kind === "list" ? i18n.t("Untitled list") : i18n.t("Untitled"),
           open: () => Notes.openSearchHit(n),
         })),
       });
     }
     if (modeEnabled("notes", "habits")) {
       out.push({
-        view: "notes", label: "Habits", icon: "square-check-big", filter: "notes",
+        view: "notes", label: i18n.t("Habits"), icon: "square-check-big", filter: "notes",
         items: () => (state.data.habits || []).filter((h) => !h.archivedAt).map((h) => ({
           fields: [f(h.name, "title")],
           meta: h.cadence || "",
@@ -96,20 +97,20 @@
     }
     if (viewEnabled("timeline")) {
       out.push({
-        view: "timeline", label: "Timeline", icon: "list", filter: "timeline",
+        view: "timeline", label: i18n.t("Timeline"), icon: "list", filter: "timeline",
         items: () => {
           const entries = (state.data.entries || []).map((e) => ({
             fields: [f(e.title, "title"), f(e.author, "author"), f(e.notes, "notes"), f(e.category, "category"), f((e.genres || []).join(", "), "genres")],
             meta: [e.category, dateLabel(e.date)].filter(Boolean).join(" · "),
             cover: e,
-            tags: [["Completed", "is-done"], e.rating ? ["★" + e.rating, "is-rating"] : null],
+            tags: [[i18n.t("Completed"), "is-done"], e.rating ? ["★" + e.rating, "is-rating"] : null],
             open: () => ctx.Journal.openEntryModal(e),
           }));
           const achs = [];
           for (const y of Object.keys(state.data.accomplishments || {})) {
             (state.data.accomplishments[y] || []).forEach((a, index) => achs.push({
               fields: [f(a.text, "title"), f(a.notes, "notes")],
-              meta: "Achievement · " + y,
+              meta: i18n.t("Achievement") + " · " + y,
               open: () => ctx.Journal.openAchModal({ ...a, year: +y, index }),
             }));
           }
@@ -125,34 +126,34 @@
       meta: [b.category, b.releaseYear ? String(b.releaseYear) : ""].filter(Boolean).join(" · "),
       cover: b,
       tags: backlogTags(b),
-      marks: [b.priority ? ["star", "Starred", "is-star"] : null, b.bought ? ["shopping-bag", "Bought", ""] : null],
+      marks: [b.priority ? ["star", i18n.t("Starred"), "is-star"] : null, b.bought ? ["shopping-bag", i18n.t("Bought"), ""] : null],
       open: () => B.openBacklogModal(b),
     });
     // Where it stands, as the Backlog and In progress would show it
     // (0.295.0): started, given up on, how far it's out. Starred and bought
     // are icons on the row's right, as on a cover.
     const backlogTags = (b) => [
-      B.isStarted(b) ? ["In progress", "is-accent"] : null,
-      b.dropped ? ["Dropped", ""] : null,
-      b.earlyAccess ? ["Early Access", "is-warn"] : null,
+      B.isStarted(b) ? [i18n.t("In progress"), "is-accent"] : null,
+      b.dropped ? [i18n.t("Dropped"), ""] : null,
+      b.earlyAccess ? [i18n.t("Early Access"), "is-warn"] : null,
       !b.earlyAccess && B.airingLabel(b, true) ? [B.airingLabel(b, true), ""] : null,
     ];
     if (viewEnabled("timeline")) {
       out.push({
-        view: "timeline", label: "In progress", icon: "play", filter: "timeline",
+        view: "timeline", label: i18n.t("In progress"), icon: "play", filter: "timeline",
         items: () => (state.data.backlog || []).filter(B.isStarted).map(backlogRow),
       });
     }
     if (viewEnabled("backlog")) {
       out.push({
-        view: "backlog", label: "Backlog", icon: "star", filter: "backlog",
+        view: "backlog", label: i18n.t("Backlog"), icon: "star", filter: "backlog",
         items: () => (state.data.backlog || []).filter((b) => !B.isStarted(b)).map(backlogRow),
       });
     }
     if (viewEnabled("finance")) {
       const F = ctx.Finance;
       out.push({
-        view: "finance", label: "Ledger", icon: "receipt", filter: "finance",
+        view: "finance", label: i18n.t("Ledger"), icon: "receipt", filter: "finance",
         items: () => {
           const projects = new Map((state.data.projects || []).map((p) => [p.id, p.name]));
           const rows = (state.data.financeEntries || []).map((x) => ({
@@ -162,7 +163,7 @@
           }));
           const recurring = (state.data.recurringExpenses || []).map((r) => ({
             fields: [f(r.note || F.catLabel(r), "title"), f(F.catLabel(r), "category"), f(F.amountText(r), "amount")],
-            meta: ["Recurring", F.amountText(r)].filter(Boolean).join(" · "),
+            meta: [i18n.t("Recurring"), F.amountText(r)].filter(Boolean).join(" · "),
             open: () => F.openRecurringModal(r),
           }));
           return rows.concat(recurring);
@@ -170,7 +171,7 @@
       });
     }
     out.push({
-      view: "settings", label: "Settings", icon: "settings", filter: null,
+      view: "settings", label: i18n.t("Settings"), icon: "settings", filter: null,
       items: () => ctx.Settings.searchSettings(state.query).map((h) => ({
         fields: [f(h.text, "title"), f(h.where, "where")],
         meta: h.where,
@@ -213,10 +214,10 @@
     root.replaceChildren();
     const total = found.reduce((n, r) => n + r.rows.length, 0);
     const head = el("div", "search-head");
-    head.appendChild(el("h2", "search-title", total ? `${total} ${total === 1 ? "result" : "results"} for “${q}”` : `Nothing matches “${q}”`));
+    head.appendChild(el("h2", "search-title", total ? i18n.tn(total, "{n} result for “{q}”", "{n} results for “{q}”", { q }) : i18n.t("Nothing matches “{q}”", { q })));
     root.appendChild(head);
     if (!total) {
-      root.appendChild(el("p", "search-none muted", "Titles, notes, places, amounts and settings are all searched. Try fewer words."));
+      root.appendChild(el("p", "search-none muted", i18n.t("Titles, notes, places, amounts and settings are all searched. Try fewer words.")));
       return;
     }
     const current = ctx.state.view;
@@ -231,10 +232,10 @@
       label.appendChild(document.createTextNode(` ${group.label} · ${rows.length}`));
       bar.appendChild(label);
       if (group.filter) {
-        const filt = el("button", "btn btn-sm search-filter", `Filter ${ctx.viewLabel(group.filter)}`);
+        const filt = el("button", "btn btn-sm search-filter", i18n.t("Filter {tab}", { tab: ctx.viewLabel(group.filter) }));
         filt.type = "button";
         filt.dataset.filter = group.filter;
-        filt.title = `Show the ${ctx.viewLabel(group.filter)} tab narrowed to “${q}”`;
+        filt.title = i18n.t("Show the {tab} tab narrowed to “{q}”", { tab: ctx.viewLabel(group.filter), q });
         filt.onclick = () => filterTab(group.filter);
         bar.appendChild(filt);
       }
@@ -265,7 +266,7 @@
     }
     const text = el("span", "search-row-text");
     const title = el("span", "search-row-title");
-    const name = it.fields[0].text || it.untitled || "Untitled";
+    const name = it.fields[0].text || it.untitled || i18n.t("Untitled");
     title.appendChild(titleHit ? marked(name, w) : document.createTextNode(name));
     text.appendChild(title);
     if (where) {
@@ -314,11 +315,11 @@
     note.hidden = !q;
     if (!q) return;
     note.replaceChildren();
-    note.appendChild(el("span", "", `Showing only what matches “${q}”`));
-    const all = el("button", "btn btn-sm", "All results");
+    note.appendChild(el("span", "", i18n.t("Showing only what matches “{q}”", { q })));
+    const all = el("button", "btn btn-sm", i18n.t("All results"));
     all.type = "button";
     all.onclick = () => { ctx.state.query = ctx.state.search; ctx.state.search = ""; $("#search").value = ctx.state.query; ctx.render(); render(); syncFilterNote(); };
-    const off = el("button", "btn btn-sm", "Clear");
+    const off = el("button", "btn btn-sm", i18n.t("Clear"));
     off.type = "button";
     off.onclick = () => clear();
     note.appendChild(all);

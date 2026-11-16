@@ -25,6 +25,7 @@
 // the dark theme still reads in the light one. `seed` keeps a rough shape's
 // wobble the same every time it's drawn.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const Tags = () => window.LifeLogTags || require("./tags.js");
@@ -41,11 +42,11 @@
   const TEXT_SIZE = { 2: 18, 4: 26, 8: 40 };
   // Each tool's key is in Settings → Keyboard (src/keys.js, "board:<id>").
   const TOOLS = [
-    ["select", "mouse-pointer-2", "Select"], ["hand", "hand", "Move the board"],
-    ["pen", "pencil", "Pen"], ["eraser", "eraser", "Eraser"],
-    ["rect", "square", "Rectangle"], ["ellipse", "circle", "Ellipse"],
-    ["arrow", "arrow-up-right", "Arrow"], ["line", "slash", "Line"], ["text", "type", "Text"],
-    ["image", "image", "Image", " — or paste or drop one"],
+    ["select", "mouse-pointer-2", i18n.t("Select")], ["hand", "hand", i18n.t("Move the board")],
+    ["pen", "pencil", i18n.t("Pen")], ["eraser", "eraser", i18n.t("Eraser")],
+    ["rect", "square", i18n.t("Rectangle")], ["ellipse", "circle", i18n.t("Ellipse")],
+    ["arrow", "arrow-up-right", i18n.t("Arrow")], ["line", "slash", i18n.t("Line")], ["text", "type", i18n.t("Text")],
+    ["image", "image", i18n.t("Image"), " " + i18n.t("— or paste or drop one")],
   ];
   const Keys = () => (typeof window !== "undefined" && window.LifeLogKeys) || null;
   // "Pen (P)", with the key as Settings → Keyboard has it now.
@@ -409,7 +410,7 @@
     const b = scratchBoard();
     if (!b || !b.elements.length) return null;
     delete b.scratch;
-    if (b.name === "Scratchpad") b.name = "Board " + listed().length;
+    if (b.name === "Scratchpad") b.name = i18n.t("Board {n}", { n: listed().length });
     changed(b);
     await flush();
     return b;
@@ -521,32 +522,32 @@
   const sameBoard = (a, b) => a && b && a.name === b.name && (a.category || "") === (b.category || "") && !!a.fav === !!b.fav && JSON.stringify(a.tags || []) === JSON.stringify(b.tags || []) && JSON.stringify(a.elements) === JSON.stringify(b.elements);
   async function renderHistory(list, status) {
     status.hidden = false;
-    status.textContent = "Loading…";
+    status.textContent = i18n.t("Loading…");
     list.innerHTML = "";
     let versions;
     try { await ensureLoaded(); versions = await Storage.boards.history(); }
-    catch (e) { status.textContent = "Couldn't load board history: " + (e.message || e); return; }
-    if (!versions.length) { status.textContent = "No board saves yet."; list.hidden = true; return; }
+    catch (e) { status.textContent = i18n.t("Couldn't load board history: {error}", { error: e.message || e }); return; }
+    if (!versions.length) { status.textContent = i18n.t("No board saves yet."); list.hidden = true; return; }
     status.hidden = true;
     list.hidden = false;
     for (const v of versions) {
       const row = el("div", "sitem board-hist-row");
       const text = el("span", "sitem-text");
       text.appendChild(el("span", "sitem-title", Dates().dateTime(v.savedAt)));
-      text.appendChild(el("span", "sitem-sub", v.bridge ? (v.bridge.by || "AI") + " · " + v.bridge.summary : v.source === "github" ? "GitHub" : "This device"));
+      text.appendChild(el("span", "sitem-sub", v.bridge ? (v.bridge.by || "AI") + " · " + v.bridge.summary : v.source === "github" ? "GitHub" : i18n.t("This device")));
       row.appendChild(text);
       const btns = el("span", "sitem-btns");
-      const open = el("button", "btn btn-small", "Open");
+      const open = el("button", "btn btn-small", i18n.t("Open"));
       open.type = "button";
       btns.appendChild(open);
       row.appendChild(btns);
       const inner = el("div", "board-hist-boards");
       inner.hidden = true;
       open.onclick = async () => {
-        if (!inner.hidden) { inner.hidden = true; open.textContent = "Open"; return; }
+        if (!inner.hidden) { inner.hidden = true; open.textContent = i18n.t("Open"); return; }
         open.disabled = true;
-        try { fillVersion(inner, await Storage.boards.version(v), v); inner.hidden = false; open.textContent = "Close"; }
-        catch (e) { toast("Couldn't read that version: " + (e.message || e), true); }
+        try { fillVersion(inner, await Storage.boards.version(v), v); inner.hidden = false; open.textContent = i18n.t("Close"); }
+        catch (e) { toast(i18n.t("Couldn't read that version: {error}", { error: e.message || e }), true); }
         open.disabled = false;
       };
       list.appendChild(row);
@@ -556,20 +557,20 @@
   function fillVersion(inner, version, v) {
     inner.innerHTML = "";
     const then = (version.boards || []).map(sanitizeBoard);
-    if (!then.length) { inner.appendChild(el("p", "muted board-hist-empty", "No boards in this version.")); return; }
+    if (!then.length) { inner.appendChild(el("p", "muted board-hist-empty", i18n.t("No boards in this version."))); return; }
     for (const b of then) {
       const now = findBoard(b.id);
       const row = el("div", "sitem board-hist-board");
       const text = el("span", "sitem-text");
       text.appendChild(el("span", "sitem-title", b.name));
-      const status = !now ? "Deleted since" : sameBoard(now, b) ? "Same as now" : "Changed since";
-      text.appendChild(el("span", "sitem-sub", `${b.elements.length} element${b.elements.length === 1 ? "" : "s"} · ${status}`));
+      const status = !now ? i18n.t("Deleted since") : sameBoard(now, b) ? i18n.t("Same as now") : i18n.t("Changed since");
+      text.appendChild(el("span", "sitem-sub", i18n.tn(b.elements.length, "{n} element", "{n} elements") + " · " + status));
       row.appendChild(text);
       if (!sameBoard(now, b)) {
         const btns = el("span", "sitem-btns");
-        const back = el("button", "btn btn-small", "Bring back");
+        const back = el("button", "btn btn-small", i18n.t("Bring back"));
         back.type = "button";
-        back.onclick = async () => { if (await restoreBoard(b, v)) { back.remove(); text.lastChild.textContent = `${b.elements.length} elements · Brought back`; } };
+        back.onclick = async () => { if (await restoreBoard(b, v)) { back.remove(); text.lastChild.textContent = i18n.tn(b.elements.length, "{n} element", "{n} elements") + " · " + i18n.t("Brought back"); } };
         btns.appendChild(back);
         row.appendChild(btns);
       }
@@ -582,13 +583,13 @@
     await ensureLoaded();
     const now = findBoard(b.id);
     const when = Dates().dateTime(v.savedAt);
-    if (!confirm(now ? `Put "${b.name}" back to how it was on ${when}? What's on it now is replaced.` : `Bring back "${b.name}" as it was on ${when}?`)) return false;
+    if (!confirm(now ? i18n.t("Put \"{name}\" back to how it was on {when}? What's on it now is replaced.", { name: b.name, when }) : i18n.t("Bring back \"{name}\" as it was on {when}?", { name: b.name, when }))) return false;
     const copy = { ...JSON.parse(JSON.stringify(b)), updatedAt: new Date().toISOString() };
     if (now) doc.boards = doc.boards.map((x) => (x.id === b.id ? copy : x));
     else doc.boards.push(copy);
     changedSince++;
     await flush();
-    toast(`Brought back "${b.name}"`);
+    toast(i18n.t("Brought back \"{name}\"", { name: b.name }));
     if (isBoardsMode()) render();
     return true;
   }
@@ -600,7 +601,7 @@
     && state.noteKinds.size === 1 && state.noteKinds.has("board");
   function renderBoards(root) {
     if (!doc) {
-      root.appendChild(el("p", "muted boards-loading", "Loading boards…"));
+      root.appendChild(el("p", "muted boards-loading", i18n.t("Loading boards…")));
       ensureLoaded().then(() => { if (isBoardsMode()) render({ keepSnapshots: true }); });
       return;
     }
@@ -621,9 +622,9 @@
       .sort((a, b) => (!!b.fav - !!a.fav) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
     if (!listed().length) {
       root.appendChild(emptyState({
-        glyph: "presentation", title: "No boards yet",
-        body: "A board is a page to draw on: sketches, diagrams, arrows and notes, in a hand-drawn style.",
-        action: "New board", onAction: askNewBoard,
+        glyph: "presentation", title: i18n.t("No boards yet"),
+        body: i18n.t("A board is a page to draw on: sketches, diagrams, arrows and notes, in a hand-drawn style."),
+        action: i18n.t("New board"), onAction: askNewBoard,
       }));
       return;
     }
@@ -633,7 +634,7 @@
       const add = el("button", "board-card board-new");
       add.type = "button";
       add.appendChild(el("span", "board-new-plus", "+"));
-      add.appendChild(el("span", "board-new-label", "New board"));
+      add.appendChild(el("span", "board-new-label", i18n.t("New board")));
       add.onclick = askNewBoard;
       grid.appendChild(add);
     }
@@ -671,14 +672,14 @@
       card.onclick = activate;
       grid.appendChild(card);
     }
-    if (!list.length) root.appendChild(el("p", "muted", q ? "No board is called that." : tf.size ? "No boards with that tag." : "No boards in that category."));
+    if (!list.length) root.appendChild(el("p", "muted", q ? i18n.t("No board is called that.") : tf.size ? i18n.t("No boards with that tag.") : i18n.t("No boards in that category.")));
     root.appendChild(grid);
   }
   function favButton(b) {
     const fav = el("button", "note-fav board-fav" + (b.fav ? " on" : ""));
     fav.appendChild(ico("star", b.fav ? "is-fill" : ""));
     fav.type = "button";
-    fav.title = b.fav ? "Remove from favourites" : "Add to favourites";
+    fav.title = b.fav ? i18n.t("Remove from favourites") : i18n.t("Add to favourites");
     fav.setAttribute("aria-label", fav.title);
     fav.setAttribute("aria-pressed", String(!!b.fav));
     fav.onclick = (ev) => { ev.stopPropagation(); toggleFav(b.id); };
@@ -695,7 +696,7 @@
   // A new board is named and filed first, in the notes sheet (0.314.0);
   // tapping the blank board there makes it.
   const askNewBoard = () => window.LifeLogNotes.openNoteModal(null, "board");
-  const nextName = () => "Board " + (listed().length + 1);
+  const nextName = () => i18n.t("Board {n}", { n: listed().length + 1 });
   async function newBoard({ name, category, tags } = {}) {
     await ensureLoaded();
     const now = new Date().toISOString();
@@ -937,7 +938,7 @@
     const sel = $("#boardCategory");
     sel.innerHTML = "";
     const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
-    opt("", "No category");
+    opt("", i18n.t("No category"));
     for (const c of state.data.noteCategories || []) opt(c.name, c.name);
     sel.value = (state.data.noteCategories || []).some((c) => c.name === value) ? value : "";
   }
@@ -946,13 +947,13 @@
   function syncTagsBtn() {
     const n = editing && editing.tags ? editing.tags.length : 0;
     $("#boardTagsN").textContent = n ? String(n) : "";
-    $("#boardTagsBtn").title = n ? "Tags: " + editing.tags.join(", ") : "Tags";
+    $("#boardTagsBtn").title = n ? i18n.t("Tags: {tags}", { tags: editing.tags.join(", ") }) : i18n.t("Tags");
     $("#boardTagsItem").textContent = Tags().itemLabel(editing && editing.tags);
   }
   function openBoardTags() {
     if (!editing) return;
     Tags().sheet({
-      title: "Board tags",
+      title: i18n.t("Board tags"),
       get: () => (editing && editing.tags) || [],
       set: (v) => { if (editing && Tags().setOn(editing, v)) { changed(editing); syncTagsBtn(); } },
       known: () => window.LifeLogNotes.tagCounts(),
@@ -997,7 +998,7 @@
   }
   function redrawAfterMerge() {
     const fresh = findBoard(editing.id);
-    if (!fresh) { closeBoard(); toast("This board was deleted on another device"); return; }
+    if (!fresh) { closeBoard(); toast(i18n.t("This board was deleted on another device")); return; }
     editing = fresh;
     selection = new Set([...selection].filter((id) => editing.elements.some((e) => e.id === id)));
     redraw();
@@ -1358,7 +1359,7 @@
         added.push({ id: uid(), t: "img", img: p.id, x: Math.round(cx - w / 2 + off), y: Math.round(cy - h / 2 + off), w, h });
       } catch (e) { failed = (e && e.message) || String(e); }
     }
-    if (failed) toast(added.length ? `${list.length - added.length} of those couldn't be added — ${failed}` : failed, true);
+    if (failed) toast(added.length ? i18n.t("{n} of those couldn't be added — {why}", { n: list.length - added.length, why: failed }) : failed, true);
     if (!added.length || editing !== board) return;
     remember();
     editing.elements.push(...added);
@@ -1401,7 +1402,7 @@
     clip = selectedJson(); pasteCount = 0;
     try { await navigator.clipboard.writeText(clip); } catch (e) { /* the in-app copy still works */ }
     syncClipButtons();
-    toast("Copied");
+    toast(i18n.t("Copied"));
   }
   async function pasteNow() {
     let list = null;
@@ -1412,7 +1413,7 @@
   function pasteElements(list) {
     if (!editing) return;
     const clean = list ? B_sanitize(list) : [];
-    if (!clean.length) { toast("Nothing to paste"); return; }
+    if (!clean.length) { toast(i18n.t("Nothing to paste")); return; }
     commitText();
     const box = boundsOf(clean), r = svg.getBoundingClientRect();
     const [vx1, vy1] = toWorld(0, 0), [vx2, vy2] = toWorld(r.width, r.height);
@@ -1599,12 +1600,12 @@
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
       download(fileName(b, "png"), canvas.toDataURL("image/png").split(",")[1], "image/png", { base64: true });
     };
-    img.onerror = () => toast("Couldn't make a PNG of this board", true);
+    img.onerror = () => toast(i18n.t("Couldn't make a PNG of this board"), true);
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(node));
   }
   async function deleteBoard() {
     if (!editing) return;
-    if (!confirm(`Delete "${editing.name}"? You can bring it back from Settings → History → Boards.`)) return;
+    if (!confirm(i18n.t("Delete \"{name}\"? You can bring it back from Settings → History → Boards.", { name: editing.name }))) return;
     // What was drawn in the last moments goes out first, so the version
     // History keeps is the board as you last saw it.
     if (saveTimer || changedSince) await flush();
@@ -1614,7 +1615,7 @@
     doc.boards = doc.boards.filter((b) => b.id !== id);
     changedSince++;
     await flush();
-    toast("Board deleted");
+    toast(i18n.t("Board deleted"));
     if (isBoardsMode()) render();
   }
 
@@ -1637,15 +1638,15 @@
     const style = $("#boardStyle");
     for (const c of COLORS) {
       const b = el("button", "board-swatch");
-      b.type = "button"; b.dataset.color = c; b.title = c === "ink" ? "Ink" : c;
-      b.setAttribute("aria-label", "Colour " + b.title);
+      b.type = "button"; b.dataset.color = c; b.title = c === "ink" ? i18n.t("Ink") : c;
+      b.setAttribute("aria-label", i18n.t("Colour {name}", { name: b.title }));
       b.style.setProperty("--swatch", c === "ink" ? "var(--text)" : c);
       b.onclick = () => { color = c; syncToolbar(); restyle({ c }); };
       style.appendChild(b);
     }
     for (const w of WIDTHS) {
       const b = el("button", "board-width");
-      b.type = "button"; b.dataset.width = w; b.title = ["Thin", "Medium", "Bold"][WIDTHS.indexOf(w)];
+      b.type = "button"; b.dataset.width = w; b.title = [i18n.t("Thin"), i18n.t("Medium"), i18n.t("Bold")][WIDTHS.indexOf(w)];
       b.setAttribute("aria-label", b.title);
       b.appendChild(el("span", "board-width-dot")).style.height = w + 1 + "px";
       b.onclick = () => { width = w; syncToolbar(); restyle({ sw: w }); };

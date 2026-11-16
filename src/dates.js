@@ -8,6 +8,7 @@
 // Data never changes shape: a stored date is still "2026-11-03" and a weekday
 // is still 0 = Sunday. Only what's drawn and where a week begins move.
 (function () {
+  const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const WEEK_STARTS = [0, 1, 6];
   const FORMATS = ["dmy", "mdy", "dmy-num", "mdy-num", "iso"];
   // In a language other than English (src/language.js) the names come from
@@ -128,7 +129,31 @@
   const formatChoices = () => FORMATS.map((f) => ({ value: f, label: day(SAMPLE, { format: f }) }));
   const weekStartChoices = () => WEEK_STARTS.map((w) => ({ value: w, label: WEEKDAY_NAMES[w] }));
 
+  // A stored length ("35 hrs", "2h 10m", "2 seasons · 20 episodes") as
+  // shown in the reader's language. The data keeps the English: matching,
+  // Pick's length bands and the bridge read it. A length typed in anything
+  // else is left as it is.
+  const NUM = String.raw`(\d+(?:[.,]\d+)?½?|½)`;
+  const UNIT_RE = new RegExp(NUM + String.raw`\s*(hrs?|hours?|pages?|episodes?|seasons?|chapters?|volumes?|h|m|min)\b`, "gi");
+  function lengthText(length) {
+    const text = String(length || "");
+    if (i18n.lang === "en") return text;
+    return text.replace(UNIT_RE, (all, n, unit) => {
+      const c = parseFloat(String(n).replace(",", ".")) || (n === "½" ? 0.5 : 0);
+      const u = unit.toLowerCase();
+      if (/^(hrs?|hours?)$/.test(u)) return i18n.t("{n} hrs", { n });
+      if (u === "h") return i18n.t("{n}h", { n });
+      if (u === "m" || u === "min") return i18n.t("{n}m", { n });
+      if (u.startsWith("page")) return i18n.tn(c, "{n} page", "{n} pages", { n });
+      if (u.startsWith("episode")) return i18n.tn(c, "{n} episode", "{n} episodes", { n });
+      if (u.startsWith("season")) return i18n.tn(c, "{n} season", "{n} seasons", { n });
+      if (u.startsWith("chapter")) return i18n.tn(c, "{n} chapter", "{n} chapters", { n });
+      return i18n.tn(c, "{n} volume", "{n} volumes", { n });
+    });
+  }
+
   const api = {
+    lengthText,
     bind, weekStart, dateFormat, cleanWeekStart, cleanFormat,
     weekOrder, weekPos, startOfWeek, workDays, weekendDays,
     day, dayMonth, range, dateTime, parts,
