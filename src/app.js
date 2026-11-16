@@ -2546,7 +2546,7 @@
       const unit = m && LENGTH_UNITS[m[2].toLowerCase()];
       if (unit === "Playtime") return [LENGTH_NAMES[unit], i18n.t("{hours} h", { hours: m[1] })];
       if (unit) return [LENGTH_NAMES[unit], m[1]];
-      return [/^\d+h( \d+m)?$|^\d+m$/.test(part.trim()) ? i18n.t("Runtime") : i18n.t("Length"), part.trim()];
+      return [/^\d+h( \d+m)?$|^\d+m$/.test(part.trim()) ? i18n.t("Runtime") : i18n.t("Length"), Dates.lengthText(part.trim())];
     });
   }
   // On a cover the scores are pills in the top-left corner, opposite the
@@ -4792,7 +4792,7 @@
       const tight = !isMobileLayout() && corner.getBoundingClientRect().right > edge + 0.5;
       topbar.classList.toggle("is-tight", tight);
       for (const t of document.querySelectorAll("#viewTabs .tab")) {
-        if (tight) t.title = [...t.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+        if (tight) t.title = tabText(t);
         else t.removeAttribute("title");
       }
     };
@@ -6389,9 +6389,11 @@
   });
   // A tab's label as the bar has it: its own text, not the mode dots or
   // search badge drawn into it.
+  // Its data-t span, beside the icon (a function, so fitTopbar can use it before this line runs).
+  function tabText(t) { return ((t.querySelector("[data-t]") || t).textContent || "").trim(); }
   const tabLabel = (v) => {
     const t = document.querySelector('#viewTabs .tab[data-view="' + v + '"]');
-    return t ? [...t.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim() : v;
+    return t ? tabText(t) : v;
   };
   SettingsUI.init({
     // The tab/mode list Settings draws its switches from, asked for each time

@@ -117,7 +117,7 @@
     if (year) parts.push(String(year));
     else if (isUnreleased(item)) parts.push(i18n.t("TBA"));
     // Non-breaking, so "30 h" can't leave its unit on the next line.
-    if (item.length) parts.push(String(item.length).replace(/ /g, "\u00a0"));
+    if (item.length) parts.push(Dates().lengthText(item.length).replace(/ /g, "\u00a0"));
     // Owning it doesn't just hide the price, it takes the price's place:
     // what a shop is charging today is a number about a purchase you've
     // already made, and "Bought" is what you actually wanted that slot to
@@ -2992,7 +2992,7 @@
     const hltb = item.hltb || {};
     const timed = HLTB_SHORT.filter(([k]) => hltb[k] > 0);
     if (timed.length) for (const [k, label] of timed) add(label, window.LifeLogMedia.gameHours(hltb[k]));
-    else add(i18n.t("Length"), item.length);
+    else add(i18n.t("Length"), Dates().lengthText(item.length));
     const box = el("div", "tile-info");
     box.setAttribute("aria-hidden", "true");
     for (const [label, value] of rows) box.appendChild(tileInfoRow(label, document.createTextNode(value)));
