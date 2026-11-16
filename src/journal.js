@@ -668,7 +668,7 @@
     const bigRow = el("div", "stat-big");
     bigRow.appendChild(statItem(entries.length, i18n.t("entries")));
     bigRow.appendChild(statItem(entries.filter((e) => e.year === thisYear).length, i18n.t("in {year}", { year: String(thisYear) })));
-    bigRow.appendChild(statItem(ys.length, "years"));
+    bigRow.appendChild(statItem(ys.length, i18n.tn(ys.length, "year", "years", { _: "stat" }), "years"));
     bigRow.appendChild(statItem(new Set(entries.map((e) => e.category)).size, i18n.t("categories")));
     bigRow.appendChild(statItem(entries.filter((e) => e.backlogAddedAt).length, i18n.t("completed from backlog")));
     big.appendChild(el("h2", null, i18n.t("Overview")));

@@ -246,14 +246,17 @@
     const y = days / 365.25;
     return i18n.t("{n} years", { n: String(Math.round(y * 10) / 10) });
   }
-  const pct = (v) => (v == null ? "" : (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(Math.abs(v) < 0.01 ? 2 : 1) + "%");
+  // A sign in front of a number in Hebrew text moves to its other end
+  // without an isolate around the number.
+  const ltr = (s) => (s && i18n.dir === "rtl" ? "\u2066" + s + "\u2069" : s);
+  const pct = (v) => (v == null ? "" : ltr((v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(Math.abs(v) < 0.01 ? 2 : 1) + "%"));
   function usd(v) {
     if (v == null || !isFinite(v)) return "";
     const digits = Math.abs(v) < 1 ? 4 : 2;
     return (v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString(numLocale(), { minimumFractionDigits: 2, maximumFractionDigits: digits });
   }
   // A difference, to the cent.
-  const signedUsd = (v) => (v == null ? "" : (v >= 0 ? "+" : "") + usd(Math.round(v * 100) / 100));
+  const signedUsd = (v) => (v == null ? "" : ltr((v >= 0 ? "+" : "") + usd(Math.round(v * 100) / 100)));
 
   // Tiingo's daily rows → [[day, close]]. The adjusted close, so a split
   // doesn't draw as a crash and a dividend counts as part of the return.

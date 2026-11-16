@@ -115,7 +115,7 @@
     // shows the year that date states.
     const year = yearOf(item);
     if (year) parts.push(String(year));
-    else if (isUnreleased(item)) parts.push("TBA");
+    else if (isUnreleased(item)) parts.push(i18n.t("TBA"));
     // Non-breaking, so "30 h" can't leave its unit on the next line.
     if (item.length) parts.push(String(item.length).replace(/ /g, "\u00a0"));
     // Owning it doesn't just hide the price, it takes the price's place:
@@ -130,7 +130,9 @@
     const saved = savedCount(item);
     if (parts.length || hasSteamPrice || (item.bought && !(opts && opts.quietBought)) || item.earlyAccess || airing || saved) {
       const metaLine = el("span", "bl-meta");
-      if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
+      // Each part isolated in Hebrew, so "60 hrs" and "★ 88" keep their order.
+      const iso = (p) => (i18n.dir === "rtl" ? "\u2068" + p + "\u2069" : p);
+      if (parts.length) metaLine.appendChild(document.createTextNode(parts.map(iso).join(" · ")));
       const sep = () => (metaLine.childNodes.length ? " · " : "");
       // Out and playable but not finished — a state neither the year nor TBA
       // can express, so it's marked rather than folded into the plain run.
@@ -2625,7 +2627,7 @@
     // phone (the name is what shrinks — see .backlog-section-name). The row
     // badge below says "Early Access" in full, and it reads unambiguously
     // among the others.
-    const asides = [[ea, unfinishedLabel(unfinished, true)], [pending, "unreleased"], [dropped, "dropped"]].filter(([n]) => n);
+    const asides = [ea && i18n.t("+{n} {what}", { n: ea, what: unfinishedLabel(unfinished, true) }), pending && i18n.t("+{n} unreleased", { n: pending }), dropped && i18n.t("+{n} dropped", { n: dropped })].filter(Boolean);
     // Nothing set aside, or a single aside that accounts for the whole
     // category: either way the split would be one number and a parenthesis
     // saying the same thing twice.
@@ -2633,7 +2635,7 @@
     if (!rest && asides.length === 1) return span;
     span.textContent = String(rest);
     span.appendChild(el("span", "bl-count-pending",
-      "(" + asides.map(([n, label]) => "+" + n + " " + label).join(", ") + ")"));
+      "(" + asides.join(", ") + ")"));
     return span;
   }
 

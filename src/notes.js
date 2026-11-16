@@ -698,7 +698,7 @@
     const del = el("button", "todo-del");
     del.appendChild(ico("x"));
     del.type = "button";
-    del.title = "Delete";
+    del.title = i18n.t("Delete");
     del.setAttribute("aria-label", i18n.t("Delete: {title}", { title: it.text }));
     del.onclick = () => deleteItem(n.id, it.id);
     row.appendChild(del);

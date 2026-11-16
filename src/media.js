@@ -1265,7 +1265,7 @@
     if (!res.ok || !body || !body.access_token) {
       saveIgdbToken(null);
       const said = body && (body.message || body.error);
-      const err = new Error("Twitch refused the IGDB client ID or secret (HTTP " + res.status + (said ? ": " + String(said).slice(0, 120) : "") + ")");
+      const err = new Error(i18n.t("Twitch refused the IGDB client ID or secret (HTTP {status})", { status: res.status + (said ? ": " + String(said).slice(0, 120) : "") }));
       err.status = res.status;
       throw err;
     }

@@ -564,7 +564,7 @@
       const restore = btns.appendChild(el("button", "btn btn-small", i18n.t("Restore")));
       restore.type = "button";
       restore.onclick = () => restoreDrive(f);
-      const del = btns.appendChild(el("button", "btn btn-small", "Delete"));
+      const del = btns.appendChild(el("button", "btn btn-small", i18n.t("Delete")));
       del.type = "button";
       del.setAttribute("aria-label", i18n.t("Delete the backup from {when}", { when: window.LifeLogDates.dateTime(f.at) }));
       del.onclick = () => deleteDrive(f);
@@ -1975,6 +1975,14 @@
     $("#weekStart").onchange = onDateSettingChange;
     $("#dateFormat").onchange = onDateSettingChange;
     $("#forceLayout").onchange = onForceLayoutChange;
+    const langSel = $("#langSelect");
+    [{ code: "", name: i18n.t("System") }, ...i18n.list()].forEach((l) => {
+      const o = langSel.appendChild(el("option", null, l.name));
+      o.value = l.code;
+      if (l.code) o.lang = l.code;
+    });
+    langSel.value = i18n.choice || "";
+    langSel.onchange = () => { if (i18n.set(langSel.value)) location.reload(); };
     $("#motionSwitch").onchange = onMotionChange;
     $("#timelineLayout").onchange = onLayoutChange;
     $("#backlogLayout").onchange = onLayoutChange;
