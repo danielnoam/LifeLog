@@ -1002,8 +1002,8 @@
 
   // ---------- entry modal ----------
   // `preset` seeds an entry that is being created from somewhere else in the
-  // app: { year, month } from a month card's "+", plus optionally { title,
-  // notes } when a note is being turned into an entry. It is ignored while
+  // app: { year, month } from a month card's "+", plus { day, title, notes }
+  // when a note is being turned into an entry. It is ignored while
   // editing, where the entry itself is the source of truth.
   // One date picker per date (0.281.0), in place of a year box and a month
   // list each. The entry is still filed by year and month; the day is kept
@@ -1039,7 +1039,14 @@
         : (state.data.categories[0] && state.data.categories[0].name));
     const now = new Date();
     if (editing) setDateField($("#fDate"), ymd(entry.year, entry.month, entry.day), !!entry.day);
-    else if (preset && preset.year) setDateField($("#fDate"), ymd(preset.year, preset.month), false);
+    // A month card's "+" in this month lands on today, the day you most
+    // likely finished it; in another month it stays month-only (its face
+    // says "no day") until you pick one.
+    else if (preset && preset.year) {
+      const thisMonth = preset.year === now.getFullYear() && preset.month === now.getMonth() + 1;
+      const day = preset.day || (thisMonth ? now.getDate() : 0);
+      setDateField($("#fDate"), ymd(preset.year, preset.month, day), !!day);
+    }
     else setDateField($("#fDate"), ymd(now.getFullYear(), now.getMonth() + 1, now.getDate()), true);
     // Started is optional: empty is a single month. Finishing something that
     // was In progress (0.218.0) starts on the day you started it.
