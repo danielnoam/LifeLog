@@ -3,6 +3,19 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.319.0] - 2026-11-16
+
+### Added
+- LifeLog in Hebrew. Settings → Appearance → Language picks English, עברית or the device's language (System), on each device. The whole app turns right to left, in gender-neutral Hebrew; your own titles, names and default categories stay as you typed them, and lengths like "35 hrs" read "35 ש׳" while staying English in your data.
+- The Tasks widget's list headings are tasks too, as the list's card in the app: each has its own tick in its priority's colour (ticking it ticks the whole list), the list's name, and its day and whether it repeats under it. The + still adds to that list.
+- Quick add's Task tab has a "+" after your lists: type a name and Make list, and the new list is picked for the items you add next. With no lists yet, the tab opens on it.
+
+### Changed
+- In right-to-left text, an English title that's cut short now loses its end, not its start, and signed numbers like +2.5% keep their sign in front.
+- A list of three or more things now reads "A, B, and C".
+- Groundwork for Hebrew and other right-to-left languages, with nothing to see in English yet: the layout uses start and end instead of left and right, swipes, drags and arrow keys follow the screen's direction, direction icons and the mode slide flip, and month names, money and numbers can follow the chosen language.
+- The Tasks widget's rows no longer count subtasks, since rows don't have any now.
+
 ## [0.318.0] - 2026-11-15
 
 ### Added
