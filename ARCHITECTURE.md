@@ -32,6 +32,7 @@ src/jobs.js         Activity: the work that takes a while
 src/share.js        what other apps share into LifeLog
 src/storage.js      persistence: GitHub, local file, IndexedDB
 src/drive.js        Google Drive backups: keel's drive.js set up for LifeLog
+src/gcal.js         Google Calendar's events, read only, kept on the device
 src/merge.js        the three-way merge between devices
 src/reconcile.js    keyed list updates in place
 src/settings.js     the Settings sheet

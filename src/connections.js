@@ -152,6 +152,10 @@
       const c = st.steam || {};
       return { text: c.steamId ? i18n.t("Wishlist, played games, game times") : i18n.t("Not set up") };
     }
+    if (k === "gcal") {
+      const G = typeof window === "object" && window.LifeLogGcal;
+      return { text: G && G.on ? (G.email ? G.email + " · " : "") + i18n.t("read only") : i18n.t("Not connected") };
+    }
     if (k === "letterboxd") return { text: i18n.t("Diary and watchlist from an export") };
     if (k === "payments") {
       const sel = document.getElementById("paymentsOn");

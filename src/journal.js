@@ -38,6 +38,9 @@
       DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus } = ctx);
     const CM = window.LifeLogContextMenu;
     if (CM) CM.register("entry", entryMenu);
+    // Google Calendar's events arrive after the calendar is drawn.
+    const G = window.LifeLogGcal;
+    if (G) G.onChange(() => { if (state.view === "timeline" && state.visual.timelineLayout === "calendar") render(); });
   }
 
   // Right-click on a timeline row (see app.js, contextMenu): the sheet's
@@ -252,6 +255,10 @@
     const rel = B && state.visual.calendarReleases !== "hide"
       ? B.calendarReleases(state.data.backlog.filter((b) => !cats.size || cats.has(b.category)), y, m)
       : { byDay: new Map(), rough: [] };
+    // Google Calendar's events (0.320.0), read only, kept on this device.
+    const G = window.LifeLogGcal;
+    const evs = G && G.on ? G.eventsFor(y, m) : new Map();
+    if (G && G.on) G.ensure(y, m);
     const now = new Date();
     const today = now.getFullYear() === y && now.getMonth() + 1 === m ? now.getDate() : 0;
     if (!calDay || calDay > days) calDay = today && byDay.has(today) ? today : (Math.max(0, ...byDay.keys()) || today || 1);
@@ -287,7 +294,9 @@
       cell.setAttribute("aria-pressed", String(d === calDay));
       const due = tasksByDay.get(d) || [];
       const outs = rel.byDay.get(d) || [];
+      const gev = evs.get(d) || [];
       cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + i18n.t("{n} finished", { n: list.length }) : "")
+        + (gev.length ? ", " + i18n.tn(gev.length, "{n} event", "{n} events") : "")
         + (outs.length ? ", " + i18n.tn(outs.length, "{n} release", "{n} releases") : "")
         + (due.length ? ", " + i18n.tn(due.length, "{n} task", "{n} tasks") : ""));
       cell.dataset.day = d;
@@ -314,10 +323,11 @@
       // The desktop's cells are wide enough for names (finished entries,
       // then open tasks with a ring for a dot); the phone's show the cover
       // alone and a ring in the corner for tasks (styles.css picks one).
-      if (list.length || due.length || outs.length) {
+      if (list.length || due.length || outs.length || gev.length) {
         const names = el("div", "cal-names");
-        const lines = [...list.map((e) => ["entry", e]), ...outs.map((r) => ["release", r]), ...due.map((r) => ["task", r])];
+        const lines = [...list.map((e) => ["entry", e]), ...gev.map((ev) => ["event", ev]), ...outs.map((r) => ["release", r]), ...due.map((r) => ["task", r])];
         for (const [kind, x] of lines.slice(0, 3)) {
+          if (kind === "event") { names.appendChild(eventLine(x, G)); continue; }
           const text = kind === "task" ? x.item.text : kind === "release" ? releaseName(x) : x.title;
           const n = el("span", "cal-name" + (kind === "task" ? " is-task" : kind === "release" ? " is-release" : ""), text);
           const dot = el("span", kind === "task" ? "cal-ring" + (x.item.priority ? " is-p" + x.item.priority : "") : "dot");
@@ -330,6 +340,17 @@
         cell.appendChild(names);
       }
       cell.appendChild(el("span", "cal-n", String(d)));
+      // A phone's cell is a cover: a bar along its foot for each event.
+      if (gev.length) {
+        const bars = el("span", "cal-evbars");
+        bars.setAttribute("aria-hidden", "true");
+        for (const ev of gev.slice(0, 3)) {
+          const bar = bars.appendChild(el("span", "cal-evbar"));
+          const c = G.colorOf(ev.cal);
+          if (c) bar.style.setProperty("--ev", c);
+        }
+        cell.appendChild(bars);
+      }
       if (due.length) {
         const top = Math.min(...due.map((r) => r.item.priority || 4));
         const mark = el("span", "cal-task" + (top < 4 ? " is-p" + top : ""), due.length > 1 ? String(due.length) : "");
@@ -348,6 +369,28 @@
     if (picked.length) for (const e of picked) dayCard.appendChild(calRow(e));
     else dayCard.appendChild(el("p", "cal-empty", i18n.t("Nothing finished this day")));
     side.appendChild(dayCard);
+    const evOn = evs.get(calDay) || [];
+    if (G && G.on && (evOn.length || G.needsTap || G.error)) {
+      const box = el("div", "month-card cal-gcal");
+      const h = box.appendChild(el("h3", "cal-gcal-head"));
+      h.appendChild(el("span", null, i18n.t("Google Calendar") + (evOn.length ? " · " + evOn.length : "")));
+      if (G.at) h.appendChild(el("span", "cal-gcal-at", i18n.t("synced {when}", { when: D.dateTime(G.at) })));
+      for (const ev of evOn) box.appendChild(eventRow(ev, G));
+      if (!evOn.length) box.appendChild(el("p", "cal-empty", i18n.t("No events this day")));
+      if (G.needsTap || G.error) {
+        const b = box.appendChild(el("button", "btn btn-sm cal-gcal-sync"));
+        b.type = "button";
+        b.appendChild(ico("refresh-cw"));
+        b.appendChild(document.createTextNode(" " + i18n.t("Sync now")));
+        if (G.error) box.appendChild(el("p", "cal-empty", G.error.message));
+        b.onclick = async () => {
+          b.disabled = true;
+          try { await G.sync(y, m, true); G.clearError(); } catch (e) { toast(e.message || i18n.t("Google Calendar didn't answer. Try again."), true); }
+          render();
+        };
+      }
+      side.appendChild(box);
+    }
     const outOn = rel.byDay.get(calDay) || [];
     if (outOn.length) {
       const box = el("div", "month-card cal-releases");
@@ -384,6 +427,79 @@
     body.append(el("div", "cal-main"), side);
     body.firstChild.append(head, grid);
     root.replaceChildren(body);
+  }
+
+  // An event's line in a desktop cell: the time, then the title; an
+  // all-day one is a solid bar. Tinted with its calendar's colour.
+  function eventLine(ev, G) {
+    const n = el("span", "cal-name is-event" + (ev.allDay ? " is-allday" : ""));
+    const c = G.colorOf(ev.cal);
+    if (c) n.style.setProperty("--ev", c);
+    if (!ev.allDay) n.appendChild(el("span", "cal-time", ev.time));
+    n.appendChild(el("span", "cal-ev-title", ev.title));
+    n.title = ev.title;
+    return n;
+  }
+  // An event's row in the picked day's card, opening its sheet.
+  function eventRow(ev, G) {
+    const row = el("button", "cal-ev-row");
+    row.type = "button";
+    const c = G.colorOf(ev.cal);
+    if (c) row.style.setProperty("--ev", c);
+    row.appendChild(el("span", "cal-ev-time", ev.allDay ? i18n.t("All day") : ev.time));
+    row.appendChild(el("span", "cal-ev-name", ev.title));
+    row.onclick = () => openEventSheet(ev);
+    return row;
+  }
+
+  // ---------- a Google Calendar event (0.320.0) ----------
+  // Read only. Each way to copy it opens LifeLog's own sheet filled in, so
+  // nothing is saved until you save it there.
+  let sheetEvent = null;
+  function openEventSheet(ev) {
+    const G = window.LifeLogGcal;
+    sheetEvent = ev;
+    const text = G.plainText(ev.text);
+    $("#gcalEventTitle").textContent = ev.title;
+    $("#gcalEventFrom").textContent = i18n.t("From Google Calendar") + (G.calName(ev.cal) ? " · " + G.calName(ev.cal) : "");
+    $("#gcalEventWhen").textContent = G.whenText(ev, Dates());
+    $("#gcalEventPlace").hidden = !ev.place;
+    $("#gcalEventPlace").textContent = ev.place;
+    $("#gcalEventText").hidden = !text;
+    $("#gcalEventText").textContent = text;
+    $("#gcalOpen").hidden = !/^https:\/\/(www\.)?google\.com\/calendar\//.test(ev.link);
+    $("#gcalEventModal").hidden = false;
+  }
+  function closeEventSheet() { $("#gcalEventModal").hidden = true; }
+  function eventDetails(ev) {
+    const G = window.LifeLogGcal;
+    return [G.whenText(ev, Dates()), ev.place, G.plainText(ev.text)].filter(Boolean).join("\n");
+  }
+  function wireEventSheet() {
+    if (!$("#gcalEventModal")) return;
+    $("#closeGcalEventBtn").onclick = closeEventSheet;
+    $("#gcalToEntry").onclick = () => {
+      const ev = sheetEvent; closeEventSheet();
+      const [y, m, d] = ev.start.split("-").map(Number);
+      openEntryModal(null, null, { title: ev.title, year: y, month: m, day: d, notes: window.LifeLogGcal.plainText(ev.text) });
+    };
+    $("#gcalToTask").onclick = () => {
+      const ev = sheetEvent; closeEventSheet();
+      const head = { date: ev.start };
+      if (!ev.allDay) head.time = ev.time;
+      const note = [ev.place, window.LifeLogGcal.plainText(ev.text)].filter(Boolean).join("\n");
+      if (note) head.note = note;
+      window.LifeLogNotes.openNoteModal(null, "list", { preset: { title: ev.title, head } });
+    };
+    $("#gcalToNote").onclick = () => {
+      const ev = sheetEvent; closeEventSheet();
+      window.LifeLogNotes.openNoteModal(null, "text", { preset: { title: ev.title, text: eventDetails(ev) } });
+    };
+    $("#gcalOpen").onclick = () => {
+      const ev = sheetEvent;
+      const P = window.LifeLogPlatform;
+      if (P && P.openOutside) P.openOutside(ev.link); else window.open(ev.link, "_blank", "noopener");
+    };
   }
 
   // A release's line in a day: the title, and for a show the episode.
@@ -1080,7 +1196,7 @@
         : (state.data.categories[0] && state.data.categories[0].name));
     const now = new Date();
     if (editing) setDateField($("#fDate"), ymd(entry.year, entry.month, entry.day), !!entry.day);
-    else if (preset && preset.year) setDateField($("#fDate"), ymd(preset.year, preset.month), false);
+    else if (preset && preset.year) setDateField($("#fDate"), ymd(preset.year, preset.month, preset.day), !!preset.day);
     else setDateField($("#fDate"), ymd(now.getFullYear(), now.getMonth() + 1, now.getDate()), true);
     // Started is optional: empty is a single month. Finishing something that
     // was In progress (0.218.0) starts on the day you started it.
@@ -2227,6 +2343,7 @@
   // Entry/achievement/category modal DOM wiring; called from app.js's wire().
   function wire() {
     wireCategorySelect("#fCategory", "#entryModal", false);
+    wireEventSheet();
 
     $("#cancelEntryBtn").onclick = closeEntryModal;
     $("#entryForm").onsubmit = saveEntryFromForm;
@@ -2279,6 +2396,7 @@
     sanitizeGameInfo,
     init,
     wire,
+    closeEventSheet, // Escape (app.js)
     // views (dispatched from app.js's render())
     renderTimeline,
     renderStats,

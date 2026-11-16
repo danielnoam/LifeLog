@@ -163,6 +163,16 @@ in No day set. The calendar also shows what the backlog has coming out:
 releases and next episodes on their day in a dashed frame, and the ones
 known only to the month under the grid (View → Releases on the calendar).
 
+Connect **Google Calendar** in Settings → Connections and your events show
+on the same calendar, read only: a line with the time on a computer, a bar
+under the day on a phone. Tap one to copy it into LifeLog as an entry, a
+task or a note (each opens its own sheet filled in), or to open it in
+Google Calendar. Pick which of your calendars show. The events stay on the
+device and aren't synced, so each device connects on its own; in a browser
+the sign-in lasts an hour, then Sync now fetches again. Google asks only
+for reading the calendar list and events, and shows a "hasn't verified this
+app" page first (Advanced, then go on).
+
 <table><tr>
 <td><img src="docs/screenshots/timeline-calendar-desktop.webp" alt="The Timeline's calendar on a computer" width="620"></td>
 <td><img src="docs/screenshots/timeline-calendar-phone.webp" alt="The Timeline's calendar on a phone" width="200"></td>

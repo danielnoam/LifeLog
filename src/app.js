@@ -5235,7 +5235,7 @@
           return;
         }
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
-        Backlog.closePickModal(); Backlog.closeOutTodaySheet();
+        Backlog.closePickModal(); Backlog.closeOutTodaySheet(); Journal.closeEventSheet();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         // A note, read or written, shuts the way its × does (phone Back too),
