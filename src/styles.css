@@ -2273,6 +2273,11 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
 .cal-ring.is-p2, .cal-task.is-p2 { border-color: var(--warning); }
 .cal-ring.is-p3, .cal-task.is-p3 { border-color: var(--accent); }
 .cal-name.is-task { color: var(--text-dim); }
+/* Backlog releases on their day (0.320.0): a dashed line in the category's
+   colour on the desktop, a dashed frame round the cell on a phone, where a
+   day with nothing finished shows the release's cover faded. */
+.cal-name.is-release { border: 1px dashed var(--rel); border-radius: var(--r-sm); padding: 0 var(--space-4); }
+.cal-release-row { cursor: pointer; }
 .cal-task {
   display: none; position: absolute; top: var(--space-2); inset-inline-end: var(--space-2); z-index: 1;
   min-width: 14px; height: 14px; padding: 0 var(--space-2); border-radius: var(--r-pill);
@@ -2288,6 +2293,8 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
   html:not(.force-pc) .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
   html:not(.force-pc) .cal-names { display: none; }
   html:not(.force-pc) .cal-task { display: block; }
+  html:not(.force-pc) .cal-day.has-release { outline: 2px dashed var(--rel); outline-offset: -2px; }
+  html:not(.force-pc) .cal-day .cal-cover.is-release { opacity: 0.5; }
   html:not(.force-pc) .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
   html:not(.force-pc) .cal-day .cal-cover.cover-empty { display: flex; }
   html:not(.force-pc) .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
@@ -2302,6 +2309,8 @@ html.force-mobile .cal-main { padding: var(--space-10); }
 html.force-mobile .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
 html.force-mobile .cal-names { display: none; }
 html.force-mobile .cal-task { display: block; }
+html.force-mobile .cal-day.has-release { outline: 2px dashed var(--rel); outline-offset: -2px; }
+html.force-mobile .cal-day .cal-cover.is-release { opacity: 0.5; }
 html.force-mobile .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
 html.force-mobile .cal-day .cal-cover.cover-empty { display: flex; }
 html.force-mobile .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }

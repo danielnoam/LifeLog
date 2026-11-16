@@ -159,7 +159,9 @@ Open on it to go to its card instead of adding it twice.
 
 View → Layout draws the Log as cover art, or as a calendar of the days you
 finished things. A picked day lists its entries; entries without a day wait
-in No day set.
+in No day set. The calendar also shows what the backlog has coming out:
+releases and next episodes on their day in a dashed frame, and the ones
+known only to the month under the grid (View → Releases on the calendar).
 
 <table><tr>
 <td><img src="docs/screenshots/timeline-calendar-desktop.webp" alt="The Timeline's calendar on a computer" width="620"></td>

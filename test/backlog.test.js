@@ -586,6 +586,27 @@ test("airingLabel says how far it has run", () => {
   assert.strictEqual(stillAiring({ airing: "between" }), false);
 });
 
+test("the calendar puts releases on their day and rough months aside (0.320.0)", () => {
+  const { calendarReleases } = Backlog;
+  const y = new Date().getFullYear() + 1;
+  const items = [
+    { id: "a", title: "Game", category: "Games", releaseDate: y + "-03-14", releasePrecision: "day" },
+    { id: "b", title: "Show", category: "Shows", releaseDate: "2020-01-01", releasePrecision: "day", nextAt: y + "-03-20", nextLabel: "Episode 6" },
+    { id: "c", title: "Book", category: "Books", releaseDate: y + "-03", releasePrecision: "month" },
+    { id: "d", title: "Quarter", category: "Games", releaseDate: y + "-01", releasePrecision: "quarter" },
+    { id: "e", title: "Year", category: "Games", releaseDate: String(y), releasePrecision: "year" },
+    { id: "f", title: "Dropped", category: "Games", releaseDate: y + "-03-02", releasePrecision: "day", dropped: true },
+    { id: "g", title: "Same day", category: "Shows", releaseDate: y + "-03-14", releasePrecision: "day", nextAt: y + "-03-14" },
+  ];
+  const r = calendarReleases(items, y, 3);
+  assert.deepStrictEqual([...r.byDay.keys()].sort((a, b) => a - b), [14, 20]);
+  assert.deepStrictEqual(r.byDay.get(14).map((x) => x.b.id + ":" + x.kind), ["a:release", "g:episode"]);
+  assert.deepStrictEqual(r.byDay.get(20).map((x) => x.kind), ["episode"]);
+  assert.deepStrictEqual(r.rough.map((b) => b.id), ["c", "d"]);
+  assert.deepStrictEqual(calendarReleases(items, y, 4).rough.map((b) => b.id), []);
+  assert.strictEqual(calendarReleases(items, y, 4).byDay.size, 0);
+});
+
 test("a cover tile asks for the bigger art where the source has one", () => {
   const { tileCoverUrl } = Backlog;
   assert.strictEqual(tileCoverUrl("https://cdn.akamai.steamstatic.com/steam/apps/620/header.jpg"),

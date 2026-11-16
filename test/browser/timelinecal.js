@@ -13,7 +13,11 @@ const SEED = {
     { id: "d", title: "No Day Book", category: "Books", year: 2025, month: 3, createdAt: "2025-03-02T00:00:00.000Z" },
     { id: "e", title: "February Game", category: "Games", year: 2025, month: 2, day: 14, createdAt: "2025-02-14T00:00:00.000Z" },
   ],
-  backlog: [], notes: [], todos: [], financeEntries: [], recurringExpenses: [],
+  backlog: [
+    { id: "r1", title: "March Release", category: "Games", releaseDate: "2025-03-28", releasePrecision: "day" },
+    { id: "r2", title: "Some Show", category: "Books", nextAt: "2025-03-12", nextLabel: "Episode 6" },
+    { id: "r3", title: "Rough Book", category: "Books", releaseDate: "2025-03", releasePrecision: "month", releaseStatus: "upcoming" },
+  ], notes: [], todos: [], financeEntries: [], recurringExpenses: [],
   projects: [], todoCategories: [], financeCategories: [], settings: {},
 };
 
@@ -60,6 +64,24 @@ const SEED = {
   await page.setViewportSize({ width: 1280, height: 900 }); await page.waitForTimeout(400);
   check("a desktop cell names its entries", (await page.textContent('.cal-day[data-day="9"] .cal-names')).includes("Same Day Book"));
   if (shots) await page.screenshot({ path: shots + "/cal-desktop.png" });
+
+  // Backlog releases (0.320.0).
+  check("a release sits on its day as a dashed line", (await page.textContent('.cal-day[data-day="28"] .cal-name.is-release')) === "March Release");
+  check("a show's next episode says which", (await page.textContent('.cal-day[data-day="12"] .cal-name.is-release')) === "Some Show · Episode 6");
+  await page.click('.cal-day[data-day="28"]'); await page.waitForTimeout(300);
+  check("the picked day lists its releases", (await page.textContent(".cal-releases:not(.cal-rough) h3")) === "Releases · 1");
+  check("a month-only release waits under the grid", (await page.textContent(".cal-rough")).includes("Rough Book"));
+  await page.click('.cal-releases:not(.cal-rough) .cal-release-row'); await page.waitForTimeout(400);
+  check("and a release opens its backlog sheet", !(await page.isHidden("#backlogModal")));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 400, height: 900 }); await page.waitForTimeout(400);
+  check("on a phone a day with only a release shows its faded cover in a dashed frame",
+    !!(await page.$('.cal-day[data-day="12"].has-release .cal-cover.is-release')) &&
+    (await page.evaluate(() => getComputedStyle(document.querySelector('.cal-day[data-day="12"]')).outlineStyle)) === "dashed");
+  await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
+  await page.selectOption("#calendarReleases", "hide"); await page.waitForTimeout(300);
+  await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(400);
+  check("View → Releases on the calendar → Hide takes them off", !(await page.$(".cal-day.has-release")) && !(await page.$(".cal-rough")));
 
   check("no console errors", errs.length === 0, errs);
   await b.close();

@@ -1090,6 +1090,7 @@
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#currency").value = state.data.settings.currency;
     $("#timelineLayout").value = state.visual.timelineLayout || "list";
+    $("#calendarReleases").value = state.visual.calendarReleases || "show";
     $("#backlogLayout").value = state.visual.backlogLayout || "list";
     $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
     $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
@@ -1686,6 +1687,7 @@
   // List or Covers (0.290.0): per device, like the cover size.
   function onLayoutChange() {
     state.visual.timelineLayout = $("#timelineLayout").value;
+    state.visual.calendarReleases = $("#calendarReleases").value;
     state.visual.backlogLayout = $("#backlogLayout").value;
     saveVisualSettings(state.visual);
     render();
@@ -1985,6 +1987,7 @@
     langSel.onchange = () => { if (i18n.set(langSel.value)) location.reload(); };
     $("#motionSwitch").onchange = onMotionChange;
     $("#timelineLayout").onchange = onLayoutChange;
+    $("#calendarReleases").onchange = onLayoutChange;
     $("#backlogLayout").onchange = onLayoutChange;
     $("#timelineCoverSize").onchange = onTimelineCoverSizeChange;
     $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;

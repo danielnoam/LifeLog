@@ -245,6 +245,13 @@
       if (!tasksByDay.has(d)) tasksByDay.set(d, []);
       tasksByDay.get(d).push(r);
     }
+    // What the backlog has coming out (0.320.0), under the same category
+    // chips as the entries; View → Releases turns it off.
+    const B = window.LifeLogBacklog;
+    const cats = state.activeCats;
+    const rel = B && state.visual.calendarReleases !== "hide"
+      ? B.calendarReleases(state.data.backlog.filter((b) => !cats.size || cats.has(b.category)), y, m)
+      : { byDay: new Map(), rough: [] };
     const now = new Date();
     const today = now.getFullYear() === y && now.getMonth() + 1 === m ? now.getDate() : 0;
     if (!calDay || calDay > days) calDay = today && byDay.has(today) ? today : (Math.max(0, ...byDay.keys()) || today || 1);
@@ -279,7 +286,9 @@
       cell.classList.toggle("has-entries", list.length > 0);
       cell.setAttribute("aria-pressed", String(d === calDay));
       const due = tasksByDay.get(d) || [];
+      const outs = rel.byDay.get(d) || [];
       cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + i18n.t("{n} finished", { n: list.length }) : "")
+        + (outs.length ? ", " + i18n.tn(outs.length, "{n} release", "{n} releases") : "")
         + (due.length ? ", " + i18n.tn(due.length, "{n} task", "{n} tasks") : ""));
       cell.dataset.day = d;
       if (list.length) {
@@ -290,16 +299,30 @@
           : emptyCoverEl("cal-cover cover-empty", first.category));
         if (list.length > 1) cell.appendChild(el("span", "cal-more", "+" + (list.length - 1)));
       }
+      // A release gets a dashed frame in its category's colour; on a phone,
+      // where the cell is a cover, a day with nothing finished shows the
+      // release's own cover, faded, since it isn't done.
+      if (outs.length) {
+        cell.classList.add("has-release");
+        cell.style.setProperty("--rel", colorOf(outs[0].b.category));
+        if (!list.length) {
+          const b = outs[0].b;
+          cell.classList.toggle("has-cover", !!b.coverUrl);
+          cell.appendChild(b.coverUrl ? coverEl(b.coverUrl, "", "cal-cover is-release", b.category) : emptyCoverEl("cal-cover cover-empty is-release", b.category));
+        }
+      }
       // The desktop's cells are wide enough for names (finished entries,
       // then open tasks with a ring for a dot); the phone's show the cover
       // alone and a ring in the corner for tasks (styles.css picks one).
-      if (list.length || due.length) {
+      if (list.length || due.length || outs.length) {
         const names = el("div", "cal-names");
-        const lines = [...list.map((e) => ["entry", e]), ...due.map((r) => ["task", r])];
+        const lines = [...list.map((e) => ["entry", e]), ...outs.map((r) => ["release", r]), ...due.map((r) => ["task", r])];
         for (const [kind, x] of lines.slice(0, 3)) {
-          const n = el("span", "cal-name" + (kind === "task" ? " is-task" : ""), kind === "task" ? x.item.text : x.title);
+          const text = kind === "task" ? x.item.text : kind === "release" ? releaseName(x) : x.title;
+          const n = el("span", "cal-name" + (kind === "task" ? " is-task" : kind === "release" ? " is-release" : ""), text);
           const dot = el("span", kind === "task" ? "cal-ring" + (x.item.priority ? " is-p" + x.item.priority : "") : "dot");
           if (kind === "entry") dot.style.background = colorOf(x.category);
+          if (kind === "release") { dot.style.background = colorOf(x.b.category); n.style.setProperty("--rel", colorOf(x.b.category)); n.title = text; }
           n.prepend(dot);
           names.appendChild(n);
         }
@@ -325,6 +348,13 @@
     if (picked.length) for (const e of picked) dayCard.appendChild(calRow(e));
     else dayCard.appendChild(el("p", "cal-empty", i18n.t("Nothing finished this day")));
     side.appendChild(dayCard);
+    const outOn = rel.byDay.get(calDay) || [];
+    if (outOn.length) {
+      const box = el("div", "month-card cal-releases");
+      box.appendChild(el("h3", null, i18n.t("Releases") + " · " + outOn.length));
+      for (const r of outOn) box.appendChild(B.calendarRow(r.b));
+      side.appendChild(box);
+    }
     const dueOn = tasksByDay.get(calDay) || [];
     if (dueOn.length) {
       const box = el("div", "month-card cal-tasks");
@@ -343,10 +373,22 @@
       side.appendChild(box);
     }
 
+    if (rel.rough.length) {
+      const box = el("div", "month-card cal-releases cal-rough");
+      box.appendChild(el("h3", null, i18n.t("This month, no day yet") + " · " + rel.rough.length));
+      for (const b of rel.rough) box.appendChild(B.calendarRow(b));
+      side.appendChild(box);
+    }
+
     const body = el("div", "cal-body");
     body.append(el("div", "cal-main"), side);
     body.firstChild.append(head, grid);
     root.replaceChildren(body);
+  }
+
+  // A release's line in a day: the title, and for a show the episode.
+  function releaseName(r) {
+    return r.kind === "episode" ? r.b.title + " · " + (r.b.nextLabel || i18n.t("New episode")) : r.b.title;
   }
 
   function calRow(e) {
