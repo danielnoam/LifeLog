@@ -402,15 +402,35 @@ test("the window's expense keeps the category and sub it picked; Auto files it a
 // Tasks (0.317.0): loaded last, so the tests above see the widgets as
 // they work without tasks.js.
 require("../src/tasks.js");
-test("a task row carries its day, time, priority and what else it has; the words stay its own", () => {
+test("a task row carries its day, time, priority and whether it repeats; the words stay its own", () => {
   const d = { notes: [{ id: "L", kind: "list", text: "Trip", createdAt: "2026-01-01", items: [
     { id: "a", text: "Book", date: "2026-09-23", time: "18:00", priority: 1, repeat: { every: 1, unit: "week" } },
-    { id: "b", text: "Pick", parent: "a", done: true }, { id: "c", text: "Pay", parent: "a" }, { id: "d", text: "Plain" }] }] };
+    { id: "d", text: "Plain" }] }] };
   const s = W.snapshotOf(d, { today: TODAY });
   assert.deepStrictEqual(s.todos.map((r) => r.id), ["a", "d"]);
   const a = s.todos[0];
-  assert.deepStrictEqual([a.text, a.date, a.time, a.priority, a.meta], ["Book", "2026-09-23", "18:00", 1, "repeats · 1/2 subtasks"]);
+  assert.deepStrictEqual([a.text, a.date, a.time, a.priority, a.meta], ["Book", "2026-09-23", "18:00", 1, "repeats"]);
   assert.deepStrictEqual(Object.keys(s.todos[1]).sort(), ["category", "color", "done", "id", "list", "text"]);
+});
+test("a list's heading carries the list's own tick, day, priority and repeat (0.318.0)", () => {
+  const d = { notes: [
+    { id: "L", kind: "list", text: "Trip", createdAt: "2026-01-01", date: "2026-09-23", time: "09:00", priority: 2, repeat: { every: 1, unit: "week" }, items: [] },
+    { id: "M", kind: "list", text: "Done list", createdAt: "2026-01-02", done: true, priority: 1, items: [] },
+    { id: "N", kind: "list", text: "Plain", createdAt: "2026-01-03", items: [] }] };
+  const s = W.snapshotOf(d, { today: TODAY });
+  const [l, m, n] = s.lists;
+  assert.deepStrictEqual([l.date, l.time, l.priority, l.meta, !!l.done], ["2026-09-23", "09:00", 2, "repeats", false]);
+  assert.ok(l.dateText);
+  assert.deepStrictEqual([m.done, m.priority], [true, undefined]);
+  assert.deepStrictEqual(Object.keys(n).sort(), ["color", "id", "name"]);
+});
+test("a list made in the quick-add window lands on top, empty, and the items queued after it go in it", () => {
+  const d = { notes: [{ id: "L", kind: "list", text: "Old", items: [] }] };
+  const n = W.applyQueue(d, [{ kind: "list", id: "nl", text: " Groceries ", at: "2026-09-24T08:00:00.000Z" },
+    { kind: "item", id: "i1", list: "nl", text: "Milk" }, { kind: "list", id: "nl", text: "Groceries" }, { kind: "list", id: "x", text: " " }]);
+  assert.strictEqual(n, 2);
+  assert.deepStrictEqual(d.notes.map((x) => x.id), ["nl", "L"]);
+  assert.deepStrictEqual([d.notes[0].kind, d.notes[0].text, d.notes[0].items.map((i) => i.text)], ["list", "Groceries", ["Milk"]]);
 });
 test("Upcoming takes open dated tasks up to a fortnight ahead, overdue first, among the releases", () => {
   const d = { backlog: [{ id: "u", title: "Game", category: "Games", releaseDate: "2026-09-26" }],

@@ -584,6 +584,7 @@ final class WidgetStore {
         Map<String, List<JSONObject>> panels = new LinkedHashMap<>();
         Map<String, String> panelList = new LinkedHashMap<>();
         Map<String, Integer> panelColor = new LinkedHashMap<>();
+        Map<String, JSONObject> panelHead = new LinkedHashMap<>();
         // Every list shown gets its panel, empty ones too: its heading is
         // where you add to it (0.199.0). Older snapshots haven't the lists.
         JSONArray all = snap.optJSONArray("lists");
@@ -593,6 +594,7 @@ final class WidgetStore {
             panels.put(str(l, "name"), new ArrayList<>());
             panelList.put(str(l, "name"), str(l, "id"));
             panelColor.put(str(l, "name"), parseColor(str(l, "color"), 0));
+            panelHead.put(str(l, "name"), l);
         }
         for (int i = 0; i < todos.length() + q.length(); i++) {
             JSONObject t = i < todos.length() ? todos.optJSONObject(i) : queuedItem(q.optJSONObject(i - todos.length()), all);
@@ -620,6 +622,15 @@ final class WidgetStore {
             List<Row> done = new ArrayList<>();
             int color = panelColor.containsKey(cat) ? panelColor.get(cat) : 0;
             int unticked = 0;
+            // The list is a task itself (0.318.0): its heading has its own
+            // tick. Ticked here before the app has run, its rows show ticked
+            // too, as the app will tick them.
+            JSONObject head = panelHead.get(cat);
+            String headId = panelList.get(cat);
+            boolean headSaved = head != null && head.optBoolean("done");
+            int headAt = headId == null ? -1 : queuedAt(q, headId);
+            boolean headDone = headAt >= 0 ? q.optJSONObject(headAt).optBoolean("done") : headSaved;
+            boolean headJustDone = headDone && !headSaved;
             for (JSONObject t : panel.getValue()) {
                 Row r = new Row();
                 r.type = ROW_TODO;
@@ -633,7 +644,8 @@ final class WidgetStore {
                 color = parseColor(str(t, "color"), 0);
                 boolean saved = t.optBoolean("done");
                 int at = queuedAt(q, r.id);
-                r.done = at >= 0 ? q.optJSONObject(at).optBoolean("done") : saved;
+                r.done = at >= 0 ? q.optJSONObject(at).optBoolean("done") : saved || headJustDone;
+                if (headJustDone && !saved && at < 0) at = headAt;
                 if (!r.done) {
                     open.add(r);
                     if (saved) unticked++;
@@ -653,6 +665,14 @@ final class WidgetStore {
                 h.id = panelList.get(cat);
                 h.text = cat.isEmpty() ? "To do" : cat;
                 h.color = color;
+                h.done = headDone;
+                if (head != null && !headDone) {
+                    h.date = str(head, "date");
+                    h.time = str(head, "time");
+                    h.dateText = str(head, "dateText");
+                    h.meta = str(head, "meta");
+                    h.priority = head.optInt("priority");
+                }
                 rows.add(h);
             }
             rows.addAll(open);
@@ -720,7 +740,7 @@ final class WidgetStore {
     static void tickTodo(Context c, String id, Boolean checked) {
         if (id == null) return;
         for (Row r : todoRows(snapshot(c), queue(c))) {
-            if (r.type != ROW_TODO || !r.id.equals(id)) continue;
+            if ((r.type != ROW_TODO && r.type != ROW_HEADER) || !r.id.equals(id)) continue;
             boolean to = checked != null ? checked : !r.done;
             if (to == r.done) return;
             try {
@@ -922,7 +942,7 @@ final class WidgetStore {
             case "backlog": return snap.optJSONArray("entryCats") != null && snap.optJSONArray("entryCats").length() > 0;
             case "expense": return snap.optJSONArray("financeCats") != null;
             case "note": return snap.has("noteCats");
-            default: return snap.optJSONArray("lists") != null && snap.optJSONArray("lists").length() > 0;
+            default: return snap.optJSONArray("lists") != null;
         }
     }
 

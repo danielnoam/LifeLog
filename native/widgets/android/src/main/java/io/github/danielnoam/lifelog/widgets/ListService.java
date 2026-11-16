@@ -30,18 +30,11 @@ public class ListService extends RemoteViewsService {
 
     /** One row of the to-do list, however it gets there. */
     static RemoteViews rowView(Context c, WidgetStore.Row r) {
-        if (r.type == WidgetStore.ROW_HEADER || r.type == WidgetStore.ROW_SEP) {
-            RemoteViews v = new RemoteViews(c.getPackageName(),
-                r.type == WidgetStore.ROW_HEADER ? R.layout.widget_row_header : R.layout.widget_row_sep);
+        if (r.type == WidgetStore.ROW_HEADER) return headRow(c, r);
+        if (r.type == WidgetStore.ROW_SEP) {
+            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_sep);
             v.setTextViewText(R.id.row_text, r.text);
             if (r.color != 0) v.setTextColor(R.id.row_text, r.color);
-            // A list's heading, with more than one list showing, adds to
-            // that list (0.199.0).
-            if (r.type == WidgetStore.ROW_HEADER && !r.id.isEmpty()) {
-                Intent fill = new Intent();
-                fill.putExtra(ListWidget.EXTRA_OPEN, "add-todo:" + r.id);
-                v.setOnClickFillInIntent(R.id.row, fill);
-            }
             return v;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(c, r);
@@ -58,6 +51,74 @@ public class ListService extends RemoteViewsService {
         fill.putExtra(ListWidget.EXTRA_ID, r.id);
         v.setOnClickFillInIntent(R.id.row, fill);
         return v;
+    }
+
+    /**
+     * A list's heading (0.318.0): the list is a task itself, so it has its
+     * own tick in its priority's colour, its name, and its day under it, as
+     * the card's head in the app. The + (or the rest of the heading) adds
+     * to that list (0.199.0). A heading with no list behind it (an old
+     * snapshot) has no tick.
+     */
+    static RemoteViews headRow(Context c, WidgetStore.Row r) {
+        boolean list = !r.id.isEmpty();
+        if (list && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return headCheckRow(c, r);
+        RemoteViews v = headText(c, r, R.layout.widget_row_header);
+        if (!list) {
+            v.setViewVisibility(R.id.row_tick_box, android.view.View.GONE);
+            v.setViewVisibility(R.id.row_add, android.view.View.GONE);
+            return v;
+        }
+        HabitsWidget.setTick(v, R.id.row_tick, R.id.row_tick_ico, r.done ? "✓" : "");
+        v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on
+            : r.priority == 1 ? R.drawable.widget_tick_p1 : r.priority == 2 ? R.drawable.widget_tick_p2
+            : r.priority == 3 ? R.drawable.widget_tick_p3 : R.drawable.widget_tick_off);
+        v.setOnClickFillInIntent(R.id.row_tick_box, tickIntent(r));
+        return addsTo(v, r);
+    }
+
+    /** Android 12 and up: the heading's tick is a real checkbox, as the rows' are. */
+    private static RemoteViews headCheckRow(Context c, WidgetStore.Row r) {
+        RemoteViews v = headText(c, r, R.layout.widget_row_head_check);
+        v.setCompoundButtonChecked(R.id.row_check, r.done);
+        v.setColorStateList(R.id.row_check, "setButtonTintList", ColorStateList.valueOf(priorityColor(c, r.done ? 0 : r.priority)));
+        v.setOnCheckedChangeResponse(R.id.row_check, RemoteViews.RemoteResponse.fromFillInIntent(tickIntent(r)));
+        return addsTo(v, r);
+    }
+
+    private static RemoteViews headText(Context c, WidgetStore.Row r, int layout) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), layout);
+        v.setTextViewText(R.id.row_text, headWords(c, r));
+        int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
+        v.setInt(R.id.row_text, "setPaintFlags", flags);
+        if (r.done) v.setTextColor(R.id.row_text, c.getResources().getColor(R.color.widget_muted, null));
+        return v;
+    }
+
+    private static Intent tickIntent(WidgetStore.Row r) {
+        Intent tick = new Intent();
+        tick.putExtra(ListWidget.EXTRA_ID, r.id);
+        return tick;
+    }
+
+    /** The name and the + add to that list (0.199.0). */
+    private static RemoteViews addsTo(RemoteViews v, WidgetStore.Row r) {
+        Intent add = new Intent();
+        add.putExtra(ListWidget.EXTRA_OPEN, "add-todo:" + r.id);
+        v.setOnClickFillInIntent(R.id.row_add, add);
+        v.setOnClickFillInIntent(R.id.row_text, add);
+        return v;
+    }
+
+    /** The heading's name, bold in its category's colour, and its day and repeat under it. */
+    static CharSequence headWords(Context c, WidgetStore.Row r) {
+        SpannableStringBuilder b = new SpannableStringBuilder(r.text);
+        b.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (r.color != 0 && !r.done) b.setSpan(new ForegroundColorSpan(r.color), 0, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (r.done || (r.date.isEmpty() && r.meta.isEmpty())) return b;
+        CharSequence rest = todoText(c, r);
+        // todoText starts with the words and a line break; keep only what's under them.
+        return b.append(rest.subSequence(r.text.length(), rest.length()));
     }
 
     /** A priority's colour (0.317.0), as the app's rings; none is the accent the box always had. */
@@ -153,7 +214,7 @@ public class ListService extends RemoteViewsService {
 
         @Override
         public int getViewTypeCount() {
-            return 4;
+            return 5;
         }
 
         @Override

@@ -97,7 +97,7 @@ public class TodosWidget extends AppWidgetProvider {
     static RemoteViews.RemoteCollectionItems items(Context c, int widgetId) {
         RemoteViews.RemoteCollectionItems.Builder b = new RemoteViews.RemoteCollectionItems.Builder()
             .setHasStableIds(true)
-            .setViewTypeCount(4);
+            .setViewTypeCount(5);
         String panel = "";
         for (WidgetStore.Row r : WidgetStore.todoRows(c, widgetId)) {
             if (r.type == WidgetStore.ROW_HEADER) panel = r.text;
@@ -108,6 +108,7 @@ public class TodosWidget extends AppWidgetProvider {
 
     static long itemId(WidgetStore.Row r, String panel) {
         String key = r.type == WidgetStore.ROW_TODO ? "todo:" + r.id : r.type + ":" + panel;
+        // A heading's layout changes with its tick, so it isn't one view kept across updates.
         return key.hashCode();
     }
 

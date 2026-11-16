@@ -394,6 +394,31 @@ public class WidgetLogicTest {
             + "{\"id\":\"b\",\"text\":\"Taxes\",\"category\":\"Work\",\"list\":\"L2\"}]}");
     }
 
+    @Test
+    public void aListsHeadingIsTheListsOwnTask() throws Exception {
+        JSONObject snap = json("{\"lists\":[{\"id\":\"L1\",\"name\":\"Shop\",\"color\":\"\",\"date\":\"2026-09-24\",\"time\":\"09:00\",\"priority\":2,\"meta\":\"repeats\"},"
+            + "{\"id\":\"L2\",\"name\":\"Work\",\"color\":\"\",\"done\":true}],\"todos\":["
+            + "{\"id\":\"a\",\"text\":\"Milk\",\"category\":\"Shop\",\"list\":\"L1\"},"
+            + "{\"id\":\"b\",\"text\":\"Taxes\",\"category\":\"Work\",\"list\":\"L2\",\"done\":true}]}");
+        List<WidgetStore.Row> rows = WidgetStore.todoRows(snap, NONE);
+        WidgetStore.Row shop = rows.get(0);
+        assertEquals(WidgetStore.ROW_HEADER, shop.type);
+        assertEquals("2026-09-24 09:00 2 repeats false", shop.date + " " + shop.time + " " + shop.priority + " " + shop.meta + " " + shop.done);
+        WidgetStore.Row work = rows.stream().filter((r) -> r.type == WidgetStore.ROW_HEADER && r.id.equals("L2")).findFirst().get();
+        assertTrue(work.done);
+        assertEquals(0, work.priority);
+    }
+
+    @Test
+    public void aListTickedOnTheWidgetShowsItsRowsTickedBeforeTheAppRuns() throws Exception {
+        JSONArray q = new JSONArray("[{\"kind\":\"todo\",\"id\":\"L1\",\"done\":true}]");
+        List<String> out = new ArrayList<>();
+        for (WidgetStore.Row r : WidgetStore.todoRows(listed(), q, set("L1", "L2"))) {
+            out.add(r.type == WidgetStore.ROW_HEADER ? "[" + r.id + (r.done ? "x" : "") + "]" : r.type == WidgetStore.ROW_SEP ? "--" : (r.done ? "x:" : "o:") + r.id);
+        }
+        assertEquals("[L1x] -- x:a [L2] o:b", String.join(" ", out));
+    }
+
     private static String rowsOf(JSONObject snap, java.util.Set<String> lists) {
         List<String> out = new ArrayList<>();
         for (WidgetStore.Row r : WidgetStore.todoRows(snap, NONE, lists)) {
@@ -550,8 +575,9 @@ public class WidgetLogicTest {
         assertTrue(WidgetStore.quickReady(snap, "add-backlog"));
         assertTrue(WidgetStore.quickReady(snap, "add-expense"));
         assertTrue(WidgetStore.quickReady(snap, "add-note"));
-        // No list to add to: the app's own add line, which makes one.
-        assertFalse(WidgetStore.quickReady(snap, "add-todo"));
+        // No list yet: the Task tab's + makes one (0.318.1).
+        assertTrue(WidgetStore.quickReady(snap, "add-todo"));
+        assertFalse(WidgetStore.quickReady(json("{\"entryCats\":[]}"), "add-todo"));
         assertFalse(WidgetStore.quickReady(snap, "add-habit"));
         // An app older than the window sent no categories; the lock hides it all.
         assertFalse(WidgetStore.quickReady(json("{\"lists\":[]}"), "add-entry"));
