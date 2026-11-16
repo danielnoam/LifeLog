@@ -71,6 +71,8 @@ final class WidgetStore {
         String dateText = "";
         String meta = "";
         int priority;
+        /** A list's heading on a widget set not to show its tick: the name and + only. */
+        boolean noTick;
     }
 
     /** A task's day in words, by this phone's clock: "Overdue", "Yesterday", "Today 18:00", "Tomorrow", "Tue", else the app's date. */
@@ -519,7 +521,9 @@ final class WidgetStore {
      */
     static List<Row> todoRows(Context c, int widgetId) {
         JSONObject cfg = config(c, widgetId);
-        return todoRows(snapshot(c), queue(c), listsOf(cfg), flag(cfg, "done"), orderOf(cfg));
+        List<Row> rows = todoRows(snapshot(c), queue(c), listsOf(cfg), flag(cfg, "done"), orderOf(cfg));
+        if (!flag(cfg, "headTick")) for (Row r : rows) if (r.type == ROW_HEADER) r.noTick = true;
+        return rows;
     }
 
     static List<Row> todoRows(JSONObject snap, JSONArray q) {

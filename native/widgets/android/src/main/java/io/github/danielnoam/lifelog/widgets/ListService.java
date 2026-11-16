@@ -62,8 +62,12 @@ public class ListService extends RemoteViewsService {
      */
     static RemoteViews headRow(Context c, WidgetStore.Row r) {
         boolean list = !r.id.isEmpty();
-        if (list && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return headCheckRow(c, r);
+        if (list && !r.noTick && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return headCheckRow(c, r);
         RemoteViews v = headText(c, r, R.layout.widget_row_header);
+        if (list && r.noTick) {
+            v.setViewVisibility(R.id.row_tick_box, android.view.View.GONE);
+            return addsTo(v, r);
+        }
         if (!list) {
             v.setViewVisibility(R.id.row_tick_box, android.view.View.GONE);
             v.setViewVisibility(R.id.row_add, android.view.View.GONE);
