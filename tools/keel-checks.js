@@ -14,7 +14,17 @@
 // attribute, no eval.
 //
 //   csp.check(html, files) // → problems, [] when all pass
+//
+// i18n: the English keys the code and markup use (t("..."), tn(n, "...",
+// "..."), data-t, data-t-attr) against a language's table (src/lang/<code>.js).
+// missing: used, not in the table (it shows in English). stale: in the
+// table, used nowhere. broken: a {name} the English doesn't have, or a
+// plural with no `other`.
+//
+//   const keys = i18n.keys([...jsFiles, "index.html"]);
+//   i18n.check(keys, i18n.table("src/lang/he.js")) // → { missing, stale, broken }
 const fs = require("fs");
+const vm = require("vm");
 
 // ---- contrast ----
 
@@ -122,7 +132,77 @@ function cspCheck(html, files = []) {
   return out;
 }
 
+// ---- i18n ----
+
+const STR = String.raw`("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')`;
+function unquote(q) {
+  return q.slice(1, -1).replace(/\\(u[0-9a-fA-F]{4}|.)/g, (m, c) =>
+    c[0] === "u" && c.length === 5 ? String.fromCharCode(parseInt(c.slice(1), 16)) : ({ n: "\n", t: "\t" })[c] || c);
+}
+const ctxAfter = (src, at) => {
+  const m = src.slice(at, at + 120).match(/^\s*,\s*\{[^)]*?(?:^|[\s{,])_\s*:\s*("[^"]*"|'[^']*')/);
+  return m ? unquote(m[1]) + "|" : "";
+};
+
+// Every key used in these files: { key: ["file", ...] }.
+function keys(files) {
+  const out = Object.create(null);
+  const add = (k, f) => { if (k) (out[k] = out[k] || []).includes(f) || out[k].push(f); };
+  for (const f of files) {
+    const src = fs.readFileSync(f, "utf8");
+    const name = f.split(/[\\/]/).slice(-2).join("/");
+    if (/\.html?$/.test(f)) {
+      for (const m of src.matchAll(/<\w+\b([^>]*)>([^<]*)/g)) {
+        const at = m[1].match(/\sdata-t(?:="([^"]*)")?(?=[\s>\/]|$)/);
+        if (at) add(at[1] || m[2].trim().replace(/\s+/g, " "), name);
+        const attrs = m[1].match(/\sdata-t-attr="([^"]*)"/);
+        if (attrs) for (const a of attrs[1].split(",").map((x) => x.trim()).filter(Boolean)) {
+          const v = m[1].match(new RegExp("\\s" + a + '="([^"]*)"'));
+          if (v) add(v[1], name);
+        }
+      }
+      continue;
+    }
+    const code = src.replace(/^\s*\/\/.*$/gm, "");
+    for (const m of code.matchAll(new RegExp(String.raw`(?<![\w$.])(?:i18n\.)?t\(\s*` + STR, "g"))) {
+      add(ctxAfter(code, m.index + m[0].length) + unquote(m[1]), name);
+    }
+    for (const m of code.matchAll(new RegExp(String.raw`(?<![\w$])(?:i18n\.)?tn\(\s*[^,]+?,\s*` + STR + String.raw`\s*,\s*` + STR, "g"))) {
+      add(ctxAfter(code, m.index + m[0].length) + unquote(m[2]), name);
+    }
+  }
+  return out;
+}
+
+// A language's table, read the way the app loads it.
+function table(file) {
+  const got = {};
+  const strings = (lang, t) => Object.assign(got, t);
+  const sandbox = { Keel: { i18n: { strings } } };
+  sandbox.window = sandbox;
+  vm.runInNewContext(fs.readFileSync(file, "utf8"), sandbox, { filename: file });
+  return got;
+}
+
+const names = (s) => new Set([...String(s).matchAll(/\{(\w+)\}/g)].map((m) => m[1]));
+
+function i18nCheck(used, tbl) {
+  const missing = Object.keys(used).filter((k) => tbl[k] === undefined || tbl[k] === "").sort();
+  const stale = Object.keys(tbl).filter((k) => !Object.hasOwn(used, k)).sort();
+  const broken = [];
+  for (const [k, v] of Object.entries(tbl)) {
+    const english = names(k.includes("|") ? k.slice(k.indexOf("|") + 1) : k);
+    const forms = v && typeof v === "object" ? v : { "": v };
+    if (typeof v === "object" && !v.other) broken.push(k + ": a plural needs an `other` form");
+    for (const [form, text] of Object.entries(forms)) {
+      for (const n of names(text)) if (!english.has(n) && n !== "n") broken.push(k + (form ? " (" + form + ")" : "") + ": {" + n + "} isn't in the English");
+    }
+  }
+  return { missing, stale, broken };
+}
+
 module.exports = {
   contrast: { themes, block, resolve, parse, ratio, check },
   csp: { policyOf, check: cspCheck },
+  i18n: { keys, table, check: i18nCheck },
 };

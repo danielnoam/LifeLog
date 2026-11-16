@@ -18,7 +18,7 @@
     const v = VALUE.get.call(input);
     face.textContent = v && D() ? D().day(v) : "";
     const cs = getComputedStyle(input);
-    face.style.paddingLeft = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.borderLeftWidth) || 0) + "px";
+    face.style.paddingInlineStart = (parseFloat(cs.paddingInlineStart) || 0) + (parseFloat(cs.borderInlineStartWidth) || 0) + "px";
     face.style.fontSize = cs.fontSize;
   }
 

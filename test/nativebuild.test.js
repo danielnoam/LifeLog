@@ -54,8 +54,11 @@ test("the platform layer is loaded before anything that asks it a question", () 
   // the platform layer nothing. headless.js (0.279.0) comes before it on
   // purpose: it stands in for Capacitor in a background run, which the
   // platform layer then finds like any other native build. keel's platform.js
-  // is the part both apps share; src/platform.js builds on it.
-  const order = referencedByIndex().filter((f) => f.endsWith(".js") && f !== "src/keel/errlog.js");
+  // is the part both apps share; src/platform.js builds on it. keel/i18n.js
+  // and language.js run in <head> to set lang and dir before first paint, and
+  // ask the platform layer nothing either.
+  const HEAD = ["src/keel/errlog.js", "src/keel/i18n.js", "src/language.js"];
+  const order = referencedByIndex().filter((f) => f.endsWith(".js") && !HEAD.includes(f));
   assert.deepStrictEqual(order.slice(0, 3), ["src/headless.js", "src/keel/platform.js", "src/platform.js"]);
 });
 

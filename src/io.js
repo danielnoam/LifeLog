@@ -1979,7 +1979,8 @@
       const row = ev.target.closest(".picker-row");
       if (!row || !row.importItem || ev.target.closest("input, button, select")) return;
       // The strip with the box in it is the box's: 44px to hit on a phone.
-      if (ev.clientX - row.getBoundingClientRect().left < 44) return;
+      const rr = row.getBoundingClientRect();
+      if ((document.documentElement.dir === "rtl" ? rr.right - ev.clientX : ev.clientX - rr.left) < 44) return;
       ev.preventDefault();
       setActive(row.importItem, { open: true });
     };
