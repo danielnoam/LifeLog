@@ -9,7 +9,7 @@ const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return `$
 const T = "2026-01-01T00:00:00.000Z";
 const SEED = {
   categories: [{ id: "games", name: "Games", color: "#5b8cff" }, { id: "shows", name: "Shows", color: "#c061cb" }],
-  entries: [],
+  entries: [{ id: "x1", title: "Finished Today", category: "Games", year: +day(0).slice(0, 4), month: +day(0).slice(5, 7), day: +day(0).slice(8), createdAt: T, updatedAt: T }],
   backlog: [
     { id: "p1", title: "Playing Now", category: "Games", startedAt: day(-2), createdAt: T, updatedAt: T },
     { id: "r1", title: "Comes Out Soon", category: "Games", releaseDate: day(3), releasePrecision: "day", createdAt: T, updatedAt: T },
@@ -48,7 +48,17 @@ const SEED = {
   check("a fresh start opens on Home, not the last tab", (await active()) === "home", await active());
   check("Home has no filter chips", await page.isHidden("#filterbar"));
   const heads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
-  check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes", "Ledger", "Investments"]), heads);
+  check("a new Home shows In progress, Coming up and Scratchpad only", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad"]), heads);
+  check("Coming up and Scratchpad share a floor", JSON.stringify(await page.evaluate(() => [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec)))) === JSON.stringify([["progress"], ["upcoming", "scratchpad"]]));
+  // A layout from before the new default (2026-11-17) stays as it was, and Calendar, newer than it, stays hidden.
+  await page.evaluate(() => {
+    const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1"));
+    v.homeFloors = [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]];
+    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v));
+  });
+  await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(600);
+  const keptHeads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
+  check("a layout arranged before keeps its sections, and doesn't grow the Calendar", JSON.stringify(keptHeads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes", "Ledger", "Investments"]), keptHeads);
   const row = await page.evaluate(() => {
     const floors = [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec));
     const tops = [".home-upcoming", ".home-scratch", ".home-pinned", ".home-ledger"].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top));
@@ -96,7 +106,7 @@ const SEED = {
 
   // ---- the View sheet ----
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
-  check("View lists the six sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 6);
+  check("View lists the seven sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 7);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show In progress"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
@@ -106,7 +116,7 @@ const SEED = {
   const after = await floorsNow();
   check("moving Pinned notes up swaps it with Scratchpad, and hiding In progress, Ledger and Investments leaves their floors", JSON.stringify(after) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]), after);
   let vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
-  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger,invest", vis);
+  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger,invest,calendar", vis);
 
   // ---- arranging by dragging a heading ----
   const dragHead = async (from, to) => {
@@ -150,19 +160,18 @@ const SEED = {
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
   await page.click("#homeResetLayoutBtn"); await page.waitForTimeout(300);
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
-  check("Reset layout brings back the default floors and every section", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]]), await floorsNow());
+  check("Reset layout brings back the default: In progress, Coming up and Scratchpad", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"]]), await floorsNow());
 
   // ---- right-click an empty spot to add a hidden section there ----
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
-  await page.click('#homeSectionRows [aria-label="Show Investments"]'); await page.waitForTimeout(200);
-  await page.click('#homeSectionRows [aria-label="Show Pinned notes"]'); await page.waitForTimeout(200);
+  await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
   const ctxItems = () => page.$$eval(".ctx-menu:not([hidden]) > *", (n) => n.map((x) => x.textContent.trim()));
   let last = await page.evaluate(() => { const f = [...document.querySelectorAll(".home-floor")].at(-1).getBoundingClientRect(); window.scrollTo(0, 0); return { x: f.left + 300, y: f.bottom + 30 + window.scrollY }; });
   await page.evaluate((y) => window.scrollTo(0, Math.max(0, y - 500)), last.y); await page.waitForTimeout(500);
   let sy = await page.evaluate(() => window.scrollY);
   await page.mouse.click(last.x, last.y - sy, { button: "right" }); await page.waitForTimeout(200);
-  check("right-clicking below the floors offers the hidden sections", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Pinned notes", "Investments"]), await ctxItems());
+  check("right-clicking below the floors offers the hidden sections", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Pinned notes", "Investments", "Calendar"]), await ctxItems());
   await page.click('.ctx-menu button:has-text("Investments")'); await page.waitForTimeout(300);
   check("and picking one puts it on a new floor there", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["ledger"], ["invest"]]), await floorsNow());
   await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500);
@@ -171,8 +180,37 @@ const SEED = {
   await page.click('.ctx-menu button:has-text("Pinned notes")'); await page.waitForTimeout(300);
   check("right-clicking between floors adds it on a floor of its own between them", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["pinned"], ["upcoming", "scratchpad"], ["ledger"], ["invest"]]), await floorsNow());
   await page.mouse.click(gap.x, 120, { button: "right" }); await page.waitForTimeout(200);
+  check("above the floors it offers what's still hidden", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Calendar"]), await ctxItems());
+  await page.click('.ctx-menu button:has-text("Calendar")'); await page.waitForTimeout(400);
+  check("and Calendar gets a floor of its own at the top", JSON.stringify((await floorsNow())[0]) === JSON.stringify(["calendar"]), await floorsNow());
+  await page.mouse.click(gap.x, 120, { button: "right" }); await page.waitForTimeout(200);
   check("with nothing hidden, the menu says so", JSON.stringify(await ctxItems()) === JSON.stringify(["Every section is on Home"]), await ctxItems());
   await page.keyboard.press("Escape");
+
+  // ---- the Calendar ----
+  const todayN = +day(0).slice(8);
+  const cal = await page.evaluate(() => ({
+    picked: document.querySelector(".home-cal-day.is-picked")?.dataset.day,
+    today: document.querySelector(".home-cal-day.is-today")?.dataset.day,
+    list: document.querySelector(".home-cal-list").textContent,
+    names: getComputedStyle(document.querySelector(".home-cal-day.is-today .home-cal-names")).display,
+    marks: getComputedStyle(document.querySelector(".home-cal-day.is-today .home-cal-marks")).display,
+  }));
+  check("the Calendar opens on today, with what was finished on it", cal.picked === String(todayN) && cal.today === String(todayN) && cal.list.includes("Finished Today"), cal);
+  check("alone on a wide floor it shows names in the days, not marks", cal.names === "flex" && cal.marks === "none", cal);
+  const other = todayN === 1 ? 2 : 1;
+  await page.click(`.home-cal-day[data-day="${other}"]`); await page.waitForTimeout(300);
+  check("tapping another day lists that day instead", (await page.textContent(".home-cal-list")).includes("Nothing on this day") && (await page.getAttribute(".home-cal-day.is-picked", "data-day")) === String(other));
+  await page.click(".home-calendar .home-more"); await page.waitForTimeout(500);
+  const tl = await page.evaluate(() => ({ view: document.querySelector("#viewTabs .tab.active").dataset.view, cal: !!document.querySelector(".tl-cal:not([hidden]) .cal-grid"), picked: document.querySelector(".cal-day.is-picked")?.dataset.day }));
+  check("Timeline › opens the Timeline's calendar on the picked day", tl.view === "timeline" && tl.cal && tl.picked === String(other), tl);
+  await page.click('#viewTabs .tab[data-view="home"]'); await page.waitForTimeout(400);
+  // Tall enough that the floor it's dropped into is on screen.
+  await page.setViewportSize({ width: 1280, height: 2000 }); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(300);
+  await dragHead("calendar", async () => { const r = await box('.home-sec[data-sec="pinned"]'); return { x: r.right - 20, y: r.top + 40 }; });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const small = await page.evaluate(() => ({ floors: [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec)), names: getComputedStyle(document.querySelector(".home-cal-names")).display }));
+  check("sharing a floor it goes back to the small month", small.names === "none" && small.floors.some((f) => f.includes("calendar") && f.length > 1), small);
 
   // ---- the scratchpad as a board ----
   const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
@@ -219,8 +257,8 @@ const SEED = {
   await pp.goto(BASE + "/", { waitUntil: "networkidle" }); await pp.waitForTimeout(600);
   check("on a phone Home sits in the middle of the bottom bar", await pp.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].filter((t) => !t.hidden).map((t) => t.dataset.view).join()) === "notes,timeline,home,backlog,finance");
   check("on a phone the sections stack", await pp.evaluate(() => {
-    const a = document.querySelector(".home-upcoming").getBoundingClientRect(), s = document.querySelector(".home-scratch").getBoundingClientRect(), p = document.querySelector(".home-pinned").getBoundingClientRect();
-    return s.top >= a.bottom - 1 && p.top >= s.bottom - 1 && Math.abs(a.left - s.left) < 2 && Math.abs(a.left - p.left) < 2;
+    const p = document.querySelector(".home-progress").getBoundingClientRect(), a = document.querySelector(".home-upcoming").getBoundingClientRect(), s = document.querySelector(".home-scratch").getBoundingClientRect();
+    return a.top >= p.bottom - 1 && s.top >= a.bottom - 1 && Math.abs(a.left - s.left) < 2 && Math.abs(a.left - p.left) < 2;
   }));
   check("and nothing is wider than the screen", await pp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await phone.close();

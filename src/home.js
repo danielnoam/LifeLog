@@ -25,6 +25,7 @@
     ["pinned", i18n.t("Pinned notes"), "pin", true],
     ["ledger", i18n.t("Ledger"), "receipt", true],
     ["invest", i18n.t("Investments"), "trending-up", true],
+    ["calendar", i18n.t("Calendar"), "calendar-days", true],
   ];
   const SECTION_IDS = SECTIONS.map(([id]) => id);
   const DAYS_AHEAD = 14;
@@ -66,15 +67,23 @@
     }
     return out;
   }
-  // Sections added since floors (Investments) start on a floor of their own at the bottom.
-  const DEFAULT_FLOORS = legacyFloors(SECTION_IDS).concat(SECTION_IDS.filter((id) => !BEFORE_FLOORS.includes(id)).map((id) => [id]));
+  // A new Home (and Reset layout) shows only these three; the rest are
+  // there to add from View or a right-click (Daniel, 2026-11-17).
+  const DEFAULT_FLOORS = [["progress"], ["upcoming", "scratchpad"]];
+  const OLD_DEFAULT_ORDER = ["progress", "upcoming", "scratchpad", "pinned"];
 
   // The floors a device keeps, cleaned: hidden and unknown sections go, as
-  // do floors left empty, and a section added since (or shown again) gets a
-  // floor of its own at the bottom. With nothing saved yet, the old order.
+  // do floors left empty. What isn't on a saved floor is hidden, so a section
+  // added to the app since starts hidden rather than turning up at the
+  // bottom. With nothing saved, a device that arranged the old way (an order
+  // or hidden sections) keeps the rows that made, Investments below them;
+  // one that never did gets the default.
   function floorLayout(saved, { order, hidden } = {}) {
     const off = new Set(Array.isArray(hidden) ? hidden : []);
-    const from = Array.isArray(saved) ? saved : legacyFloors(sectionOrder(order).filter((id) => !off.has(id)));
+    const arranged = off.size > 0 || (Array.isArray(order) && order.join() !== OLD_DEFAULT_ORDER.join());
+    const from = Array.isArray(saved) ? saved
+      : arranged ? legacyFloors(sectionOrder(order).filter((id) => !off.has(id))).concat([["invest"]])
+        : DEFAULT_FLOORS;
     const seen = new Set();
     const out = [];
     for (const f of from) {
@@ -83,9 +92,9 @@
       ids.forEach((id) => seen.add(id));
       if (ids.length) out.push(ids);
     }
-    for (const id of SECTION_IDS) if (!seen.has(id) && !off.has(id)) out.push([id]);
     return out;
   }
+  const hiddenOf = (floors) => SECTION_IDS.filter((id) => !floors.some((f) => f.includes(id)));
 
   // Drops section `id` into `floors`. `place` counts floors as they are with
   // `id` taken out: { floor, at } puts it in that floor before position `at`,
@@ -189,6 +198,31 @@
       || String(a.title).localeCompare(String(b.title)));
   }
 
+  // One month as a calendar shows it: the entries finished on each day (the
+  // ones with no day set apart, never guessed onto the 1st), open tasks
+  // dated in it, and what the backlog has coming out (Backlog.calendarReleases:
+  // day ones by day, month and quarter ones in `rel.rough`). The Timeline's
+  // calendar, the Home calendar and the bridge's lifelog_calendar all read
+  // this, so they never disagree. Google Calendar's events are the app's
+  // to add: they live on the device, out of the bridge's sight.
+  function calendarMonth(data, y, m, { Backlog, Tasks, entries = data.entries || [], backlog = data.backlog || [], releases = true } = {}) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    const days = new Date(y, m, 0).getDate();
+    const push = (map, d, x) => { if (!map.has(d)) map.set(d, []); map.get(d).push(x); };
+    // Oldest added first, as the Timeline's month cards read when flipped.
+    const inMonth = entries.filter((e) => +e.year === y && +e.month === m)
+      .sort((a, b) => -String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const byDay = new Map(), undated = [];
+    for (const e of inMonth) {
+      const d = +e.day;
+      if (d >= 1 && d <= days) push(byDay, d, e); else undated.push(e);
+    }
+    const tasksByDay = new Map();
+    if (Tasks) for (const r of Tasks.dueTasks(data, key + "-31")) if (r.day.startsWith(key + "-")) push(tasksByDay, +r.day.slice(8), r);
+    const rel = Backlog && releases ? Backlog.calendarReleases(backlog, y, m) : { byDay: new Map(), rough: [] };
+    return { key, days, inMonth, byDay, undated, tasksByDay, rel };
+  }
+
   // Which heading a day goes under.
   function bucketOf(day, today) {
     if (day < today) return i18n.t("Overdue");
@@ -234,11 +268,15 @@
   let state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr;
   function init(ctx) {
     ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr } = ctx);
+    // Google Calendar's events arrive after the Home calendar is drawn.
+    const G = window.LifeLogGcal;
+    if (G) G.onChange(() => { if (state.view === "home" && floors().some((f) => f.includes("calendar"))) render(); });
   }
 
   const floors = () => floorLayout(state.visual.homeFloors, { order: state.visual.homeSections, hidden: state.visual.homeHidden });
   function saveFloors(next) {
     state.visual.homeFloors = next;
+    if (Array.isArray(next)) state.visual.homeHidden = hiddenOf(next);
     saveVisualSettings(state.visual);
   }
 
@@ -736,7 +774,172 @@
     return sec;
   }
 
-  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection };
+  // ---------- Calendar (0.321.0) ----------
+  // The Timeline's calendar, small: a month of days, each marked for what's
+  // on it (a bar per Google Calendar event, a dot per entry finished, a
+  // dashed ring per release, a ring per open task), and the picked day's
+  // list under it. Alone on a wide floor it lays out as the Timeline's does,
+  // names in the days and the list beside (styles.css, a container query),
+  // so a drag that changes its width needs no new markup. The month and the
+  // picked day last for the session, opening on today, as the Timeline's do.
+  let calMonth = null, calDay = null;
+  const catColor = (name) => (state.data.categories.find((c) => c.name === name) || {}).color || "";
+
+  function calendarSection() {
+    const D = Dates(), J = window.LifeLogJournal, G = window.LifeLogGcal, B = window.LifeLogBacklog, T = window.LifeLogTasks;
+    const today = todayStr();
+    if (!calMonth) calMonth = today.slice(0, 7);
+    const [y, m] = calMonth.split("-").map(Number);
+    const mo = calendarMonth(state.data, y, m, { Backlog: B, Tasks: T, releases: state.visual.calendarReleases !== "hide" });
+    const evs = G && G.on ? G.eventsFor(y, m) : new Map();
+    if (G && G.on) G.ensure(y, m);
+    const todayD = today.startsWith(calMonth + "-") ? +today.slice(8) : 0;
+    if (!calDay || calDay > mo.days) calDay = todayD || 1;
+    const dayKey = (d) => calMonth + "-" + String(d).padStart(2, "0");
+
+    const sec = el("section", "home-sec home-calendar");
+    const toTimeline = viewEnabled("timeline") && modeEnabled("timeline", "entries") ? () => {
+      J.openCalendarAt(y, m, calDay);
+      state.visual.timelineLayout = "calendar";
+      saveVisualSettings(state.visual);
+      state.timelineMode = "entries";
+      switchToView("timeline");
+    } : null;
+    sec.appendChild(sectionHead("calendar", toTimeline ? { label: i18n.t("Timeline"), run: toTimeline } : null));
+    const card = el("div", "home-card home-cal");
+    const main = el("div", "home-cal-main");
+    const head = el("div", "home-cal-head");
+    head.appendChild(el("h3", "home-cal-title", D.MONTH_NAMES[m - 1] + " " + y));
+    for (const [dir, icon, label] of [[-1, "chevron-left", i18n.t("Previous month")], [1, "chevron-right", i18n.t("Next month")]]) {
+      const b = el("button", "btn btn-icon home-cal-step");
+      b.type = "button";
+      b.appendChild(ico(icon));
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.onclick = () => {
+        let yy = y, mm = m + dir;
+        if (mm < 1) { mm = 12; yy--; } else if (mm > 12) { mm = 1; yy++; }
+        calMonth = `${yy}-${String(mm).padStart(2, "0")}`;
+        calDay = null;
+        render();
+      };
+      head.appendChild(b);
+    }
+    main.appendChild(head);
+
+    const grid = el("div", "home-cal-grid");
+    for (const d of D.weekOrder()) {
+      const w = el("span", "home-cal-wd");
+      w.append(el("span", "home-cal-wd-short", D.WEEKDAYS[d].slice(0, 1)), el("span", "home-cal-wd-long", D.WEEKDAYS[d]));
+      w.title = D.WEEKDAYS[d];
+      grid.appendChild(w);
+    }
+    const lead = D.weekPos(new Date(y, m - 1, 1).getDay());
+    for (let i = 0; i < lead; i++) grid.appendChild(el("span", "home-cal-day is-out"));
+    for (let d = 1; d <= mo.days; d++) {
+      const fin = mo.byDay.get(d) || [], gev = evs.get(d) || [], outs = mo.rel.byDay.get(d) || [], due = mo.tasksByDay.get(d) || [];
+      const cell = el("button", "home-cal-day");
+      cell.type = "button";
+      cell.dataset.day = d;
+      cell.classList.toggle("is-today", d === todayD);
+      cell.classList.toggle("is-past", !!todayD && d < todayD);
+      cell.classList.toggle("is-picked", d === calDay);
+      cell.setAttribute("aria-pressed", String(d === calDay));
+      cell.setAttribute("aria-label", D.day(dayKey(d), { year: false }) + (fin.length ? ", " + i18n.t("{n} finished", { n: fin.length }) : "")
+        + (gev.length ? ", " + i18n.tn(gev.length, "{n} event", "{n} events") : "")
+        + (outs.length ? ", " + i18n.tn(outs.length, "{n} release", "{n} releases") : "")
+        + (due.length ? ", " + i18n.tn(due.length, "{n} task", "{n} tasks") : ""));
+      cell.appendChild(el("span", "home-cal-n", String(d)));
+      const lines = [...gev.map((x) => ["event", x]), ...fin.map((x) => ["entry", x]), ...outs.map((x) => ["release", x]), ...due.map((x) => ["task", x])];
+      if (lines.length) {
+        const marks = el("span", "home-cal-marks");
+        marks.setAttribute("aria-hidden", "true");
+        const names = el("span", "cal-names home-cal-names");
+        names.setAttribute("aria-hidden", "true");
+        for (const [kind, x] of lines.slice(0, 3)) {
+          const mk = marks.appendChild(el("span", "home-cal-mark is-" + kind + (kind === "task" && x.item.priority ? " is-p" + x.item.priority : "")));
+          if (kind === "event") { const c = G.colorOf(x.cal); if (c) mk.style.setProperty("--mk", c); names.appendChild(J.eventLine(x, G)); continue; }
+          const colour = kind === "entry" ? catColor(x.category) : kind === "release" ? catColor(x.b.category) : "";
+          if (colour) mk.style.setProperty("--mk", colour);
+          const n = el("span", "cal-name" + (kind === "task" ? " is-task" : kind === "release" ? " is-release" : ""),
+            kind === "task" ? x.item.text : kind === "release" ? J.releaseName(x) : x.title);
+          const dot = el("span", kind === "task" ? "cal-ring" + (x.item.priority ? " is-p" + x.item.priority : "") : "dot");
+          if (colour && kind !== "task") dot.style.background = colour;
+          if (kind === "release") n.style.setProperty("--rel", colour);
+          n.prepend(dot);
+          names.appendChild(n);
+        }
+        if (lines.length > 3) names.appendChild(el("span", "cal-name is-more", i18n.t("+{n} more", { n: lines.length - 3 })));
+        cell.append(marks, names);
+      }
+      cell.onclick = () => { calDay = d; render(); };
+      grid.appendChild(cell);
+    }
+    main.appendChild(grid);
+    card.appendChild(main);
+    card.appendChild(calendarDayList(mo, evs.get(calDay) || [], dayKey(calDay), today, y, m));
+    sec.appendChild(card);
+    return sec;
+  }
+
+  // The picked day: its events, open tasks (ticked right here), releases,
+  // and what was finished on it.
+  function calendarDayList(mo, gev, key, today, y, m) {
+    const D = Dates(), J = window.LifeLogJournal, G = window.LifeLogGcal;
+    const d = +key.slice(8);
+    const list = el("div", "home-cal-list");
+    list.appendChild(el("p", "home-day", (key === today ? i18n.t("Today") + " · " : "") + D.day(key, { weekday: true, year: false })));
+    let any = false;
+    for (const ev of gev) {
+      any = true;
+      const row = list.appendChild(el("button", "home-row home-cal-ev"));
+      row.type = "button";
+      const c = G.colorOf(ev.cal);
+      if (c) row.style.setProperty("--ev", c);
+      row.appendChild(el("span", "home-cal-time", ev.allDay ? i18n.t("All day") : ev.time));
+      const text = row.appendChild(el("span", "home-row-text"));
+      text.appendChild(el("span", "home-row-title", ev.title));
+      text.appendChild(el("span", "home-row-sub", ["Google Calendar", G.calName(ev.cal)].filter(Boolean).join(" · ")));
+      row.onclick = () => J.openEventSheet(ev);
+    }
+    for (const r of mo.tasksByDay.get(d) || []) {
+      any = true;
+      list.appendChild(taskRow({ kind: "task", day: r.day, title: r.item.text, category: r.category, list: r.note.text || "",
+        noteId: r.note.id, id: r.item.id, time: r.item.time || "", priority: r.item.priority || 0, repeat: !!r.item.repeat }, today));
+    }
+    for (const r of mo.rel.byDay.get(d) || []) {
+      any = true;
+      list.appendChild(upcomingRow({ kind: r.kind, day: key, title: r.b.title, category: r.b.category, label: r.kind === "episode" ? r.b.nextLabel || "" : "", id: r.b.id }, today));
+    }
+    for (const e of mo.byDay.get(d) || []) {
+      any = true;
+      const row = list.appendChild(el("button", "home-row"));
+      row.type = "button";
+      row.appendChild(el("span", "home-row-ico")).appendChild(ico("check"));
+      const text = row.appendChild(el("span", "home-row-text"));
+      text.appendChild(el("span", "home-row-title", e.title));
+      const sub = text.appendChild(el("span", "home-row-sub"));
+      const dot = sub.appendChild(el("span", "dot"));
+      dot.style.background = catColor(e.category);
+      sub.appendChild(document.createTextNode(i18n.t("{category} · finished", { category: e.category })));
+      row.onclick = () => J.openExisting("entry", e.id);
+    }
+    if (!any) list.appendChild(el("p", "home-empty home-cal-none", i18n.t("Nothing on this day")));
+    if (G && G.on && (G.needsTap || G.error)) {
+      const b = list.appendChild(el("button", "btn btn-sm home-cal-sync"));
+      b.type = "button";
+      b.appendChild(ico("refresh-cw"));
+      b.appendChild(document.createTextNode(" " + i18n.t("Sync Google Calendar")));
+      b.onclick = async () => {
+        b.disabled = true;
+        try { await G.sync(y, m, true); G.clearError(); } catch (e) { toast(e.message || i18n.t("Google Calendar didn't answer. Try again."), true); }
+        render();
+      };
+    }
+    return list;
+  }
+
+  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection, calendar: calendarSection };
 
   function renderHome(root) {
     if (drag) endDrag();
@@ -973,7 +1176,7 @@
     if (ev.target.closest(".home-sec, input, textarea, a[href], [contenteditable='true']")) return;
     const page = ev.currentTarget;
     const place = placeAt(page, ev.clientX, ev.clientY);
-    const off = SECTION_IDS.filter((id) => (state.visual.homeHidden || []).includes(id));
+    const off = hiddenOf(floors());
     ev.preventDefault();
     const items = off.length
       ? [{ head: i18n.t("Add to Home") }].concat(off.map((id) => {
@@ -1001,9 +1204,7 @@
   }
 
   function addSectionAt(page, id, place) {
-    const layout = floors();
-    state.visual.homeHidden = (state.visual.homeHidden || []).filter((x) => x !== id);
-    const { floors: next, pushed } = placeSection(layout, id, place, perFloor(page.clientWidth));
+    const { floors: next, pushed } = placeSection(floors(), id, place, perFloor(page.clientWidth));
     saveFloors(next);
     render();
     if (pushed) toast(i18n.t("{section} moved down — that floor was full", { section: sectionLabel(pushed) }));
@@ -1018,7 +1219,7 @@
     wrap.innerHTML = "";
     const layout = floors();
     const flat = layout.flat();
-    const off = state.visual.homeHidden || [];
+    const off = hiddenOf(layout);
     const order = flat.concat(SECTION_IDS.filter((id) => !flat.includes(id)));
     order.forEach((id) => {
       const [, label, icon] = SECTIONS.find(([s]) => s === id);
@@ -1049,7 +1250,7 @@
     });
     const reset = $("#homeResetLayoutBtn");
     if (reset) {
-      const same = JSON.stringify(layout) === JSON.stringify(DEFAULT_FLOORS) && !off.length;
+      const same = JSON.stringify(layout) === JSON.stringify(DEFAULT_FLOORS);
       reset.disabled = same;
       reset.onclick = resetLayout;
     }
@@ -1067,23 +1268,20 @@
   }
   function setSectionShown(id, on) {
     const layout = floors();
-    const off = new Set(state.visual.homeHidden || []);
-    if (on) off.delete(id); else off.add(id);
-    state.visual.homeHidden = [...off];
-    // Hidden sections leave their floor; one shown again gets a floor of its own at the bottom.
-    saveFloors(floorLayout(layout, { hidden: state.visual.homeHidden }));
+    // A hidden section leaves its floor; one shown again gets a floor of its own at the bottom.
+    saveFloors(on ? layout.concat([[id]]) : floorLayout(layout, { hidden: [id] }));
     fillViewOptions();
     render();
   }
   function resetLayout() {
     const was = { homeFloors: state.visual.homeFloors, homeHidden: state.visual.homeHidden };
-    state.visual.homeHidden = [];
     saveFloors(DEFAULT_FLOORS.map((f) => f.slice()));
     fillViewOptions();
     render();
     toast(i18n.t("Home layout reset"), false, { label: i18n.t("Undo"), onClick: () => {
-      state.visual.homeHidden = was.homeHidden || [];
       saveFloors(was.homeFloors);
+      state.visual.homeHidden = was.homeHidden || [];
+      saveVisualSettings(state.visual);
       fillViewOptions();
       render();
     } });
@@ -1092,7 +1290,7 @@
   const api = {
     init, renderHome, fillViewOptions,
     // pure
-    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
+    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
     taskRow,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;

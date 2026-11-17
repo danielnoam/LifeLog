@@ -1242,6 +1242,35 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_calendar",
+    description: "One month as the calendars on the Timeline and Home show it: by day, what was finished, the open tasks dated then and the backlog's releases and new episodes; then the month's entries with no day set and its releases known only to the month or quarter. Google Calendar events stay on the device that synced them and aren't included.",
+    readOnly: true,
+    input: { month: S.str("YYYY-MM, default this month"), day: S.date("Only this day (YYYY-MM-DD)") },
+    async run(a) {
+      const d = await readData();
+      const t = today();
+      const key = a.day ? String(requireDate(a.day, "day")).slice(0, 7) : a.month ? String(a.month) : t.slice(0, 7);
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(key)) fail("month must be YYYY-MM.");
+      const [y, m] = key.split("-").map(Number);
+      const mo = Home.calendarMonth(d, y, m, { Backlog, Tasks });
+      const only = a.day ? +String(a.day).slice(8, 10) : 0;
+      const out = [`Calendar, ${key}${only ? " day " + only : ""}.`];
+      for (let n = 1; n <= mo.days; n++) {
+        if (only && n !== only) continue;
+        const lines = [
+          ...(mo.byDay.get(n) || []).map((e) => `finished ${e.title} [${e.category}]  (${e.id})`),
+          ...(mo.tasksByDay.get(n) || []).map((r) => `task ${r.item.text}${r.item.time ? " at " + r.item.time : ""} (in "${r.note.text || ""}")  (${r.item.id})`),
+          ...(mo.rel.byDay.get(n) || []).map((r) => `${r.kind === "episode" ? "new episode" : "release"} ${r.b.title}${r.kind === "episode" && r.b.nextLabel ? " · " + r.b.nextLabel : ""} [${r.b.category}]  (${r.b.id})`),
+        ];
+        if (lines.length) out.push("", `${key}-${String(n).padStart(2, "0")}${key + "-" + String(n).padStart(2, "0") === t ? " (today)" : ""}:`, ...lines.map((l) => "- " + l));
+      }
+      if (out.length === 1) out.push("", "Nothing on " + (only ? "that day." : "any day."));
+      if (!only && mo.undated.length) out.push("", `Finished in ${key}, no day set (${mo.undated.length}):`, ...mo.undated.map((e) => `- ${e.title} [${e.category}]  (${e.id})`));
+      if (!only && mo.rel.rough.length) out.push("", `Out in ${key}, no day yet (${mo.rel.rough.length}):`, ...mo.rel.rough.map((b) => `- ${b.title} [${b.category}]  (${b.id})`));
+      return out.join("\n");
+    },
+  },
+  {
     name: "lifelog_home",
     description: "What the Home tab shows: what's in progress, what's coming in the next days (tasks with a date, overdue ones included, releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, and the Ledger card (this month so far against last month by the same day, top categories, latest expenses).",
     readOnly: true,

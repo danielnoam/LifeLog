@@ -197,10 +197,6 @@
 
   function calKey(y, m) { return y + "-" + pad2(m); }
   function daysIn(y, m) { return new Date(y, m, 0).getDate(); }
-  function entryDay(e, days) {
-    const d = +e.day;
-    return d >= 1 && d <= days ? d : 0;
-  }
 
   // Opens on this month if anything in view falls in it, otherwise on the
   // latest month that has something, so a filter to 2023 lands in 2023.
@@ -216,6 +212,12 @@
     return latest || here;
   }
 
+  // The Home calendar's "Timeline ›" lands the Timeline's calendar on its day.
+  function openCalendarAt(y, m, d) {
+    calMonth = calKey(y, m);
+    calDay = d;
+  }
+
   function stepCalMonth(dir) {
     let [y, m] = calMonth.split("-").map(Number);
     m += dir;
@@ -229,32 +231,20 @@
     if (!calMonth) calMonth = defaultCalMonth(entries);
     const [y, m] = calMonth.split("-").map(Number);
     const days = daysIn(y, m);
-    const inMonth = entries.filter((e) => e.year === y && e.month === m).sort(byOldestAdded);
-    const byDay = new Map();
-    const undated = [];
-    for (const e of inMonth) {
-      const d = entryDay(e, days);
-      if (!d) { undated.push(e); continue; }
-      if (!byDay.has(d)) byDay.set(d, []);
-      byDay.get(d).push(e);
-    }
-    // Open tasks dated this month (0.317.0): a ring on their day, and the
-    // picked day's under its entries, to tick or open.
+    // What's on each day comes from Home's calendarMonth, which the Home
+    // calendar and the bridge's lifelog_calendar read too: the entries in
+    // view, open tasks dated this month (0.317.0) and what the backlog has
+    // coming out (0.320.0), under the same category chips as the entries;
+    // View → Releases turns those off.
     const T = window.LifeLogTasks, Home = window.LifeLogHome;
-    const tasksByDay = new Map();
-    if (T && Home) for (const r of T.dueTasks(state.data, calMonth + "-31")) {
-      if (!r.day.startsWith(calMonth + "-")) continue;
-      const d = +r.day.slice(8);
-      if (!tasksByDay.has(d)) tasksByDay.set(d, []);
-      tasksByDay.get(d).push(r);
-    }
-    // What the backlog has coming out (0.320.0), under the same category
-    // chips as the entries; View → Releases turns it off.
     const B = window.LifeLogBacklog;
     const cats = state.activeCats;
-    const rel = B && state.visual.calendarReleases !== "hide"
-      ? B.calendarReleases(state.data.backlog.filter((b) => !cats.size || cats.has(b.category)), y, m)
-      : { byDay: new Map(), rough: [] };
+    const month = Home.calendarMonth(state.data, y, m, {
+      Backlog: B, Tasks: T, entries,
+      backlog: state.data.backlog.filter((b) => !cats.size || cats.has(b.category)),
+      releases: state.visual.calendarReleases !== "hide",
+    });
+    const { inMonth, byDay, undated, tasksByDay, rel } = month;
     // Google Calendar's events (0.320.0), read only, kept on this device.
     const G = window.LifeLogGcal;
     const evs = G && G.on ? G.eventsFor(y, m) : new Map();
@@ -2405,6 +2395,8 @@
     init,
     wire,
     closeEventSheet, // Escape (app.js)
+    // the Home calendar's (0.321.0) day list and its way to the Timeline's calendar
+    eventLine, releaseName, openEventSheet, openCalendarAt,
     // views (dispatched from app.js's render())
     renderTimeline,
     renderStats,

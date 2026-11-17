@@ -5111,6 +5111,60 @@ html.force-mobile .home-tile { flex-basis: 112px; }
 html.force-mobile .home-pins { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-pad { font-size: var(--fs-lg); }
 
+/* Home's Calendar (0.321.0): a small month with a mark per thing on a day
+   (a bar per event, a dot per entry finished, a dashed ring per release, a
+   ring per task) and the picked day's list under it. Alone on a wide floor
+   it turns into the Timeline's calendar: names in the days, the list beside. */
+.home-calendar { container-type: inline-size; }
+.home-cal-main { padding: var(--space-10) var(--space-10) var(--space-8); }
+.home-cal-head { display: flex; align-items: center; gap: var(--space-4); padding: 0 0 var(--space-4) var(--space-4); }
+.home-cal-title { margin: 0; flex: 1; font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.home-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); }
+.home-cal-wd { text-align: center; padding: var(--space-4) 0; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-dim); }
+.home-cal-wd-long { display: none; }
+.home-cal-day {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  min-height: 48px; padding: var(--space-4) 0; border: 0; border-radius: var(--r-md); background: none;
+  color: var(--text); font: inherit; cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+.home-cal-day.is-out { visibility: hidden; }
+.home-cal-day.is-picked { box-shadow: inset 0 0 0 2px var(--text); }
+.home-cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) { .home-cal-day:not(.is-out):hover { background: var(--hover-bg); } }
+.home-cal-n { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.home-cal-day.is-past .home-cal-n { color: var(--text-dim); }
+.home-cal-day.is-today .home-cal-n { background: var(--accent-fill); color: var(--text-on-fill); font-weight: 700; }
+.home-cal-marks { display: flex; align-items: center; gap: var(--space-2); height: 6px; }
+.home-cal-mark { width: 6px; height: 6px; border-radius: 50%; background: var(--mk, var(--text-dim)); flex: 0 0 auto; }
+.home-cal-mark.is-event { width: 10px; height: 4px; border-radius: var(--r-pill); background: var(--mk, var(--accent)); }
+.home-cal-mark.is-release { background: none; border: 1.5px dashed var(--mk, var(--text-dim)); }
+.home-cal-mark.is-task { background: none; border: 1.5px solid var(--text-dim); }
+.home-cal-mark.is-task.is-p1 { border-color: var(--danger); }
+.home-cal-mark.is-task.is-p2 { border-color: var(--warning); }
+.home-cal-mark.is-task.is-p3 { border-color: var(--accent); }
+.home-cal-names { display: none; }
+.home-cal-list { border-top: 1px solid var(--border); padding-bottom: var(--space-4); }
+.home-cal-time {
+  flex: 0 0 56px; align-self: stretch; display: flex; align-items: center; padding-inline-start: var(--space-8);
+  border-inline-start: 3px solid var(--ev, var(--accent)); font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums;
+}
+.home-cal-none { padding: var(--space-6) var(--space-14) var(--space-10); }
+.home-cal-sync { margin: var(--space-4) var(--space-14) var(--space-10); }
+@container (min-width: 760px) {
+  .home-cal { display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+  .home-cal-list { border-top: 0; border-inline-start: 1px solid var(--border); }
+  .home-cal-wd-short { display: none; }
+  .home-cal-wd-long { display: inline; }
+  .home-cal-grid { gap: var(--space-4); }
+  .home-cal-day { align-items: stretch; min-height: 88px; padding: var(--space-4) var(--space-6) var(--space-6); background: var(--bg-elev-2); border-radius: var(--r-sm); }
+  .home-cal-day.is-today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .home-cal-day.is-picked { box-shadow: inset 0 0 0 2px var(--text); }
+  .home-cal-n { width: auto; height: auto; place-items: start; border-radius: 0; font-size: var(--fs-2xs); color: var(--text-dim); }
+  .home-cal-day.is-today .home-cal-n { background: none; color: var(--accent); }
+  .home-cal-marks { display: none; }
+  .home-cal-names { display: flex; }
+}
+
 /* ---------- Ledger: spotted bills, category memory, pace (0.309.0) ---------- */
 .bill-suggest {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-14);

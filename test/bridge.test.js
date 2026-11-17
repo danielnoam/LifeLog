@@ -1087,6 +1087,13 @@ test("stats, habit insights and upcoming releases read the app's own numbers", a
   const up = await ok("lifelog_upcoming", {});
   assert.match(up, new RegExp(`^1 coming by .*\\n- ${Finance.addDaysStr(today, 10)} · .*Big Game \\[Games\\]`));
   assert.match(up, /1 later or without an exact date:\n- No date announced: Someday Game/);
+  const big = Finance.addDaysStr(today, 10);
+  const cal = await ok("lifelog_calendar", { month: big.slice(0, 7) });
+  assert.match(cal, new RegExp(`\n${big}:\n- release Big Game \\[Games\\]  \\(b3\\)`));
+  const may = await ok("lifelog_calendar", { month: "2026-05" });
+  assert.match(may, /Finished in 2026-05, no day set \(1\):\n- Hades \[Games\]  \(e2\)/);
+  assert.match(await ok("lifelog_calendar", { day: "2026-05-03" }), /Nothing on that day\./);
+  await refused("lifelog_calendar", { month: "2026-13" }, /month must be YYYY-MM/);
 });
 
 test("a batch is saved as one change, refused whole, and undone whole", async () => {
