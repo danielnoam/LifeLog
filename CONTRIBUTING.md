@@ -27,6 +27,7 @@ builds (`tools/build-www.js`, Capacitor). Playwright isn't a dependency; see
 |---|---|
 | `README.md` | Every feature with pictures, and the setup. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | The project layout (which file does what), how to run the tests, and how the README's screenshots are taken. |
+| [`RULES.md`](RULES.md) | The rules that stop bugs and drift, shared by every app on keel: motion, components, words, saving, state, timers, tests. |
 | `DESIGN.md` | The design language: tokens, scales, motion, components, voice, accessibility, each rule marked Now or Target. |
 | `bridge/README.md`, `bridge/DATA.md` | How other AIs read and change LifeLog, and every field of the data. |
 | `DONE.md` | What the app does, by area, one line per feature with its version. |
@@ -78,6 +79,26 @@ request; the worker never stores one. `test/proxy.test.js` runs the worker
 and fails when it lacks a route the apps have; `test/desktop.test.js` does
 the same for the allowed hosts. The worker redeploys itself when `main`
 changes `proxy/`, so a route only works in a browser once its PR is merged.
+
+**RULES.md holds for every change.** In LifeLog's terms:
+
+- Edits merge over the record as it is now: a list's page keeps what it
+  opened on (`sheetBase` in notes.js) and Save writes only what the page
+  changed, since a reminder's Done, the widget, a sync or the bridge may
+  have changed it meanwhile.
+- Derived state has one function, called from every surface: a list's
+  done (`Tasks.reopen`), holdings (`holdingOf`, `shortSale`). A fix in
+  the app is checked in `src/widgets.js`, `bridge/tools.js`,
+  `src/desktop.js` and Home in the same change.
+- The shapes that have bitten: a repeating task (a tick moves its date,
+  so it never stays done; count its `ticks`), an entry with no day or
+  only a month, a list that is a task itself, a sale, a foreign amount.
+  A stat or check gets a test for each that applies.
+- The desktop app polls every 30s, so a reminder check looks back at
+  least that far (`LATE_ALERT_MIN`).
+- `test/motion.test.js` and `test/waits.test.js` check what a test can.
+  Fixed waits of a second or more may only go down: lower `MAX` there
+  when you remove one, never raise it.
 
 **Speed.** Measure before and after anything that could make it slower.
 

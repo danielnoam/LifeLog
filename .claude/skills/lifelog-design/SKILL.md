@@ -58,6 +58,9 @@ existing class with a modifier instead of starting a parallel one.
 6. **Every animation has a `prefers-reduced-motion` answer** right beside
    it. Arrive with `--ll-move-ease`, leave with `--ease` and faster. Sheets
    translate, never scale. Don't animate row `opacity` (`.ll-enter` owns it).
+   Everything that opens plays its exit; back slides back at every level;
+   never animate `font-size`, `padding` or `margin` (RULES.md;
+   `test/motion.test.js` checks curves and layout).
 7. **Icon-only controls have an `aria-label`.** Sheets have `role="dialog"`
    + `aria-labelledby`.
 8. **Text inputs are 16px or more on mobile** (iOS zoom).

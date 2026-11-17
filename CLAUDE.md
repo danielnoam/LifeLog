@@ -14,6 +14,8 @@ and the iOS app (Capacitor). See README.md for the layout.
   (security, platforms, speed, design, the AI bridge), keeping the notes
   files right, and how pull requests, versions, releases and test builds
   work. Everything below is only what's specific to Claude sessions.
+- Read **RULES.md** (from keel): the short rules that stop bugs and UI
+  drift. DESIGN.md and CONTRIBUTING.md give LifeLog's names for them.
 - Before changing something that looks arbitrary, check `git log` and the
   PR descriptions for why; it usually isn't. ARCHITECTURE.md has the
   project layout. Old comments that say "see NOTES.md" mean the removed
