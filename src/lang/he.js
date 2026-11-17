@@ -1600,6 +1600,7 @@ Keel.i18n.strings("he", {
   "No date announced": "לא הוכרז תאריך",
   "No date yet": "עוד אין תאריך",
   "No day set": "לא נקבע יום",
+  "no day": "בלי יום",
   "New episode": "פרק חדש",
   "Releases": "יציאות",
   "Releases on the calendar": "יציאות בלוח השנה",

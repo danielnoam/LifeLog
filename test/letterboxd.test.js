@@ -31,7 +31,7 @@ test("diary lines are entries on the watched day, a rewatch is another entry", (
   const got = L.parseExport([csv("diary.csv", DIARY)], "Films");
   assert.strictEqual(got.entries.length, 3);
   const [a, b, c] = got.entries;
-  assert.deepStrictEqual([a.title, a.year, a.month, a.date, a.rating, a.category], ["Heat", 2026, 2, "2026-02-14", 5, "Films"]);
+  assert.deepStrictEqual([a.title, a.year, a.month, a.day, a.date, a.rating, a.category], ["Heat", 2026, 2, 14, "2026-02-14", 5, "Films"]);
   assert.strictEqual(b.rating, 5);
   assert.ok(/Rewatch/.test(b.notes), "a rewatch says so");
   assert.strictEqual(c.rating, undefined, "no rating stays no rating");
@@ -42,7 +42,7 @@ test("watched films with no diary line are entries on the day marked, rated from
   const got = L.parseExport([csv("diary.csv", DIARY), csv("watched.csv", WATCHED), csv("ratings.csv", RATINGS)], "Films");
   const thief = got.entries.find((e) => e.title === "Thief");
   assert.ok(thief, "Thief came from watched.csv");
-  assert.deepStrictEqual([thief.year, thief.month, thief.rating], [2025, 12, 4]);
+  assert.deepStrictEqual([thief.year, thief.month, thief.day, thief.rating], [2025, 12, 20, 4]);
   assert.strictEqual(got.entries.filter((e) => e.title === "Heat").length, 2, "the diary's Heat isn't doubled by watched.csv");
 });
 

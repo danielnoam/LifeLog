@@ -47,7 +47,7 @@
   const starsOf = (r) => { const n = parseFloat(r); return n > 0 ? Math.min(5, Math.ceil(n)) : 0; };
   const dateParts = (d) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || "");
-    return m ? { year: +m[1], month: +m[2], date: m[0] } : null;
+    return m ? { year: +m[1], month: +m[2], day: +m[3], date: m[0] } : null;
   };
   const uriOf = (row) => row["letterboxd uri"] || (row.name + "|" + row.year);
 
@@ -87,7 +87,7 @@
     return { entries, backlog, counts: { diary: by.diary.length, watched: by.watched.length, ratings: by.ratings.length, watchlist: by.watchlist.length } };
   }
   function entry(r, when, rating, category) {
-    const e = { title: r.name, category, year: when.year, month: when.month, date: when.date, createdAt: new Date(when.date + "T12:00:00Z").toISOString() };
+    const e = { title: r.name, category, year: when.year, month: when.month, day: when.day, date: when.date, createdAt: new Date(when.date + "T12:00:00Z").toISOString() };
     if (rating) e.rating = rating;
     // The Letterboxd link isn't kept: a film you already logged would then
     // come up as an update ("+ notes") on every import instead of being

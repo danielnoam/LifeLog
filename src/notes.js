@@ -1731,6 +1731,7 @@
     openEntryModal(null, null, {
       year: d.getFullYear(),
       month: d.getMonth() + 1,
+      day: d.getDate(),
       title,
       notes,
     });

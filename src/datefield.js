@@ -16,7 +16,13 @@
     const face = faces.get(input);
     if (!face) return;
     const v = VALUE.get.call(input);
-    face.textContent = v && D() ? D().day(v) : "";
+    // A sheet marks a stand-in day it filled for a date known only to the
+    // month (data-known "" with data-orig the stand-in): the face says the
+    // month and that no day is set, not a 1st that was never picked.
+    const monthOnly = v && input.dataset.known === "" && v === input.dataset.orig;
+    face.textContent = !v || !D() ? ""
+      : monthOnly ? D().MONTH_NAMES[+v.slice(5, 7) - 1] + " " + v.slice(0, 4) + " · " + (typeof i18n === "object" ? i18n.t("no day") : "no day")
+      : D().day(v);
     const cs = getComputedStyle(input);
     face.style.paddingInlineStart = (parseFloat(cs.paddingInlineStart) || 0) + (parseFloat(cs.borderInlineStartWidth) || 0) + "px";
     face.style.fontSize = cs.fontSize;

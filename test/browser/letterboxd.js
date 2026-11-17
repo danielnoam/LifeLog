@@ -58,14 +58,18 @@ const SEED = {
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 });
   const rows = await page.evaluate(() => [...document.querySelectorAll("#financePickerList .import-row, #financePickerList label")].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
   check("the review lists the new films and the watchlist item", rows.some((r) => /Heat/.test(r)) && rows.some((r) => /Beavers/.test(r)) && rows.some((r) => /Collateral/.test(r)), rows);
-  check("the one already logged is hidden as a duplicate", !rows.some((r) => /Thief/.test(r)), rows);
+  // Thief is logged with only its month: the import offers the day it has
+  // and nothing else, so it lands on its day in the calendar.
+  const thief = rows.filter((r) => /Thief/.test(r));
+  check("the one already logged comes up only to fill its day", thief.length === 1 && /\+ 1 field/.test(thief[0]) && /day/.test(thief[0]), rows);
   check("the hint counts what the zip held", /3 watched/.test(await page.textContent("#financePickerHint")) && /1 on the watchlist/.test(await page.textContent("#financePickerHint")));
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(600);
   const data = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const heat = data.entries.find((e) => e.title === "Heat");
   check("Heat is an entry on the day it was watched, with its stars", heat && heat.date === "2026-02-14" && heat.rating === 5 && heat.category === "Films", heat);
   check("the watchlist film is in the backlog with its year", data.backlog.some((x) => x.title === "Collateral" && x.releaseYear === 2004), data.backlog);
-  check("Thief is still one entry", data.entries.filter((e) => e.title === "Thief").length === 1);
+  const thieves = data.entries.filter((e) => e.title === "Thief");
+  check("Thief is still one entry, now with its day", thieves.length === 1 && thieves[0].day === 20, thieves);
   check("no errors", errs.length === 0, errs);
   await ctx.close();
   await b.close();
