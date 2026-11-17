@@ -63,7 +63,19 @@ const SEED = {
     await save();
     e = await entry("old");
     check("and saved untouched, it still has no day" + at, e.day === undefined && e.month === 6 && e.year === 2025, e);
+    // Picking the 1st changes nothing the box can tell, so a button makes it a day.
     await open("old");
+    await page.waitForTimeout(200);
+    check("a date with no day offers Set to the 1st" + at, await page.isVisible(".date-field:has(#fDate) + .date-day1"));
+    await page.click(".date-field:has(#fDate) + .date-day1");
+    check("which then hides, and the face shows the 1st as a day" + at, !(await page.isVisible(".date-field:has(#fDate) + .date-day1"))
+      && !/no day/.test(await page.textContent(".date-field:has(#fDate) .date-face")), await page.textContent(".date-field:has(#fDate) .date-face"));
+    await save();
+    e = await entry("old");
+    check("saved, the 1st is its day" + at, e.day === 1 && e.month === 6 && e.year === 2025, e);
+    await open("old");
+    await page.waitForTimeout(200);
+    check("a date with a day doesn't offer it" + at, !(await page.isVisible(".date-field:has(#fDate) + .date-day1")));
     await page.fill("#fDate", "2025-07-20");
     await save();
     e = await entry("old");

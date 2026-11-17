@@ -9,6 +9,7 @@
 (function () {
   const VALUE = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
   const faces = new WeakMap();
+  const day1s = new WeakMap();
   const D = () => window.LifeLogDates;
   const finePointer = () => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
@@ -23,6 +24,10 @@
     face.textContent = !v || !D() ? ""
       : monthOnly ? D().MONTH_NAMES[+v.slice(5, 7) - 1] + " " + v.slice(0, 4) + " · " + (typeof i18n === "object" ? i18n.t("no day") : "no day")
       : D().day(v);
+    // Picking the 1st there changes nothing the box can tell, so a button
+    // under it makes the 1st a real day.
+    const day1 = day1s.get(input);
+    if (day1) day1.hidden = !monthOnly;
     const cs = getComputedStyle(input);
     face.style.paddingInlineStart = (parseFloat(cs.paddingInlineStart) || 0) + (parseFloat(cs.borderInlineStartWidth) || 0) + "px";
     face.style.fontSize = cs.fontSize;
@@ -40,6 +45,19 @@
     wrap.appendChild(face);
     input.classList.add("has-face");
     faces.set(input, face);
+    const day1 = document.createElement("button");
+    day1.type = "button";
+    day1.className = "date-day1";
+    day1.hidden = true;
+    day1.textContent = typeof i18n === "object" ? i18n.t("Set to the 1st") : "Set to the 1st";
+    day1.addEventListener("click", (e) => {
+      e.preventDefault();
+      input.dataset.known = "1";
+      paint(input);
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    wrap.after(day1);
+    day1s.set(input, day1);
     // Sheets fill their boxes with `input.value = …`, which fires no event.
     Object.defineProperty(input, "value", {
       configurable: true,

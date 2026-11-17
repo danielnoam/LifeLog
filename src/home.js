@@ -441,7 +441,7 @@
     const words = r.kind === "habit"
       ? (r.period === "day" ? i18n.tn(r.count, "1 habit left today", "{n} habits left today") : ({ week: i18n.t("{done} of {target} this week", { done: amt(r.done), target: amt(r.target) }), month: i18n.t("{done} of {target} this month", { done: amt(r.done), target: amt(r.target) }), year: i18n.t("{done} of {target} this year", { done: amt(r.done), target: amt(r.target) }) })[r.period])
       : r.kind === "charge" ? [r.category, i18n.t("charges")].filter(Boolean).join(" · ")
-        : [r.category, r.kind === i18n.t("release") ? (r.day === today ? i18n.t("out today") : "release") : r.label || i18n.t("new episode")].filter(Boolean).join(" · ");
+        : [r.category, r.kind === "release" ? (r.day === today ? i18n.t("out today") : i18n.t("release")) : r.label || i18n.t("new episode")].filter(Boolean).join(" · ");
     sub.appendChild(document.createTextNode(words));
     text.appendChild(sub);
     row.appendChild(text);
@@ -955,9 +955,8 @@
       any = true;
       list.appendChild(upcomingRow({ kind: r.kind, day: key, title: r.b.title, category: r.b.category, label: r.kind === "episode" ? r.b.nextLabel || "" : "", id: r.b.id }, today));
     }
-    for (const e of mo.byDay.get(d) || []) {
-      any = true;
-      const row = list.appendChild(el("button", "home-row"));
+    const finishedRow = (e) => {
+      const row = el("button", "home-row");
       row.type = "button";
       row.appendChild(el("span", "home-row-ico")).appendChild(ico("check"));
       const text = row.appendChild(el("span", "home-row-text"));
@@ -967,8 +966,33 @@
       dot.style.background = catColor(e.category);
       sub.appendChild(document.createTextNode(i18n.t("{category} · finished", { category: e.category })));
       row.onclick = () => J.openExisting("entry", e.id);
+      return row;
+    };
+    for (const e of mo.byDay.get(d) || []) {
+      any = true;
+      list.appendChild(finishedRow(e));
     }
     if (!any) list.appendChild(el("p", "home-empty home-cal-none", i18n.t("Nothing on this day")));
+    // The month's entries with no day and its releases known only to the
+    // month or quarter, as under the Timeline's calendar.
+    if (mo.undated.length) {
+      list.appendChild(el("p", "home-day home-cal-undated", i18n.t("No day set") + " · " + mo.undated.length));
+      for (const e of mo.undated) list.appendChild(finishedRow(e));
+    }
+    if (mo.rel.rough.length) {
+      list.appendChild(el("p", "home-day home-cal-rough", i18n.t("This month, no day yet") + " · " + mo.rel.rough.length));
+      for (const b of mo.rel.rough) {
+        const row = list.appendChild(el("button", "home-row"));
+        row.type = "button";
+        row.appendChild(el("span", "home-row-ico")).appendChild(ico(KIND_ICON.release));
+        const text = row.appendChild(el("span", "home-row-text"));
+        text.appendChild(el("span", "home-row-title", b.title));
+        const sub = text.appendChild(el("span", "home-row-sub"));
+        sub.appendChild(el("span", "dot")).style.background = catColor(b.category);
+        sub.appendChild(document.createTextNode([b.category, i18n.t("release")].filter(Boolean).join(" · ")));
+        row.onclick = () => window.LifeLogBacklog.openBacklogModal(b);
+      }
+    }
     if (G && G.on && (G.needsTap || G.error)) {
       const b = list.appendChild(el("button", "btn btn-sm home-cal-sync"));
       b.type = "button";
