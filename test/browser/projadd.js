@@ -112,6 +112,25 @@ const SEED = {
   check("the edit button still opens the project, not the expense form",
     edit.proj === true && edit.fin === false, edit);
 
+  // --- deleting an expense acts at once and offers Undo (no confirm) ---
+  let dialogs = 0;
+  page.on("dialog", (d) => { dialogs++; d.dismiss(); });
+  await page.click("#projectModal", { position: { x: 5, y: 5 } });
+  await page.waitForSelector("#projectModal", { state: "hidden" });
+  await page.evaluate(() => {
+    const f = window.LifeLogStorage.cachedCopy().financeEntries.find((x) => x.id === "f4");
+    window.LifeLogFinance.openFinanceModal(f);
+  });
+  await page.waitForSelector("#financeModal:not([hidden])");
+  await page.click("#deleteFinanceBtn");
+  await page.waitForFunction(() => !window.LifeLogStorage.cachedCopy().financeEntries.some((x) => x.id === "f4"));
+  const undo = await page.waitForSelector(".toast-action");
+  check("delete asks nothing and says Expense deleted, with Undo",
+    dialogs === 0 && (await page.evaluate(() => document.querySelector("#noticeStack").textContent)).includes("Expense deleted"), dialogs);
+  await undo.click();
+  await page.waitForFunction(() => window.LifeLogStorage.cachedCopy().financeEntries.some((x) => x.id === "f4" && x.note === "home"));
+  check("Undo brings the expense back", true);
+
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);
   await b.close();

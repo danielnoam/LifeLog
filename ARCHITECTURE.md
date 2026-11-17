@@ -88,7 +88,7 @@ The files listed in `keel.lock.json` (server.js, src/keel/qr.js,
 src/keel/github.js, src/keel/drive.js, src/keel/errlog.js, src/keel/platform.js, src/keel/motion.js, src/keel/i18n.js, src/keel/releases.js,
 src/keel/sw-preview.js,
 tools/release.js, tools/android-version.js, tools/keel-sync.js, tools/keel-checks.js (the contrast and CSP checks the tests use),
-test/keel.test.js, the github-pages skill) come from keel. Don't edit
+test/keel.test.js, RULES.md, the github-pages skill) come from keel. Don't edit
 them here: `test/keel.test.js` fails. Change them in keel, tag a
 release there, then `node tools/keel-sync.js v<version>` in a PR here.
 

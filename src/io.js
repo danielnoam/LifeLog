@@ -667,7 +667,7 @@
     count("todo", (n) => i18n.tn(n, "{n} task", "{n} tasks"));
     count("habit", (n) => i18n.tn(n, "{n} habit", "{n} habits"));
     count("board", (n) => i18n.tn(n, "{n} board", "{n} boards"));
-    count("finance", (n) => i18n.tn(n, "{n} finance entry", "{n} finance entries"));
+    count("finance", (n) => i18n.tn(n, "{n} expense", "{n} expenses"));
     count("recurring", (n) => i18n.tn(n, "{n} recurring expense", "{n} recurring expenses"));
     if (updates.length) {
       parts.push(i18n.t("filled {fields} on {items}", { fields: i18n.tn(filled, "{n} field", "{n} fields"), items: i18n.tn(updates.length, "{n} existing item", "{n} existing items") }));
