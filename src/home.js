@@ -566,7 +566,7 @@
     const foot = padFoot();
     const make = el("button", "btn btn-small");
     make.type = "button";
-    make.append(ico("plus"), document.createTextNode(" " + i18n.t("Save to Notebook")));
+    make.textContent = "+ " + i18n.t("Save to Notebook");
     make.title = i18n.t("Save what's here as a note in your Notebook and clear the scratchpad");
     make.onclick = makeNote;
     foot.appendChild(make);
@@ -598,7 +598,7 @@
     const foot = padFoot();
     const keep = el("button", "btn btn-small");
     keep.type = "button";
-    keep.append(ico("plus"), document.createTextNode(" " + i18n.t("Save to Notebook")));
+    keep.textContent = "+ " + i18n.t("Save to Notebook");
     keep.title = i18n.t("File this drawing as a board in your Notebook and start a blank one");
     keep.onclick = keepBoard;
     foot.appendChild(keep);
@@ -738,7 +738,7 @@
     foot.appendChild(el("span", "spacer"));
     const add = el("button", "btn btn-small");
     add.type = "button";
-    add.append(ico("plus"), document.createTextNode(" " + i18n.t("Add expense")));
+    add.textContent = "+ " + i18n.t("Add expense");
     add.onclick = () => F.openFinanceModal(null);
     foot.appendChild(add);
     card.appendChild(foot);
@@ -762,7 +762,7 @@
     const addBtn = () => {
       const add = el("button", "btn btn-small");
       add.type = "button";
-      add.append(ico("plus"), document.createTextNode(" " + i18n.t("Add ticker")));
+      add.textContent = "+ " + i18n.t("Add ticker");
       add.onclick = () => I.addTicker();
       return add;
     };

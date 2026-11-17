@@ -73,7 +73,7 @@ const SEED = {
     rate: (document.querySelector("#finRate") || {}).value || null,
     id: document.querySelector("#financeId").value,
   }));
-  check("pressing + opens the add form", form.open && /Add finance entry/.test(form.title), form);
+  check("pressing + opens the add form", form.open && /Add expense/.test(form.title), form);
   check("with the project already chosen", form.project === "Switzerland", form);
   check("as a new entry, not an edit", form.id === "" && form.amount === "", form);
   check("dated into the run's month, not today", /^2026-06/.test(form.date), form);

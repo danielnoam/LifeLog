@@ -527,7 +527,7 @@
         glyph: "trending-up",
         title: i18n.t("Nothing on your watchlist yet"),
         body: i18n.t("Follow US stocks and ETFs here: a price chart for each, a target price and a note, and pins on the days you want to compare."),
-        action: i18n.t("Add a ticker"),
+        action: i18n.t("Add ticker"),
         onAction: () => openWatchModal(null),
         hint: blocker() === "key" ? i18n.t("Prices come from Tiingo with a free key of your own — Settings → Media lookups.") : "",
       }));
@@ -566,7 +566,7 @@
     }
     const add = el("button", "invest-chip invest-chip-add");
     add.type = "button";
-    add.setAttribute("aria-label", i18n.t("Add a ticker"));
+    add.setAttribute("aria-label", i18n.t("Add ticker"));
     add.appendChild(ico("plus"));
     add.onclick = () => openWatchModal(null);
     row.appendChild(add);
@@ -886,7 +886,7 @@
     const h = el("h3");
     h.appendChild(ico("coins"));
     h.appendChild(document.createTextNode(i18n.t("Holding")));
-    const add = el("button", "btn invest-addbuy", i18n.t("+ Add a buy"));
+    const add = el("button", "btn invest-addbuy", i18n.t("+ Add buy"));
     add.type = "button";
     add.onclick = () => openBuyModal(null, w, last ? last[0] : todayStr());
     h.appendChild(add);
@@ -1125,7 +1125,7 @@
     await ensureLoaded();
     editingWatch = w || null;
     picked = null;
-    $("#watchModalTitle").textContent = w ? i18n.t("Edit {name}", { name: w.symbol }) : i18n.t("Watch a ticker");
+    $("#watchModalTitle").textContent = w ? i18n.t("Edit {name}", { name: w.symbol }) : i18n.t("Add ticker");
     $("#watchSymbolRow").hidden = !!w;
     $("#watchSymbol").value = "";
     $("#watchResults").innerHTML = "";
@@ -1316,7 +1316,7 @@
       b.classList.toggle("active", on);
       b.setAttribute("aria-pressed", String(on));
     }
-    $("#investBuyModalTitle").textContent = buyKind === "sell" ? (editingBuy ? i18n.t("Edit sale") : i18n.t("Add a sale")) : (editingBuy ? i18n.t("Edit buy") : i18n.t("Add a buy"));
+    $("#investBuyModalTitle").textContent = buyKind === "sell" ? (editingBuy ? i18n.t("Edit sale") : i18n.t("Add sale")) : (editingBuy ? i18n.t("Edit buy") : i18n.t("Add buy"));
     buyTotal();
   }
   function buyTotal() {

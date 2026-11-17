@@ -329,3 +329,4 @@ Every release that adds a feature adds its line here in the same commit.
 - Reduce motion turns off every animation (0.136.0)
 - Settings → Appearance → Animations: off stops every slide, spring and fade on this device; springs from keel's motion engine, without overshoot with a mouse on a big screen (next release)
 - Consistent type and spacing scales (0.223.0)
+- Animation pass: dropdowns close with a fade and swipe down on a phone, Settings steps back the right way, closes run faster than opens, the jump bar scales instead of re-laying out, the settle curve and ease are tokens everywhere (next release)

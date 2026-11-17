@@ -914,12 +914,16 @@
     }
     const was = currentPage;
     currentPage = name || "";
+    // Back from a page inside another (Hardcover → Connections) slides the
+    // way back does from a page to the list.
+    const wasEl = was && document.querySelector('#settingsModal .settings-page[data-page="' + was + '"]');
+    const steppedOut = !!currentPage && !!wasEl && wasEl.dataset.parent === currentPage;
     box().dataset.page = currentPage;
     document.querySelectorAll("#settingsModal .settings-page").forEach((p) => {
       const on = p.dataset.page === currentPage;
       if (!on && p.contains(document.activeElement)) document.activeElement.blur();
       p.hidden = !on;
-      if (on) replay(p, onePane() ? "mode-slide-fwd" : "view-fade-in");
+      if (on) replay(p, !onePane() ? "view-fade-in" : steppedOut ? "mode-slide-back" : "mode-slide-fwd");
     });
     if (onePane() && was && !currentPage && !$("#settingsModal").hidden) replay($("#settingsModal .settings-side"), "mode-slide-back");
     // A page inside another (a connection inside Connections) lights its

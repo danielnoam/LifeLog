@@ -989,9 +989,9 @@
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState({
         glyph: currencyGlyph(),
-        title: i18n.t("No finance entries yet"),
+        title: i18n.t("No expenses yet"),
         body: i18n.t("Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend."),
-        action: i18n.t("Add finance entry"),
+        action: i18n.t("Add expense"),
         onAction: () => openFinanceModal(null),
         hint: i18n.t("Recurring expenses can generate their entries automatically."),
       }));
@@ -1402,9 +1402,9 @@
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState({
         glyph: currencyGlyph(),
-        title: i18n.t("No finance entries yet"),
+        title: i18n.t("No expenses yet"),
         body: i18n.t("Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend."),
-        action: i18n.t("Add finance entry"),
+        action: i18n.t("Add expense"),
         onAction: () => openFinanceModal(null),
         hint: i18n.t("Recurring expenses can generate their entries automatically."),
       }));
@@ -1907,7 +1907,7 @@
 
   function openFinanceModal(entry, presetDate, prefill) {
     const editing = !!entry;
-    $("#financeModalTitle").textContent = editing ? i18n.t("Edit finance entry") : i18n.t("Add finance entry");
+    $("#financeModalTitle").textContent = editing ? i18n.t("Edit expense") : i18n.t("Add expense");
     $("#financeId").value = editing ? entry.id : "";
     $("#finDate").value = editing ? entry.date
       : (presetDate ? presetDateStr(presetDate) : todayStr());
@@ -2072,7 +2072,7 @@
   }
 
   function fillProjectSelect(sel, val) {
-    fillSelect(sel, [{ value: "", label: i18n.t("— none —") }]
+    fillSelect(sel, [{ value: "", label: i18n.t("No project") }]
       .concat((state.data.projects || []).map((p) => ({ value: p.name, label: p.name })))
       .concat([{ value: ADD_PROJECT_OPTION, label: i18n.t("+ New project…") }]), val || "");
     sel.dataset.prevValue = val || "";

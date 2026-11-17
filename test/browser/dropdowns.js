@@ -53,7 +53,7 @@ async function seed(page) {
   const sort2 = page.locator(".sort-select:visible").first();
   await sort2.focus(); await page.keyboard.press("Space"); await page.waitForTimeout(150);
   check("Space on the field opens it", await page.isVisible(".dd-pop"));
-  await page.keyboard.press("Escape"); await page.waitForTimeout(150);
+  await page.keyboard.press("Escape"); await page.waitForTimeout(250);
   check("Escape closes it without changing anything", (await page.$(".dd-pop")) === null && (await sort2.inputValue()) === afterKey);
   check("and gives focus back to the field", await sort2.evaluate((s) => document.activeElement === s));
 
@@ -65,7 +65,7 @@ async function seed(page) {
   check("a click on an option picks it", await s3.evaluate((s, t) => s.options[s.selectedIndex].textContent === t, lastText));
 
   await s3.click(); await page.waitForTimeout(150);
-  await page.mouse.click(20, 880); await page.waitForTimeout(150);
+  await page.mouse.click(20, 880); await page.waitForTimeout(250);
   check("a click outside closes it", (await page.$(".dd-pop")) === null);
 
   await page.click("#settingsBtn"); await page.waitForTimeout(300);

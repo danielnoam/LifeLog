@@ -144,7 +144,74 @@
       const b = e.target.closest(".dd-opt");
       if (b && !b.hasAttribute("aria-disabled")) setActive(o.items.indexOf(b), false);
     });
-    if (o.sheet) o.root.addEventListener("click", (e) => { if (e.target === o.root) close(true); });
+    if (o.sheet) { o.root.addEventListener("click", (e) => { if (e.target === o.root) close(true); }); wireSwipe(o); }
+  }
+
+  // Pull the sheet down to close it, as every other sheet does (wireSheetSwipe
+  // in app.js): only a pull that starts downward with the list at its top, so
+  // it never takes a scroll; a flick or ~30% closes, less springs back.
+  function wireSwipe(o) {
+    const box = o.box, root = o.root;
+    let d = null;
+    box.addEventListener("touchstart", (e) => {
+      d = null;
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      d = { x: t.clientX, y: t.clientY, dy: 0, on: false, samples: [] };
+    }, { passive: true });
+    box.addEventListener("touchmove", (e) => {
+      if (!d) return;
+      const t = e.touches[0];
+      if (!d.on) {
+        const dx = t.clientX - d.x, dy = t.clientY - d.y;
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (dy <= 0 || Math.abs(dx) > dy || o.list.scrollTop > 0) { d = null; return; }
+        d.on = true;
+        d.y = t.clientY;
+        box.style.transition = root.style.transition = "none";
+        box.style.animation = root.style.animation = "none";
+      }
+      e.preventDefault();
+      d.dy = Math.max(0, t.clientY - d.y);
+      box.style.translate = "0 " + d.dy + "px";
+      root.style.opacity = String(Math.max(0.35, 1 - d.dy / (box.offsetHeight * 1.4)));
+      d.samples.push({ y: t.clientY, t: e.timeStamp });
+      if (d.samples.length > 5) d.samples.shift();
+    }, { passive: false });
+    const end = () => {
+      const g = d;
+      d = null;
+      if (!g || !g.on) return;
+      const a = g.samples[0], b = g.samples[g.samples.length - 1];
+      const speed = a && b && b.t > a.t ? (b.y - a.y) / (b.t - a.t) : 0;
+      const still = document.documentElement.dataset.motion === "off" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (g.dy > Math.min(160, box.offsetHeight * 0.3) || (speed > 0.5 && g.dy > 24)) {
+        box.style.transition = root.style.transition = still ? "none" : "translate .2s var(--ease), opacity .2s var(--ease)";
+        box.style.translate = "0 " + innerHeight + "px";
+        root.style.opacity = "0";
+        root.style.pointerEvents = "none";
+        if (open === o) { open = null; o.sel.setAttribute("aria-expanded", "false"); o.sel.focus({ preventScroll: true }); }
+        setTimeout(() => root.remove(), still ? 0 : 200);
+      } else {
+        box.style.transition = still ? "none" : "translate var(--spring-soft-ms) var(--spring-soft)";
+        root.style.transition = still ? "none" : "opacity .2s var(--ease)";
+        box.style.translate = "";
+        root.style.opacity = "";
+      }
+    };
+    box.addEventListener("touchend", end);
+    box.addEventListener("touchcancel", end);
+  }
+
+  // Out the way every other menu and sheet goes: faster than it came in,
+  // and already deaf to the pointer, so the page under it takes the next tap.
+  function leave(root) {
+    const off = document.documentElement.dataset.motion === "off" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (off) { root.remove(); return; }
+    root.style.animation = "";
+    if (root.firstChild) root.firstChild.style.animation = "";
+    root.classList.add("is-leaving");
+    setTimeout(() => root.remove(), root.classList.contains("dd-scrim") ? 160 : 110);
   }
 
   function close(refocus) {
@@ -152,7 +219,7 @@
     const o = open;
     open = null;
     o.sel.setAttribute("aria-expanded", "false");
-    o.root.remove();
+    leave(o.root);
     if (refocus) o.sel.focus({ preventScroll: true });
   }
 
