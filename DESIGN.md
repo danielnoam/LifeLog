@@ -223,6 +223,8 @@ lists. It's expensive in the Android WebView.
 
 - **Arrive with settle, leave with ease, and leave faster** (about .14s out
   against .2–.24s in).
+- Curves are the tokens, never a literal `cubic-bezier()` or the `ease`
+  keyword, so a change to one reaches every place it's used (2026-11-17).
 - Sheets **translate**, never scale: scaling throws off anything that
   measures itself on open, such as the wheel.
 - **Presses are interruptible.** `wirePressFeedback()` hands `PRESSABLE` to

@@ -147,12 +147,21 @@
     if (o.sheet) o.root.addEventListener("click", (e) => { if (e.target === o.root) close(true); });
   }
 
+  // Out the way every other menu and sheet goes: faster than it came in,
+  // and already deaf to the pointer, so the page under it takes the next tap.
+  function leave(root) {
+    const off = document.documentElement.dataset.motion === "off" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (off) { root.remove(); return; }
+    root.classList.add("is-leaving");
+    setTimeout(() => root.remove(), root.classList.contains("dd-scrim") ? 160 : 110);
+  }
+
   function close(refocus) {
     if (!open) return;
     const o = open;
     open = null;
     o.sel.setAttribute("aria-expanded", "false");
-    o.root.remove();
+    leave(o.root);
     if (refocus) o.sel.focus({ preventScroll: true });
   }
 

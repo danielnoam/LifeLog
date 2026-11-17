@@ -759,7 +759,17 @@ body.modal-open .activity-pill { visibility: hidden; }
 .dd-sheet .dd-tick, .dd-sheet .dd-tick svg { width: 18px; height: 18px; flex-basis: 18px; }
 @keyframes dd-fade { from { opacity: 0; } }
 @keyframes dd-rise { from { translate: 0 40px; opacity: .6; } }
-@media (prefers-reduced-motion: reduce) { .dd-pop, .dd-scrim, .dd-sheet { animation: none; } }
+/* Closing (select.js leave()): out faster than in, with ease, like the
+   sheets and menus; the list is gone for the pointer at once. */
+.dd-layer.is-leaving .dd-pop { animation: dd-out .1s var(--ease) forwards; pointer-events: none; }
+.dd-layer.is-leaving .dd-pop.is-up { animation-name: dd-out-up; }
+.dd-scrim.is-leaving { animation: dd-fade-out .16s var(--ease) forwards; pointer-events: none; }
+.dd-scrim.is-leaving .dd-sheet { animation: dd-sink .16s var(--ease) forwards; }
+@keyframes dd-out { to { opacity: 0; translate: 0 -4px; } }
+@keyframes dd-out-up { to { opacity: 0; translate: 0 4px; } }
+@keyframes dd-fade-out { to { opacity: 0; } }
+@keyframes dd-sink { to { translate: 0 40px; } }
+@media (prefers-reduced-motion: reduce) { .dd-pop, .dd-scrim, .dd-sheet, .dd-layer.is-leaving .dd-pop, .dd-scrim.is-leaving, .dd-scrim.is-leaving .dd-sheet { animation: none; } }
 
 .add-menu { position: absolute; inset-inline-end: 0; bottom: calc(100% + 10px); }
 /* One group per tab, the way the Ledger's two items used to sit apart: a
@@ -917,7 +927,7 @@ select:focus { outline: none; border-color: var(--accent); }
 /* Replayed on view switches only (see fadeInOnViewChange in app.js) — a
    short fade + 6px rise, no bounce. Skipped under prefers-reduced-motion. */
 @keyframes view-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.view-fade-in { animation: view-fade-in .22s cubic-bezier(.22,1,.36,1) both; }
+.view-fade-in { animation: view-fade-in .22s var(--ll-move-ease) both; }
 @media (prefers-reduced-motion: reduce) { .view-fade-in { animation: none; } }
 
 /* The mode fan: press and hold a tab in the bottom bar and its other modes
@@ -945,19 +955,24 @@ select:focus { outline: none; border-color: var(--accent); }
      part of the bar rather than something raised out of it. */
   box-shadow: var(--shadow);
   opacity: 0; transform: translateY(10px) scale(.96);
-  transition: opacity .16s ease, transform .16s cubic-bezier(.22,1,.36,1),
-              background .1s ease, border-color .1s ease, color .1s ease;
+  transition: opacity .1s var(--ease), transform .1s var(--ease),
+              background .1s var(--ease), border-color .1s var(--ease), color .1s var(--ease);
 }
 /* Each one a beat after the one below it, so they read as rising out of the
    tab rather than appearing all at once. */
 .mode-fan-item:nth-child(2) { transition-delay: .045s; }
 .mode-fan-item:nth-child(3) { transition-delay: .09s; }
-.mode-fan.is-open .mode-fan-item { opacity: 1; transform: none; }
+/* Opening rises with settle; closing (the rule above) drops out faster. */
+.mode-fan.is-open .mode-fan-item {
+  opacity: 1; transform: none;
+  transition: opacity .16s var(--ease), transform .16s var(--ll-move-ease),
+              background .1s var(--ease), border-color .1s var(--ease), color .1s var(--ease);
+}
 .mode-fan-item.is-armed {
   background: var(--accent-fill); border-color: var(--accent-fill); color: var(--text-on-accent);
 }
 @media (prefers-reduced-motion: reduce) {
-  .mode-fan-item { transition: none; transition-delay: 0s; opacity: 1; transform: none; }
+  .mode-fan-item, .mode-fan.is-open .mode-fan-item { transition: none; transition-delay: 0s; opacity: 1; transform: none; }
 }
 
 /* Switching mode within a view (Timeline's Entries/Notes/To-do, the
@@ -988,8 +1003,8 @@ select:focus { outline: none; border-color: var(--accent); }
 .mode-peek-icon .ico { width: 30px; height: 30px; display: block; }
 @keyframes mode-slide-fwd { from { opacity: 0; transform: translateX(var(--mode-enter-x, 16px)); } to { opacity: 1; transform: none; } }
 @keyframes mode-slide-back { from { opacity: 0; transform: translateX(calc(-1 * var(--mode-enter-x, 16px))); } to { opacity: 1; transform: none; } }
-.mode-slide-fwd { animation: mode-slide-fwd .22s cubic-bezier(.22,1,.36,1) both; }
-.mode-slide-back { animation: mode-slide-back .22s cubic-bezier(.22,1,.36,1) both; }
+.mode-slide-fwd { animation: mode-slide-fwd .22s var(--ll-move-ease) both; }
+.mode-slide-back { animation: mode-slide-back .22s var(--ll-move-ease) both; }
 @media (prefers-reduced-motion: reduce) {
   .mode-slide-fwd, .mode-slide-back { animation: none; }
 }
@@ -1232,13 +1247,13 @@ select:focus { outline: none; border-color: var(--accent); }
   display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
   background: var(--surface-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding-block: 6px; padding-inline: 14px 6px;
-  transition: border-color .15s ease, background .15s ease;
+  transition: border-color .15s var(--ease), background .15s var(--ease);
 }
 .todo-compose:focus-within { border-color: var(--accent); background: var(--bg-elev-2); }
 /* The affordance: says "start one here" without spending a line on a label. */
 .todo-compose::before {
   content: "+"; flex: 0 0 auto; color: var(--text-faint);
-  font-size: var(--fs-xl); line-height: 1; transition: color .15s ease;
+  font-size: var(--fs-xl); line-height: 1; transition: color .15s var(--ease);
 }
 .todo-compose:focus-within::before { color: var(--accent); }
 .todo-compose input {
@@ -1249,7 +1264,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .todo-compose input::placeholder { color: var(--text-faint); }
 /* Quiet until there's something to add: an always-lit primary button on an
    empty box is an invitation to press something that does nothing. */
-.todo-compose .btn { flex: 0 0 auto; transition: opacity .15s ease; }
+.todo-compose .btn { flex: 0 0 auto; transition: opacity .15s var(--ease); }
 .todo-compose .btn:disabled { opacity: .35; cursor: default; }
 /* A press anywhere but the checkbox and the ✕ can become the reorder
    long-press (attachLongPressReorder in notes.js), so nothing here may start
@@ -1335,8 +1350,8 @@ input.todo-check:focus-visible { border-radius: 50%; }
 /* What slideDisplaced (notes.js) hands the transform back to. Short: it has
    to finish before the finger reaches the next neighbour's midpoint, or the
    list is animating one swap while you are asking for the next. */
-.todo-row.is-reorder { transition: transform .17s cubic-bezier(.22,1,.36,1); }
-.todo-row.is-settling { transition: transform .14s cubic-bezier(.22,1,.36,1); }
+.todo-row.is-reorder { transition: transform .17s var(--ll-move-ease); }
+.todo-row.is-settling { transition: transform .14s var(--ll-move-ease); }
 @media (prefers-reduced-motion: reduce) { .todo-row.is-reorder { transition: none; } }
 .todo-grip { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-faint); font-size: var(--fs-sm); }
 .todo-row.is-dragging {
@@ -2506,8 +2521,9 @@ html.force-mobile .cal-more {
    line, where space-between alone would start it at the left (0.224.0). */
 .backlog-mode-bar > .dsc-bar-right { margin-inline-start: auto; }
 .dsc-refresh { min-width: 32px; padding-inline: 8px; font-size: var(--fs-md); }
-/* The same height as the sort menu beside them, not 5px short of it. */
-.dsc-bar-right > .btn-sm { padding-block: 6px; }
+/* The same height as the sort menu beside them, not 5px short of it, also
+   on a phone where the menu grows to 36px. */
+.dsc-bar-right > .btn-sm { padding-block: 6px; align-self: stretch; display: inline-flex; align-items: center; }
 .dsc-toggle {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer; user-select: none;
@@ -3440,7 +3456,7 @@ details[open]::details-content {
    swipe moving the same content sideways. */
 @property --pull { syntax: "<length>"; inherits: true; initial-value: 0px; }
 html.pulling #content, html.pulling #filterSlot { translate: 0 var(--pull); }
-html.pull-settling { transition: --pull .3s cubic-bezier(.22,1,.36,1); }
+html.pull-settling { transition: --pull .3s var(--ll-move-ease); }
 .pull-icon {
   display: none; position: fixed; left: 50%; top: var(--topbar-h, 60px);
   width: 26px; height: 26px; margin-inline-start: -14px;
@@ -3591,7 +3607,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      navigation. */
   html:not(.force-pc) .jump-nav {
     display: flex; align-items: center; justify-content: center; gap: 4px;
-    height: 0; overflow: hidden; transition: height .18s ease;
+    height: 0; overflow: hidden; transition: height .18s var(--ease);
     touch-action: pan-y; order: 0; position: relative; padding: 0 14px;
     -webkit-tap-highlight-color: transparent;
   }
@@ -3628,7 +3644,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
     flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
     font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
-    transition: color .18s ease, font-size .18s ease;
+    transition: color .18s var(--ease), font-size .18s var(--ease);
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
   }
   html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
@@ -3718,7 +3734,7 @@ html.force-mobile .tab-underline {
 
 html.force-mobile .jump-nav {
   display: flex; align-items: center; justify-content: center; gap: 4px;
-  height: 0; overflow: hidden; transition: height .18s ease;
+  height: 0; overflow: hidden; transition: height .18s var(--ease);
   touch-action: pan-y; order: 0; position: relative; padding: 0 14px;
   -webkit-tap-highlight-color: transparent;
 }
@@ -3741,10 +3757,14 @@ html.force-mobile .jump-item {
   flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
   font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
-  transition: color .18s ease, font-size .18s ease;
+  transition: color .18s var(--ease), font-size .18s var(--ease);
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
 }
 html.force-mobile .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  html:not(.force-pc) .jump-nav, html:not(.force-pc) .jump-item,
+  html.force-mobile .jump-nav, html.force-mobile .jump-item { transition: none; }
+}
 
 html.force-mobile .fab-wrap { inset-inline-end: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
 html.force-mobile .notice-stack {
@@ -3893,7 +3913,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   from { opacity: 1; transform: none; }
   to { opacity: 0; transform: translateY(4px) scale(.97); }
 }
-.ll-exit { animation: ll-exit .2s var(--ll-move-ease) forwards; z-index: 1; }
+.ll-exit { animation: ll-exit .16s var(--ease) forwards; z-index: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .ll-enter, .ll-exit { animation: none; }

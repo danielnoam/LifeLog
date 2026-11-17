@@ -3,7 +3,6 @@
 // infinitives, no "you" verbs. Loaded by src/language.js only when the
 // language is Hebrew. test/i18n.test.js checks it against the code.
 Keel.i18n.strings("he", {
-  "— none —": "— אין —",
   "— or paste or drop one": "— או הדבקה או גרירה של אחת",
   ", and how it starts. A folded block isn't drawn at all.": ", ואיך הוא מתחיל. גוש מקופל לא מצויר בכלל.",
   ", for personal use; needs the proxy in a browser": ", לשימוש אישי; בדפדפן צריך את הפרוקסי",
@@ -399,7 +398,6 @@ Keel.i18n.strings("he", {
   "Add expense": "הוספת הוצאה",
   "Add films to": "הוספת סרטים ל-",
   "Add finance category": "הוספת קטגוריית הוצאות",
-  "Add finance entry": "הוספת הוצאה",
   "Add games to": "הוספת משחקים ל-",
   "Add habit": "הוספת הרגל",
   "Add image": "הוספת תמונה",
@@ -961,7 +959,7 @@ Keel.i18n.strings("he", {
   "Edit category {category}": "עריכת הקטגוריה {category}",
   "Edit entry": "עריכת רשומה",
   "Edit finance category": "עריכת קטגוריית הוצאות",
-  "Edit finance entry": "עריכת הוצאה",
+  "Edit expense": "עריכת הוצאה",
   "Edit habit": "עריכת הרגל",
   "Edit note": "עריכת פתק",
   "Edit note category": "עריכת קטגוריית פתקים",
@@ -1614,7 +1612,6 @@ Keel.i18n.strings("he", {
   "No fallback": "ללא גיבוי",
   "No file connected. Data is auto-saved in this browser only.": "אין קובץ מחובר. הנתונים נשמרים אוטומטית רק בדפדפן הזה.",
   "No finance entries match your filters.": "אין הוצאות שמתאימות למסננים.",
-  "No finance entries yet": "עוד אין הוצאות",
   "No habits match your search.": "אין הרגלים שמתאימים לחיפוש.",
   "No habits yet": "עוד אין הרגלים",
   "No images in that folder": "אין תמונות בתיקייה הזאת",
