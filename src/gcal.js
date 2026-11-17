@@ -354,9 +354,16 @@
     changed();
   }
   // Fetches a month again. `ask`: a tap, which may sign in again.
+  // A sync of another month already under way is waited out, not returned
+  // as this one's (a tap on Sync now while the last month was still loading).
+  let busyKey = "";
   async function sync(y, m, ask) {
     if (!cfg) return false;
-    if (busy) return busy;
+    const key = y + "-" + pad(m);
+    if (busy && busyKey === key && !ask) return busy;
+    while (busy) await busy.catch(() => {});
+    if (!cfg) return false;
+    busyKey = key;
     busy = (async () => {
       if (ask) await loadCalendars(true);
       await fetchMonth(y, m, ask);

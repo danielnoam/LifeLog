@@ -238,8 +238,17 @@
     const counts = {};
     for (const e of entries) counts[e.category || ""] = (counts[e.category || ""] || 0) + 1;
     const categories = Object.entries(counts).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-    const tasksDone = (data.notes || []).filter((n) => n.kind === "list").flatMap((n) => n.items || [])
-      .filter((t) => t.done && String(t.doneAt || "").startsWith(y + "-") && String(t.doneAt).slice(0, 10) <= today).length;
+    // A repeating task never stays done: each tick goes into `ticks` and its
+    // date moves on, so those count too. Ticks are UTC; the day is this device's.
+    const localDay = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+    const inYear = (iso) => { const d = localDay(iso); return d.startsWith(y + "-") && d <= today; };
+    const tickCount = (t) => (t.done && inYear(t.doneAt) ? 1 : 0) + (Array.isArray(t.ticks) ? t.ticks.filter(inYear).length : 0);
+    let tasksDone = 0;
+    for (const n of (data.notes || []).filter((x) => x.kind === "list")) {
+      // A list counts as a task of its own only once it has its own day.
+      if (n.date || n.ticks) tasksDone += tickCount(n);
+      for (const t of n.items || []) tasksDone += tickCount(t);
+    }
     let spent = 0;
     if (Finance) {
       const end = new Date(today + "T00:00:00");

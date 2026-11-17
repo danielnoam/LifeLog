@@ -215,6 +215,11 @@ test("the year so far: finished against last year by the same date, tasks, spend
   assert.strictEqual(g.spent, 17);
   assert.strictEqual(g.streak, null);
   assert.strictEqual(Home.yearSoFar({}, "2026-11-17", {}).hasLast, false);
+  // A repeating task's ticks count, each in its year; a list with its own day ticked counts once.
+  const rep = { notes: [{ id: "r", kind: "list", date: "2026-03-01", done: true, doneAt: "2026-03-01T12:00:00Z", items: [
+    { id: "w", text: "Water", date: "2026-11-18", repeat: { every: 1, unit: "day" }, ticks: ["2025-12-30T12:00:00Z", "2026-11-15T12:00:00Z", "2026-11-16T12:00:00Z"] },
+  ] }, { id: "plain", kind: "list", done: true, doneAt: "2026-03-01T12:00:00Z", items: [] }] };
+  assert.strictEqual(Home.yearSoFar(rep, "2026-11-17", {}).tasksDone, 3);
 });
 
 console.log(`\n${passed} test(s) passed.`);
