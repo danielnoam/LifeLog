@@ -401,6 +401,8 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     const offline = doc([note("l", "Written on the train", "2026-09-12T00:00:00.000Z")], "2026-09-12T00:00:00.000Z");
     const { page, ctx, errs: e, dialogs, github } = await openApp(browser, { remote, cache: offline });
     await pasteLink(page);
+    for (let i = 0; i < 40 && !github.puts.length; i++) await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
     const last = github.puts[github.puts.length - 1];
     const texts = last ? last.notes.map((n) => n.text).sort() : [];
     check("an app used before it was connected keeps its own notes and gains the synced ones",
@@ -426,6 +428,9 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     } };
     const { page, ctx, errs: e, github } = await openApp(browser, { remote: synced, cache: freshCache });
     await pasteLink(page);
+    // The write-back can land after pasteLink's fixed wait on a busy runner.
+    for (let i = 0; i < 40 && !github.puts.length; i++) await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
     const kept = await page.evaluate(() => window.LifeLogStorage.cachedCopy().settings);
     const pushed = github.puts.length ? github.puts[github.puts.length - 1].settings : null;
     check("a freshly installed app joining keeps the synced media keys",

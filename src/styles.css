@@ -2851,6 +2851,14 @@ html.force-mobile .pick-title { font-size: var(--fs-xl); }
 }
 .date-field.is-typing > .date-face { visibility: hidden; }
 .date-field > input.has-face:disabled ~ .date-face { color: var(--text-faint); }
+/* Under a date known only to the month: makes the 1st a real day. */
+.date-day1 {
+  display: block; margin-top: var(--space-4); padding: 0; background: none; border: none;
+  color: var(--accent); font: inherit; font-size: var(--fs-xs); cursor: pointer; text-align: start;
+}
+.date-day1[hidden] { display: none; }
+.date-day1:hover { text-decoration: underline; }
+@media (pointer: coarse) { .date-day1 { min-height: 44px; } }
 
 kbd {
   display: inline-block; min-width: 20px; padding: 2px 6px; text-align: center;
