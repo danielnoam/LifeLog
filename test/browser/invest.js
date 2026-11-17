@@ -166,6 +166,16 @@ const seed = (key) => ({
     check("buys and sells are marks on the chart" + at, (await page.$$(".invest-buymark")).length === 2 && (await page.$$(".invest-buymark.is-sell")).length === 1);
     check("the list row says what you hold" + at, /6 shares · \$/.test(await page.textContent(".invest-row >> nth=0")));
     check("Watching totals it" + at, /You hold\$[\d,.]+[+−]\$/.test(await page.textContent(".invest-sum")));
+    // A sale bigger than what's held is refused with a word, not quietly cut.
+    await page.click(".invest-addbuy");
+    await page.click('#investBuyForm .seg-btn[data-kind="sell"]');
+    await page.fill("#investBuyDate", "2026-07-01");
+    await page.dispatchEvent("#investBuyDate", "change");
+    await page.fill("#investBuyUnits", "20");
+    await page.click("#investBuySaveBtn");
+    await page.waitForTimeout(300);
+    check("a sale over what's held is refused" + at, await page.isVisible("#investBuyModal") && /would be more than the 6 shares held then/.test(await page.textContent("#toast")));
+    await page.click("#cancelInvestBuyBtn");
 
     // A target the close is under is recorded once, as an alert.
     await page.click(".invest-edit");

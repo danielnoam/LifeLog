@@ -16,6 +16,10 @@ const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
 const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks, Tags } = L;
+const shortSaleFail = (symbol, buys) => {
+  const s = Invest.shortSale(buys);
+  if (s) fail(`That leaves the sale of ${Invest.unitsText(s.sale.units)} of ${symbol} on ${s.sale.date} with only ${Invest.unitsText(s.held)} held before it. Check the dates and shares.`);
+};
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -2646,6 +2650,7 @@ const TOOLS = [
           if (!(held > 0)) fail(`Nothing of ${w.symbol} held on ${b.date} to sell.`);
         }
         const next = Invest.sanitizeWatch({ ...raw, buys: [...(raw.buys || []), b], updatedAt: now });
+        shortSaleFail(w.symbol, next.buys);
         replaceItem(doc, "watchlist", next);
         const h = Invest.holdingOf(next.buys, null);
         return { text: `${b.sell ? "Sold" : "Bought"} ${Invest.unitsText(b.units)} of ${w.symbol} on ${b.date} at ${Invest.usd(b.price)} (${b.id}). Holding now ${Invest.unitsText(h.units)} at an average ${Invest.usd(h.avg)}.`, touched: [["watchlist", w.id]] };
@@ -2675,6 +2680,7 @@ const TOOLS = [
           return nb;
         });
         const next = Invest.sanitizeWatch({ ...raw, buys, updatedAt: now });
+        shortSaleFail(next.symbol, next.buys);
         replaceItem(doc, "watchlist", next);
         const b = next.buys.find((x) => x.id === a.buy);
         return { text: `The ${b.sell ? "sale" : "buy"} is now ${Invest.unitsText(b.units)} of ${next.symbol} on ${b.date} at ${Invest.usd(b.price)}.`, touched: [["watchlist", raw.id]] };
@@ -2693,6 +2699,7 @@ const TOOLS = [
         if (!raw) fail(`No buy with the id "${a.buy}" (lifelog_watchlist with ticker lists them).`);
         const gone = raw.buys.find((b) => b.id === a.buy);
         const next = Invest.sanitizeWatch({ ...raw, buys: raw.buys.filter((b) => b.id !== a.buy), updatedAt: changeNow || nowIso() });
+        shortSaleFail(next.symbol, next.buys);
         replaceItem(doc, "watchlist", next);
         return { text: `Deleted the ${gone.sell ? "sale" : "buy"} of ${Invest.unitsText(gone.units)} of ${next.symbol} on ${gone.date}.`, touched: [["watchlist", raw.id]] };
       }, { file: "invest" });

@@ -790,6 +790,8 @@ test("the watchlist: tickers, targets and pins in investments.json, prices from 
     buyId = invest().watchlist[0].buys[1].id;
   } finally { global.fetch = realFetch; }
   await refused("lifelog_add_buy", { ticker: "VOO", date: "2026-02-01", units: 1 }, /Give the price/);
+  await refused("lifelog_update_buy", { buy: buyId, units: 20 }, /only 10 shares held before it/);
+  await refused("lifelog_delete_buy", { buy: invest().watchlist[0].buys[0].id }, /only 0 shares held before it/);
   await ok("lifelog_update_buy", { buy: buyId, units: 2, note: "" });
   assert.deepStrictEqual([invest().watchlist[0].buys[1].units, "note" in invest().watchlist[0].buys[1]], [2, false]);
   await ok("lifelog_delete_buy", { buy: buyId });

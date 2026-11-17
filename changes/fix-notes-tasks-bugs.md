@@ -6,3 +6,5 @@
 - Pasting "lake, weekend" into a tag box keeps both tags; the last one used to be lost.
 - A list ticked as done gets unticked when one of its rows is unticked, a row is added, or an open task is moved into it, so it no longer shows done with open rows.
 - A list's own reminder says when, without repeating the list's title.
+- Investments: a sale bigger than what was held before it is refused with a message, both when it's logged and when a buy it needs is moved later or deleted. It used to be cut down or skipped without a word, and the holding came out wrong.
+- Ledger: Save on an expense, a recurring plan, a plan change or a one-off charge with an amount that isn't a number now says so, instead of doing nothing.
