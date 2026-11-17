@@ -3,6 +3,17 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.320.0] - 2026-11-17
+
+### Added
+- The Timeline's calendar shows what your backlog has coming out: releases and a show's next episode on their day, in a dashed frame in the category's colour (on a phone, a faded cover), and the ones known only to the month under the grid. Tap one to open it. View → Releases on the calendar turns them off.
+- Google Calendar in Settings → Connections, read only: your events show on the Timeline's calendar (the time and title on a computer, a bar under the day on a phone, the picked day's list beside or under it). Tap one to add it to the Timeline, as a task or as a note, each opening its sheet filled in, or to open it in Google Calendar. Pick which calendars show. The events stay on the device and aren't synced; in a browser, Sync now fetches again after the hour's sign-in runs out.
+
+### Fixed
+- A Letterboxd import keeps the day each film was watched, so imported films land on their day in the Timeline's calendar instead of under "No day set". Importing again offers the day for films already logged with only a month.
+- An entry saved with only a month no longer shows a made-up 1st in its Finished date: the box reads "November 2026 · no day" until you pick the day.
+- Adding an entry with a month's "+" in the current month starts it on today, so it lands on today in the calendar. Another month's "+" still starts with no day; a note turned into an entry keeps the note's day.
+
 ## [0.319.1] - 2026-11-16
 
 ### Added

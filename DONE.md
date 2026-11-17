@@ -67,8 +67,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Newest or oldest first, and optional month summaries (0.157.0, 0.143.0)
 - Covers layout under View: each month's entries as cover art, with the rating (0.290.0)
 - Calendar layout under View: a month of days with covers, the picked day's entries, and No day set (0.291.0)
-- Backlog releases and next episodes on the Timeline calendar, dashed on their day, month-only ones under the grid, opening the item; View → Releases on the calendar (next release)
-- Google Calendar in Settings → Connections, read only: events on the Timeline calendar (time and title on a computer, bars on a phone), the calendars to show, an event sheet that copies it in as an entry, a task or a note or opens it in Google; kept on the device, not synced; browser, Android and Windows app (next release)
+- Backlog releases and next episodes on the Timeline calendar, dashed on their day, month-only ones under the grid, opening the item; View → Releases on the calendar (0.320.0)
+- Google Calendar in Settings → Connections, read only: events on the Timeline calendar (time and title on a computer, bars on a phone), the calendars to show, an event sheet that copies it in as an entry, a task or a note or opens it in Google; kept on the device, not synced; browser, Android and Windows app (0.320.0)
 - Big covers carry the category as a label on the cover, with a book's author under the title; In progress puts it under small covers too (0.293.0, 0.294.0)
 
 ## Timeline (Stats) and Recap
