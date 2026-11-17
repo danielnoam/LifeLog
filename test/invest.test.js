@@ -168,6 +168,16 @@ test("a holding is at average cost: a sale takes shares out at the average and i
   assert.strictEqual(I.holdingOf([{ date: "2026-01-01", units: 3, price: 10 }], null).value, null, "no close, no value");
 });
 
+test("a sale the buys before it can't cover is caught", () => {
+  const buy = { id: "b", date: "2026-01-02", units: 3, price: 10, createdAt: "2026-01-02T10:00:00Z" };
+  assert.strictEqual(I.shortSale([buy, { id: "s", date: "2026-01-05", units: 3, price: 12, sell: true, createdAt: "2026-01-05T10:00:00Z" }]), null);
+  const over = I.shortSale([buy, { id: "s", date: "2026-01-05", units: 4, price: 12, sell: true, createdAt: "2026-01-05T10:00:00Z" }]);
+  assert.deepStrictEqual([over.sale.id, over.held], ["s", 3], "more than held");
+  const sameDay = I.shortSale([{ ...buy, date: "2026-01-05" }, { id: "s", date: "2026-01-05", units: 1, price: 12, sell: true, createdAt: "2026-01-01T10:00:00Z" }]);
+  assert.strictEqual(sameDay.sale.id, "s", "logged before that day's buy");
+  assert.strictEqual(I.shortSale([{ ...buy, date: "2026-02-01" }, { id: "s", date: "2026-01-05", units: 1, price: 12, sell: true }]).held, 0, "buy moved after the sale");
+});
+
 test("two days compare either way round, from the close on or before each", () => {
   const pts = series([["2026-01-02", 100], ["2026-01-05", 110], ["2026-02-02", 121]]);
   const c = I.compareDays(pts, "2026-02-02", "2026-01-03");

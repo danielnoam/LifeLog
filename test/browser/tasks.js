@@ -90,8 +90,63 @@ const SEED = {
   await page.waitForTimeout(300);
   const m = (await saved()).notes.find((n) => n.id === "M");
   check("ticking the list itself ticks all its rows", m.done === true && m.items.every((i) => i.done), m);
-  await page.click(`${M} .note-list-tick`);
+  await page.click(`${M} [data-item="s"] .todo-check`);
   await page.waitForTimeout(300);
+  const m2 = (await saved()).notes.find((n) => n.id === "M");
+  check("unticking a row of a ticked list unticks the list", !m2.done && !m2.items.find((i) => i.id === "s").done, m2);
+
+  // Custom over a repeat a plain choice names opens its fields.
+  await page.click(`${M} [data-item="p"] .todo-body`);
+  await page.waitForTimeout(300);
+  await page.click("#taskDateBtn");
+  await page.waitForTimeout(300);
+  await page.selectOption("#taskRepeat", "week");
+  await page.selectOption("#taskRepeat", "custom");
+  await page.waitForTimeout(100);
+  check("Custom over Every week stays Custom, with its fields", await page.evaluate(() => document.querySelector("#taskRepeat").value === "custom"
+    && !document.querySelector("#taskRepeatCustom").hidden && document.querySelector("#taskRepeatUnit").value === "week"));
+  await page.fill("#taskRepeatEvery", "2");
+  await page.dispatchEvent("#taskRepeatEvery", "change");
+  await page.click("#taskDateDone");
+  await page.waitForTimeout(300);
+  const pk = await item("M", "p");
+  check("and saves what it's set to", pk.repeat && pk.repeat.every === 2 && pk.repeat.unit === "week", pk);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+
+  // A row ticked while the list's page is open stays ticked when it closes.
+  await page.click(`${M} .note-list-title`);
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.LifeLogNotes.tickItem("M", "s", true));
+  await page.waitForTimeout(200);
+  await page.fill("#nTitle", "Errands today");
+  await page.click("#cancelNoteBtn");
+  await page.waitForTimeout(400);
+  const l = (await saved()).notes.find((n) => n.id === "M");
+  check("a tick made while the list's page was open is kept, with the page's edit", l.text === "Errands today" && l.items.find((i) => i.id === "s").done === true, l);
+
+  // Tags: a pasted "a, b" keeps both; an emptied rename asks first.
+  await page.click(`${L} .note-list-title`);
+  await page.waitForTimeout(400);
+  await page.focus("#nTags .tag-field-input");
+  await page.evaluate(() => { const i = document.querySelector("#nTags .tag-field-input"); i.value = "lake, weekend"; i.dispatchEvent(new Event("input")); });
+  await page.click("#cancelNoteBtn");
+  await page.waitForTimeout(400);
+  check("pasting two tags with a comma keeps both", JSON.stringify((await saved()).notes.find((n) => n.id === "L").tags) === '["lake","weekend"]');
+  await page.evaluate(() => window.LifeLogNotes.openTagsModal());
+  await page.waitForTimeout(300);
+  let asked = "";
+  page.removeAllListeners("dialog");
+  page.once("dialog", (dl) => { asked = dl.message(); dl.dismiss(); });
+  await page.click('#tagsList .tags-row:first-child button[title^="Rename"]');
+  await page.fill(".tags-rename", "");
+  await page.press(".tags-rename", "Enter");
+  await page.waitForTimeout(300);
+  check("emptying a tag's name asks before taking it off", /Take the tag/.test(asked) && (await saved()).notes.find((n) => n.id === "L").tags.length === 2, asked);
+  page.on("dialog", (dl) => dl.accept());
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
 
   // Home's Coming up.
   await page.evaluate(() => { const t = [...document.querySelectorAll("nav button, .tab")].find((x) => /Home/.test(x.textContent)); t && t.click(); });

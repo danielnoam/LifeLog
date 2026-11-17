@@ -178,6 +178,11 @@
     return isFinite(v) ? Math.round(v * 100) / 100 : 0;
   }
 
+  // An amount the form couldn't read: said, rather than Save doing nothing.
+  function amountMissing() {
+    toast(i18n.t("The amount should be a number above zero, like 12.50 or 50-25"), true);
+  }
+
   // A pasted price often brings its currency along ("$12.50", "12,50 €",
   // "USD 1,200"). Returns the bare number and the currency it named, or null
   // when there's nothing to take off. A symbol several currencies share
@@ -2086,7 +2091,8 @@
     const code = $("#finCurrency").value;
     const foreign = code && code !== homeCurrency();
     const rate = foreign ? parseFloat($("#finRate").value) : 0;
-    if (!date || !typed) return;
+    if (!date) return;
+    if (!typed) { amountMissing(); return; }
     if (foreign && (!isFinite(rate) || rate <= 0)) {
       toast(i18n.t("Give a rate for {currency}, or switch back to {home}", { currency: code, home: homeCurrency() }), true);
       return;
@@ -2565,7 +2571,8 @@
   async function saveExtraFromForm(rec) {
     const date = $("#recOccDate").value;
     const typed = readAmount("#recOccAmount");
-    if (!date || !typed) return;
+    if (!date) return;
+    if (!typed) { amountMissing(); return; }
     const m = /\(([A-Z]{3})\)/.exec($("#recOccAmountLabel").textContent);
     const x = { id: $("#recOccExtraId").value || uid(), date, amount: typed };
     if (m) {
@@ -2642,7 +2649,8 @@
     const typed = readAmount("#recAmount");
     const category = $("#recCategory").value;
     const note = $("#recNote").value.trim();
-    if (!startDate || !typed) return;
+    if (!startDate) return;
+    if (!typed) { amountMissing(); return; }
     if (endDate && endDate < startDate) { toast(i18n.t("The stop date can't be before the start date"), true); return; }
     // Same rule as the expense form: the typed figure is what you're billed,
     // and `amount` is always the home-currency one it works out to.
@@ -2773,7 +2781,8 @@
     if (!rec) return;
     const effectiveFrom = $("#planFrom").value;
     const amount = readAmount("#planAmount");
-    if (!effectiveFrom || !amount) return;
+    if (!effectiveFrom) return;
+    if (!amount) { amountMissing(); return; }
     if (effectiveFrom <= rec.startDate) {
       toast(i18n.t("That's on or before this plan's start date — edit the plan itself instead"), true);
       return;

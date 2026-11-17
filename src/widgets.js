@@ -388,6 +388,7 @@
         const items = n.items || (n.items = []);
         if (items.some((x) => x.id === it.id)) continue;
         items.splice(items.map((x) => !x.done).lastIndexOf(true) + 1, 0, { id: it.id, text });
+        if (n.done) { delete n.done; delete n.doneAt; }
         changed++;
       }
     }

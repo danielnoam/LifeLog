@@ -16,6 +16,10 @@ const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
 const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks, Tags } = L;
+const shortSaleFail = (symbol, buys) => {
+  const s = Invest.shortSale(buys);
+  if (s) fail(`That leaves the sale of ${Invest.unitsText(s.sale.units)} of ${symbol} on ${s.sale.date} with only ${Invest.unitsText(s.held)} held before it. Check the dates and shares.`);
+};
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -1690,12 +1694,16 @@ const TOOLS = [
         };
         const now = new Date();
         // As the app ticks: a repeating task moves to its next date, a task's open subtasks tick with it.
-        for (const ref of a.check || []) { const i = pick(ref); if (!i.done) Tasks.tick({ items }, i.id, true, now, today()); }
-        for (const ref of a.uncheck || []) { const i = pick(ref); delete i.done; delete i.doneAt; }
+        // The list's own tick goes when a row is unticked or added, as in the app.
+        const head = { ...n, items };
+        for (const ref of a.check || []) { const i = pick(ref); if (!i.done) Tasks.tick(head, i.id, true, now, today()); }
+        for (const ref of a.uncheck || []) Tasks.tick(head, pick(ref).id, false, now, today());
         const gone = new Set((a.remove || []).map((ref) => pick(ref).id));
         const kept = items.filter((i) => !gone.has(i.id));
-        for (const text of (a.add || []).map((s) => String(s).trim()).filter(Boolean)) kept.push({ id: L.uid(), text });
-        replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items: kept }));
+        const added = (a.add || []).map((s) => String(s).trim()).filter(Boolean);
+        for (const text of added) kept.push({ id: L.uid(), text });
+        if (added.length) Tasks.reopen(head);
+        replaceItem(d, "notes", cleanItem(d, "notes", { ...head, items: kept }));
         const open = kept.filter((i) => !i.done).length;
         return { text: `Updated the checklist: ${kept.length} items, ${open} open.`, touched: [["notes", n.id]] };
       });
@@ -1727,7 +1735,7 @@ const TOOLS = [
           const lastOpen = items.map((i) => !i.done).lastIndexOf(true);
           items.splice(lastOpen + 1, 0, it);
         }
-        const next = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
+        const next = cleanItem(d, "notes", Tasks.reopen({ ...n, items, editedAt: nowIso() }));
         replaceItem(d, "notes", next);
         const saved = next.items.find((i) => i.id === it.id);
         return { text: `Added the task "${text}" to "${n.text}": ${taskLine(saved)}  (${saved.id})`, touched: [["notes", n.id]] };
@@ -1783,8 +1791,9 @@ const TOOLS = [
         if (a.text != null && String(a.text).trim()) { it.text = String(a.text).trim(); said.push("renamed"); }
         applyTaskFields(d, it, a);
         let next = null;
+        const head = { ...n, items };
         if (a.done != null) {
-          const r = Tasks.tick({ items }, it.id, !!a.done, new Date(), today());
+          const r = Tasks.tick(head, it.id, !!a.done, new Date(), today());
           said.push(r && r.next ? `ticked, next ${r.next}` : a.done ? "ticked" : "unticked");
         }
         const touched = [["notes", n.id]];
@@ -1798,8 +1807,8 @@ const TOOLS = [
             const toItems = (to.items || []).map((i) => ({ ...i }));
             const lastOpen = toItems.map((i) => !i.done).lastIndexOf(true);
             toItems.splice(lastOpen + 1, 0, ...moving);
-            replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items: rest, editedAt: nowIso() }));
-            replaceItem(d, "notes", cleanItem(d, "notes", { ...to, items: toItems, editedAt: nowIso() }));
+            replaceItem(d, "notes", cleanItem(d, "notes", { ...head, items: rest, editedAt: nowIso() }));
+            replaceItem(d, "notes", cleanItem(d, "notes", { ...(it.done ? to : Tasks.reopen({ ...to })), items: toItems, editedAt: nowIso() }));
             touched.push(["notes", to.id]);
             where = to.text;
             said.push(`moved to "${to.text}"`);
@@ -1807,7 +1816,7 @@ const TOOLS = [
           }
         }
         if (!next) {
-          const clean = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
+          const clean = cleanItem(d, "notes", { ...head, items, editedAt: nowIso() });
           replaceItem(d, "notes", clean);
           next = clean.items.find((i) => i.id === it.id);
         }
@@ -2641,6 +2650,7 @@ const TOOLS = [
           if (!(held > 0)) fail(`Nothing of ${w.symbol} held on ${b.date} to sell.`);
         }
         const next = Invest.sanitizeWatch({ ...raw, buys: [...(raw.buys || []), b], updatedAt: now });
+        shortSaleFail(w.symbol, next.buys);
         replaceItem(doc, "watchlist", next);
         const h = Invest.holdingOf(next.buys, null);
         return { text: `${b.sell ? "Sold" : "Bought"} ${Invest.unitsText(b.units)} of ${w.symbol} on ${b.date} at ${Invest.usd(b.price)} (${b.id}). Holding now ${Invest.unitsText(h.units)} at an average ${Invest.usd(h.avg)}.`, touched: [["watchlist", w.id]] };
@@ -2670,6 +2680,7 @@ const TOOLS = [
           return nb;
         });
         const next = Invest.sanitizeWatch({ ...raw, buys, updatedAt: now });
+        shortSaleFail(next.symbol, next.buys);
         replaceItem(doc, "watchlist", next);
         const b = next.buys.find((x) => x.id === a.buy);
         return { text: `The ${b.sell ? "sale" : "buy"} is now ${Invest.unitsText(b.units)} of ${next.symbol} on ${b.date} at ${Invest.usd(b.price)}.`, touched: [["watchlist", raw.id]] };
@@ -2688,6 +2699,7 @@ const TOOLS = [
         if (!raw) fail(`No buy with the id "${a.buy}" (lifelog_watchlist with ticker lists them).`);
         const gone = raw.buys.find((b) => b.id === a.buy);
         const next = Invest.sanitizeWatch({ ...raw, buys: raw.buys.filter((b) => b.id !== a.buy), updatedAt: changeNow || nowIso() });
+        shortSaleFail(next.symbol, next.buys);
         replaceItem(doc, "watchlist", next);
         return { text: `Deleted the ${gone.sell ? "sale" : "buy"} of ${Invest.unitsText(gone.units)} of ${next.symbol} on ${gone.date}.`, touched: [["watchlist", raw.id]] };
       }, { file: "invest" });

@@ -192,7 +192,8 @@ Newest first. Three kinds:
   (its description), `priority`, `date`, `time`, `repeat`, `remind`,
   `deadline`, `ticks`, `done` and `doneAt`, as on an item. Ticking the
   list ticks all its items; ticking a repeating list moves its date on and
-  unticks its items. A dated list shows as one row in `lifelog_tasks`.
+  unticks its items. A ticked list with a row unticked or added is no
+  longer done (`done` goes). A dated list shows as one row in `lifelog_tasks`.
   `lifelog_add_task`, `lifelog_update_task`, `lifelog_list_task` (the
   list's own fields) and `lifelog_tasks` do this the app's way.
 - `kind: "quote"`: `text` is the quote, with optional `author` and `source`.

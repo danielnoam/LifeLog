@@ -170,6 +170,24 @@ async function asyncTests() {
   assert.deepStrictEqual(clears.map((c) => c[1].tag), [toast[1].tag], "cleared once");
   global.Date = realDate;
   passed++; console.log("  ok - on Windows a reminder is the shell's toast, with Done, cleared once kept");
+
+  // A task's reminder at 18:00 rings on the tick after it, some seconds late.
+  const late = new realDate(2026, 10, 4, 18, 0, 20);
+  global.Date = class extends realDate { constructor(...a) { super(...(a.length ? a : [late.getTime()])); } static now() { return late.getTime(); } };
+  global.window.LifeLogHabits = { leftToDo: () => ({ groups: [] }) };
+  require("../src/alerts.js");
+  global.window.LifeLogTasks = require("../src/tasks.js");
+  ctx.state.data = { notes: [{ id: "L", kind: "list", text: "Trip", items: [{ id: "t", text: "Call the campsite", date: "2026-11-04", time: "18:00", remind: 0 }] }] };
+  calls.length = 0;
+  await tick();
+  const rung = calls.find((c) => c[0] === "toast");
+  assert.ok(rung, "the task rang");
+  assert.strictEqual(rung[1].action, "open-task:L:t");
+  calls.length = 0;
+  await tick();
+  assert.ok(!calls.some((c) => c[0] === "toast"), "and only once");
+  global.Date = realDate;
+  passed++; console.log("  ok - a task's reminder rings on the tick after its minute");
 }
 
 console.log("\nthe desktop copy");

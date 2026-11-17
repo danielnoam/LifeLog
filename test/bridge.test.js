@@ -319,6 +319,16 @@ test("a checklist is a task itself: its own fields, ticked with its items, shown
   assert.strictEqual(list.priority, undefined);
   assert.strictEqual(list.date, undefined);
   await refused("lifelog_list_task", { list: "Plan", priority: 1 }, /isn't a checklist/);
+  // Unticking a row, or adding one, makes a ticked list open again, as in the app.
+  await ok("lifelog_list_task", { list: "no2", done: true });
+  await ok("lifelog_update_list", { note: "no2", uncheck: ["milk"] });
+  assert.ok(!data().notes.find((n) => n.id === "no2").done, "unticked by a row");
+  await ok("lifelog_list_task", { list: "no2", done: true });
+  await ok("lifelog_add_task", { list: "no2", text: "Jam" });
+  assert.ok(!data().notes.find((n) => n.id === "no2").done, "unticked by a new task");
+  await ok("lifelog_list_task", { list: "no2", done: true });
+  await ok("lifelog_update_task", { list: "no2", task: "Jam", done: false });
+  assert.ok(!data().notes.find((n) => n.id === "no2").done, "unticked by update_task");
 });
 
 test("a habit is marked for today, or cleared, and the streak follows", async () => {
@@ -780,6 +790,8 @@ test("the watchlist: tickers, targets and pins in investments.json, prices from 
     buyId = invest().watchlist[0].buys[1].id;
   } finally { global.fetch = realFetch; }
   await refused("lifelog_add_buy", { ticker: "VOO", date: "2026-02-01", units: 1 }, /Give the price/);
+  await refused("lifelog_update_buy", { buy: buyId, units: 20 }, /only 10 shares held before it/);
+  await refused("lifelog_delete_buy", { buy: invest().watchlist[0].buys[0].id }, /only 0 shares held before it/);
   await ok("lifelog_update_buy", { buy: buyId, units: 2, note: "" });
   assert.deepStrictEqual([invest().watchlist[0].buys[1].units, "note" in invest().watchlist[0].buys[1]], [2, false]);
   await ok("lifelog_delete_buy", { buy: buyId });

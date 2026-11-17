@@ -122,6 +122,18 @@
       gainPct: value != null && cost ? value / cost - 1 : null,
     };
   }
+  // The first sale the buys before it can't cover, or null: holdingOf
+  // would quietly sell only what was held (nothing, for a sale logged before
+  // a same-day buy), so the form doesn't let the list get that way.
+  function shortSale(buys) {
+    let units = 0;
+    for (const b of sortBuys(buys || [])) {
+      if (!b.sell) { units += b.units; continue; }
+      if (b.units > units + 1e-9) return { sale: b, held: Math.max(0, units) };
+      units -= b.units;
+    }
+    return null;
+  }
   function unitsText(n) {
     const s = (Math.round(n * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 });
     return n === 1 ? i18n.t("{n} share", { n: s }) : i18n.t("{n} shares", { n: s });
@@ -1356,6 +1368,11 @@
     } else {
       list.push(sanitizeBuy({ id: newId(), ...fields, createdAt: now }));
     }
+    const short = shortSale(list);
+    if (short) {
+      toast(i18n.t("The sale on {date} would be more than the {units} held then. Check the dates and shares.", { date: Dates().day(short.sale.date, { year: "auto" }), units: unitsText(short.held) }), true);
+      return;
+    }
     w.buys = sortBuys(list);
     changed(w);
     closeBuyModal();
@@ -1366,6 +1383,10 @@
     if (!w || !editingBuy) return;
     const gone = (w.buys || []).find((b) => b.id === editingBuy.id);
     if (!gone) return;
+    if (!gone.sell && shortSale(w.buys.filter((b) => b.id !== gone.id))) {
+      toast(i18n.t("A later sale needs this buy: change or remove the sale first"), true);
+      return;
+    }
     w.buys = w.buys.filter((b) => b.id !== gone.id);
     if (!w.buys.length) delete w.buys;
     changed(w);
@@ -1552,7 +1573,7 @@
     checkTargets, select, widgetSnapshot, homeGlance, homeSpark, openTicker,
     // pure, for tests and the bridge
     sanitizeWatch, sanitizePin, sanitizeBuy, sanitizeDoc, cleanSymbol, cleanPrice, cleanUnits,
-    holdingOf, compareDays, unitsText, signedUsd, widgetOf,
+    holdingOf, shortSale, compareDays, unitsText, signedUsd, widgetOf,
     RANGES, rangeStart, sliceRange, priceOn, changeOf, pinSteps, spanLabel, pct, usd,
     parseTiingo, rewritesHistory, joinSeries, parseSearch,
   };

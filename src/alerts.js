@@ -177,7 +177,8 @@
         kind: "task",
         day, time: pad(at.getHours()) + ":" + pad(at.getMinutes()),
         title: r.item.text,
-        body: (r.note.text || i18n.t("A task")) + " · " + when,
+        // A list due as a task is its own title: the body just says when.
+        body: r.head ? when : (r.note.text || i18n.t("A task")) + " · " + when,
         action: "open-task:" + r.note.id + ":" + r.item.id,
       });
     }
@@ -294,7 +295,10 @@
   }
 
   // What the snapshot carries, from the app's state (widgets.js calls this).
-  function current(data, today, hidden) {
+  // `now`: reminders before it are left out. The phone schedules ahead, so
+  // that's this moment; the desktop app rings what's due as it looks, a
+  // little after the minute, so it passes a moment further back.
+  function current(data, today, hidden, now = new Date()) {
     const F = window.LifeLogFinance;
     const s = read();
     return alertsOf(data, {
@@ -307,6 +311,7 @@
       fmt: ctx ? ctx.fmt : { money: String, day: String },
       hidden,
       tasks: kindOn("tasks") ? window.LifeLogTasks : null,
+      now,
     });
   }
 
