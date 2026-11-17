@@ -319,6 +319,16 @@ test("a checklist is a task itself: its own fields, ticked with its items, shown
   assert.strictEqual(list.priority, undefined);
   assert.strictEqual(list.date, undefined);
   await refused("lifelog_list_task", { list: "Plan", priority: 1 }, /isn't a checklist/);
+  // Unticking a row, or adding one, makes a ticked list open again, as in the app.
+  await ok("lifelog_list_task", { list: "no2", done: true });
+  await ok("lifelog_update_list", { note: "no2", uncheck: ["milk"] });
+  assert.ok(!data().notes.find((n) => n.id === "no2").done, "unticked by a row");
+  await ok("lifelog_list_task", { list: "no2", done: true });
+  await ok("lifelog_add_task", { list: "no2", text: "Jam" });
+  assert.ok(!data().notes.find((n) => n.id === "no2").done, "unticked by a new task");
+  await ok("lifelog_list_task", { list: "no2", done: true });
+  await ok("lifelog_update_task", { list: "no2", task: "Jam", done: false });
+  assert.ok(!data().notes.find((n) => n.id === "no2").done, "unticked by update_task");
 });
 
 test("a habit is marked for today, or cleared, and the streak follows", async () => {

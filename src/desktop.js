@@ -124,7 +124,10 @@
     }
     let alerts = [];
     if (A) {
-      try { alerts = A.current(data, today, !!(ctx.hidden && ctx.hidden())); } catch (e) { alerts = []; }
+      // A task's reminder rings at its minute, and the tick comes some seconds
+      // after it: alerts.js leaves out what's already past, so ask from as far
+      // back as a late alert may still ring (dueNow and `fired` do the rest).
+      try { alerts = A.current(data, today, !!(ctx.hidden && ctx.hidden()), new Date(d.getTime() - LATE_ALERT_MIN * 60000)); } catch (e) { alerts = []; }
     }
     const fired = readFired();
     return { d, today, fired, habits, due: dueNow({ today, now, habits, timeOf: R ? R.remindAt : () => "", alerts, fired }) };

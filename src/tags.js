@@ -207,7 +207,16 @@
       if (hi >= 0 && !menu.hidden) input.setAttribute("aria-activedescendant", menu.id + "-" + hi);
       else input.removeAttribute("aria-activedescendant");
     }
-    input.addEventListener("input", () => { if (/,/.test(input.value)) { input.value.split(",").slice(0, -1).forEach(add); input.value = input.value.split(",").pop(); } suggest(); });
+    input.addEventListener("input", () => {
+      if (/,/.test(input.value)) {
+        // add() empties the box, so what's after the last comma is taken first.
+        const parts = input.value.split(",");
+        const rest = parts.pop();
+        parts.forEach(add);
+        input.value = rest;
+      }
+      suggest();
+    });
     input.addEventListener("focus", suggest);
     input.addEventListener("blur", () => { if (cleanOne(input.value)) add(input.value); menu.hidden = true; input.setAttribute("aria-expanded", "false"); });
     input.addEventListener("keydown", (ev) => {

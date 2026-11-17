@@ -136,4 +136,11 @@ test("words: repeat and reminder", () => {
   assert.strictEqual(T.remindText({ remind: 1440 }), "The day before");
 });
 
+test("a ticked list gets unticked when a row is unticked", () => {
+  const n = { id: "L", kind: "list", done: true, doneAt: "2026-11-15T10:00:00.000Z", items: [{ id: "a", text: "A", done: true, doneAt: "x" }] };
+  T.tick(n, "a", false);
+  assert.ok(!n.done && !n.doneAt && !n.items[0].done);
+  assert.deepStrictEqual(T.reopen({ id: "M" }), { id: "M" });
+});
+
 console.log(`\n${passed} test(s) passed.`);

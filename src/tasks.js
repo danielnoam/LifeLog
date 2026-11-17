@@ -157,7 +157,7 @@
     const it = items.find((i) => i.id === itemId);
     if (!it) return null;
     const iso = now.toISOString();
-    if (!done) { delete it.done; delete it.doneAt; return { next: null }; }
+    if (!done) { delete it.done; delete it.doneAt; reopen(n); return { next: null }; }
     if (it.repeat && it.date && !it.done) {
       const next = nextDate(it, today);
       if (it.deadline) it.deadline = addDays(it.deadline, daysBetween(it.date, next));
@@ -170,6 +170,13 @@
     it.doneAt = iso;
     for (const c of childrenOf(items, it.id)) if (!c.done) { c.done = true; c.doneAt = iso; }
     return { next: null };
+  }
+
+  // A list ticked as done that gets an open row again (one unticked, one
+  // added) isn't done any more.
+  function reopen(n) {
+    if (n && n.done) { delete n.done; delete n.doneAt; }
+    return n;
   }
 
   function tickHead(n, done, now, today) {
@@ -439,6 +446,7 @@
     to.items = to.items || [];
     const lastOpen = to.items.map((i) => !i.done).lastIndexOf(true);
     to.items.splice(lastOpen + 1, 0, ...moving);
+    if (!it.done) reopen(to);
     const now = new Date().toISOString();
     n.editedAt = to.editedAt = now;
     cur = { noteId: to.id, itemId: it.id };
@@ -483,6 +491,9 @@
 
   // ---------- the Date sheet ----------
   let draft = null, month = "";
+  // Custom picked over a repeat a plain choice already names ("Every week"):
+  // the select stays on Custom so its fields open, rather than snapping back.
+  let customOpen = false;
   const WEEKDAY_SET = () => [...Dates().workDays()].sort((a, b) => a - b);
   // `target` { get, set } puts the sheet on something other than the open
   // task: the list page's own date (notes.js), saved with that page.
@@ -491,6 +502,7 @@
     dateTarget = target;
     const it = target.get();
     draft = { date: it.date || "", time: it.time || "", repeat: it.repeat ? { ...it.repeat } : null, remind: it.remind != null ? it.remind : null, deadline: it.deadline || "" };
+    customOpen = false;
     month = (draft.date || api.today()).slice(0, 7);
     fillDate();
     $("#taskDateModal").hidden = false;
@@ -500,6 +512,7 @@
     const { it } = current();
     if (!it) return;
     draft = { date: it.date || "", time: it.time || "", repeat: it.repeat ? { ...it.repeat } : null, remind: it.remind != null ? it.remind : null, deadline: it.deadline || "" };
+    customOpen = false;
     month = (draft.date || api.today()).slice(0, 7);
     fillDate();
     $("#taskDateModal").hidden = false;
@@ -557,7 +570,7 @@
     time.value = draft.time;
     time.disabled = !has;
     const rep = $("#taskRepeat");
-    rep.value = repeatChoice(draft.repeat);
+    rep.value = customOpen && draft.repeat ? "custom" : repeatChoice(draft.repeat);
     rep.disabled = !has;
     const custom = rep.value === "custom";
     $("#taskRepeatCustom").hidden = !custom || !has;
@@ -663,8 +676,9 @@
     $("#taskCalNext").onclick = () => { const [y, m] = month.split("-").map(Number); month = m === 12 ? `${y + 1}-01` : `${y}-${pad(m + 1)}`; fillDate(); };
     $("#taskTime").onchange = () => { draft.time = isTime($("#taskTime").value) ? $("#taskTime").value : ""; if (draft.remind != null && !draft.time && ![0, 1440].includes(draft.remind)) draft.remind = 0; fillDate(); };
     $("#taskRepeat").onchange = () => {
-      if ($("#taskRepeat").value === "custom" && !draft.repeat) draft.repeat = { every: 2, unit: "day" };
-      else readRepeat();
+      customOpen = $("#taskRepeat").value === "custom";
+      if (customOpen && !draft.repeat) draft.repeat = { every: 2, unit: "day" };
+      else if (!customOpen) readRepeat();
       fillDate();
     };
     $("#taskRepeatEvery").onchange = () => { readRepeat(); fillDate(); };
@@ -678,7 +692,7 @@
 
   const api = {
     init, wire, openTask, openDateFor, closeTask, closeAll: () => closeTask({ all: true }), closeDate: applyDate, handleEscape, isOpen: () => !!cur,
-    cleanItem, cleanParents, cleanHead, cleanRepeat, isTask, childrenOf, nextDate, tick, dueTasks, categoryOf, remindAt,
+    cleanItem, cleanParents, cleanHead, cleanRepeat, isTask, childrenOf, nextDate, tick, reopen, dueTasks, categoryOf, remindAt,
     today: () => localDay(new Date()), shortDay, repeatText, remindText, dateSummary, listLines, addDays, isDay, isTime, PRIORITY_NAMES,
   };
   if (typeof window !== "undefined") window.LifeLogTasks = api;

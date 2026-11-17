@@ -156,4 +156,13 @@ test("a task's reminder rings at its own time, keyed by its date; past ones and 
   assert.strictEqual(alertsOf(data, { today: "2026-03-10", tasks: Tasks, now, hidden: true })[0].body, "A task is coming up");
 });
 
+test("a list due as a task says only when, its title being the alert's", () => {
+  const Tasks = require("../src/tasks.js");
+  const data = { notes: [{ id: "L", kind: "list", text: "Trip", date: "2026-03-12", time: "18:00", remind: 0, items: [] }] };
+  const a = alertsOf(data, { today: "2026-03-12", tasks: Tasks, now: new Date(2026, 2, 12, 12, 0) }).filter((x) => x.kind === "task");
+  assert.strictEqual(a.length, 1);
+  assert.strictEqual(a[0].title, "Trip");
+  assert.strictEqual(a[0].body, "at 18:00");
+});
+
 console.log(`\n${passed} test(s) passed.`);

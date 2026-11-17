@@ -1690,12 +1690,16 @@ const TOOLS = [
         };
         const now = new Date();
         // As the app ticks: a repeating task moves to its next date, a task's open subtasks tick with it.
-        for (const ref of a.check || []) { const i = pick(ref); if (!i.done) Tasks.tick({ items }, i.id, true, now, today()); }
-        for (const ref of a.uncheck || []) { const i = pick(ref); delete i.done; delete i.doneAt; }
+        // The list's own tick goes when a row is unticked or added, as in the app.
+        const head = { ...n, items };
+        for (const ref of a.check || []) { const i = pick(ref); if (!i.done) Tasks.tick(head, i.id, true, now, today()); }
+        for (const ref of a.uncheck || []) Tasks.tick(head, pick(ref).id, false, now, today());
         const gone = new Set((a.remove || []).map((ref) => pick(ref).id));
         const kept = items.filter((i) => !gone.has(i.id));
-        for (const text of (a.add || []).map((s) => String(s).trim()).filter(Boolean)) kept.push({ id: L.uid(), text });
-        replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items: kept }));
+        const added = (a.add || []).map((s) => String(s).trim()).filter(Boolean);
+        for (const text of added) kept.push({ id: L.uid(), text });
+        if (added.length) Tasks.reopen(head);
+        replaceItem(d, "notes", cleanItem(d, "notes", { ...head, items: kept }));
         const open = kept.filter((i) => !i.done).length;
         return { text: `Updated the checklist: ${kept.length} items, ${open} open.`, touched: [["notes", n.id]] };
       });
@@ -1727,7 +1731,7 @@ const TOOLS = [
           const lastOpen = items.map((i) => !i.done).lastIndexOf(true);
           items.splice(lastOpen + 1, 0, it);
         }
-        const next = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
+        const next = cleanItem(d, "notes", Tasks.reopen({ ...n, items, editedAt: nowIso() }));
         replaceItem(d, "notes", next);
         const saved = next.items.find((i) => i.id === it.id);
         return { text: `Added the task "${text}" to "${n.text}": ${taskLine(saved)}  (${saved.id})`, touched: [["notes", n.id]] };
@@ -1783,8 +1787,9 @@ const TOOLS = [
         if (a.text != null && String(a.text).trim()) { it.text = String(a.text).trim(); said.push("renamed"); }
         applyTaskFields(d, it, a);
         let next = null;
+        const head = { ...n, items };
         if (a.done != null) {
-          const r = Tasks.tick({ items }, it.id, !!a.done, new Date(), today());
+          const r = Tasks.tick(head, it.id, !!a.done, new Date(), today());
           said.push(r && r.next ? `ticked, next ${r.next}` : a.done ? "ticked" : "unticked");
         }
         const touched = [["notes", n.id]];
@@ -1798,8 +1803,8 @@ const TOOLS = [
             const toItems = (to.items || []).map((i) => ({ ...i }));
             const lastOpen = toItems.map((i) => !i.done).lastIndexOf(true);
             toItems.splice(lastOpen + 1, 0, ...moving);
-            replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items: rest, editedAt: nowIso() }));
-            replaceItem(d, "notes", cleanItem(d, "notes", { ...to, items: toItems, editedAt: nowIso() }));
+            replaceItem(d, "notes", cleanItem(d, "notes", { ...head, items: rest, editedAt: nowIso() }));
+            replaceItem(d, "notes", cleanItem(d, "notes", { ...(it.done ? to : Tasks.reopen({ ...to })), items: toItems, editedAt: nowIso() }));
             touched.push(["notes", to.id]);
             where = to.text;
             said.push(`moved to "${to.text}"`);
@@ -1807,7 +1812,7 @@ const TOOLS = [
           }
         }
         if (!next) {
-          const clean = cleanItem(d, "notes", { ...n, items, editedAt: nowIso() });
+          const clean = cleanItem(d, "notes", { ...head, items, editedAt: nowIso() });
           replaceItem(d, "notes", clean);
           next = clean.items.find((i) => i.id === it.id);
         }

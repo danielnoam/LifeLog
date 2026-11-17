@@ -824,6 +824,7 @@
     // After the last open item, so it lands at the bottom of what's left to do.
     const lastOpen = n.items.map((i) => !i.done).lastIndexOf(true);
     n.items.splice(lastOpen + 1, 0, { id: uid(), text });
+    Tasks().reopen(n);
     await saveList(n, true);
   }
   async function editItem(noteId, itemId, text) {
@@ -1537,7 +1538,8 @@
           warn.hidden = !other;
           if (other) warn.textContent = i18n.t("“{other}” is already a tag: renaming puts {tag} into it.", { other: other.name, tag: c.name });
         };
-        const go = () => renameTag(c.name, input.value);
+        // An emptied name is a delete, which asks first (deleteTag).
+        const go = () => (Tags().cleanOne(input.value) ? renameTag(c.name, input.value) : deleteTag(c));
         input.oninput = check;
         input.onkeydown = (ev) => {
           if (ev.key === "Enter") { ev.preventDefault(); go(); }
@@ -1755,6 +1757,33 @@
   // A list's own task fields while its page is open (16 Nov 2026).
   const HEAD_FIELDS = ["note", "priority", "date", "time", "repeat", "remind", "deadline"];
   let sheetHead = {};
+  // The list as the page was opened on it, so Save only writes what the page
+  // changed: a row ticked meanwhile (a reminder's Done, the widget, a sync)
+  // or a repeating list moved on keeps that.
+  let sheetBase = null;
+  const sameJson = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
+  function baseSheet() {
+    sheetBase = { items: sheetItems.map((i) => ({ ...i })), head: JSON.parse(JSON.stringify(readSheetHead())) };
+  }
+  // The page's rows over the list as it is now. The page renames, orders,
+  // adds and removes rows; their ticks, dates and the rest are the list's.
+  function mergeSheetItems(base, mine, cur) {
+    const was = new Map(base.map((i) => [i.id, i]));
+    const now = new Map(cur.map((i) => [i.id, i]));
+    const out = [];
+    for (const s of mine) {
+      const b = was.get(s.id), c = now.get(s.id);
+      if (!c) { if (!b || s.text !== b.text) out.push(s); continue; }
+      out.push({ ...c, text: b && s.text === b.text ? c.text : s.text });
+    }
+    const seen = new Set(mine.map((i) => i.id));
+    for (const c of cur) {
+      if (seen.has(c.id) || was.has(c.id)) continue;
+      if (c.done) out.push(c);
+      else out.splice(out.map((i) => !i.done).lastIndexOf(true) + 1, 0, c);
+    }
+    return out;
+  }
   function readSheetHead() {
     const h = { ...sheetHead };
     const d = $("#nDesc").value.replace(/\s+$/, "");
@@ -1983,6 +2012,7 @@
       if (!n || editingNoteId !== noteId || $("#noteModal").hidden) return;
       sheetItems = (n.items || []).map((x) => ({ ...x }));
       sheetTags = n.tags ? n.tags.slice() : [];
+      baseSheet();
       renderSheetItems();
     };
     reload();
@@ -2183,6 +2213,7 @@
     syncSheetHead();
     $("#nNewItem").value = "";
     sheetItems = note && note.items ? note.items.map((i) => ({ ...i })) : [];
+    baseSheet();
     renderSheetItems();
     fillCategorySelect(note ? note.category : ([...state.noteActiveCats].find(Boolean) || ""));
     sheetTags = note && note.tags ? note.tags.slice() : [];
@@ -2287,6 +2318,10 @@
         // relabel it as edited.
         const said = (x) => JSON.stringify([kindOf(x), x.title || "", x.text, x.author || "", x.source || "", x.note || "", (x.items || []).map((i) => i.text)]);
         const before = said(n);
+        if (kind === "list" && kindOf(n) === "list" && sheetBase) {
+          fields.items = mergeSheetItems(sheetBase.items, fields.items, n.items || []);
+          for (const k of HEAD_FIELDS) if (sameJson(fields[k], sheetBase.head[k])) fields[k] = n[k];
+        }
         const next = sanitizeNote({ ...n, ...fields, category });
         for (const k of ["kind", "title", "author", "source", "items", "category", "tags", ...(kind === "list" ? HEAD_FIELDS : [])]) delete n[k];
         Object.assign(n, next);
