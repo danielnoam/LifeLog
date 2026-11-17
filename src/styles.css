@@ -2273,6 +2273,42 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
 .cal-ring.is-p2, .cal-task.is-p2 { border-color: var(--warning); }
 .cal-ring.is-p3, .cal-task.is-p3 { border-color: var(--accent); }
 .cal-name.is-task { color: var(--text-dim); }
+/* Backlog releases on their day (0.320.0): a dashed line in the category's
+   colour on the desktop, a dashed frame round the cell on a phone, where a
+   day with nothing finished shows the release's cover faded. */
+.cal-name.is-release { border: 1px dashed var(--rel); border-radius: var(--r-sm); padding: 0 var(--space-4); }
+.cal-release-row { cursor: pointer; }
+/* Google Calendar's events (0.320.0): a tinted line with the time on the
+   desktop (a solid one for all day), in the calendar's own colour; a bar
+   along the foot of a phone's cell. --ev falls back to the accent. */
+.cal-name.is-event {
+  gap: var(--space-4); padding: 0 var(--space-4); border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--ev, var(--accent)) 18%, transparent); color: var(--text);
+}
+.cal-name.is-event .cal-time { color: var(--text-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.cal-name.is-event .cal-ev-title { overflow: hidden; text-overflow: ellipsis; }
+.cal-name.is-allday { background: var(--ev, var(--accent)); color: var(--text-on-fill); font-weight: 600; }
+.cal-evbars { display: none; position: absolute; inset-inline: var(--space-2); bottom: var(--space-2); gap: var(--space-2); z-index: 1; }
+.cal-evbar { flex: 1; height: 4px; border-radius: var(--r-pill); background: var(--ev, var(--accent)); box-shadow: 0 0 0 1px var(--bg); }
+.cal-gcal-head { display: flex; align-items: baseline; gap: var(--space-8); }
+.cal-gcal-at { margin-inline-start: auto; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-dim); }
+.cal-ev-row {
+  display: flex; align-items: baseline; gap: var(--space-10); width: 100%; min-height: 44px; padding: var(--space-6) 0;
+  border: 0; border-top: 1px solid var(--border); background: none; color: var(--text); font: inherit; text-align: start; cursor: pointer;
+}
+.cal-ev-row:first-of-type { border-top: 0; }
+.cal-ev-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cal-ev-time { flex: 0 0 56px; font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums; border-inline-start: 3px solid var(--ev, var(--accent)); padding-inline-start: var(--space-6); }
+.cal-ev-name { min-width: 0; overflow-wrap: anywhere; }
+.cal-gcal-sync { margin-top: var(--space-8); }
+@media (hover: hover) { .cal-ev-row:hover { background: var(--hover-bg); } }
+.gcal-from { margin: 0; font-size: var(--fs-2xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.gcal-when { margin: var(--space-4) 0 0; color: var(--text-dim); font-size: var(--fs-sm); }
+.gcal-place { margin: var(--space-2) 0 0; font-size: var(--fs-sm); }
+.gcal-text { margin: var(--space-10) 0 0; font-size: var(--fs-sm); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; }
+.gcal-actions { margin-top: var(--space-14); }
+.gcal-cal { display: flex; align-items: center; gap: var(--space-8); }
+.gcal-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; background: var(--accent); }
 .cal-task {
   display: none; position: absolute; top: var(--space-2); inset-inline-end: var(--space-2); z-index: 1;
   min-width: 14px; height: 14px; padding: 0 var(--space-2); border-radius: var(--r-pill);
@@ -2288,6 +2324,9 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
   html:not(.force-pc) .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
   html:not(.force-pc) .cal-names { display: none; }
   html:not(.force-pc) .cal-task { display: block; }
+  html:not(.force-pc) .cal-evbars { display: flex; }
+  html:not(.force-pc) .cal-day.has-release { outline: 2px dashed var(--rel); outline-offset: -2px; }
+  html:not(.force-pc) .cal-day .cal-cover.is-release { opacity: 0.5; }
   html:not(.force-pc) .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
   html:not(.force-pc) .cal-day .cal-cover.cover-empty { display: flex; }
   html:not(.force-pc) .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
@@ -2302,6 +2341,9 @@ html.force-mobile .cal-main { padding: var(--space-10); }
 html.force-mobile .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
 html.force-mobile .cal-names { display: none; }
 html.force-mobile .cal-task { display: block; }
+html.force-mobile .cal-evbars { display: flex; }
+html.force-mobile .cal-day.has-release { outline: 2px dashed var(--rel); outline-offset: -2px; }
+html.force-mobile .cal-day .cal-cover.is-release { opacity: 0.5; }
 html.force-mobile .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
 html.force-mobile .cal-day .cal-cover.cover-empty { display: flex; }
 html.force-mobile .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }

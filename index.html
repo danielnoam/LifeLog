@@ -883,6 +883,27 @@
     </div>
   </div>
 
+  <!-- A Google Calendar event (src/gcal.js), read only, with ways to copy
+       it into LifeLog. -->
+  <div class="modal-overlay" id="gcalEventModal" hidden>
+    <div class="modal gcal-sheet" role="dialog" aria-modal="true" aria-labelledby="gcalEventTitle">
+      <div class="modal-head">
+        <h2 id="gcalEventTitle"></h2>
+        <button class="btn btn-icon" id="closeGcalEventBtn" title="Close" aria-label="Close event" data-t-attr="title,aria-label"><span data-ico="x"></span></button>
+      </div>
+      <p class="gcal-from" id="gcalEventFrom"></p>
+      <p class="gcal-when" id="gcalEventWhen"></p>
+      <p class="gcal-place" id="gcalEventPlace" hidden></p>
+      <p class="gcal-text" id="gcalEventText" hidden></p>
+      <div class="sgroup-card gcal-actions">
+        <button type="button" class="sitem sitem-go" id="gcalToEntry"><span class="sitem-text"><span class="sitem-title"><span data-t>Add to Timeline</span></span><span class="sitem-sub"><span data-t>As an entry on that day: pick the category and the title</span></span></span></button>
+        <button type="button" class="sitem sitem-go" id="gcalToTask"><span class="sitem-text"><span class="sitem-title"><span data-t>Add as a task</span></span><span class="sitem-sub"><span data-t>With its day, time and description</span></span></span></button>
+        <button type="button" class="sitem sitem-go" id="gcalToNote"><span class="sitem-text"><span class="sitem-title"><span data-t>Add as a note</span></span><span class="sitem-sub"><span data-t>The when, the place and the description in a new note</span></span></span></button>
+        <button type="button" class="sitem sitem-go" id="gcalOpen"><span class="sitem-text"><span class="sitem-title"><span data-t>Open in Google Calendar</span></span><span class="sitem-sub"><span data-t>To change or delete it there</span></span></span></button>
+      </div>
+    </div>
+  </div>
+
   <!-- Finance entry add/edit modal -->
   <div class="modal-overlay" id="financeModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="financeModalTitle">
@@ -2010,6 +2031,7 @@
           <button type="button" class="srow" data-page="conn-anilist"><span class="srow-ic"><span data-ico="tv"></span></span><span class="srow-text"><span class="srow-title"><span data-t>AniList</span></span><span class="srow-status" data-conn-status="anilist"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Stremio</span></span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
       </section>
@@ -2310,6 +2332,30 @@
       </section>
       </div>
 
+      <div class="settings-page" hidden data-page="conn-gcal" data-parent="imports" data-title="Google Calendar" data-keywords="google calendar events agenda appointments read only timeline calendar">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title" data-t>Google Calendar</h2>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Google Calendar</span></span><span class="sitem-sub" id="gcalInfo"></span></span>
+          </div>
+          <button type="button" class="sitem sitem-go" id="gcalConnectBtn" data-t>Connect Google Calendar</button>
+          <button type="button" class="sitem sitem-go" id="gcalSyncBtn" hidden data-t>Sync now</button>
+        </div>
+        <p class="hint" id="gcalHintOff" data-t>Shows your Google Calendar's events on the Timeline's calendar, read only: LifeLog never changes your calendar. Tap an event to copy it into LifeLog as an entry, a task or a note. Google shows a "Google hasn't verified this app" page first: choose Advanced, then go on to LifeLog.</p>
+        <p class="hint" id="gcalHintNone" hidden data-t>Not available here: Google sign-in needs the app, or the web app at its https address.</p>
+      </section>
+      <section class="sgroup" id="gcalCalsGroup" hidden>
+        <h3 class="sgroup-label" data-t>Calendars to show</h3>
+        <div class="sgroup-card" id="gcalCals"></div>
+        <div class="sgroup-card">
+          <button type="button" class="sitem sitem-go sitem-danger" id="gcalDisconnectBtn" data-t>Disconnect Google Calendar</button>
+        </div>
+        <p class="hint" data-t>The events stay on this device and aren't synced with the rest of your data, so each device connects on its own. In a browser the sign-in lasts an hour; after that the calendar shows the last copy until Sync now.</p>
+      </section>
+      </div>
+
       <div class="settings-page" hidden data-page="conn-payments" data-parent="imports" data-title="Google Wallet" data-keywords="google wallet pay payment notification expense ledger">
       <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
       <h2 class="settings-page-title" data-t>Google Wallet</h2>
@@ -2399,6 +2445,7 @@
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Frankfurter</span></span><span class="sitem-sub"><span data-t>Exchange rates for expenses in another currency</span></span></span></a>
           <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>The New York Times Books API</span></span><span class="sitem-sub"><span data-t>Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></span></a>
           <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Tiingo</span></span><span class="sitem-sub"><span data-t>Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></span></a>
+          <a class="sitem sitem-go" href="https://developers.google.com/calendar" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Calendar</span></span><span class="sitem-sub"><span data-t>Your events on the Timeline's calendar, read only, when you connect it</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/drive" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Drive</span></span><span class="sitem-sub"><span data-t>Where backups go, when you connect it in Sync</span></span></span></a>
         </div>
       </section>
@@ -2600,6 +2647,13 @@
               <option value="list" data-t>List</option>
               <option value="covers" data-t>Covers</option>
               <option value="calendar" data-t>Calendar</option>
+            </select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Releases on the calendar</span></span></span>
+            <select id="calendarReleases">
+              <option value="show" data-t>Show</option>
+              <option value="hide" data-t>Hide</option>
             </select>
           </label>
           <label class="sitem">
@@ -3067,6 +3121,7 @@
   <script defer src="src/stremio.js?v=0.319.1"></script>
   <script defer src="src/keel/drive.js?v=0.319.1"></script>
   <script defer src="src/drive.js?v=0.319.1"></script>
+  <script defer src="src/gcal.js?v=0.319.1"></script>
   <script defer src="src/connections.js?v=0.319.1"></script>
   <script defer src="src/hardcover.js?v=0.319.1"></script>
   <script defer src="src/payments.js?v=0.319.1"></script>

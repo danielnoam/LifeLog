@@ -59,7 +59,7 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", motion: "on", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", motion: "on", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", calendarReleases: "show", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
     // The Home tab's sections, in order, and the ones turned off (home.js).
     homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], homeScratchMode: "note", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
@@ -5235,7 +5235,7 @@
           return;
         }
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
-        Backlog.closePickModal(); Backlog.closeOutTodaySheet();
+        Backlog.closePickModal(); Backlog.closeOutTodaySheet(); Journal.closeEventSheet();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         // A note, read or written, shuts the way its × does (phone Back too),

@@ -2160,7 +2160,9 @@
     }
   }
 
-  function openNoteModal(note, kind, { after } = {}) {
+  // `preset` fills a new one in (a Google Calendar event, journal.js):
+  // { title, text, head } with head a list's own task fields.
+  function openNoteModal(note, kind, { after, preset } = {}) {
     editingNoteId = note ? note.id : "";
     boardAfter = after || null;
     applyNoteView();
@@ -2172,6 +2174,11 @@
     // A list's own task fields: the box shows them, Save writes them.
     sheetHead = {};
     if (note && kindOf(note) === "list") for (const k of HEAD_FIELDS) if (note[k] != null) sheetHead[k] = JSON.parse(JSON.stringify(note[k]));
+    if (!note && preset) {
+      $("#nTitle").value = preset.title || "";
+      $("#nText").value = preset.text || "";
+      for (const k of HEAD_FIELDS) if (preset.head && preset.head[k] != null) sheetHead[k] = preset.head[k];
+    }
     $("#nDesc").value = sheetHead.note || "";
     syncSheetHead();
     $("#nNewItem").value = "";

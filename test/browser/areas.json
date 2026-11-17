@@ -44,8 +44,8 @@
       "suites": ["backlogcount", "backlogcovers", "backlogshow", "bandfold", "coverless", "discoverswitch", "droppedfold", "gametimes", "gametimesfail", "hardcover", "igdb", "igdbtimes", "inprogress", "keystatus", "match", "nextseries", "nytdiscover", "outtoday", "outweek", "pick", "pickspeed", "pricealert", "showstate"]
     },
     "timeline": {
-      "files": ["src/journal.js", "src/recap.js"],
-      "suites": ["backlogcount", "entrydate", "inprogress", "recap", "showstate", "sorting", "timelinecal"]
+      "files": ["src/journal.js", "src/recap.js", "src/gcal.js"],
+      "suites": ["backlogcount", "entrydate", "gcal", "inprogress", "recap", "showstate", "sorting", "timelinecal"]
     },
     "ledger": {
       "files": ["src/finance.js", "src/payments.js"],
