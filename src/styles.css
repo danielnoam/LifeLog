@@ -815,7 +815,9 @@ body.modal-open .activity-pill { visibility: hidden; }
 .btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); }
 .btn-icon { padding: 8px 10px; font-size: var(--fs-read); line-height: 1; }
-.btn-sm { padding: 4px 8px; font-size: var(--fs-xs); }
+/* One small button. .btn-small looks the same; it only marks the ones
+   that get a padded tap area (the list further down). */
+.btn-sm, .btn-small { padding: 4px 8px; font-size: var(--fs-xs); }
 
 /* ---------- icons ----------
    Lucide, through src/icons.js. An icon sits at 1.2em so it matches the
@@ -3398,7 +3400,6 @@ details[open]::details-content {
 }
 .history-badge { font-size: var(--fs-2xs); color: var(--text-dim); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 6px; flex: 0 0 auto; }
 .history-badge-ai { color: var(--text); border-color: var(--accent); }
-.btn-small { padding: 4px 10px; font-size: var(--fs-xs); }
 .hint, .muted { color: var(--text-dim); font-size: var(--fs-xs); }
 .muted code { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 6px; color: var(--text-dim); font-size: var(--fs-xs); }
 .muted strong { color: var(--text-dim); }
@@ -3642,12 +3643,15 @@ html.native, html.native body { overscroll-behavior-y: none; }
     /* A block, not a flex box: text-overflow only draws its … on a block,
        so a long name was cut mid-letter. */
     flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
-    font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); cursor: pointer;
+    font-size: var(--fs-md); font-weight: 600; color: var(--text-dim); cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
-    transition: color .18s var(--ease), font-size .18s var(--ease);
+    /* Drawn at the active size and scaled down (12/14) when it isn't, so the
+       swap animates on the compositor instead of re-laying out the bar. */
+    transform: scale(.857);
+    transition: color .18s var(--ease), transform .18s var(--ease);
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
   }
-  html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
+  html:not(.force-pc) .jump-item.is-active { color: var(--accent); transform: none; cursor: default; }
 
   html:not(.force-pc) .fab-wrap { inset-inline-end: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
   html:not(.force-pc) .notice-stack {
@@ -3755,12 +3759,15 @@ html.force-mobile .jump-item {
   /* A block, not a flex box: text-overflow only draws its … on a block,
      so a long name was cut mid-letter. */
   flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
-  font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); cursor: pointer;
+  font-size: var(--fs-md); font-weight: 600; color: var(--text-dim); cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
-  transition: color .18s var(--ease), font-size .18s var(--ease);
+  /* Drawn at the active size and scaled down (12/14) when it isn't, so the
+     swap animates on the compositor instead of re-laying out the bar. */
+  transform: scale(.857);
+  transition: color .18s var(--ease), transform .18s var(--ease);
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
 }
-html.force-mobile .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
+html.force-mobile .jump-item.is-active { color: var(--accent); transform: none; cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   html:not(.force-pc) .jump-nav, html:not(.force-pc) .jump-item,
   html.force-mobile .jump-nav, html.force-mobile .jump-item { transition: none; }
