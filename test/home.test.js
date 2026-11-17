@@ -16,8 +16,8 @@ const at = (n) => Finance.addDaysStr(today, n);
 const deps = { Backlog, Finance, Habits };
 
 test("a saved section order keeps what it knows and adds what's new at the end", () => {
-  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest", "calendar"]);
-  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger", "invest", "calendar"]);
+  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest", "calendar", "pick", "year"]);
+  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger", "invest", "calendar", "pick", "year"]);
 });
 
 test("floors: a new Home shows In progress, Coming up and Scratchpad only", () => {
@@ -25,7 +25,7 @@ test("floors: a new Home shows In progress, Coming up and Scratchpad only", () =
   // nothing arranged: the app's own default order and nothing hidden
   assert.deepStrictEqual(Home.floorLayout(undefined, { order: ["progress", "upcoming", "scratchpad", "pinned"], hidden: [] }), Home.DEFAULT_FLOORS);
   assert.deepStrictEqual(Home.floorLayout(undefined, {}), Home.DEFAULT_FLOORS);
-  assert.deepStrictEqual(Home.hiddenOf(Home.DEFAULT_FLOORS), ["pinned", "ledger", "invest", "calendar"]);
+  assert.deepStrictEqual(Home.hiddenOf(Home.DEFAULT_FLOORS), ["pinned", "ledger", "invest", "calendar", "pick", "year"]);
 });
 
 test("floors: the old order turns into the rows it made, halves two or three across", () => {
@@ -41,7 +41,7 @@ test("floors: saved floors lose hidden, unknown and repeated sections and empty 
   // a layout saved before Calendar existed doesn't grow one
   const before = [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]];
   assert.deepStrictEqual(Home.floorLayout(before, { hidden: [] }), before);
-  assert.deepStrictEqual(Home.hiddenOf(before), ["calendar"]);
+  assert.deepStrictEqual(Home.hiddenOf(before), ["calendar", "pick", "year"]);
   assert.deepStrictEqual(Home.floorLayout([], {}), []);
 });
 
@@ -186,6 +186,35 @@ test("a calendar month: finished entries by day (no day kept apart, oldest added
   assert.deepStrictEqual(mo.tasksByDay.get(17).map((r) => r.item.id), ["t1"]);
   assert.deepStrictEqual([...mo.rel.byDay.keys()], [20]);
   assert.strictEqual(Home.calendarMonth(data, 2026, 11, { Backlog, Tasks, releases: false }).rel.byDay.size, 0);
+});
+
+test("the year so far: finished against last year by the same date, tasks, spending and the best habit run", () => {
+  const data = {
+    entries: [
+      { id: "a", title: "A", category: "Games", year: 2026, month: 3, day: 4 },
+      { id: "b", title: "B", category: "Books", year: 2026, month: 11 },
+      { id: "c", title: "C", category: "Games", year: 2026, month: 1, day: 9 },
+      { id: "l1", title: "Before", category: "Games", year: 2025, month: 11, day: 17 },
+      { id: "l2", title: "After", category: "Games", year: 2025, month: 11, day: 18 },
+      { id: "l3", title: "Month only, this month", category: "Games", year: 2025, month: 11 },
+      { id: "l4", title: "Month only, earlier", category: "Games", year: 2025, month: 10 },
+    ],
+    notes: [{ id: "n", kind: "list", items: [
+      { id: "t1", text: "x", done: true, doneAt: "2026-02-01T10:00:00Z" }, { id: "t2", text: "y", done: true, doneAt: "2025-12-31T10:00:00Z" }, { id: "t3", text: "z" },
+    ] }],
+    financeEntries: [{ id: "f1", date: "2026-01-05", amount: 10 }, { id: "f2", date: "2025-12-31", amount: 99 }, { id: "f3", date: "2026-11-20", amount: 5 }],
+    recurringExpenses: [{ id: "r1", startDate: "2026-11-01", interval: "monthly", amount: 7, category: "Subs" }],
+    habits: [],
+  };
+  const g = Home.yearSoFar(data, "2026-11-17", { Finance, Habits });
+  assert.strictEqual(g.finished, 3);
+  assert.strictEqual(g.lastByNow, 2);
+  assert.strictEqual(g.hasLast, true);
+  assert.deepStrictEqual(g.categories, [{ name: "Games", n: 2 }, { name: "Books", n: 1 }]);
+  assert.strictEqual(g.tasksDone, 1);
+  assert.strictEqual(g.spent, 17);
+  assert.strictEqual(g.streak, null);
+  assert.strictEqual(Home.yearSoFar({}, "2026-11-17", {}).hasLast, false);
 });
 
 console.log(`\n${passed} test(s) passed.`);

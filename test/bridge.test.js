@@ -1344,6 +1344,7 @@ test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", asyn
   assert.match(home, /Habits left today: Read/);
   assert.match(home, /Scratchpad:\n\(empty\)/);
   assert.match(home, /Pinned notes \(0\):/);
+  assert.match(home, new RegExp(`\\nYear so far \\(${today.slice(0, 4)}\\): \\d+ finished.* \\d+ tasks done, .* spent\\.`));
   assert.match(home, /\nLedger: \d{4}-\d{2} so far /);
   assert.match(home, /\nLatest:\n- /);
   await ok("lifelog_set_scratchpad", { text: "Buy stamps" });
