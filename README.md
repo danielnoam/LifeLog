@@ -57,7 +57,12 @@ you hold, the gain since you bought and each ticker's month and day; and a
 Calendar, the Timeline's calendar in small: a month with a mark on each day
 for your Google Calendar events, what you finished, releases and open tasks,
 and the picked day's list under it (alone on a wide floor it shows the names
-in the days). A new Home starts with In progress, Coming up and Scratchpad;
+in the days); Pick for tonight, one title from your backlog you could
+start today, with Start and Another and chips for what it picks from (it
+draws from Pick's own bag, so nothing repeats before everything has had a
+turn); and Year so far, what you've finished this year against last year by
+the same date, by category, with tasks done, spending and your best habit
+run, and Recap › to the year's Recap. A new Home starts with In progress, Coming up and Scratchpad;
 the rest, and any section added later, wait to be shown. On a computer you arrange it
 in floors: drag a section by its heading into a floor to share its width
 (a full floor moves its last section down), or between floors to start a

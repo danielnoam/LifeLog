@@ -1582,6 +1582,52 @@
     syncPickActions();
   }
 
+  // ---------- Home's Pick for tonight (0.321.0) ----------
+  // One title held on this device until you ask for Another, start it, or
+  // it stops being pickable, so Home doesn't change its mind on every
+  // render. It's drawn from Pick's own bag and history, so the panel and
+  // the sheet never repeat a title before everything has had its turn. The
+  // categories switched off are this device's too.
+  const HOME_PICK_KEY = "lifelog-home-pick-v1";
+  function loadHomePick() {
+    try { const v = JSON.parse(localStorage.getItem(HOME_PICK_KEY)); return v && typeof v === "object" ? v : {}; } catch (e) { return {}; }
+  }
+  function saveHomePick(v) {
+    try { localStorage.setItem(HOME_PICK_KEY, JSON.stringify(v)); } catch (e) {}
+  }
+  const homePickPool = () => eligibleForPick(state.data.backlog.filter((b) => !isStarted(b)));
+  // { pool, cats: the pool's categories in the app's order, off: Set, item }
+  function homePick(another) {
+    const saved = loadHomePick();
+    const pool = homePickPool();
+    const off = new Set(Array.isArray(saved.off) ? saved.off : []);
+    const inPool = new Set(pool.map((b) => b.category));
+    const cats = state.data.categories.map((c) => c.name).filter((n) => inPool.has(n));
+    for (const n of inPool) if (!cats.includes(n)) cats.push(n);
+    const scoped = pool.filter((b) => !off.has(b.category));
+    let item = another ? null : scoped.find((b) => b.id === saved.id) || null;
+    if (!item && scoped.length) {
+      // Another never lands on the one you just passed over, unless it's all there is.
+      const rest = scoped.length > 1 ? scoped.filter((b) => b.id !== saved.id) : scoped;
+      item = drawPick(rest);
+    }
+    if ((item && item.id) !== saved.id) saveHomePick({ ...saved, id: item ? item.id : null });
+    return { pool, cats, off, item };
+  }
+  function setHomePickCategory(name, on) {
+    const saved = loadHomePick();
+    const off = new Set(Array.isArray(saved.off) ? saved.off : []);
+    if (on) off.delete(name); else off.add(name);
+    saveHomePick({ ...saved, off: [...off] });
+  }
+  // The pick's cover and meta line, as the sheet and the rows draw them.
+  const pickCover = (b) => tileCover(b.coverUrl, b.category);
+  function pickMeta(b) {
+    const box = el("span", "home-pick-meta");
+    appendBacklogMeta(box, b);
+    return box;
+  }
+
   // ---------- Next Releases ----------
   // Precision ordering for the tie-break below: on the same day, an exact
   // date should sit above something merely narrowed to that month.
@@ -3702,6 +3748,8 @@
     offerNextInSeries,
     isStarted, // the search page's In progress group
     lengthBand, // Pick's length chips, and the bridge's lifelog_pick
+    // Home's Pick for tonight (0.321.0), and its "Pick ›" into the sheet
+    homePick, homePickPool, setHomePickCategory, pickCover, pickMeta, openPickModal,
     // "Pick random" modal (Escape close)
     closePickModal,
     // cover panel (applySteamAppId in app.js writes the fields, then repaints)

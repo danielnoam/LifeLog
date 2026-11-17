@@ -1272,7 +1272,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_home",
-    description: "What the Home tab shows: what's in progress, what's coming in the next days (tasks with a date, overdue ones included, releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, and the Ledger card (this month so far against last month by the same day, top categories, latest expenses).",
+    description: "What the Home tab shows: what's in progress, what's coming in the next days (tasks with a date, overdue ones included, releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, the Year so far card (finished this year against last year by the same date, by category, tasks done, spending, the best habit run), and the Ledger card (this month so far against last month by the same day, top categories, latest expenses). Home's Pick for tonight is lifelog_pick.",
     readOnly: true,
     input: { days: S.int("How far ahead Coming up goes, default 14 (as the app)") },
     async run(a) {
@@ -1299,6 +1299,11 @@ const TOOLS = [
       }
       const pins = Home.pinnedNotes(d);
       out.push("", `Pinned notes (${pins.length}):`, ...(pins.length ? pins.map((n) => "- " + noteText(n, 300)) : ["- none"]));
+      const ys = Home.yearSoFar(d, t, { Finance, Habits });
+      out.push("", `Year so far (${ys.year}): ${ys.finished} finished` + (ys.hasLast ? ` (${ys.lastByNow} by this date last year)` : "") + "."
+        + (ys.categories.length ? " By category: " + ys.categories.map((c) => `${c.name} ${c.n}`).join(", ") + "." : "")
+        + ` ${ys.tasksDone} tasks done, ${money(d, ys.spent)} spent.`
+        + (ys.streak ? ` Best habit run: ${ys.streak.name}, ${ys.streak.n} ${ys.streak.unit}${ys.streak.n === 1 ? "" : "s"}.` : ""));
       const g = Home.ledgerGlance(d, t, { Finance });
       const diff = g.total - g.lastByNow;
       out.push("", `Ledger: ${g.month} so far ${money(d, g.total)}` + (g.hasLast

@@ -13,6 +13,8 @@ const SEED = {
   backlog: [
     { id: "p1", title: "Playing Now", category: "Games", startedAt: day(-2), createdAt: T, updatedAt: T },
     { id: "r1", title: "Comes Out Soon", category: "Games", releaseDate: day(3), releasePrecision: "day", createdAt: T, updatedAt: T },
+    { id: "k1", title: "Old Game", category: "Games", releaseDate: "2020-01-01", releasePrecision: "day", createdAt: T, updatedAt: T },
+    { id: "k2", title: "Old Show", category: "Shows", releaseDate: "2019-01-01", releasePrecision: "day", createdAt: T, updatedAt: T },
     { id: "e1", title: "Weekly Show", category: "Shows", nextAt: day(1), nextLabel: "S1 E4", releaseDate: "2025-01-01", createdAt: T, updatedAt: T },
   ],
   notes: [
@@ -106,7 +108,7 @@ const SEED = {
 
   // ---- the View sheet ----
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
-  check("View lists the seven sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 7);
+  check("View lists the nine sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 9);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show In progress"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
@@ -116,7 +118,7 @@ const SEED = {
   const after = await floorsNow();
   check("moving Pinned notes up swaps it with Scratchpad, and hiding In progress, Ledger and Investments leaves their floors", JSON.stringify(after) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]), after);
   let vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
-  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger,invest,calendar", vis);
+  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger,invest,calendar,pick,year", vis);
 
   // ---- arranging by dragging a heading ----
   const dragHead = async (from, to) => {
@@ -171,7 +173,7 @@ const SEED = {
   await page.evaluate((y) => window.scrollTo(0, Math.max(0, y - 500)), last.y); await page.waitForTimeout(500);
   let sy = await page.evaluate(() => window.scrollY);
   await page.mouse.click(last.x, last.y - sy, { button: "right" }); await page.waitForTimeout(200);
-  check("right-clicking below the floors offers the hidden sections", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Pinned notes", "Investments", "Calendar"]), await ctxItems());
+  check("right-clicking below the floors offers the hidden sections", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Pinned notes", "Investments", "Calendar", "Pick for tonight", "Year so far"]), await ctxItems());
   await page.click('.ctx-menu button:has-text("Investments")'); await page.waitForTimeout(300);
   check("and picking one puts it on a new floor there", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["ledger"], ["invest"]]), await floorsNow());
   await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500);
@@ -180,9 +182,13 @@ const SEED = {
   await page.click('.ctx-menu button:has-text("Pinned notes")'); await page.waitForTimeout(300);
   check("right-clicking between floors adds it on a floor of its own between them", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["pinned"], ["upcoming", "scratchpad"], ["ledger"], ["invest"]]), await floorsNow());
   await page.mouse.click(gap.x, 120, { button: "right" }); await page.waitForTimeout(200);
-  check("above the floors it offers what's still hidden", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Calendar"]), await ctxItems());
+  check("above the floors it offers what's still hidden", JSON.stringify(await ctxItems()) === JSON.stringify(["Add to Home", "Calendar", "Pick for tonight", "Year so far"]), await ctxItems());
   await page.click('.ctx-menu button:has-text("Calendar")'); await page.waitForTimeout(400);
   check("and Calendar gets a floor of its own at the top", JSON.stringify((await floorsNow())[0]) === JSON.stringify(["calendar"]), await floorsNow());
+  for (const name of ["Pick for tonight", "Year so far"]) {
+    await page.mouse.click(gap.x, 120, { button: "right" }); await page.waitForTimeout(200);
+    await page.click(`.ctx-menu button:has-text("${name}")`); await page.waitForTimeout(300);
+  }
   await page.mouse.click(gap.x, 120, { button: "right" }); await page.waitForTimeout(200);
   check("with nothing hidden, the menu says so", JSON.stringify(await ctxItems()) === JSON.stringify(["Every section is on Home"]), await ctxItems());
   await page.keyboard.press("Escape");
@@ -232,6 +238,25 @@ const SEED = {
   check("Note brings the text pad back", (await page.$("#homeScratchpad")) !== null);
   const rowHeads = await page.evaluate(() => [...document.querySelector(".home-scratch").parentElement.querySelectorAll(".home-sec-head")].map((h) => Math.round(h.getBoundingClientRect().height)));
   check("the switch doesn't make the Scratchpad head taller than its neighbours", rowHeads.length > 1 && rowHeads.every((h) => h === rowHeads[0]), rowHeads);
+
+  // ---- Pick for tonight ----
+  const pickTitle = () => page.evaluate(() => (document.querySelector(".home-pick-title") || {}).textContent || "");
+  const first = await pickTitle();
+  check("Pick for tonight shows something you could start today", ["Old Game", "Old Show", "Weekly Show"].includes(first.trim()), first);
+  await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(600);
+  check("and keeps it on a reload", (await pickTitle()) === first, await pickTitle());
+  const chipsNow = await page.$$eval(".home-pick-cats .cat-chip", (n) => n.map((c) => c.textContent.trim()));
+  check("its chips are the categories it can pick from", JSON.stringify(chipsNow) === JSON.stringify(["Games", "Shows"]), chipsNow);
+  await page.click('.home-pick button:has-text("Another")'); await page.waitForTimeout(300);
+  const second = await pickTitle();
+  check("Another picks a different one", second && second !== first, { first, second });
+  await page.click('.home-pick button:has-text("Start")'); await page.waitForTimeout(500);
+  const started = await page.evaluate((t) => !!window.LifeLogStorage.cachedCopy().backlog.find((b) => b.title === t.trim()).startedAt, second);
+  check("Start puts it in progress and a new pick takes its place", started && (await pickTitle()) !== second && (await page.textContent(".home-progress")).includes(second.trim()), await pickTitle());
+
+  // ---- Year so far ----
+  const yr = await page.evaluate(() => ({ head: document.querySelector(".home-year .home-sec-head h2").textContent.trim(), total: document.querySelector(".home-year .home-ledger-total").textContent, bars: [...document.querySelectorAll(".home-year-name")].map((n) => n.textContent) }));
+  check("Year so far counts what you finished this year, by category", yr.head === new Date().getFullYear() + " so far" && yr.total === "1" && yr.bars.join() === "Games", yr);
 
   // ---- turned off ----
   await page.evaluate(() => {

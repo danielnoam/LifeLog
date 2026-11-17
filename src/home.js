@@ -26,6 +26,8 @@
     ["ledger", i18n.t("Ledger"), "receipt", true],
     ["invest", i18n.t("Investments"), "trending-up", true],
     ["calendar", i18n.t("Calendar"), "calendar-days", true],
+    ["pick", i18n.t("Pick for tonight"), "dices", true],
+    ["year", i18n.t("Year so far"), "chart-column", true],
   ];
   const SECTION_IDS = SECTIONS.map(([id]) => id);
   const DAYS_AHEAD = 14;
@@ -221,6 +223,39 @@
     if (Tasks) for (const r of Tasks.dueTasks(data, key + "-31")) if (r.day.startsWith(key + "-")) push(tasksByDay, +r.day.slice(8), r);
     const rel = Backlog && releases ? Backlog.calendarReleases(backlog, y, m) : { byDay: new Map(), rough: [] };
     return { key, days, inMonth, byDay, undated, tasksByDay, rel };
+  }
+
+  // The year so far: what you finished against last year by the same date
+  // (an entry with no day counts once its month is past), by category; tasks
+  // ticked this year; what you spent, recurring charges included once due,
+  // as on the Ledger; and the best run any habit has had.
+  function yearSoFar(data, today, { Finance, Habits } = {}) {
+    const y = +today.slice(0, 4), md = today.slice(5), month = +today.slice(5, 7);
+    const pad = (n) => String(n).padStart(2, "0");
+    const byNow = (e) => (+e.day ? `${pad(e.month)}-${pad(e.day)}` <= md : +e.month < month);
+    const entries = (data.entries || []).filter((e) => +e.year === y);
+    const lastByNow = (data.entries || []).filter((e) => +e.year === y - 1 && byNow(e)).length;
+    const counts = {};
+    for (const e of entries) counts[e.category || ""] = (counts[e.category || ""] || 0) + 1;
+    const categories = Object.entries(counts).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+    const tasksDone = (data.notes || []).filter((n) => n.kind === "list").flatMap((n) => n.items || [])
+      .filter((t) => t.done && String(t.doneAt || "").startsWith(y + "-") && String(t.doneAt).slice(0, 10) <= today).length;
+    let spent = 0;
+    if (Finance) {
+      const end = new Date(today + "T00:00:00");
+      const charged = (data.recurringExpenses || []).flatMap((r) => Finance.planCharges(r, end));
+      for (const f of [...(data.financeEntries || []), ...charged]) {
+        if (!f.skipped && !f.paused && isDate(f.date) && f.date.startsWith(y + "-") && f.date <= today) spent += +f.amount || 0;
+      }
+    }
+    let streak = null;
+    if (Habits) {
+      for (const h of data.habits || []) {
+        const n = Habits.bestStreakOf(h, today);
+        if (n > 0 && (!streak || n > streak.n)) streak = { n, name: h.name, unit: Habits.isPeriodic(h) ? h.period : "day" };
+      }
+    }
+    return { year: y, finished: entries.length, lastByNow, hasLast: (data.entries || []).some((e) => +e.year === y - 1), categories, tasksDone, spent, streak };
   }
 
   // Which heading a day goes under.
@@ -939,7 +974,139 @@
     return list;
   }
 
-  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection, calendar: calendarSection };
+  // ---------- Pick for tonight (0.321.0) ----------
+  // One title from the backlog you could start today, held until Another
+  // or Start (backlog.js's homePick, from Pick's own bag), with chips for
+  // what it picks from. "Pick ›" opens the full sheet.
+  function pickSection() {
+    const B = window.LifeLogBacklog, J = window.LifeLogJournal;
+    const p = B.homePick(false);
+    const sec = el("section", "home-sec home-pick");
+    sec.appendChild(sectionHead("pick", p.pool.length ? { label: i18n.t("Pick"), run: () => B.openPickModal(B.homePickPool()) } : null));
+    if (!p.pool.length) {
+      sec.appendChild(el("p", "home-empty", i18n.t("Nothing in your backlog to pick from. Anything you could start today shows here.")));
+      return sec;
+    }
+    const card = el("div", "home-card");
+    const b = p.item;
+    if (b) {
+      const row = el("div", "home-pick-row");
+      const cover = el("button", "home-pick-cover");
+      cover.type = "button";
+      cover.setAttribute("aria-label", i18n.t("Open {title}", { title: b.title }));
+      cover.appendChild(B.pickCover(b));
+      cover.onclick = () => B.openBacklogModal(b);
+      row.appendChild(cover);
+      const text = el("div", "home-pick-text");
+      const title = el("button", "home-pick-title", b.title);
+      title.type = "button";
+      title.onclick = () => B.openBacklogModal(b);
+      if (b.priority) {
+        const star = ico("star", "home-pick-star");
+        star.setAttribute("aria-label", i18n.t("Starred"));
+        title.appendChild(star);
+      }
+      text.appendChild(title);
+      const sub = el("p", "home-row-sub");
+      const dot = sub.appendChild(el("span", "dot"));
+      dot.style.background = (state.data.categories.find((c) => c.name === b.category) || {}).color || "";
+      sub.appendChild(document.createTextNode(b.category));
+      text.appendChild(sub);
+      text.appendChild(B.pickMeta(b));
+      if (isDate(String(b.createdAt || "").slice(0, 10))) {
+        text.appendChild(el("p", "home-pick-since", i18n.t("In your backlog since {date}", { date: Dates().day(String(b.createdAt).slice(0, 10), { year: "auto" }) })));
+      }
+      const acts = el("div", "home-pick-actions");
+      if (J.categoryShows(b.category).inProgress) {
+        const start = acts.appendChild(el("button", "btn btn-sm"));
+        start.type = "button";
+        start.appendChild(window.LifeLogIcons.labelled("play", i18n.t("Start")));
+        start.onclick = () => B.startItem(b.id);
+      }
+      const again = acts.appendChild(el("button", "btn btn-sm"));
+      again.type = "button";
+      again.appendChild(window.LifeLogIcons.labelled("dices", i18n.t("Another")));
+      again.disabled = p.pool.filter((x) => !p.off.has(x.category)).length < 2;
+      again.onclick = () => { B.homePick(true); render(); };
+      text.appendChild(acts);
+      row.appendChild(text);
+      card.appendChild(row);
+    } else {
+      card.appendChild(el("p", "home-empty home-pick-none", i18n.t("Every category is off. Turn one on to get a pick.")));
+    }
+    if (p.cats.length > 1) {
+      const chips = el("div", "home-pick-cats");
+      for (const name of p.cats) {
+        const on = !p.off.has(name);
+        const c = chips.appendChild(el("button", "cat-chip pick-cat" + (on ? " on" : "")));
+        c.type = "button";
+        c.setAttribute("aria-pressed", String(on));
+        const dot = c.appendChild(el("span", "dot"));
+        dot.style.background = (state.data.categories.find((x) => x.name === name) || {}).color || "";
+        c.appendChild(document.createTextNode(name));
+        c.onclick = () => { B.setHomePickCategory(name, !on); B.homePick(!on ? false : !!(b && b.category === name)); render(); };
+      }
+      card.appendChild(chips);
+    }
+    sec.appendChild(card);
+    return sec;
+  }
+
+  // ---------- Year so far (0.321.0) ----------
+  // yearSoFar's numbers; "Recap ›" opens this year's Recap.
+  function yearSection() {
+    const F = window.LifeLogFinance, R = window.LifeLogRecap;
+    const today = todayStr();
+    const g = yearSoFar(state.data, today, { Finance: F, Habits: window.LifeLogHabits });
+    const sec = el("section", "home-sec home-year");
+    const head = sectionHead("year", R ? { label: i18n.t("Recap"), run: () => R.openRecap(g.year) } : null);
+    head.querySelector("h2").replaceChildren(window.LifeLogIcons.labelled("chart-column", i18n.t("{year} so far", { year: String(g.year) })));
+    sec.appendChild(head);
+    const card = el("div", "home-card");
+    const top = el("div", "home-ledger-top");
+    top.appendChild(el("p", "home-ledger-label", i18n.t("Finished this year")));
+    top.appendChild(el("p", "home-ledger-total", String(g.finished)));
+    if (g.hasLast) {
+      const diff = g.finished - g.lastByNow;
+      const D = Dates(), p = D.parts(today);
+      const when = D.dayMonth(p.d, p.m);
+      const vs = el("p", "home-ledger-vs" + (diff < 0 ? " is-down" : ""));
+      if (diff) vs.appendChild(ico(diff > 0 ? "trending-up" : "trending-down"));
+      vs.appendChild(document.createTextNode(!diff ? i18n.t("Same as by {date} last year", { date: when })
+        : diff > 0 ? i18n.t("{n} more than by {date} last year", { n: diff, date: when }) : i18n.t("{n} fewer than by {date} last year", { n: -diff, date: when })));
+      top.appendChild(vs);
+    }
+    card.appendChild(top);
+    if (g.categories.length) {
+      const bars = el("div", "home-year-bars");
+      const max = g.categories[0].n;
+      for (const c of g.categories) {
+        const row = bars.appendChild(el("div", "home-year-bar"));
+        row.appendChild(el("span", "home-year-name", c.name));
+        const fill = row.appendChild(el("span", "home-year-track")).appendChild(el("span", "home-year-fill"));
+        fill.style.width = (c.n / max) * 100 + "%";
+        fill.style.background = (state.data.categories.find((x) => x.name === c.name) || {}).color || "";
+        row.appendChild(el("span", "home-year-n", String(c.n)));
+      }
+      card.appendChild(bars);
+    } else {
+      card.appendChild(el("p", "home-empty home-year-none", i18n.t("Nothing finished yet this year.")));
+    }
+    const facts = el("div", "home-year-facts");
+    const fact = (value, label) => { const f = facts.appendChild(el("div", "home-year-fact")); f.append(el("b", null, value), el("span", null, label)); };
+    fact(String(g.tasksDone), i18n.tn(g.tasksDone, "task done", "tasks done"));
+    fact(F.formatMoney(g.spent), i18n.t("spent"));
+    if (g.streak) {
+      const n = g.streak.n;
+      const len = { day: i18n.tn(n, "1 day", "{n} days"), week: i18n.tn(n, "1 week", "{n} weeks"), month: i18n.tn(n, "1 month", "{n} months"), year: i18n.tn(n, "1 year", "{n} years") }[g.streak.unit] || String(n);
+      fact(len, i18n.t("best run · {habit}", { habit: g.streak.name }));
+    }
+    card.appendChild(facts);
+    sec.appendChild(card);
+    return sec;
+  }
+
+  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection, calendar: calendarSection, pick: pickSection, year: yearSection };
 
   function renderHome(root) {
     if (drag) endDrag();
@@ -1290,7 +1457,7 @@
   const api = {
     init, renderHome, fillViewOptions,
     // pure
-    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
+    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, yearSoFar, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
     taskRow,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;

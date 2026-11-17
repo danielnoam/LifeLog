@@ -5165,6 +5165,41 @@ html.force-mobile .home-pad { font-size: var(--fs-lg); }
   .home-cal-names { display: flex; }
 }
 
+/* Home's Pick for tonight (0.321.0): the pick's cover beside its title,
+   meta line and Start / Another, then chips for what it picks from. */
+.home-pick-row { display: flex; gap: var(--space-14); padding: var(--space-14); }
+.home-pick-cover { flex: 0 0 96px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: var(--r-md); }
+.home-pick-cover .bl-tile-cover { width: 96px; border-radius: var(--r-md); }
+.home-pick-cover:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.home-pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.home-pick-title {
+  display: flex; align-items: center; gap: var(--space-6); padding: 0; border: 0; background: none; cursor: pointer; text-align: start;
+  font: inherit; font-size: var(--fs-lg); font-weight: 700; color: var(--text);
+}
+.home-pick-star { width: 16px; height: 16px; color: var(--warning); fill: currentColor; flex: 0 0 auto; }
+.home-pick-text .home-row-sub { margin: 0; }
+.home-pick-meta { font-size: var(--fs-xs); color: var(--text-dim); }
+.home-pick-since { margin: var(--space-2) 0 0; font-size: var(--fs-sm); color: var(--text-dim); }
+.home-pick-actions { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: auto; padding-top: var(--space-10); }
+.home-pick-none { padding: var(--space-14); }
+.home-pick-cats { display: flex; flex-wrap: wrap; gap: var(--space-6); padding: 0 var(--space-14) var(--space-14); }
+
+/* Home's Year so far (0.321.0): the Ledger card's top, a bar per category,
+   and three small facts along the foot. */
+.home-ledger-vs.is-down .ico { color: var(--text-dim); }
+.home-year-bars { display: flex; flex-direction: column; gap: var(--space-6); padding: 0 var(--space-14) var(--space-12); }
+.home-year-bar { display: grid; grid-template-columns: minmax(0, 88px) 1fr 32px; align-items: center; gap: var(--space-8); font-size: var(--fs-xs); color: var(--text-dim); }
+.home-year-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-year-track { height: 8px; border-radius: var(--r-pill); background: var(--bg-elev-2); overflow: hidden; }
+.home-year-fill { display: block; height: 100%; border-radius: var(--r-pill); }
+.home-year-n { text-align: end; color: var(--text); font-variant-numeric: tabular-nums; }
+.home-year-none { padding: 0 var(--space-14) var(--space-12); }
+.home-year-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); border-top: 1px solid var(--border); }
+.home-year-fact { display: flex; flex-direction: column; gap: 2px; padding: var(--space-10) var(--space-14); min-width: 0; }
+.home-year-fact + .home-year-fact { border-inline-start: 1px solid var(--border); }
+.home-year-fact b { font-size: var(--fs-md); color: var(--text); font-variant-numeric: tabular-nums; }
+.home-year-fact span { font-size: var(--fs-2xs); color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------- Ledger: spotted bills, category memory, pace (0.309.0) ---------- */
 .bill-suggest {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-14);
