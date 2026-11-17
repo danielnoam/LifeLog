@@ -3,6 +3,44 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.321.0] - 2026-11-17
+
+### Added
+- A Calendar section for Home: this month with a mark on each day for your Google Calendar events, what you finished, releases and open tasks, and the picked day's list under it, where tasks can be ticked. Timeline › opens the Timeline's calendar on that day. Alone on a wide floor it shows the names in the days and the list beside. Add it from View or by right-clicking an empty spot on Home.
+- The AI bridge can read a month or a day the way the calendars show it (`lifelog_calendar`).
+- Pick for tonight, a section for Home: one title from your backlog you could start today, with Start and Another, and chips for which categories it picks from. It keeps the same title until you ask for another, and draws from the Pick sheet's own bag, so nothing repeats before everything has had a turn.
+- Year so far, a section for Home: what you've finished this year against last year by the same date, a bar per category, tasks done, money spent and your best habit run, with Recap › to the year's Recap. The AI bridge's `lifelog_home` reads it too.
+
+### Changed
+- Deleting an expense no longer asks first: it's gone at once, with Undo in the message.
+- A new Home, and Reset layout, show only In progress, Coming up and Scratchpad; Pinned notes, Ledger, Investments and Calendar are there to add. A Home you've already arranged stays as it is.
+- Sections added to Home in future start hidden instead of turning up at the bottom of everyone's Home.
+- Dropdown lists now close with a short fade (and the phone's pick-list sheet sinks away) instead of vanishing, like every other menu and sheet.
+- On a phone, the pick-list sheet can be swiped down to close, like every other sheet.
+- In Settings on a phone, going back from a page inside another (Hardcover back to Connections) slides back instead of forward.
+- The phone's held-tab mode menu and rows leaving a list close a little faster than they open, as the rest of the app does.
+- The phone's jump bar (months, categories) grows its current label more smoothly.
+- The Ledger calls every row an expense: Add expense / Edit expense, "Expense added", "Expense deleted", matching Home, the widget and the tray; a blank project reads "No project".
+- Home's add buttons use a plain "+" like the rest of the app; one small-button style everywhere; Add ticker, Add buy and Add sale are named the same way wherever they appear.
+
+### Fixed
+- Home's Year so far counts a repeating task each time it's ticked, not never: its ticks used to be left out because a repeating task moves to its next day instead of staying done.
+- Sync now on the calendar while another month was still loading from Google Calendar now fetches the month on screen, not just the one already loading.
+- An entry with no day can be set to the 1st: "Set to the 1st" under its date. Picking the 1st in the date box changed nothing the app could tell, so it stayed "no day".
+- The Home calendar lists the month's entries with no day and its releases known only to the month, as the Timeline's calendar does.
+- In Hebrew, a release in Coming up and the Home calendar said "new episode" instead of "release".
+- The Backlog's Pick button is the same height as the sort menu beside it on a phone.
+- The phone's jump bar no longer animates with reduced motion on.
+- Task and list reminders now ring in the Windows app. They were checked a few seconds after their minute and dropped as already past, so they never rang.
+- A task ticked while its list's page was open (from a reminder's Done, the widget or a sync) stays ticked when the page closes. Closing the page used to put back the rows as they were when it opened.
+- Picking Custom repeat on a task that already repeats ("Every week") opens the custom fields instead of turning it into "Every day".
+- Emptying a tag's name in All tags asks before taking the tag off everything, as Delete does, instead of removing it straight away.
+- Pasting "lake, weekend" into a tag box keeps both tags; the last one used to be lost.
+- A list ticked as done gets unticked when one of its rows is unticked, a row is added, or an open task is moved into it, so it no longer shows done with open rows.
+- A list's own reminder says when, without repeating the list's title.
+- Investments: a sale bigger than what was held before it is refused with a message, both when it's logged and when a buy it needs is moved later or deleted. It used to be cut down or skipped without a word, and the holding came out wrong.
+- Ledger: Save on an expense, a recurring plan, a plan change or a one-off charge with an amount that isn't a number now says so, instead of doing nothing.
+
 ## [0.320.0] - 2026-11-17
 
 ### Added

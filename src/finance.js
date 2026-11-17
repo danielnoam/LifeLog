@@ -999,7 +999,7 @@
     }
     const items = getFilteredFinance();
     if (!items.length) {
-      root.appendChild(emptyState(i18n.t("No finance entries match your filters.")));
+      root.appendChild(emptyState(i18n.t("No expenses match your filters.")));
       return;
     }
     const sort = ledgerSort();
@@ -1415,7 +1415,7 @@
     // and a skipped month was never really spent.
     const items = getFilteredFinance().filter((f) => !f.skipped);
     if (!items.length) {
-      root.appendChild(emptyState(i18n.t("No finance entries match your filters.")));
+      root.appendChild(emptyState(i18n.t("No expenses match your filters.")));
       return;
     }
 
@@ -2128,19 +2128,32 @@
     buildYearFilter();
     render();
     await persist();
-    toast(id ? i18n.t("Finance entry updated") : i18n.t("Finance entry added"));
+    toast(id ? i18n.t("Expense updated") : i18n.t("Expense added"));
   }
 
   async function deleteCurrentFinanceEntry() {
     const id = $("#financeId").value;
     if (!id) return;
-    if (!confirm(i18n.t("Delete this finance entry?"))) return;
-    state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== id);
+    // Acts at once and offers Undo (DESIGN.md §7), like every other delete.
+    const list = state.data.financeEntries;
+    const at = list.findIndex((x) => x.id === id);
+    if (at < 0) return;
+    const gone = list[at];
+    state.data.financeEntries = list.filter((x) => x.id !== id);
     closeFinanceModal();
     buildYearFilter();
     render();
     await persist();
-    toast(i18n.t("Finance entry deleted"));
+    toast(i18n.t("Expense deleted"), false, {
+      label: i18n.t("Undo"),
+      onClick: async () => {
+        if (state.data.financeEntries.some((x) => x.id === id)) return;
+        state.data.financeEntries.splice(Math.min(at, state.data.financeEntries.length), 0, gone);
+        buildYearFilter();
+        render();
+        await persist();
+      },
+    });
   }
 
   // ---------- recurring expenses (modals + card) ----------

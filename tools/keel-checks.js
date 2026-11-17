@@ -23,6 +23,19 @@
 //
 //   const keys = i18n.keys([...jsFiles, "index.html"]);
 //   i18n.check(keys, i18n.table("src/lang/he.js")) // → { missing, stale, broken }
+//
+// motion: RULES.md's motion rules in the app's CSS. Curves are tokens (no
+// literal cubic-bezier() or easing keyword outside a custom property, a
+// status loop with `infinite` aside), and nothing animates a property
+// that re-lays out the page (font-size, line-height, letter-spacing,
+// padding, margin).
+//
+//   motion.check(css) // → ["412: a literal curve, cubic-bezier(.2,1,.3,1): use a token", ...]
+//
+// waits: fixed waits in tests (waitForTimeout(n), a setTimeout promise) of
+// at least `min` ms, the kind that waits for a side effect and flakes.
+//
+//   waits.find(files, 1000) // → [{ file, line, ms }]
 const fs = require("fs");
 const vm = require("vm");
 
@@ -201,8 +214,66 @@ function i18nCheck(used, tbl) {
   return { missing, stale, broken };
 }
 
+// ---- motion ----
+
+const RELAYOUT = /^(font-size|line-height|letter-spacing|padding(-[a-z-]+)?|margin(-[a-z-]+)?)$/;
+const KEYWORD = /(?<![\w-])(ease-in-out|ease-in|ease-out|ease|linear)(?![\w(-])/;
+
+// The CSS with comments blanked, keeping every line where it was.
+const uncomment = (css) => css.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
+const lineAt = (css, i) => css.slice(0, i).split("\n").length;
+
+function motionCheck(css) {
+  const src = uncomment(css);
+  const out = [];
+  for (const m of src.matchAll(/([\w-]+)\s*:\s*([^;{}]+)/g)) {
+    const [, prop, value] = m;
+    if (prop.startsWith("--")) continue;
+    const at = lineAt(src, m.index);
+    if (/cubic-bezier\(/.test(value)) out.push(at + ": a literal curve, " + value.match(/cubic-bezier\([^)]*\)/)[0] + ": use a token");
+    if (/^(transition|animation)(-timing-function)?$/.test(prop) && !/\binfinite\b/.test(value)) {
+      // Per comma part; a 0s part (visibility flipped at the end) has no curve to see.
+      for (const part of value.replace(/var\([^)]*\)/g, "").split(",")) {
+        const dur = part.match(/(?<![\w.-])(\d*\.?\d+)(m?s)\b/);
+        const k = dur && +dur[1] === 0 ? null : part.match(KEYWORD);
+        if (k) out.push(at + ": the keyword curve `" + k[1] + "`: use a token");
+      }
+    }
+    if (prop === "transition" || prop === "transition-property") {
+      for (const part of value.split(",")) {
+        const name = part.trim().split(/\s+/)[0];
+        if (RELAYOUT.test(name)) out.push(at + ": a transition on " + name + " re-lays out every frame: animate transform or scale");
+      }
+    }
+  }
+  for (const m of src.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)) {
+    for (const prop of new Set([...m[2].matchAll(/([\w-]+)\s*:/g)].map((d) => d[1]))) {
+      if (RELAYOUT.test(prop)) out.push(lineAt(src, m.index) + ": @keyframes " + m[1] + " animates " + prop + ", which re-lays out every frame");
+    }
+  }
+  return out;
+}
+
+// ---- waits ----
+
+function waitsFind(files, min = 1000) {
+  const out = [];
+  for (const file of files) {
+    const lines = fs.readFileSync(file, "utf8").split("\n");
+    lines.forEach((l, i) => {
+      for (const m of l.matchAll(/waitForTimeout\(\s*(\d+)\s*\)|setTimeout\(\s*\w+\s*,\s*(\d+)\s*\)\s*\)/g)) {
+        const ms = +(m[1] || m[2]);
+        if (ms >= min) out.push({ file, line: i + 1, ms });
+      }
+    });
+  }
+  return out;
+}
+
 module.exports = {
   contrast: { themes, block, resolve, parse, ratio, check },
   csp: { policyOf, check: cspCheck },
   i18n: { keys, table, check: i18nCheck },
+  motion: { check: motionCheck },
+  waits: { find: waitsFind },
 };

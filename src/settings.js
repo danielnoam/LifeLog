@@ -218,7 +218,7 @@
     entries: { kind: i18n.t("Entry"), label: (e) => e.title },
     backlog: { kind: i18n.t("Backlog item"), label: (b) => b.title },
     notes: { kind: i18n.t("Note"), label: (n) => (n.title || n.text || "").split("\n")[0].slice(0, 60) },
-    financeEntries: { kind: i18n.t("Finance entry"), label: (f) => f.note || f.category },
+    financeEntries: { kind: i18n.t("Expense"), label: (f) => f.note || f.category },
     recurringExpenses: { kind: i18n.t("Recurring expense"), label: (r) => r.note || r.category },
   };
 

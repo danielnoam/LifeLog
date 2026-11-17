@@ -637,7 +637,7 @@ body.modal-open .activity-pill { visibility: hidden; }
 @keyframes led-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
 /* Brief highlight when an amount field's math expression auto-resolves. */
-.math-eval-flash { animation: math-eval-flash .45s ease-out; }
+.math-eval-flash { animation: math-eval-flash .45s var(--ease); }
 @keyframes math-eval-flash {
   0% { background: var(--accent-soft); border-color: var(--accent); }
   100% { background: none; }
@@ -4437,7 +4437,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 
 /* A habit opened from the home-screen widget (0.184.0): a ring that fades,
    so the eye finds the card it asked for. */
-.habit-card.habit-flash { animation: habit-flash 1.5s ease-out; }
+.habit-card.habit-flash { animation: habit-flash 1.5s var(--ease); }
 @keyframes habit-flash {
   0%, 30% { box-shadow: 0 0 0 3px var(--accent); }
   100% { box-shadow: 0 0 0 3px transparent; }

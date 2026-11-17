@@ -225,6 +225,13 @@ lists. It's expensive in the Android WebView.
   against .2–.24s in).
 - Curves are the tokens, never a literal `cubic-bezier()` or the `ease`
   keyword, so a change to one reaches every place it's used (2026-11-17).
+  Nothing animates `font-size`, `padding` or `margin`; grow with `scale`.
+  `test/motion.test.js` checks both (RULES.md, keel).
+- **Everything that opens leaves.** A dropdown goes through `select.js`'s
+  `leave()` (`.is-leaving`), a sheet through `[hidden]` and its own
+  transition. Never `remove()` an open layer.
+- **Back slides back** at every level: a Settings page inside another
+  (`data-parent`) returns to it with `.mode-slide-back`, as the list does.
 - Sheets **translate**, never scale: scaling throws off anything that
   measures itself on open, such as the wheel.
 - **Presses are interruptible.** `wirePressFeedback()` hands `PRESSABLE` to
@@ -284,6 +291,12 @@ where one exists. A new component goes in this list in the same change.
 | Empty state | `emptyState({ glyph, title, body, action, onAction, hint })` | A rich empty state for a view with no data yet. Pass a plain string for "nothing matches your filters", which gets no button. |
 | Animated number | `animatedNumberText(node, key, value, fmt)` | For totals that change in place. |
 | View switch | `fadeInOnViewChange(root)`, `.view-fade-in`, `.mode-slide-fwd/back` | Slides follow the direction you moved in. |
+
+One class per job (RULES.md): search styles.css before adding one, and
+extend with a modifier. Small buttons are `.btn-sm`; `.btn-small` is the
+same look with a padded tap area, not a second size. Every sheet with a
+grab handle swipes down, the dropdown's `.dd-sheet` included. Controls
+side by side in a bar share one height.
 
 ### Icons (Now)
 
@@ -356,6 +369,14 @@ and never blaming.
 - **Empty states** tell you what goes here and how to start, in one sentence
   each.
 - No exclamation marks, no "Oops", no emoji except the established glyphs.
+- **One thing, one name** (RULES.md): a Ledger row is an **expense** (Add
+  expense, Edit expense), a to-do is a **task**. Search `src/lang/he.js`
+  for the word already in use before writing a new one.
+- **Titles are a verb and a noun, no article:** "Add ticker", "Add buy",
+  not "Add a ticker". An add button with words starts with a text "+",
+  not the plus icon.
+- **An empty choice says what it means:** "No project", "No category",
+  never "— none —".
 
 ---
 
