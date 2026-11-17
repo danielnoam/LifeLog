@@ -2848,4 +2848,7 @@ Keel.i18n.strings("he", {
   "synced {when}": "סונכרן {when}",
   "syncing…": "מסנכרן…",
   "{n} events": { one: "אירוע אחד", other: "{n} אירועים" },
+  "Sync Google Calendar": "סנכרון Google Calendar",
+  "Nothing on this day": "אין כלום ביום הזה",
+  "{category} · finished": "{category} · הסתיים",
 });

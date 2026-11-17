@@ -16,20 +16,33 @@ const at = (n) => Finance.addDaysStr(today, n);
 const deps = { Backlog, Finance, Habits };
 
 test("a saved section order keeps what it knows and adds what's new at the end", () => {
-  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest"]);
-  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger", "invest"]);
+  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest", "calendar"]);
+  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger", "invest", "calendar"]);
+});
+
+test("floors: a new Home shows In progress, Coming up and Scratchpad only", () => {
+  assert.deepStrictEqual(Home.DEFAULT_FLOORS, [["progress"], ["upcoming", "scratchpad"]]);
+  // nothing arranged: the app's own default order and nothing hidden
+  assert.deepStrictEqual(Home.floorLayout(undefined, { order: ["progress", "upcoming", "scratchpad", "pinned"], hidden: [] }), Home.DEFAULT_FLOORS);
+  assert.deepStrictEqual(Home.floorLayout(undefined, {}), Home.DEFAULT_FLOORS);
+  assert.deepStrictEqual(Home.hiddenOf(Home.DEFAULT_FLOORS), ["pinned", "ledger", "invest", "calendar"]);
 });
 
 test("floors: the old order turns into the rows it made, halves two or three across", () => {
-  assert.deepStrictEqual(Home.DEFAULT_FLOORS, [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]]);
-  // Investments came after floors: it never joins an old row, it gets its own at the bottom.
+  assert.deepStrictEqual(Home.legacyFloors(Home.SECTION_IDS), [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]]);
+  // Investments came after floors: it never joins an old row, it gets its own at the bottom; Calendar starts hidden.
   assert.deepStrictEqual(Home.floorLayout(undefined, { order: ["pinned", "invest", "progress", "upcoming", "scratchpad"], hidden: ["progress"] }),
     [["pinned", "upcoming"], ["scratchpad", "ledger"], ["invest"]]);
 });
 
-test("floors: saved floors lose hidden, unknown and repeated sections and empty floors, and gain new ones at the bottom", () => {
+test("floors: saved floors lose hidden, unknown and repeated sections and empty floors, and what's not on them stays hidden", () => {
   assert.deepStrictEqual(Home.floorLayout([["ledger", "nope"], [], ["progress", "ledger"], "x", ["pinned"]], { hidden: ["pinned"] }),
-    [["ledger"], ["progress"], ["upcoming"], ["scratchpad"], ["invest"]]);
+    [["ledger"], ["progress"]]);
+  // a layout saved before Calendar existed doesn't grow one
+  const before = [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]];
+  assert.deepStrictEqual(Home.floorLayout(before, { hidden: [] }), before);
+  assert.deepStrictEqual(Home.hiddenOf(before), ["calendar"]);
+  assert.deepStrictEqual(Home.floorLayout([], {}), []);
 });
 
 test("floors: dropping into a floor with room, into a full one, and between floors", () => {
@@ -147,6 +160,32 @@ test("the Ledger card: this month so far against last month by the same day, rec
   assert.strictEqual(early.total, 30);
   assert.strictEqual(early.lastByNow, 0);
   assert.strictEqual(Home.ledgerGlance({}, "2026-03-03", { Finance }).hasLast, false);
+});
+
+test("a calendar month: finished entries by day (no day kept apart, oldest added first), open tasks and releases", () => {
+  const data = {
+    entries: [
+      { id: "e1", title: "Late", year: 2026, month: 11, day: 4, createdAt: "2026-11-05T10:00:00Z" },
+      { id: "e2", title: "Early", year: 2026, month: 11, day: 4, createdAt: "2026-11-04T10:00:00Z" },
+      { id: "e3", title: "No day", year: 2026, month: 11, createdAt: "2026-11-01T10:00:00Z" },
+      { id: "e4", title: "October", year: 2026, month: 10, day: 4 },
+      { id: "e5", title: "Day 31 of a 30-day month", year: 2026, month: 11, day: 31 },
+    ],
+    notes: [{ id: "n1", kind: "list", text: "Errands", items: [
+      { id: "t1", text: "Bins", date: "2026-11-17" }, { id: "t2", text: "Done", date: "2026-11-17", done: true }, { id: "t3", text: "December", date: "2026-12-01" },
+    ] }],
+    backlog: [
+      { id: "b1", title: "Out", category: "Games", releaseDate: "2026-11-20", releasePrecision: "day" },
+      { id: "b2", title: "Gone", category: "Games", releaseDate: "2026-11-21", releasePrecision: "day", dropped: true },
+    ],
+  };
+  const mo = Home.calendarMonth(data, 2026, 11, { Backlog, Tasks });
+  assert.strictEqual(mo.days, 30);
+  assert.deepStrictEqual(mo.byDay.get(4).map((e) => e.id), ["e2", "e1"]);
+  assert.deepStrictEqual(mo.undated.map((e) => e.id).sort(), ["e3", "e5"]);
+  assert.deepStrictEqual(mo.tasksByDay.get(17).map((r) => r.item.id), ["t1"]);
+  assert.deepStrictEqual([...mo.rel.byDay.keys()], [20]);
+  assert.strictEqual(Home.calendarMonth(data, 2026, 11, { Backlog, Tasks, releases: false }).rel.byDay.size, 0);
 });
 
 console.log(`\n${passed} test(s) passed.`);

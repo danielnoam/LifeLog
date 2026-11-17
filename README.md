@@ -53,7 +53,12 @@ to keep what's in it, or switched to Board to sketch on a board instead
 (Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu;
 a Ledger card with this month's spending so far against last month by the same
 day, where it went and your latest expenses; and an Investments card with what
-you hold, the gain since you bought and each ticker's month and day. On a computer you arrange it
+you hold, the gain since you bought and each ticker's month and day; and a
+Calendar, the Timeline's calendar in small: a month with a mark on each day
+for your Google Calendar events, what you finished, releases and open tasks,
+and the picked day's list under it (alone on a wide floor it shows the names
+in the days). A new Home starts with In progress, Coming up and Scratchpad;
+the rest, and any section added later, wait to be shown. On a computer you arrange it
 in floors: drag a section by its heading into a floor to share its width
 (a full floor moves its last section down), or between floors to start a
 new one, and right-click an empty spot to add a hidden section there. A phone shows the floors one under the other. View hides
