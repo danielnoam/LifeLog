@@ -281,7 +281,7 @@ test("it leaves the page's own CSP in charge", () => {
 
 test("its HTTP may reach only the hosts the no-proxy routes map to", () => {
   const http = caps.permissions.find((p) => typeof p === "object" && p.identifier === "http:default");
-  const hosts = http.allow.map((a) => new URL(a.url.replace("*", "x")).host).sort();
+  const hosts = [...new Set(http.allow.map((a) => new URL(a.url.replace("*", "x")).host))].sort();
   const platform = fs.readFileSync(path.join(ROOT, "src", "platform.js"), "utf8");
   const upstream = platform.slice(platform.indexOf("function upstreamFor"), platform.indexOf("function steamProxy"));
   const mapped = [...new Set([...upstream.matchAll(/"https:\/\/([^/"]+)\//g)].map((m) => m[1]))].sort();

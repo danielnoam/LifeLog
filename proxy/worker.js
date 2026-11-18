@@ -49,8 +49,10 @@
 //   GET /tiingo-prices/<ticker>?startDate=YYYY-MM-DD
 //   GET /tiingo-meta/<ticker>
 //   GET /tiingo-search?query=<text>
+//   GET /tiingo-iex/<ticker>   (today's price, from IEX)
 //     -> https://api.tiingo.com/tiingo/daily/<ticker>/prices, .../daily/<ticker>
-//        and .../utilities/search: the Ledger watchlist's prices. Your Tiingo
+//        .../utilities/search and https://api.tiingo.com/iex/<ticker>:
+//        the Ledger watchlist's prices. Your Tiingo
 //     token stays in LifeLog's Settings and comes along as an Authorization
 //     header, passed through as SteamGridDB's is.
 //
@@ -154,6 +156,8 @@ export default {
     }
     const metaMatch = url.pathname.match(/^\/tiingo-meta\/([A-Za-z0-9.-]{1,12})$/);
     if (metaMatch) return proxyJson(`https://api.tiingo.com/tiingo/daily/${metaMatch[1]}`, tiingoAuth());
+    const iexMatch = url.pathname.match(/^\/tiingo-iex\/([A-Za-z0-9.-]{1,12})$/);
+    if (iexMatch) return proxyJson(`https://api.tiingo.com/iex/${iexMatch[1]}`, tiingoAuth());
     if (url.pathname === "/tiingo-search") {
       const query = (url.searchParams.get("query") || "").slice(0, 60);
       return proxyJson(`https://api.tiingo.com/tiingo/utilities/search?query=${encodeURIComponent(query)}`, tiingoAuth());

@@ -757,7 +757,7 @@ test("the watchlist: tickers, targets and pins in investments.json, prices from 
 
   // No key: the list without prices, saying why.
   let out = await ok("lifelog_watchlist", {});
-  assert.match(out, /- VOO \(Vanguard S&P 500 ETF\): target \$550\.00, no prices: no Tiingo key/);
+  assert.match(out, /- VOO \(Vanguard S&P 500 ETF\): target \$550\.00 \(rings at or under it\), no prices: no Tiingo key/);
   assert.match(out, /pin 1: 2026-01-05 "Opened Blink"/);
 
   // With the key: asked straight of Tiingo, a Token header, closes from the
@@ -801,15 +801,17 @@ test("the watchlist: tickers, targets and pins in investments.json, prices from 
   assert.match(asked[0][0], /^https:\/\/api\.tiingo\.com\/tiingo\/daily\/VOO\/prices\?startDate=/);
   assert.strictEqual(asked[0][1], "Token tk-9");
   assert.match(out, /\$600\.00 at the 2026-11-06 close/);
-  assert.match(out, /target \$550\.00 \(\+9\.1% from it\)/);
+  assert.match(out, /target \$550\.00 \(rings at or under it\), \+9\.1% from it/);
   assert.match(out, /pin 2: 2026-06-01 at \$572\.00, \+10\.0% since pin 1 over 5 months/);
   assert.match(out, /now: \+4\.9% since the last pin over 5 months, \+15\.4% since pin 1/);
 
   const pinId = invest().pins[1].id;
   await ok("lifelog_update_pin", { pin: pinId, label: "Bought more" });
   assert.strictEqual(invest().pins[1].label, "Bought more");
+  assert.match(await ok("lifelog_update_ticker", { ticker: "VOO", above: true }), /target \$550\.00 or more/);
+  assert.strictEqual(invest().watchlist[0].targetAbove, true);
   await ok("lifelog_update_ticker", { ticker: "VOO", target: 0, note: "" });
-  assert.ok(!("target" in invest().watchlist[0]) && !("note" in invest().watchlist[0]), "0 and empty clear them");
+  assert.ok(!("target" in invest().watchlist[0]) && !("targetAbove" in invest().watchlist[0]) && !("note" in invest().watchlist[0]), "0 and empty clear them, and the target's direction with it");
   await ok("lifelog_delete_pin", { pin: pinId });
   assert.strictEqual(invest().pins.length, 1);
   await ok("lifelog_unwatch_ticker", { ticker: "VOO" });

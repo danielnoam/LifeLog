@@ -28,6 +28,7 @@
         { "url": "https://id.twitch.tv/oauth2/token*" },
         { "url": "https://api.hardcover.app/v1/graphql" },
         { "url": "https://api.tiingo.com/tiingo/*" },
+        { "url": "https://api.tiingo.com/iex/*" },
         { "url": "https://api.strem.io/api/*" }
       ]
     }

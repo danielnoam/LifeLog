@@ -1201,6 +1201,10 @@
         <label><span data-t>Target price ($)</span>
           <input id="watchTarget" type="text" inputmode="decimal" autocomplete="off" placeholder="Optional, e.g. 550" data-t-attr="placeholder" />
         </label>
+        <div class="seg invest-target-dir" id="watchTargetDir" role="group" aria-label="Tell me when it closes" data-t-attr="aria-label">
+          <button type="button" class="seg-btn" data-dir="below" aria-pressed="true" data-t>At or under it</button>
+          <button type="button" class="seg-btn" data-dir="above" aria-pressed="false" data-t>At or over it</button>
+        </div>
         <label><span data-t>Note</span>
           <input id="watchNote" type="text" autocomplete="off" placeholder="Optional, e.g. buy more under the target" data-t-attr="placeholder" />
         </label>
@@ -1257,6 +1261,9 @@
             <input id="investBuyPrice" type="text" inputmode="decimal" autocomplete="off" />
           </label>
         </div>
+        <label><span data-t>Fee ($)</span>
+          <input id="investBuyFee" type="text" inputmode="decimal" autocomplete="off" placeholder="Optional" data-t-attr="placeholder" />
+        </label>
         <p class="hint" id="investBuyTotal"></p>
         <label><span data-t>Note</span>
           <input id="investBuyNote" type="text" autocomplete="off" placeholder="Optional, e.g. monthly autobuy" data-t-attr="placeholder" />
@@ -2449,6 +2456,7 @@
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Frankfurter</span></span><span class="sitem-sub"><span data-t>Exchange rates for expenses in another currency</span></span></span></a>
           <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>The New York Times Books API</span></span><span class="sitem-sub"><span data-t>Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></span></a>
           <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Tiingo</span></span><span class="sitem-sub"><span data-t>Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></span></a>
+          <a class="sitem sitem-go" href="https://www.iexexchange.io" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>IEX</span></span><span class="sitem-sub"><span data-t>Today's stock prices while the US market is open, through Tiingo. Data provided by IEX</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/calendar" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Calendar</span></span><span class="sitem-sub"><span data-t>Your events on the Timeline's calendar, read only, when you connect it</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/drive" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Drive</span></span><span class="sitem-sub"><span data-t>Where backups go, when you connect it in Sync</span></span></span></a>
         </div>

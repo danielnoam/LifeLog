@@ -111,7 +111,8 @@ test("Tiingo's rows become adjusted closes; a split or dividend asks for the his
     { date: "bad", close: 5 },
     { date: "2026-01-07T00:00:00.000Z", close: 0 },
   ];
-  assert.deepStrictEqual(I.parseTiingo(rows), [["2026-01-05", 99], ["2026-01-06", 100]]);
+  assert.deepStrictEqual(I.parseTiingo(rows), [["2026-01-05", 99], ["2026-01-06", 100, 200]], "the price as it was rides third when it differs");
+  assert.deepStrictEqual(I.rawSeries(I.parseTiingo(rows)), [["2026-01-05", 99], ["2026-01-06", 200]]);
   assert.strictEqual(I.rewritesHistory(rows), false);
   assert.strictEqual(I.rewritesHistory([{ divCash: 1.2 }]), true);
   assert.strictEqual(I.rewritesHistory([{ splitFactor: 10 }]), true);
@@ -230,6 +231,210 @@ test("the merge keeps a buy logged on each device on the same ticker, and a dele
   const out = M.mergeInvest(base, local, remote);
   assert.deepStrictEqual(out.watchlist[0].buys.map((b) => b.id), ["br", "bl"], "both new buys, in date order; b0 deleted on the remote");
   assert.strictEqual(out.watchlist[0].target, 450, "the rest of the ticker is the newer side's");
+});
+
+// ---------- the market clock, targets both ways, the S&P 500, today's price ----------
+test("NYSE holidays by rule, with the weekend moves", () => {
+  const h26 = I.marketHolidays(2026);
+  for (const d of ["2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25"]) assert.ok(h26.has(d), d);
+  assert.strictEqual(h26.size, 10);
+  assert.ok(I.marketHolidays(2027).has("2027-12-24"), "a Saturday Christmas is kept the Friday before");
+  assert.ok(I.marketHolidays(2023).has("2023-01-02"), "a Sunday New Year's Day is kept the Monday after");
+  assert.ok(!I.marketHolidays(2022).has("2021-12-31") && !I.marketHolidays(2021).has("2021-12-31"), "a Saturday New Year's Day isn't kept at all");
+  assert.ok(I.marketHolidays(2025).has("2025-04-18"), "Good Friday 2025");
+  assert.strictEqual(I.nextTradingDay("2026-11-25"), "2026-11-27", "Thanksgiving skipped");
+  assert.strictEqual(I.nextTradingDay("2026-11-20"), "2026-11-23", "Friday → Monday");
+  assert.ok(!I.isTradingDay("2026-11-21") && I.isTradingDay("2026-11-23"));
+});
+
+test("New York's clock follows summer time", () => {
+  assert.strictEqual(new Date(I.nyTime("2026-11-18", 16 * 60)).toISOString(), "2026-11-18T21:00:00.000Z", "EST");
+  assert.strictEqual(new Date(I.nyTime("2026-07-01", 16 * 60)).toISOString(), "2026-07-01T20:00:00.000Z", "EDT");
+  assert.strictEqual(new Date(I.nyTime("2026-03-09", 9 * 60 + 30)).toISOString(), "2026-03-09T13:30:00.000Z", "the Monday after the change");
+  assert.deepStrictEqual(I.nyParts(Date.parse("2026-11-19T02:30:00Z")), { day: "2026-11-18", minutes: 21 * 60 + 30 });
+});
+
+test("prices stay fresh until the next close should be out, then retry every two hours", () => {
+  const entry = (lastDay, at) => ({ at, points: [["2026-11-01", 1], [lastDay, 2]] });
+  const fri = entry("2026-11-20", "2026-11-20T23:00:00.000Z");
+  assert.ok(!I.pricesStale(fri, Date.parse("2026-11-22T12:00:00Z")), "nothing asked over the weekend");
+  assert.ok(!I.pricesStale(fri, Date.parse("2026-11-23T22:00:00Z")), "Monday before 17:30 New York");
+  assert.ok(I.pricesStale(fri, Date.parse("2026-11-23T22:31:00Z")), "Monday's close is due");
+  const asked = entry("2026-11-20", "2026-11-23T22:31:00.000Z");
+  assert.ok(!I.pricesStale(asked, Date.parse("2026-11-23T23:30:00Z")), "asked after it was due and it wasn't there: wait");
+  assert.ok(I.pricesStale(asked, Date.parse("2026-11-24T00:32:00Z")), "two hours on, ask again");
+  assert.ok(!I.pricesStale(entry("2026-11-25", "2026-11-25T23:00:00.000Z"), Date.parse("2026-11-26T23:00:00Z")), "no close is due on Thanksgiving");
+  assert.ok(I.pricesStale(null, 0) && I.pricesStale({ at: "x", points: [["2026-11-20", 1]] }, 0));
+});
+
+test("the market's state: open with its close, or closed with its next open", () => {
+  assert.deepStrictEqual(I.marketNow(Date.parse("2026-11-18T15:00:00Z")), { open: true, day: "2026-11-18" });
+  const sat = I.marketNow(Date.parse("2026-11-21T15:00:00Z"));
+  assert.strictEqual(sat.open, false);
+  assert.strictEqual(new Date(sat.opensAt).toISOString(), "2026-11-23T14:30:00.000Z");
+  assert.strictEqual(new Date(I.marketNow(Date.parse("2026-11-18T13:00:00Z")).opensAt).toISOString(), "2026-11-18T14:30:00.000Z", "before the open, today's open");
+  assert.strictEqual(I.waitWords(25 * 60000), "25 min");
+  assert.strictEqual(I.waitWords(190 * 60000), "3 h 10 min");
+  assert.strictEqual(I.waitWords(3 * 864e5), "3 days");
+});
+
+test("a target rings under its price, or with targetAbove over it", () => {
+  const under = I.sanitizeWatch({ symbol: "VOO", target: 500 });
+  const over = I.sanitizeWatch({ symbol: "VOO", target: 500, targetAbove: true });
+  assert.ok(!("targetAbove" in under));
+  assert.strictEqual(over.targetAbove, true);
+  assert.ok(!("targetAbove" in I.sanitizeWatch({ symbol: "VOO", targetAbove: true })), "no direction without a target");
+  assert.ok(!("targetAbove" in I.sanitizeWatch({ symbol: "VOO", target: 5, targetAbove: "yes" })));
+  assert.ok(I.atTarget(under, 499) && I.atTarget(under, 500) && !I.atTarget(under, 501));
+  assert.ok(I.atTarget(over, 501) && I.atTarget(over, 500) && !I.atTarget(over, 499));
+  assert.ok(!I.atTarget(over, null) && !I.atTarget({ symbol: "VOO" }, 1));
+  const doc = I.sanitizeDoc({ watchlist: [
+    { id: "a", symbol: "AAPL", createdAt: T0 },
+    { id: "b", symbol: "AAPL", target: 300, targetAbove: true, createdAt: T1 },
+  ] });
+  assert.deepStrictEqual([doc.watchlist[0].id, doc.watchlist[0].target, doc.watchlist[0].targetAbove], ["a", 300, true], "a folded twin's target keeps its direction");
+  const w = I.widgetOf([over], { VOO: { points: [["2026-11-17", 490], ["2026-11-18", 510]] } });
+  assert.strictEqual(w.rows[0].hit, true);
+});
+
+test("the same money in the S&P 500: buys buy SPY on their days, sales take the dollars back out", () => {
+  const spy = [["2026-01-02", 100], ["2026-02-02", 110], ["2026-03-02", 120], ["2026-04-01", 150]];
+  // $1,000 on 2 Jan (10 SPY) and $1,100 on 2 Feb (10 SPY): 20 SPY at 150 = $3,000.
+  const buys = [{ id: "1", date: "2026-01-02", units: 10, price: 100 }, { id: "2", date: "2026-02-02", units: 10, price: 110 }];
+  const b = I.benchmarkOf(buys, spy, 120);
+  assert.strictEqual(b.paid, 2100);
+  assert.strictEqual(Math.round(b.theirs), 3000);
+  assert.strictEqual(b.mine, 2400, "20 shares at the last close");
+  assert.strictEqual(Math.round(b.ahead), -600);
+  assert.strictEqual(b.asOf, "2026-04-01");
+  // Selling 10 shares at 200 on 1 Mar takes $2,000 out of SPY too (at 120: 16.67 SPY).
+  const sold = I.benchmarkOf(buys.concat([{ id: "3", date: "2026-03-02", units: 10, price: 200, sell: true }]), spy, 120);
+  assert.strictEqual(sold.mine, 10 * 120 + 2000);
+  assert.strictEqual(Math.round(sold.theirs), Math.round((20 - 2000 / 120) * 150 + 2000));
+  // A sale worth more than all the SPY there is takes it all, no more.
+  const big = I.benchmarkOf([{ id: "1", date: "2026-01-02", units: 1, price: 100 }, { id: "2", date: "2026-03-02", units: 1, price: 1000, sell: true }], spy, 1000);
+  assert.strictEqual(Math.round(big.theirs), 120, "the one SPY share sold at 120");
+  assert.strictEqual(I.benchmarkOf(buys, [["2026-01-10", 100]], 120), null, "SPY's prices start after the first buy");
+  assert.strictEqual(I.benchmarkOf([], spy, 1), null);
+  const all = I.benchmarkAll([{ buys, last: 120 }, { buys: [{ id: "x", date: "2026-03-02", units: 1, price: 120 }], last: 150 }], spy);
+  assert.strictEqual(all.paid, 2220);
+  assert.strictEqual(Math.round(all.theirs), 3150);
+});
+
+test("today's price lays on the end of the closes only when it's from a later day", () => {
+  const live = I.parseLive([{ ticker: "voo", tngoLast: 612.345, last: null, prevClose: 600, timestamp: "2026-11-18T18:42:10-05:00" }]);
+  assert.deepStrictEqual([live.price, live.day], [612.345, "2026-11-18"]);
+  assert.strictEqual(I.parseLive([{ tngoLast: null, last: null, mid: 0, timestamp: "2026-11-18T18:00:00Z" }]), null);
+  assert.strictEqual(I.parseLive([]), null);
+  assert.strictEqual(I.parseLive([{ last: 5, timestamp: "2026-11-18T19:00:00Z" }]).price, 5, "the last trade when Tiingo's own is missing");
+  const closes = [["2026-11-16", 590], ["2026-11-17", 600]];
+  const on = I.withLive(closes, live);
+  assert.deepStrictEqual(on.slice(-1)[0], ["2026-11-18", 612.345]);
+  assert.strictEqual(on.live, live);
+  assert.strictEqual(I.withLive(closes.concat([["2026-11-18", 611]]), live).length, 3, "the close is in: the live price goes");
+  const w = I.widgetOf([{ id: "w", symbol: "VOO", buys: [{ id: "b", date: "2026-11-16", units: 2, price: 590 }] }], { VOO: { points: closes, live } });
+  assert.strictEqual(w.rows[0].price, "$612.35");
+  assert.ok(/^As of /.test(w.closed), w.closed);
+  assert.strictEqual(w.hold.today, "+$24.69 today");
+});
+
+
+// ---------- splits, dividends, fees, the yearly return, worth over time ----------
+test("splits and dividends come out of Tiingo's rows, and later answers lay over kept ones", () => {
+  const rows = [
+    { date: "2026-03-02T00:00:00.000Z", close: 100, adjClose: 100, divCash: 0, splitFactor: 4 },
+    { date: "2026-02-02T00:00:00.000Z", close: 400, adjClose: 99, divCash: 1.5, splitFactor: 1 },
+    { date: "2026-02-03T00:00:00.000Z", close: 401, adjClose: 100, divCash: 0, splitFactor: 1 },
+    { date: "nope", divCash: 3 },
+  ];
+  assert.deepStrictEqual(I.parseEvents(rows), [["2026-02-02", 1.5, 1], ["2026-03-02", 0, 4]]);
+  assert.deepStrictEqual(I.joinEvents([["2026-02-02", 1.5, 1]], [["2026-02-02", 1.6, 1], ["2026-04-01", 0.5, 1]]), [["2026-02-02", 1.6, 1], ["2026-04-01", 0.5, 1]]);
+});
+
+test("a split after a buy multiplies its shares and keeps what it cost", () => {
+  const buys = [{ id: "1", date: "2026-01-05", units: 10, price: 400 }];
+  const before = I.holdingOf(buys, 100);
+  assert.strictEqual(before.gainPct, -0.75, "without the split, a 4-for-1 reads as a 75% loss");
+  const h = I.holdingOf(buys, 100, [["2026-03-02", 0, 4]]);
+  assert.strictEqual(h.units, 40);
+  assert.strictEqual(h.cost, 4000);
+  assert.strictEqual(h.avg, 100);
+  assert.strictEqual(h.value, 4000);
+  assert.strictEqual(h.gain, 0);
+  const onTheDay = I.holdingOf([{ id: "1", date: "2026-03-02", units: 10, price: 100 }], 100, [["2026-03-02", 0, 4]]);
+  assert.strictEqual(onTheDay.units, 10, "a buy on the split's own day buys the new shares");
+});
+
+test("a sale of the new shares after a split isn't short", () => {
+  const ev = [["2026-03-02", 0, 4]];
+  const buys = [{ id: "1", date: "2026-01-05", units: 10, price: 400 }, { id: "2", date: "2026-04-01", units: 30, price: 120, sell: true }];
+  assert.ok(I.shortSale(buys), "without the split, 30 out of 10 is short");
+  assert.strictEqual(I.shortSale(buys, ev), null);
+  const h = I.holdingOf(buys, 110, ev);
+  assert.strictEqual(h.units, 10);
+  assert.strictEqual(Math.round(h.realized), 600, "30 sold at $120 against an average of $100");
+  assert.ok(I.shortSale(buys.concat([{ id: "3", date: "2026-04-02", units: 11, price: 120, sell: true }]), ev), "the 11th share is short");
+});
+
+test("a dividend pays the shares held the day before it, not a buy on its day", () => {
+  const ev = [["2026-02-02", 1.5, 1], ["2026-05-01", 2, 1]];
+  const buys = [
+    { id: "1", date: "2026-01-05", units: 10, price: 100 },
+    { id: "2", date: "2026-02-02", units: 5, price: 100 },
+    { id: "3", date: "2026-05-01", units: 15, price: 100, sell: true },
+  ];
+  const h = I.holdingOf(buys, 110, ev);
+  assert.strictEqual(h.dividends, 10 * 1.5 + 15 * 2, "the ex-day buy missed the first; selling on the ex-day kept the second");
+  assert.strictEqual(h.units, 0);
+  assert.strictEqual(h.total, 45, "all in: no gain or sales profit, the dividends only");
+  assert.strictEqual(I.holdingOf([], 1, ev).dividends, 0);
+  assert.strictEqual(I.holdingOf(buys.slice(0, 1), null, ev).total, null, "no price for what's held, no all-in figure");
+});
+
+test("a fee adds to a buy's cost and comes off a sale's money; a typo is refused", () => {
+  const h = I.holdingOf([{ id: "1", date: "2026-01-05", units: 10, price: 100, fee: 5 }, { id: "2", date: "2026-02-05", units: 5, price: 120, fee: 2 }].map((b, i) => (i ? { ...b, sell: true } : b)), 120);
+  assert.strictEqual(h.bought, 1005);
+  assert.strictEqual(h.cost, 502.5);
+  assert.strictEqual(h.realized, 600 - 2 - 502.5);
+  assert.strictEqual(h.fees, 7);
+  assert.deepStrictEqual(h.flows, [["2026-01-05", -1005], ["2026-02-05", 598]]);
+  assert.strictEqual(I.cleanFee(""), null);
+  assert.strictEqual(I.cleanFee("0"), null);
+  assert.strictEqual(I.cleanFee("$1.499"), 1.5);
+  assert.ok(Number.isNaN(I.cleanFee("-1")));
+  assert.ok(Number.isNaN(I.cleanFee("one")));
+  assert.strictEqual(I.sanitizeBuy({ date: "2026-01-05", units: 1, price: 1, fee: "2.5" }).fee, 2.5);
+  assert.ok(!("fee" in I.sanitizeBuy({ date: "2026-01-05", units: 1, price: 1, fee: "x" })));
+});
+
+test("the yearly return weighs each buy by how long it was in", () => {
+  // $1000 in, worth $1100 two years on: about 4.9% a year.
+  const r = I.yearlyReturn([["2024-01-01", -1000]], 1100, "2026-01-01");
+  assert.ok(Math.abs(r - (Math.pow(1.1, 1 / 2) - 1)) < 1e-4, r);
+  // A second $1000 a month before the end barely moves the rate it earned.
+  const r2 = I.yearlyReturn([["2024-01-01", -1000], ["2025-12-01", -1000]], 2100, "2026-01-01");
+  assert.ok(r2 > 0.04 && r2 < 0.06, r2);
+  assert.strictEqual(I.yearlyReturn([["2025-06-01", -1000]], 1100, "2026-01-01"), null, "under a year isn't put as a year");
+  assert.strictEqual(I.yearlyReturn([["2024-01-01", -1000]], 0, "2026-01-01"), null, "nothing back, no rate");
+  const loss = I.yearlyReturn([["2024-01-01", -1000]], 810, "2026-01-01");
+  assert.ok(Math.abs(loss - (-0.1)) < 1e-4, loss);
+});
+
+test("worth over time uses the shares held and the price as it was each day", () => {
+  const pts = [["2026-01-05", 99, 400], ["2026-01-06", 100, 404], ["2026-03-02", 101], ["2026-03-03", 102]];
+  const s = I.worthSeries([{ buys: [{ id: "1", date: "2026-01-06", units: 2, price: 404, fee: 1 }], points: pts, events: [["2026-03-02", 0, 4]] }]);
+  assert.deepStrictEqual(s, [["2026-01-06", 808, 809], ["2026-03-02", 808, 809], ["2026-03-03", 816, 809]], "no drop on the split's day");
+  const sold = I.worthSeries([{ buys: [{ id: "1", date: "2026-01-06", units: 2, price: 404 }, { id: "2", date: "2026-01-06", units: 2, price: 404, sell: true, createdAt: "z" }], points: pts }]);
+  assert.deepStrictEqual(sold[sold.length - 1], ["2026-03-03", 0, 0]);
+  assert.strictEqual(I.worthSeries([{ buys: [], points: pts }]), null);
+});
+
+test("the S&P comparison counts your dividends and fees and follows a split", () => {
+  const spy = [["2026-01-05", 100], ["2026-04-01", 100], ["2026-06-01", 110]];
+  const buys = [{ id: "1", date: "2026-01-05", units: 10, price: 400, fee: 0 }, { id: "2", date: "2026-04-01", units: 40, price: 100, sell: true }];
+  const b = I.benchmarkOf(buys, spy, 100, [["2026-03-02", 0, 4], ["2026-02-02", 2, 1]]);
+  assert.strictEqual(b.mine, 4000 + 20, "the sale's money and the dividend");
+  assert.strictEqual(b.theirs, 4000);
 });
 
 console.log(`\n${passed} test(s) passed.`);

@@ -16,8 +16,8 @@ const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
 const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks, Tags } = L;
-const shortSaleFail = (symbol, buys) => {
-  const s = Invest.shortSale(buys);
+const shortSaleFail = (symbol, buys, events) => {
+  const s = Invest.shortSale(buys, events);
   if (s) fail(`That leaves the sale of ${Invest.unitsText(s.sale.units)} of ${symbol} on ${s.sale.date} with only ${Invest.unitsText(s.held)} held before it. Check the dates and shares.`);
 };
 
@@ -323,7 +323,10 @@ function findWatch(list, ident) {
 // A ticker's daily closes from Tiingo, with the key from the app's settings.
 // Node isn't a browser, so it's asked directly, not through the proxy. Null
 // when there's no key; an error message when Tiingo said no.
-async function closesOf(data, symbol, startDate) {
+// A ticker's closes from a day on, with its splits and cash dividends
+// over the same days ({ points, events }), null without a Tiingo key, or
+// what went wrong in words.
+async function pricesOf(data, symbol, startDate) {
   const key = String(((data.settings || {}).mediaKeys || {}).tiingo || "").trim();
   if (!key) return null;
   try {
@@ -331,8 +334,37 @@ async function closesOf(data, symbol, startDate) {
       headers: { Authorization: "Token " + key, "User-Agent": "LifeLog-bridge" }, signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) return "Tiingo answered " + res.status + (res.status === 404 ? " (it doesn't know " + symbol + ")" : "");
-    return Invest.parseTiingo(await res.json());
+    const rows = await res.json();
+    return { points: Invest.parseTiingo(rows), events: Invest.parseEvents(rows) };
   } catch (e) { return "couldn't reach Tiingo"; }
+}
+async function closesOf(data, symbol, startDate) {
+  const p = await pricesOf(data, symbol, startDate);
+  return p && typeof p === "object" ? p.points : p;
+}
+// A ticker's splits and dividends since its first buy, for counting shares
+// across a split; [] without a key or an answer (none known, as in the app
+// before its prices load).
+async function eventsSince(data, symbol, buys) {
+  const first = (buys || []).map((b) => b.date).sort()[0];
+  if (!first) return [];
+  const p = await pricesOf(data, symbol, first);
+  return p && typeof p === "object" ? p.events : [];
+}
+const dayBefore = (day, n = 10) => Finance.localDateStr(new Date(Date.parse(day + "T12:00:00Z") - n * 864e5));
+// Today's price from Tiingo's IEX feed, while the market trades after the
+// last close (the app's own window): { price, day, at } or null.
+async function liveOf(data, symbol, lastDay) {
+  const key = String(((data.settings || {}).mediaKeys || {}).tiingo || "").trim();
+  if (!key || !lastDay || Date.now() < Invest.nyTime(Invest.nextTradingDay(lastDay), 9 * 60 + 30)) return null;
+  try {
+    const res = await fetch("https://api.tiingo.com/iex/" + encodeURIComponent(symbol), {
+      headers: { Authorization: "Token " + key, "User-Agent": "LifeLog-bridge" }, signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return null;
+    const live = Invest.parseLive(await res.json());
+    return live && live.day > lastDay ? live : null;
+  } catch (e) { return null; }
 }
 function boardTexts(b) {
   return (b.elements || []).filter((e) => e.t === "text" && String(e.text || "").trim()).map((e) => String(e.text).trim());
@@ -1087,7 +1119,7 @@ const TOOLS = [
 
   {
     name: "lifelog_watchlist",
-    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price and note, its date pins, and what you hold of it from the buys and sells logged (shares, average cost, value, gain). With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, the change over the range, how far it is from its target, and the change between each pin and to now. Give ticker for one ticker in full.",
+    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price (and whether it rings at or under it, or at or over it) and note, its date pins, and what you hold of it from the buys and sells logged (shares, average cost, value, gain; shares counted through splits). With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, today's price so far while the US market trades, the change over the range, how far it is from its target, the change between each pin and to now, what the same money in the S&P 500 (SPY, on the same days) would be worth, the cash dividends paid on the shares held (before tax), fees, everything together (all in) and the money-weighted return a year (from a year in). Give ticker for one ticker in full.",
     readOnly: true,
     input: { ticker: S.str("One ticker's symbol or id"), range: S.str("The change measured over", { enum: ["1M", "3M", "6M", "YTD", "1Y", "5Y", "Max"] }) },
     async run(a) {
@@ -1098,17 +1130,27 @@ const TOOLS = [
       const d = await readData();
       const start = Invest.rangeStart(range, today()) || "1980-01-01";
       const out = a.ticker ? [] : [`${doc.watchlist.length} ticker${doc.watchlist.length === 1 ? "" : "s"} on the watchlist (change over ${range})`];
+      // SPY's closes from the first buy on, for the same-money comparison.
+      const firstBuy = list.flatMap((w) => (w.buys || []).map((b) => b.date)).sort()[0];
+      const spyCloses = firstBuy && list.some((w) => w.buys && w.buys.length && !Invest.SAME_INDEX.has(w.symbol))
+        ? await closesOf(d, Invest.BENCHMARK, Finance.localDateStr(new Date(Date.parse(firstBuy + "T12:00:00Z") - 10 * 864e5))) : null;
       for (const w of list) {
         const pins = doc.pins.filter((p) => p.watch === w.id);
-        const first = pins.length ? pins.map((p) => p.date).sort()[0] : null;
-        const closes = await closesOf(d, w.symbol, first && first < start ? Finance.localDateStr(new Date(Date.parse(first + "T12:00:00Z") - 10 * 864e5)) : start);
+        // From the range's start, or earlier for the first pin or buy, so
+        // the splits and dividends since the first buy come too.
+        const first = [...pins.map((p) => p.date), ...(w.buys || []).map((b) => b.date)].sort()[0] || null;
+        const got = await pricesOf(d, w.symbol, first && first < start ? dayBefore(first) : start);
+        const closes = got && typeof got === "object" ? got.points : got;
+        const events = got && typeof got === "object" ? got.events : [];
         const pts = Array.isArray(closes) ? closes : [];
         const shown = Invest.sliceRange(pts, range);
         const last = pts.length ? pts[pts.length - 1] : null;
         const bits = [];
         if (last) bits.push(`${Invest.usd(last[1])} at the ${last[0]} close`);
         if (shown.length > 1) bits.push(Invest.pct(Invest.changeOf(shown[0][1], last[1])) + " over " + range);
-        if (w.target) bits.push("target " + Invest.usd(w.target) + (last ? ` (${Invest.pct(Invest.changeOf(w.target, last[1]))} from it)` : ""));
+        if (w.target) bits.push("target " + Invest.usd(w.target) + (w.targetAbove ? " (rings at or over it)" : " (rings at or under it)") + (last ? `, ${Invest.pct(Invest.changeOf(w.target, last[1]))} from it${Invest.atTarget(w, last[1]) ? ", reached" : ""}` : ""));
+        const live = last ? await liveOf(d, w.symbol, last[0]) : null;
+        if (live) bits.push(`today so far ${Invest.usd(live.price)} (${Invest.pct(Invest.changeOf(last[1], live.price))}) at ${new Date(live.at).toISOString().slice(11, 16)} UTC`);
         if (closes === null) bits.push("no prices: no Tiingo key in the app's Settings → Media lookups");
         else if (typeof closes === "string") bits.push("no prices: " + closes);
         out.push(`- ${w.symbol}${w.name ? " (" + w.name + ")" : ""}: ${bits.join(", ") || "no prices"}${w.note ? " — " + cut(w.note, 200) : ""}  (${w.id})`);
@@ -1121,16 +1163,59 @@ const TOOLS = [
           if (steps.now && steps.now.change != null) out.push(`  now: ${Invest.pct(steps.now.change)} since the last pin over ${Invest.spanLabel(steps.now.days)}${steps.total != null ? ", " + Invest.pct(steps.total) + " since pin 1" : ""}`);
         }
         if (w.buys && w.buys.length) {
-          const h = Invest.holdingOf(w.buys, last ? last[1] : null);
+          const h = Invest.holdingOf(w.buys, last ? last[1] : null, events);
           const bits2 = [Invest.unitsText(h.units)];
           if (h.avg != null) bits2.push("average cost " + Invest.usd(h.avg));
           if (h.value != null) bits2.push("worth " + Invest.usd(h.value) + " (" + Invest.signedUsd(h.gain) + ", " + Invest.pct(h.gainPct) + ")");
           if (Math.abs(h.realized) >= 0.005) bits2.push("sales made " + Invest.signedUsd(h.realized));
+          if (h.dividends >= 0.005) bits2.push("cash dividends " + Invest.usd(h.dividends) + " before tax");
+          if (h.fees >= 0.005) bits2.push("fees " + Invest.usd(h.fees));
+          if (h.total != null && (Math.abs(h.realized) >= 0.005 || h.dividends >= 0.005)) bits2.push("all in " + Invest.signedUsd(h.total));
+          const yearly = last ? Invest.yearlyReturn(h.flows, h.value, last[0]) : null;
+          if (yearly != null) bits2.push(Invest.pct(yearly) + " a year (money-weighted)");
+          const splits = events.filter((e) => e[2] !== 1 && e[0] > w.buys.map((b) => b.date).sort()[0]);
+          if (splits.length) bits2.push("shares counted through " + splits.map((e) => `a ${e[2]}-for-1 split on ${e[0]}`).join(", "));
           out.push(`  holding: ${bits2.join(", ")}`);
-          if (a.ticker) for (const b of w.buys) out.push(`  ${b.sell ? "sold" : "bought"} ${b.date}: ${Invest.unitsText(b.units)} at ${Invest.usd(b.price)}${b.note ? " \"" + cut(b.note, 80) + "\"" : ""}  (${b.id})`);
+          const bm = Array.isArray(spyCloses) && !Invest.SAME_INDEX.has(w.symbol) ? Invest.benchmarkOf(w.buys, spyCloses, last ? last[1] : null, events) : null;
+          if (bm) out.push(`  vs the S&P 500: the same money in SPY on the same days would be worth ${Invest.usd(bm.theirs)} (${Invest.pct(bm.spyGainPct)}) against your ${Invest.usd(bm.mine)} (${Invest.pct(bm.gainPct)}), ${bm.ahead >= 0 ? Invest.usd(bm.ahead) + " ahead" : Invest.usd(-bm.ahead) + " behind"} (SPY dividends reinvested, at the ${bm.asOf} close)`);
+          if (a.ticker) for (const b of w.buys) out.push(`  ${b.sell ? "sold" : "bought"} ${b.date}: ${Invest.unitsText(b.units)} at ${Invest.usd(b.price)}${b.fee ? ", fee " + Invest.usd(b.fee) : ""}${b.note ? " \"" + cut(b.note, 80) + "\"" : ""}  (${b.id})`);
           else out.push(`  ${w.buys.length} buy${w.buys.length === 1 ? "" : "s"}/sale${w.buys.length === 1 ? "" : "s"} logged (give ticker to list them)`);
         }
       }
+      return out.join("\n");
+    },
+  },
+
+  {
+    name: "lifelog_holdings_worth",
+    description: "What everything held on the Investments watchlist was worth over time, beside the money put in by then (buys and fees, less what sales brought back), as the app's Worth chart under You hold draws it: the shares held each day (through splits) at that day's close as it was. Month by month over the range, then the latest close. Needs a Tiingo key in the app.",
+    readOnly: true,
+    input: { range: S.str("The time shown", { enum: ["1M", "3M", "6M", "YTD", "1Y", "5Y", "Max"] }) },
+    async run(a) {
+      const doc = await readInvest();
+      const list = doc.watchlist.filter((w) => w.buys && w.buys.length);
+      if (!list.length) return "Nothing bought yet: log buys on the watchlist first (lifelog_add_buy).";
+      const d = await readData();
+      const items = [];
+      for (const w of list) {
+        const got = await pricesOf(d, w.symbol, dayBefore(w.buys.map((b) => b.date).sort()[0]));
+        if (got === null) return "No prices: no Tiingo key in the app's Settings → Media lookups.";
+        if (typeof got === "string") return `No prices for ${w.symbol}: ${got}.`;
+        items.push({ buys: w.buys, points: got.points, events: got.events });
+      }
+      const range = a.range || "1Y";
+      const all = Invest.worthSeries(items);
+      const pts = all ? Invest.sliceRange(all, range) : [];
+      if (!pts.length) return "No prices yet for the days held.";
+      const rows = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], next = pts[i + 1];
+        if (i === 0 || !next || next[0].slice(0, 7) !== p[0].slice(0, 7)) rows.push(p);
+      }
+      const last = pts[pts.length - 1];
+      const out = [`What was held on the watchlist was worth, ${range} (${list.length} ticker${list.length === 1 ? "" : "s"} bought):`];
+      for (const [day, worth, put] of rows) out.push(`- ${day}: worth ${Invest.usd(worth)}, put in ${Invest.usd(put)} (${Invest.signedUsd(worth - put)})`);
+      out.push(`Now ${Invest.usd(last[1])} against ${Invest.usd(last[2])} put in. Dividends and sales profits aren't in the worth: lifelog_watchlist has them.`);
       return out.join("\n");
     },
   },
@@ -2491,7 +2576,7 @@ const TOOLS = [
   {
     name: "lifelog_watch_ticker",
     description: "Add a US stock or ETF to the Ledger's Investments watchlist, by its ticker (VOO, AAPL). Prices are in US dollars. A ticker already on it is refused.",
-    input: { symbol: S.str("The ticker, e.g. VOO"), name: S.str("Its name, e.g. Vanguard S&P 500 ETF"), target: S.num("A target price in dollars"), note: S.str("A note, e.g. why you're watching it") },
+    input: { symbol: S.str("The ticker, e.g. VOO"), name: S.str("Its name, e.g. Vanguard S&P 500 ETF"), target: S.num("A target price in dollars"), above: S.bool("true: the target rings when it closes at or over the price (a price to sell at); left out: at or under it (a price to buy at)"), note: S.str("A note, e.g. why you're watching it") },
     required: ["symbol"],
     async run(a) {
       const symbol = Invest.cleanSymbol(a.symbol);
@@ -2501,28 +2586,29 @@ const TOOLS = [
         const list = Invest.sanitizeDoc(doc).watchlist;
         if (list.some((w) => w.symbol === symbol)) fail(`${symbol} is already on the watchlist.`);
         const now = changeNow || nowIso();
-        const w = Invest.sanitizeWatch({ id: L.uid(), symbol, name: a.name, target: a.target, note: a.note, createdAt: now, updatedAt: now });
+        const w = Invest.sanitizeWatch({ id: L.uid(), symbol, name: a.name, target: a.target, targetAbove: a.above === true, note: a.note, createdAt: now, updatedAt: now });
         (doc.watchlist = doc.watchlist || []).push(w);
-        return { text: `Added ${w.symbol}${w.name ? " (" + w.name + ")" : ""} to the watchlist${w.target ? ", target " + Invest.usd(w.target) : ""} (${w.id}).`, touched: [["watchlist", w.id]] };
+        return { text: `Added ${w.symbol}${w.name ? " (" + w.name + ")" : ""} to the watchlist${w.target ? ", target " + Invest.usd(w.target) + (w.targetAbove ? " or more" : "") : ""} (${w.id}).`, touched: [["watchlist", w.id]] };
       }, { file: "invest" });
     },
   },
   {
     name: "lifelog_update_ticker",
-    description: "Change a watched ticker's target price, note or name. An empty value (or target 0) clears it.",
-    input: { ticker: S.str("Its symbol or id"), target: S.num("Target price in dollars; 0 clears it"), note: S.str("The note; empty clears it"), name: S.str("Its name") },
+    description: "Change a watched ticker's target price (and which way it rings), note or name. An empty value (or target 0) clears it.",
+    input: { ticker: S.str("Its symbol or id"), target: S.num("Target price in dollars; 0 clears it"), above: S.bool("true: the target rings at or over its price (to sell); false: at or under it (to buy)"), note: S.str("The note; empty clears it"), name: S.str("Its name") },
     required: ["ticker"],
     async run(a) {
-      if (a.target == null && a.note == null && a.name == null) fail("Nothing to change: give target, note or name.");
+      if (a.target == null && a.above == null && a.note == null && a.name == null) fail("Nothing to change: give target, above, note or name.");
       if (a.target != null && +a.target !== 0 && !Invest.cleanPrice(a.target)) fail("A target is a price above zero, or 0 to clear it.");
       return change(`edit ticker "${a.ticker}"`, (doc) => {
         const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
         const next = { ...(doc.watchlist.find((x) => x.id === w.id)) };
-        if (a.target != null) { if (+a.target) next.target = +a.target; else delete next.target; }
+        if (a.target != null) { if (+a.target) next.target = +a.target; else { delete next.target; delete next.targetAbove; } }
+        if (a.above != null) { if (a.above === true) next.targetAbove = true; else delete next.targetAbove; }
         for (const k of ["note", "name"]) if (a[k] != null) { if (String(a[k]).trim()) next[k] = a[k]; else delete next[k]; }
         const clean = Invest.sanitizeWatch(next);
         replaceItem(doc, "watchlist", clean);
-        return { text: `Updated ${clean.symbol}: ${clean.target ? "target " + Invest.usd(clean.target) : "no target"}${clean.note ? ", note \"" + cut(clean.note, 80) + "\"" : ""}.`, touched: [["watchlist", w.id]] };
+        return { text: `Updated ${clean.symbol}: ${clean.target ? "target " + Invest.usd(clean.target) + (clean.targetAbove ? " or more" : " or less") : "no target"}${clean.note ? ", note \"" + cut(clean.note, 80) + "\"" : ""}.`, touched: [["watchlist", w.id]] };
       }, { file: "invest" });
     },
   },
@@ -2622,48 +2708,57 @@ const TOOLS = [
   },
   {
     name: "lifelog_add_buy",
-    description: "Log a buy (or, with sell: true, a sale) of a watched ticker: the day, the shares (fractions are fine) and the price paid per share in US dollars. Without a price, that day's close is used (needs a Tiingo key in the app). The Holding in the app adds them up at average cost.",
-    input: { ticker: S.str("Its symbol or id"), date: S.date("The day"), units: S.num("How many shares, e.g. 2.5"), price: S.num("Price per share in dollars; leave out for that day's close"), sell: S.bool("true for a sale"), note: S.str("A note, e.g. monthly autobuy") },
+    description: "Log a buy (or, with sell: true, a sale) of a watched ticker: the day, the shares (fractions are fine) and the price paid per share in US dollars, as they were that day (before any later split). Without a price, that day's close as it was is used (needs a Tiingo key in the app). An optional fee adds to a buy's cost and comes off a sale's money. The Holding in the app adds them up at average cost.",
+    input: { ticker: S.str("Its symbol or id"), date: S.date("The day"), units: S.num("How many shares, e.g. 2.5"), price: S.num("Price per share in dollars; leave out for that day's close"), fee: S.num("The broker's fee in dollars, e.g. 1.5"), sell: S.bool("true for a sale"), note: S.str("A note, e.g. monthly autobuy") },
     required: ["ticker", "date", "units"],
     async run(a) {
       requireDate(a.date, "date");
       if (a.date > today()) fail("A buy is a day that has already happened.");
       if (!Invest.cleanUnits(a.units)) fail("Shares is a number above zero.");
       if (a.price != null && !Invest.cleanPrice(a.price)) fail("A price is a number above zero.");
+      if (a.fee != null && Number.isNaN(Invest.cleanFee(a.fee))) fail("A fee is a number of dollars, zero or more.");
       let price = a.price;
+      const doc0 = await readInvest();
+      const w0 = findWatch(doc0.watchlist, a.ticker);
+      const data0 = await readData();
       if (price == null) {
-        const doc0 = await readInvest();
-        const w0 = findWatch(doc0.watchlist, a.ticker);
-        const closes = await closesOf(await readData(), w0.symbol, Finance.localDateStr(new Date(Date.parse(a.date + "T12:00:00Z") - 10 * 864e5)));
+        const closes = await closesOf(data0, w0.symbol, dayBefore(a.date));
         if (closes === null) fail("Give the price: there's no Tiingo key in the app to look up that day's close.");
         if (typeof closes === "string") fail("Give the price: " + closes + ".");
-        price = Invest.priceOn(closes, a.date);
+        // The close as it was that day, not adjusted for later splits.
+        price = Invest.priceOn(Invest.rawSeries(closes), a.date);
         if (price == null) fail(`No close for ${w0.symbol} on or before ${a.date}; give the price.`);
       }
+      const events = await eventsSince(data0, w0.symbol, [...(w0.buys || []), { date: a.date }]);
       return change(`${a.sell ? "sell" : "buy"} ${a.units} of "${a.ticker}"`, (doc) => {
         const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
         const raw = doc.watchlist.find((x) => x.id === w.id);
         const now = changeNow || nowIso();
-        const b = Invest.sanitizeBuy({ id: L.uid(), date: a.date, units: a.units, price, sell: !!a.sell, note: a.note, createdAt: now, updatedAt: now });
+        const b = Invest.sanitizeBuy({ id: L.uid(), date: a.date, units: a.units, price, fee: a.fee, sell: !!a.sell, note: a.note, createdAt: now, updatedAt: now });
         if (b.sell) {
-          const held = Invest.holdingOf((raw.buys || []).filter((x) => x.date <= b.date), null).units;
+          const held = Invest.holdingOf((raw.buys || []).filter((x) => x.date <= b.date), null, events).units;
           if (!(held > 0)) fail(`Nothing of ${w.symbol} held on ${b.date} to sell.`);
+          if (b.fee && b.fee >= b.units * b.price) fail("The fee is more than the sale brought in.");
         }
         const next = Invest.sanitizeWatch({ ...raw, buys: [...(raw.buys || []), b], updatedAt: now });
-        shortSaleFail(w.symbol, next.buys);
+        shortSaleFail(w.symbol, next.buys, events);
         replaceItem(doc, "watchlist", next);
-        const h = Invest.holdingOf(next.buys, null);
-        return { text: `${b.sell ? "Sold" : "Bought"} ${Invest.unitsText(b.units)} of ${w.symbol} on ${b.date} at ${Invest.usd(b.price)} (${b.id}). Holding now ${Invest.unitsText(h.units)} at an average ${Invest.usd(h.avg)}.`, touched: [["watchlist", w.id]] };
+        const h = Invest.holdingOf(next.buys, null, events);
+        return { text: `${b.sell ? "Sold" : "Bought"} ${Invest.unitsText(b.units)} of ${w.symbol} on ${b.date} at ${Invest.usd(b.price)}${b.fee ? " with a " + Invest.usd(b.fee) + " fee" : ""} (${b.id}). Holding now ${Invest.unitsText(h.units)} at an average ${Invest.usd(h.avg)}.`, touched: [["watchlist", w.id]] };
       }, { file: "invest" });
     },
   },
   {
     name: "lifelog_update_buy",
-    description: "Change a logged buy or sale: its day, shares, price, whether it's a sale, or its note (empty clears it).",
-    input: { buy: S.str("The buy's id (lifelog_watchlist with ticker lists them)"), date: S.date("The day"), units: S.num("Shares"), price: S.num("Price per share in dollars"), sell: S.bool("true for a sale, false for a buy"), note: S.str("The note") },
+    description: "Change a logged buy or sale: its day, shares, price, fee (0 clears it), whether it's a sale, or its note (empty clears it).",
+    input: { buy: S.str("The buy's id (lifelog_watchlist with ticker lists them)"), date: S.date("The day"), units: S.num("Shares"), price: S.num("Price per share in dollars"), fee: S.num("The broker's fee in dollars; 0 for none"), sell: S.bool("true for a sale, false for a buy"), note: S.str("The note") },
     required: ["buy"],
     async run(a) {
-      if (["date", "units", "price", "sell", "note"].every((k) => a[k] == null)) fail("Nothing to change: give date, units, price, sell or note.");
+      if (["date", "units", "price", "fee", "sell", "note"].every((k) => a[k] == null)) fail("Nothing to change: give date, units, price, fee, sell or note.");
+      if (a.fee != null && Number.isNaN(Invest.cleanFee(a.fee))) fail("A fee is a number of dollars, zero or more.");
+      const doc0 = await readInvest();
+      const w0 = doc0.watchlist.find((w) => (w.buys || []).some((b) => b.id === a.buy));
+      const events = w0 ? await eventsSince(await readData(), w0.symbol, [...w0.buys, ...(a.date ? [{ date: a.date }] : [])]) : [];
       if (a.date != null) { requireDate(a.date, "date"); if (a.date > today()) fail("A buy is a day that has already happened."); }
       if (a.units != null && !Invest.cleanUnits(a.units)) fail("Shares is a number above zero.");
       if (a.price != null && !Invest.cleanPrice(a.price)) fail("A price is a number above zero.");
@@ -2675,12 +2770,13 @@ const TOOLS = [
           if (b.id !== a.buy) return b;
           const nb = { ...b, updatedAt: now };
           for (const k of ["date", "units", "price"]) if (a[k] != null) nb[k] = a[k];
+          if (a.fee != null) { if (Invest.cleanFee(a.fee)) nb.fee = a.fee; else delete nb.fee; }
           if (a.sell != null) { if (a.sell) nb.sell = true; else delete nb.sell; }
           if (a.note != null) { if (String(a.note).trim()) nb.note = a.note; else delete nb.note; }
           return nb;
         });
         const next = Invest.sanitizeWatch({ ...raw, buys, updatedAt: now });
-        shortSaleFail(next.symbol, next.buys);
+        shortSaleFail(next.symbol, next.buys, events);
         replaceItem(doc, "watchlist", next);
         const b = next.buys.find((x) => x.id === a.buy);
         return { text: `The ${b.sell ? "sale" : "buy"} is now ${Invest.unitsText(b.units)} of ${next.symbol} on ${b.date} at ${Invest.usd(b.price)}.`, touched: [["watchlist", raw.id]] };
@@ -2694,12 +2790,15 @@ const TOOLS = [
     input: { buy: S.str("The buy's id") },
     required: ["buy"],
     async run(a) {
+      const doc0 = await readInvest();
+      const w0 = doc0.watchlist.find((w) => (w.buys || []).some((b) => b.id === a.buy));
+      const events = w0 ? await eventsSince(await readData(), w0.symbol, w0.buys) : [];
       return change(`delete buy ${a.buy}`, (doc) => {
         const raw = (doc.watchlist || []).find((w) => (w.buys || []).some((b) => b.id === a.buy));
         if (!raw) fail(`No buy with the id "${a.buy}" (lifelog_watchlist with ticker lists them).`);
         const gone = raw.buys.find((b) => b.id === a.buy);
         const next = Invest.sanitizeWatch({ ...raw, buys: raw.buys.filter((b) => b.id !== a.buy), updatedAt: changeNow || nowIso() });
-        shortSaleFail(next.symbol, next.buys);
+        shortSaleFail(next.symbol, next.buys, events);
         replaceItem(doc, "watchlist", next);
         return { text: `Deleted the ${gone.sell ? "sale" : "buy"} of ${Invest.unitsText(gone.units)} of ${next.symbol} on ${gone.date}.`, touched: [["watchlist", raw.id]] };
       }, { file: "invest" });
