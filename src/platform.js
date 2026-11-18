@@ -164,6 +164,8 @@
     if (m) return "https://api.tiingo.com/tiingo/daily/" + m[1] + "/prices" + tiingoQuery(u, ["startDate"]);
     m = /^\/tiingo-meta\/([A-Za-z0-9.-]{1,12})$/.exec(u.pathname);
     if (m) return "https://api.tiingo.com/tiingo/daily/" + m[1];
+    m = /^\/tiingo-iex\/([A-Za-z0-9.-]{1,12})$/.exec(u.pathname);
+    if (m) return "https://api.tiingo.com/iex/" + m[1];
     if (u.pathname === "/tiingo-search") return "https://api.tiingo.com/tiingo/utilities/search" + tiingoQuery(u, ["query"]);
     // IGDB and Hardcover are the POSTs: the worker turns these GETs into
     // their own shape, and so does this.

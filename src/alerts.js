@@ -150,7 +150,7 @@
         kind: "target",
         day: h.day, time: h.time,
         title: i18n.t("{symbol} closed at {price}", { symbol: h.symbol, price: "$" + Number(h.price).toFixed(2) }),
-        body: i18n.t("At or under your {price} target", { price: "$" + Number(h.target).toFixed(2) }),
+        body: h.above ? i18n.t("At or over your {price} target", { price: "$" + Number(h.target).toFixed(2) }) : i18n.t("At or under your {price} target", { price: "$" + Number(h.target).toFixed(2) }),
         action: "open-invest:" + id,
       });
     }
@@ -277,10 +277,11 @@
     const s = read();
     s.targets = s.targets || {};
     const had = s.targets[w.id];
-    if (had && had.target === w.target) return false;
+    if (had && had.target === w.target && !!had.above === !!w.targetAbove) return false;
     const now = new Date();
     now.setMinutes(now.getMinutes() + 1);
     s.targets[w.id] = { day: localDate(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price, target: w.target, symbol: w.symbol };
+    if (w.targetAbove) s.targets[w.id].above = true;
     write(s);
     if (ctx) ctx.changed();
     if (kindOn("targets") && window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();

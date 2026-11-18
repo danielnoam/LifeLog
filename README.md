@@ -313,10 +313,14 @@ a range (1M to Max), a target price and a note, and pins on the days you
 want to compare (when you bought, a dip), with the change between each pin
 and since the last, or between any two with Compare. Tap the chart to hold
 a day, then drag to read the move from it. Log your buys and sales for a
-Holding (shares, average cost, value and gain), and get a notification when
-a ticker closes at or under its target. Prices come from Tiingo with a free
-key of your own, once a day, and are kept on each device; the watchlist,
-pins and buys sync in `investments.json`.
+Holding (shares, average cost, value and gain), and see what the same money
+would be worth in the S&P 500 (SPY, bought on the same days), with SPY as a
+faint line on the chart. Get a notification when a ticker closes at or under
+its target, or at or over it for a price to sell at. Prices come from Tiingo
+with a free key of your own: the closes once a day, asked for only after the
+market's close (no requests on weekends or market holidays), and while the
+US market is open, today's price every 15 minutes or so. Closes are kept on
+each device; the watchlist, pins and buys sync in `investments.json`.
 
 <table><tr>
 <td><img src="docs/screenshots/ledger-investments-desktop.webp" alt="The Ledger's watchlist on a computer" width="620"></td>

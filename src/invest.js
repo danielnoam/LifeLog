@@ -27,7 +27,7 @@
   }
 
   // ---------- pure: cleaning and price maths (test/invest.test.js) ----------
-  const KNOWN_WATCH_KEYS = new Set(["id", "symbol", "name", "target", "note", "buys", "createdAt", "updatedAt"]);
+  const KNOWN_WATCH_KEYS = new Set(["id", "symbol", "name", "target", "targetAbove", "note", "buys", "createdAt", "updatedAt"]);
   const KNOWN_BUY_KEYS = new Set(["id", "date", "units", "price", "sell", "note", "createdAt", "updatedAt"]);
   const KNOWN_PIN_KEYS = new Set(["id", "watch", "date", "label", "createdAt", "updatedAt"]);
   // Fields this build doesn't know are carried through, so a newer build's
@@ -62,6 +62,9 @@
     if (name) out.name = name.slice(0, 120);
     const target = cleanPrice(w.target);
     if (target) out.target = target;
+    // A target rings at or under its price (a price to buy at), or with
+    // targetAbove at or over it (a price to sell at).
+    if (target && w.targetAbove === true) out.targetAbove = true;
     const note = text(w.note);
     if (note) out.note = note.slice(0, 500);
     // Buys ride on the ticker rather than in a list of their own: 0.310.0
@@ -134,6 +137,9 @@
     }
     return null;
   }
+  // Whether a price is at the ticker's target, whichever way it points.
+  const atTarget = (w, price) => !!(w && w.target && price != null && (w.targetAbove ? price >= w.target : price <= w.target));
+  const targetWords = (w) => (w.targetAbove ? i18n.t("Target {price} and up", { price: usd(w.target) }) : i18n.t("Target {price}", { price: usd(w.target) }));
   function unitsText(n) {
     const s = (Math.round(n * 1e4) / 1e4).toLocaleString(numLocale(), { maximumFractionDigits: 4 });
     return n === 1 ? i18n.t("{n} share", { n: s }) : i18n.t("{n} shares", { n: s });
@@ -173,7 +179,8 @@
       const keep = String(w.createdAt || "") < String(first.createdAt || "") ? w : first;
       const drop = keep === w ? first : w;
       if (keep === w) { watchlist[watchlist.indexOf(first)] = w; seen.set(w.symbol, w); }
-      for (const k of ["name", "target", "note"]) if (keep[k] == null && drop[k] != null) keep[k] = drop[k];
+      if (keep.target == null && drop.target != null) { keep.target = drop.target; if (drop.targetAbove) keep.targetAbove = true; }
+      for (const k of ["name", "note"]) if (keep[k] == null && drop[k] != null) keep[k] = drop[k];
       if (drop.buys) {
         const ids = new Set((keep.buys || []).map((b) => b.id));
         const more = drop.buys.filter((b) => !ids.has(b.id));
@@ -298,6 +305,156 @@
       .filter((r) => r.symbol && r.active && (!r.country || r.country === "US"));
   }
 
+  // ---------- pure: the New York market clock ----------
+  // NYSE's full-day holidays, worked out by rule (a Saturday holiday is
+  // kept the Friday before, a Sunday one the Monday after, but a Saturday
+  // New Year's Day isn't kept at all). Half days (13:00 closes) aren't
+  // known: on those the app only expects the close later than it comes.
+  const holidayCache = new Map();
+  function marketHolidays(year) {
+    if (holidayCache.has(year)) return holidayCache.get(year);
+    const day = (m, d) => new Date(Date.UTC(year, m - 1, d));
+    const iso = (t) => t.toISOString().slice(0, 10);
+    const nth = (m, weekday, n) => { const t = day(m, 1); t.setUTCDate(1 + ((weekday - t.getUTCDay() + 7) % 7) + (n - 1) * 7); return t; };
+    const lastOf = (m, weekday) => { const t = day(m + 1, 0); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() - weekday + 7) % 7)); return t; };
+    const kept = (t) => { const w = t.getUTCDay(); if (w === 6) t.setUTCDate(t.getUTCDate() - 1); else if (w === 0) t.setUTCDate(t.getUTCDate() + 1); return t; };
+    // Easter Sunday (the Gregorian computus), for Good Friday.
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const easter = day(Math.floor((h + l - 7 * m + 114) / 31), ((h + l - 7 * m + 114) % 31) + 1);
+    const goodFriday = new Date(easter); goodFriday.setUTCDate(easter.getUTCDate() - 2);
+    const out = new Set();
+    const newYear = day(1, 1);
+    if (newYear.getUTCDay() !== 6) out.add(iso(kept(newYear)));
+    for (const t of [nth(1, 1, 3), nth(2, 1, 3), goodFriday, lastOf(5, 1), nth(9, 1, 1), nth(11, 4, 4)]) out.add(iso(t));
+    for (const [mo, dd] of [[7, 4], [12, 25]]) out.add(iso(kept(day(mo, dd))));
+    if (year >= 2022) out.add(iso(kept(day(6, 19))));
+    holidayCache.set(year, out);
+    return out;
+  }
+  function isTradingDay(day) {
+    const w = new Date(day + "T12:00:00Z").getUTCDay();
+    return w !== 0 && w !== 6 && !marketHolidays(+day.slice(0, 4)).has(day);
+  }
+  const nextDay = (day) => { const t = new Date(day + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
+  function nextTradingDay(day) {
+    let d = nextDay(day);
+    while (!isTradingDay(d)) d = nextDay(d);
+    return d;
+  }
+  // New York's wall clock for a moment, and a moment for New York's wall
+  // clock (its offset found by asking Intl, so summer time takes care of itself).
+  let nyFormat = null;
+  function nyParts(ms) {
+    nyFormat = nyFormat || new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const p = {};
+    for (const x of nyFormat.formatToParts(new Date(ms))) p[x.type] = x.value;
+    return { day: p.year + "-" + p.month + "-" + p.day, minutes: (+p.hour % 24) * 60 + +p.minute };
+  }
+  function nyTime(day, minutes) {
+    const [y, mo, d] = day.split("-").map(Number);
+    const wall = Date.UTC(y, mo - 1, d, 0, minutes);
+    const offsetAt = (ms) => { const p = nyParts(ms); const [py, pm, pd] = p.day.split("-").map(Number); return Date.UTC(py, pm - 1, pd, 0, p.minutes) - Math.floor(ms / 60000) * 60000; };
+    let t = wall - offsetAt(wall + 5 * 3600e3);
+    t = wall - offsetAt(t);
+    return t;
+  }
+  const OPEN_MIN = 9 * 60 + 30;
+  // Tiingo has the day's closes by about 17:30 New York time (a guess from
+  // its docs' "after the close", not measured), so a close is asked for then.
+  const READY_MIN = 17 * 60 + 30;
+  // When the close after `lastDay` should be at Tiingo.
+  const closeDueAt = (lastDay) => nyTime(nextTradingDay(lastDay), READY_MIN);
+  // Prices are fresh until the next close should be out; past that, asked
+  // for again, and every two hours after while it doesn't come (a half day,
+  // a late feed, a holiday the rules above don't know).
+  const RETRY_MS = 2 * 3600 * 1000;
+  function pricesStale(entry, now) {
+    if (!entry || !entry.points || !entry.points.length || !entry.at) return true;
+    const at = Date.parse(entry.at);
+    if (!isFinite(at)) return true;
+    const due = closeDueAt(entry.points[entry.points.length - 1][0]);
+    return now >= due && (at < due || now - at >= RETRY_MS);
+  }
+  // Whether the market is trading now, and if not, when it next opens.
+  function marketNow(now) {
+    const p = nyParts(now);
+    if (isTradingDay(p.day) && p.minutes >= OPEN_MIN && p.minutes < 16 * 60) return { open: true, day: p.day };
+    let d = isTradingDay(p.day) && p.minutes < OPEN_MIN ? p.day : nextTradingDay(p.day);
+    return { open: false, day: p.day, opensAt: nyTime(d, OPEN_MIN) };
+  }
+  // A wait in words: "25 min", "3 h 10 min", "2 days".
+  function waitWords(ms) {
+    const min = Math.max(1, Math.round(ms / 60000));
+    if (min < 60) return i18n.t("{n} min", { n: min });
+    if (min < 36 * 60) return i18n.t("{h} h {m} min", { h: Math.floor(min / 60), m: min % 60 });
+    return i18n.tn(Math.round(min / 1440), "1 day", "{n} days");
+  }
+
+  // ---------- pure: the same money in the S&P 500 ----------
+  // What your buys and sales on a ticker would have come to in SPY: each
+  // buy's dollars buy SPY at that day's close, each sale takes the same
+  // dollars back out (no more than is there). SPY's closes are adjusted, so
+  // its dividends count as reinvested; yours aren't logged and don't.
+  // Null when SPY's prices don't reach back to the first buy.
+  const BENCHMARK = "SPY";
+  const SAME_INDEX = new Set(["SPY", "VOO", "IVV", "SPLG"]);
+  function benchmarkOf(buys, spy, last) {
+    const list = sortBuys(buys || []);
+    if (!list.length || !spy || !spy.length || list[0].date < spy[0][0] || last == null) return null;
+    let held = 0, cash = 0, paid = 0, spyUnits = 0, spyCash = 0;
+    for (const b of list) {
+      const at = priceOn(spy, b.date);
+      if (!at) return null;
+      if (b.sell) {
+        const take = Math.min(b.units, held);
+        held -= take; cash += take * b.price;
+        const out = Math.min(take * b.price / at, spyUnits);
+        spyUnits -= out; spyCash += out * at;
+      } else {
+        held += b.units; paid += b.units * b.price;
+        spyUnits += b.units * b.price / at;
+      }
+    }
+    if (!paid) return null;
+    // What you hold now is holdingOf's, the one place holdings are worked out.
+    const mine = (holdingOf(list, last).value || 0) + cash;
+    const theirs = spyUnits * spy[spy.length - 1][1] + spyCash;
+    return { paid, mine, theirs, gainPct: mine / paid - 1, spyGainPct: theirs / paid - 1, ahead: mine - theirs, asOf: spy[spy.length - 1][0] };
+  }
+  // The same over several tickers' buys together (the "You hold" line).
+  function benchmarkAll(items, spy) {
+    let paid = 0, mine = 0, theirs = 0, any = false;
+    for (const { buys, last } of items) {
+      const b = benchmarkOf(buys, spy, last);
+      if (!b) { if (buys && buys.length) return null; continue; }
+      any = true; paid += b.paid; mine += b.mine; theirs += b.theirs;
+    }
+    return any ? { paid, mine, theirs, gainPct: mine / paid - 1, spyGainPct: theirs / paid - 1, ahead: mine - theirs } : null;
+  }
+
+  // ---------- pure: today's price, from Tiingo's IEX feed ----------
+  // One ticker's answer → { price, day, at } or null. tngoLast is Tiingo's
+  // own last price (the last trade, or the quote's middle when that's the
+  // better guess), and becomes the official close once that's printed.
+  function parseLive(rows) {
+    const r = Array.isArray(rows) ? rows[0] : rows;
+    if (!r || typeof r !== "object") return null;
+    const price = [r.tngoLast, r.last, r.mid].map(Number).find((v) => isFinite(v) && v > 0);
+    const at = Date.parse(r.timestamp || r.lastSaleTimestamp || "");
+    if (!price || !isFinite(at)) return null;
+    return { price: Math.round(price * 10000) / 10000, day: nyParts(at).day, at };
+  }
+  // The closes with today's price laid on the end, when it's from a day
+  // after the last close. The live point is marked so the page can say so.
+  function withLive(points, live) {
+    if (!live || !points || !points.length || live.day <= points[points.length - 1][0]) return points || [];
+    const out = points.concat([[live.day, live.price]]);
+    out.live = live;
+    return out;
+  }
+
   // ---------- the document ----------
   let doc = null, loading = null, loadError = null, loadedAt = 0;
   let saveTimer = null, saving = null, changedSince = 0, lastSent = null;
@@ -370,6 +527,7 @@
     if (ui) return ui;
     try { ui = JSON.parse(localStorage.getItem(UI_KEY) || "{}") || {}; } catch (e) { ui = {}; }
     if (!RANGES.includes(ui.range)) ui.range = "1Y";
+    if (typeof ui.bench !== "boolean") ui.bench = true;
     return ui;
   }
   function setUi(patch) {
@@ -422,13 +580,10 @@
     }
     return body;
   }
-  // Fresh means asked within the last six hours: the close only moves once a
-  // day, and the free plan allows 50 requests an hour.
-  const FRESH_MS = 6 * 3600 * 1000;
-  function stale(symbol) {
-    const p = prices && prices[symbol];
-    return !p || !p.points || !p.points.length || !p.at || Date.now() - Date.parse(p.at) > FRESH_MS;
-  }
+  // The closes only change once a trading day, and the free plan allows 50
+  // requests an hour: a ticker is asked for again only once its next close
+  // should be out (pricesStale), so a weekend or a holiday asks nothing.
+  const stale = (symbol) => pricesStale(prices && prices[symbol], Date.now());
   function refresh(symbol, force) {
     if (blocker()) return Promise.resolve(false);
     if (fetching.has(symbol)) return fetching.get(symbol);
@@ -474,9 +629,60 @@
         if (got) any = true;
         if (got && (isOpen() || onHome())) render({ keepSnapshots: true });
       }
+      if (wantsBench() && !watchlist().some((w) => w.symbol === BENCHMARK) && await refresh(BENCHMARK)) {
+        any = true;
+        if (isOpen()) render({ keepSnapshots: true });
+      }
     } finally { refreshingAll = false; }
     if (!any && isOpen() && watchlist().some((w) => lastProblem.has(w.symbol))) render({ keepSnapshots: true });
   }
+  // SPY's closes too, for the S&P 500 line and the same-money comparison:
+  // one more ticker, asked for on the same clock as the rest.
+  const benchPoints = () => seriesOf(BENCHMARK);
+  const wantsBench = () => watchlist().some((w) => !SAME_INDEX.has(w.symbol));
+
+  // ---------- today's price, while the market trades ----------
+  // Asked for while Investments or Home is on screen, from the open of the
+  // day after the last close until that close is in, at most every 15
+  // minutes a ticker (further apart with many, so the hour's 50 requests
+  // keep room for the closes). Kept in memory only: the close replaces it.
+  // Targets still go by closes, so a dip within the day doesn't ring.
+  const live = new Map();
+  let liveRunning = false, liveTimer = null;
+  const liveGap = () => Math.max(15, Math.ceil((watchlist().length + 1) * 60 / 30)) * 60000;
+  const liveOf = (symbol) => { const l = live.get(symbol); return l && l.price ? l : null; };
+  const seriesOf = (symbol) => withLive(pointsOf(symbol), liveOf(symbol));
+  const liveWindow = (symbol, now) => { const all = pointsOf(symbol); return all.length > 0 && now >= nyTime(nextTradingDay(all[all.length - 1][0]), OPEN_MIN); };
+  async function refreshLive() {
+    if (liveRunning || blocker() || !prices || !(isOpen() || onHome())) return;
+    liveRunning = true;
+    let any = false;
+    try {
+      const now = Date.now(), gap = liveGap();
+      const symbols = watchlist().map((w) => w.symbol);
+      if (wantsBench() && !symbols.includes(BENCHMARK)) symbols.push(BENCHMARK);
+      for (const symbol of symbols) {
+        if (!liveWindow(symbol, now)) { live.delete(symbol); continue; }
+        const had = live.get(symbol);
+        if (had && now - had.asked < gap) continue;
+        try {
+          const got = parseLive(await tiingo("/tiingo-iex/" + encodeURIComponent(symbol)));
+          live.set(symbol, got ? { ...got, asked: now } : { asked: now });
+          if (got && (!had || had.price !== got.price || had.at !== got.at)) any = true;
+        } catch (e) {
+          live.set(symbol, { ...(had || {}), asked: now });
+        }
+      }
+    } finally { liveRunning = false; }
+    if (any) {
+      widgetsChanged();
+      if (isOpen() || onHome()) render({ keepSnapshots: true });
+    }
+    clearTimeout(liveTimer);
+    if (watchlist().some((w) => liveWindow(w.symbol, Date.now())) && (isOpen() || onHome())) liveTimer = setTimeout(refreshLive, liveGap());
+  }
+  const clockTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   async function search(query) {
     if (blocker()) return [];
     return parseSearch(await tiingo("/tiingo-search?query=" + encodeURIComponent(query)));
@@ -542,7 +748,7 @@
     wrap.appendChild(chartCard(w));
     wrap.appendChild(listCard(w));
     c.appendChild(wrap);
-    if (prices) refreshAll();
+    if (prices) refreshAll().then(refreshLive);
   }
 
   // On a phone the Watching list sits under the chart and the pins, so the
@@ -553,7 +759,7 @@
     row.setAttribute("aria-label", i18n.t("Tickers"));
     const range = uiState().range;
     for (const w of watchlist()) {
-      const all = pointsOf(w.symbol);
+      const all = seriesOf(w.symbol);
       const pts = sliceRange(all, range);
       const ch = pts.length > 1 ? changeOf(pts[0][1], all[all.length - 1][1]) : null;
       const chip = el("button", "invest-chip" + (w === current ? " on" : ""));
@@ -592,7 +798,7 @@
 
   function chartCard(w) {
     const card = el("div", "card invest-chart-card");
-    const all = pointsOf(w.symbol);
+    const all = seriesOf(w.symbol);
     const range = uiState().range;
     const pts = sliceRange(all, range);
     const last = all.length ? all[all.length - 1] : null;
@@ -606,6 +812,16 @@
     edit.setAttribute("aria-label", i18n.t("Edit {name}", { name: w.symbol }));
     edit.title = i18n.t("Target, note, remove");
     edit.onclick = () => openWatchModal(w);
+    // The S&P 500 line on the chart, on or off for this device.
+    if (!SAME_INDEX.has(w.symbol)) {
+      const on = uiState().bench;
+      const b = el("button", "btn btn-sm invest-bench-btn" + (on ? " on" : ""), i18n.t("S&P 500"));
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(on));
+      b.title = i18n.t("Show the S&P 500 beside the ticker");
+      b.onclick = () => { setUi({ bench: !uiState().bench }); render({ keepSnapshots: true }); };
+      head.appendChild(b);
+    }
     head.appendChild(edit);
     card.appendChild(head);
 
@@ -618,15 +834,18 @@
         row.appendChild(span);
       }
       card.appendChild(row);
-      const prev = all.length > 1 ? all[all.length - 2][1] : null;
-      card.appendChild(el("div", "invest-meta", i18n.t("Closed {date}", { date: Dates().day(last[0], { weekday: true, year: "auto" }) }) + (prev ? " · " + i18n.t("{pct} that day", { pct: pct(changeOf(prev, last[1])) }) : "")));
+      card.appendChild(el("div", "invest-meta", metaLine(all)));
     }
     if (w.target || w.note) {
       const note = el("div", "invest-note");
       if (w.target) {
-        const gap = last ? changeOf(w.target, last[1]) : null;
+        // Measured from the last close: the target rings on closes, not
+        // on today's price.
+        const closes = pointsOf(w.symbol);
+        const close = closes.length ? closes[closes.length - 1][1] : null;
+        const gap = close != null ? changeOf(w.target, close) : null;
         const words = gap == null ? "" : " · " + (Math.abs(gap) < 0.0005 ? i18n.t("at it") : gap > 0 ? i18n.t("{pct}% above", { pct: Math.abs(gap * 100).toFixed(1) }) : i18n.t("{pct}% below", { pct: Math.abs(gap * 100).toFixed(1) }));
-        note.appendChild(el("span", "invest-target" + (gap != null && gap <= 0 ? " is-hit" : ""), i18n.t("Target {price}", { price: usd(w.target) }) + words));
+        note.appendChild(el("span", "invest-target" + (atTarget(w, close) ? " is-hit" : ""), targetWords(w) + words));
       }
       if (w.note) note.appendChild(el("span", "invest-note-text", w.note));
       card.appendChild(note);
@@ -640,8 +859,45 @@
     }
     if (problem && pts.length > 1) card.appendChild(el("p", "invest-problem", problem + ". " + i18n.t("Showing the prices kept on this device.")));
     card.appendChild(holdingBlock(w, all, last));
+    const bench = benchBlock(w);
+    if (bench) card.appendChild(bench);
     card.appendChild(pinsBlock(w, all));
     return card;
+  }
+  // Under the price: the last close and that day's move, or today's price
+  // so far while the market trades; then when it next opens or closes.
+  function metaLine(all, now = Date.now()) {
+    const last = all[all.length - 1];
+    const prev = all.length > 1 ? all[all.length - 2][1] : null;
+    const m = marketNow(now);
+    const bits = [];
+    if (all.live) {
+      bits.push(i18n.t("As of {time}", { time: clockTime(all.live.at) }));
+      if (prev) bits.push(i18n.t("{amount} today", { amount: pct(changeOf(prev, last[1])) }));
+      if (m.open) bits.push(i18n.t("Closes in {wait}", { wait: waitWords(nyTime(m.day, 16 * 60) - now) }));
+    } else {
+      bits.push(i18n.t("Closed {date}", { date: Dates().day(last[0], { weekday: true, year: "auto" }) }));
+      if (prev) bits.push(i18n.t("{pct} that day", { pct: pct(changeOf(prev, last[1])) }));
+      if (!m.open) bits.push(i18n.t("Opens in {wait}", { wait: waitWords(m.opensAt - now) }));
+    }
+    return bits.join(" · ");
+  }
+  // The same money in the S&P 500: what your buys and sales on this
+  // ticker would be worth had they gone into SPY on the same days.
+  function benchBlock(w) {
+    if (SAME_INDEX.has(w.symbol) || !(w.buys && w.buys.length)) return null;
+    const all = seriesOf(w.symbol);
+    const b = benchmarkOf(w.buys, benchPoints(), all.length ? all[all.length - 1][1] : null);
+    if (!b) return null;
+    const p = el("p", "invest-bench");
+    p.appendChild(ico("activity"));
+    const tx = el("span");
+    tx.appendChild(document.createTextNode(i18n.t("The same money in the S&P 500 would be worth {amount} ({pct}).", { amount: usd(b.theirs), pct: pct(b.spyGainPct) }) + " "));
+    const ahead = Math.abs(b.ahead) < 0.005 ? i18n.t("You're even with it.") : b.ahead > 0 ? i18n.t("You're {amount} ahead.", { amount: usd(b.ahead) }) : i18n.t("You're {amount} behind.", { amount: usd(-b.ahead) });
+    tx.appendChild(el("b", b.ahead >= 0 ? "invest-up" : "invest-down", ahead));
+    p.appendChild(tx);
+    p.title = i18n.t("SPY bought with each buy's dollars on its day and sold with each sale's, dividends reinvested.");
+    return p;
   }
   function rangeWords(range) {
     return { "1M": i18n.t("past month"), "3M": i18n.t("past 3 months"), "6M": i18n.t("past 6 months"), "YTD": i18n.t("this year"), "1Y": i18n.t("past year"), "5Y": i18n.t("past 5 years"), "Max": i18n.t("all time") }[range] || "";
@@ -666,6 +922,16 @@
     for (const m of [1, 2, 2.5, 5, 10]) if (raw <= m * mag) return m * mag;
     return 10 * mag;
   }
+  // SPY's closes on a range's days, scaled to start at the ticker's first
+  // close there; null when it's off, the ticker is the index itself, or
+  // SPY's prices don't cover the range.
+  function benchSeries(w, pts) {
+    if (!uiState().bench || SAME_INDEX.has(w.symbol) || pts.length < 2) return null;
+    const spy = benchPoints();
+    const base = priceOn(spy, pts[0][0]);
+    if (!base) return null;
+    return pts.map((p) => pts[0][1] * (priceOn(spy, p[0]) || base) / base);
+  }
   function chart(w, pts, all, lastPt) {
     // A sideways drag here scrubs the days, so it mustn't also switch Ledger mode.
     const outer = el("div", "invest-chart-wrap");
@@ -682,6 +948,10 @@
     const showAvg = hold.units > 0 && near(hold.avg);
     if (showTarget) { lo = Math.min(lo, w.target); hi = Math.max(hi, w.target); }
     if (showAvg) { lo = Math.min(lo, hold.avg); hi = Math.max(hi, hold.avg); }
+    // The S&P 500 (SPY) over the same days, started at this ticker's first
+    // price so the two lines part where one did better. It joins the scale.
+    const bench = benchSeries(w, pts);
+    if (bench) for (const v of bench) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
     const step = niceStep(hi - lo || hi * 0.02 || 1);
     lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
     if (hi === lo) hi = lo + step;
@@ -704,6 +974,7 @@
     for (const p of pins) { const xi = x(indexOfDay(p.date)); svg.appendChild(svgEl("line", { x1: xi, x2: xi, y1: 0, y2: H }, "invest-pinline")); }
     if (showTarget) svg.appendChild(svgEl("line", { x1: 0, x2: W, y1: y(w.target), y2: y(w.target) }, "invest-targetline"));
     if (showAvg) svg.appendChild(svgEl("line", { x1: 0, x2: W, y1: y(hold.avg), y2: y(hold.avg) }, "invest-avgline"));
+    if (bench) svg.appendChild(svgEl("path", { d: bench.map((v, i) => (i ? "L" : "M") + x(i).toFixed(2) + "," + y(v).toFixed(2)).join("") }, "invest-benchline"));
     svg.appendChild(svgEl("path", { d }, "invest-line " + (up ? "up" : "down")));
     const anchorLine = svgEl("line", { x1: 0, x2: 0, y1: 0, y2: H }, "invest-anchor");
     anchorLine.style.display = "none";
@@ -716,7 +987,7 @@
 
     // Labels in pixels, placed once the box has a size.
     const place = () => {
-      for (const n2 of box.querySelectorAll(".invest-yl, .invest-xl, .invest-flag, .invest-pindot, .invest-tlabel, .invest-buymark")) n2.remove();
+      for (const n2 of box.querySelectorAll(".invest-yl, .invest-xl, .invest-flag, .invest-pindot, .invest-tlabel, .invest-buymark, .invest-benchlabel")) n2.remove();
       const cw = svg.clientWidth, ch = svg.clientHeight;
       if (!cw || !ch) return;
       for (const v of ticks) {
@@ -749,8 +1020,13 @@
         m.title = (b.sell ? i18n.t("Sold {units} at {price}", { units: unitsText(b.units), price: usd(b.price) }) : i18n.t("Bought {units} at {price}", { units: unitsText(b.units), price: usd(b.price) })) + " · " + Dates().day(b.date);
         box.appendChild(m);
       }
+      if (bench) {
+        const t = el("span", "invest-benchlabel", i18n.t("S&P 500 {pct}", { pct: pct(changeOf(bench[0], bench[n - 1])) }));
+        t.style.top = (y(bench[n - 1]) / H * ch) + "px";
+        box.appendChild(t);
+      }
       if (showTarget) {
-        const t = el("span", "invest-tlabel", i18n.t("Target {price}", { price: usd(w.target) }));
+        const t = el("span", "invest-tlabel", targetWords(w));
         t.style.top = (y(w.target) / H * ch) + "px";
         box.appendChild(t);
       }
@@ -803,6 +1079,7 @@
         tip.appendChild(line);
       } else if (held == null) {
         tip.appendChild(el("span", null, i18n.t("{pct} from {date}", { pct: pct(changeOf(pts[0][1], close)), date: Dates().day(pts[0][0], { year: "auto" }) })));
+        if (bench) tip.appendChild(el("span", "invest-tip-bench", i18n.t("S&P 500 {pct}", { pct: pct(changeOf(bench[0], bench[i])) })));
       }
       tip.hidden = false;
       const half = Math.min(130, r.width / 2);
@@ -1072,7 +1349,7 @@
     card.appendChild(h);
     const range = uiState().range;
     // Everything you hold, together, when any ticker has buys.
-    const held = watchlist().map((w) => { const all = pointsOf(w.symbol); return holdingOf(w.buys, all.length ? all[all.length - 1][1] : null); })
+    const held = watchlist().map((w) => { const all = seriesOf(w.symbol); return holdingOf(w.buys, all.length ? all[all.length - 1][1] : null); })
       .filter((x) => x.units > 0);
     if (held.length) {
       const value = held.reduce((t, x) => t + (x.value || 0), 0);
@@ -1083,9 +1360,17 @@
       sum.appendChild(el("b", null, usd(value)));
       if (cost) sum.appendChild(el("span", gain >= 0 ? "invest-up" : "invest-down", signedUsd(gain) + " (" + pct(gain / cost) + ")"));
       card.appendChild(sum);
+      // Everything bought and sold, against the same money in SPY.
+      const all = benchmarkAll(watchlist().filter((w) => w.buys && w.buys.length).map((w) => { const c = seriesOf(w.symbol); return { buys: w.buys, last: c.length ? c[c.length - 1][1] : null }; }), benchPoints());
+      if (all) {
+        const line = el("p", "invest-bench invest-bench-sum");
+        line.appendChild(ico("activity"));
+        line.appendChild(el("span", null, i18n.t("All you bought: {mine}. The same money in the S&P 500: {theirs}.", { mine: pct(all.gainPct), theirs: pct(all.spyGainPct) })));
+        card.appendChild(line);
+      }
     }
     for (const w of watchlist()) {
-      const all = pointsOf(w.symbol);
+      const all = seriesOf(w.symbol);
       const pts = sliceRange(all, range);
       const last = all.length ? all[all.length - 1][1] : null;
       const ch = pts.length > 1 ? changeOf(pts[0][1], last) : null;
@@ -1095,8 +1380,9 @@
       const t = el("span", "invest-row-t");
       const sym = el("b", null, w.symbol);
       if (w.target) {
-        const hit = last != null && last <= w.target;
-        sym.appendChild(el("i", hit ? "is-hit" : "", hit ? i18n.t("At target {price}", { price: usd(w.target) }) : i18n.t("Target {price}", { price: usd(w.target) })));
+        const closes = pointsOf(w.symbol);
+        const hit = atTarget(w, closes.length ? closes[closes.length - 1][1] : null);
+        sym.appendChild(el("i", hit ? "is-hit" : "", hit ? i18n.t("At target {price}", { price: usd(w.target) }) : targetWords(w)));
       }
       t.appendChild(sym);
       const hd = holdingOf(w.buys, last);
@@ -1110,7 +1396,7 @@
       row.onclick = () => { setUi({ selected: w.id }); render({ keepSnapshots: true }); };
       card.appendChild(row);
     }
-    card.appendChild(el("p", "invest-foot", i18n.t("Prices from Tiingo, adjusted for splits and dividends, updated once a day after the US market closes. Only the tickers are sent.")));
+    card.appendChild(el("p", "invest-foot", i18n.t("Prices from Tiingo: closes adjusted for splits and dividends, and today's price from IEX every 15 minutes or so while the US market is open. Only the tickers are sent.")));
     return card;
   }
 
@@ -1131,12 +1417,23 @@
     $("#watchResults").innerHTML = "";
     $("#watchResults").hidden = true;
     $("#watchTarget").value = w && w.target ? String(w.target) : "";
+    setTargetDir(w && w.targetAbove ? "above" : "below");
     $("#watchNote").value = (w && w.note) || "";
     $("#deleteWatchBtn").hidden = !w;
     $("#watchSaveBtn").textContent = w ? i18n.t("Save") : i18n.t("Add to watchlist");
     $("#watchHint").textContent = !w && blocker() === "key" ? i18n.t("Without a Tiingo key the ticker is added as typed, and its prices come once you add one.") : "";
     $("#watchModal").hidden = false;
     setTimeout(() => (w ? $("#watchTarget") : $("#watchSymbol")).focus(), 0);
+  }
+  // Which way the target rings: at or under it (to buy), or at or over (to sell).
+  let targetDir = "below";
+  function setTargetDir(dir) {
+    targetDir = dir === "above" ? "above" : "below";
+    for (const b of document.querySelectorAll("#watchTargetDir .seg-btn")) {
+      const on = b.dataset.dir === targetDir;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    }
   }
   function closeWatchModal() { $("#watchModal").hidden = true; editingWatch = null; picked = null; searchAsk++; }
   // Each query's matches, kept for the session, so typing back over a word
@@ -1205,8 +1502,8 @@
     if (editingWatch) {
       const w = findWatch(editingWatch.id);
       if (w) {
-        const next = sanitizeWatch({ ...w, target: target || undefined, note });
-        for (const k of ["target", "note"]) if (next[k] == null) delete w[k];
+        const next = sanitizeWatch({ ...w, target: target || undefined, targetAbove: targetDir === "above", note });
+        for (const k of ["target", "targetAbove", "note"]) if (next[k] == null) delete w[k];
         Object.assign(w, next);
         changed(w);
         checkTarget(w);
@@ -1230,7 +1527,7 @@
       $("#watchSaveBtn").disabled = false;
     }
     const now = new Date().toISOString();
-    const w = sanitizeWatch({ id: newId(), symbol, name, target: target || undefined, note, createdAt: now, updatedAt: now });
+    const w = sanitizeWatch({ id: newId(), symbol, name, target: target || undefined, targetAbove: targetDir === "above", note, createdAt: now, updatedAt: now });
     doc.watchlist.push(w);
     changed(w);
     setUi({ selected: w.id });
@@ -1399,22 +1696,25 @@
   }
 
   // ---------- target alerts ----------
-  // A ticker's latest close at or under its target is recorded once per dip
-  // (alerts.js): a toast here, and on a phone or the desktop app a
-  // notification. A close back over the target, or no target, clears it.
+  // A ticker's latest close at its target (at or under it, or with
+  // targetAbove at or over it) is recorded once per crossing (alerts.js): a
+  // toast here, and on a phone or the desktop app a notification. A close
+  // back on the other side, or no target, clears it. Closes only, never
+  // today's price: a swing within the day that's gone by the close is noise.
   function checkTarget(w) {
     const A = window.LifeLogAlerts;
     if (!A || !A.targetHit) return;
     const all = pointsOf(w.symbol);
     const last = all.length ? all[all.length - 1][1] : null;
-    if (!w.target || last == null || last > w.target) { A.targetClear(w.id); return; }
+    if (!atTarget(w, last)) { A.targetClear(w.id); return; }
     if (!A.targetHit(w, last)) return;
-    toast(i18n.t("{symbol} closed at {price}, under your {target} target", { symbol: w.symbol, price: usd(last), target: usd(w.target) }), false,
+    const vals = { symbol: w.symbol, price: usd(last), target: usd(w.target) };
+    toast(w.targetAbove ? i18n.t("{symbol} closed at {price}, over your {target} target", vals) : i18n.t("{symbol} closed at {price}, under your {target} target", vals), false,
       { label: i18n.t("Show"), onClick: () => { select(w.id); if (openInvest) openInvest(); } });
   }
   // At launch, on coming back to the app and in Android's background run:
-  // the tickers with a target, their prices asked for only when stale (six
-  // hours), so this costs Tiingo at most a few requests a day.
+  // the tickers with a target, their prices asked for only once their next
+  // close should be out, so this costs Tiingo a request a ticker a day.
   // Only on a device that has seen a target, so a launch doesn't ask GitHub
   // for investments.json when nobody watches anything.
   const TARGETS_FLAG = "lifelog-invest-targets", WATCH_FLAG = "lifelog-invest-watch";
@@ -1427,7 +1727,7 @@
     } catch (e) { /* private window */ }
   }
   // On a phone the same pass keeps the Investments widget's prices fresh:
-  // every ticker, not only the targeted ones, still at most once in six hours.
+  // every ticker, not only the targeted ones, on the same clock.
   async function checkTargets() {
     const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
     let go = false;
@@ -1455,10 +1755,13 @@
   const WIDGET_ROWS = 8, SPARK_POINTS = 32;
   function widgetOf(list, priceMap, { hidden = false } = {}) {
     if (!list || !list.length) return null;
-    let value = 0, cost = 0, today = 0, any = false, lastDay = "";
+    let value = 0, cost = 0, today = 0, any = false, lastDay = "", liveAt = 0;
     const rows = [];
     for (const w of list) {
-      const all = (priceMap && priceMap[w.symbol] && priceMap[w.symbol].points) || [];
+      const entry = (priceMap && priceMap[w.symbol]) || {};
+      const closes = entry.points || [];
+      const all = withLive(closes, entry.live);
+      if (all.live && all.live.at > liveAt) liveAt = all.live.at;
       const last = all.length ? all[all.length - 1] : null;
       const prev = all.length > 1 ? all[all.length - 2][1] : null;
       if (last && last[0] > lastDay) lastDay = last[0];
@@ -1486,7 +1789,7 @@
         day: hidden || dayCh == null ? "" : pct(dayCh),
         up: dayCh == null || dayCh >= 0,
         sparkUp: month.length < 2 || month[month.length - 1][1] >= month[0][1],
-        hit: !!(w.target && last && last[1] <= w.target),
+        hit: atTarget(w, closes.length ? closes[closes.length - 1][1] : null),
         spark: hidden ? [] : spark,
       });
     }
@@ -1501,28 +1804,34 @@
       todayPct: hidden || !base ? "" : i18n.t("{amount} today", { amount: pct(today / base) }),
       todayUp: today >= 0,
     } : null;
-    return { day: lastDay, closed: lastDay ? i18n.t("Closed {date}", { date: Dates().day(lastDay, { weekday: true, year: "auto" }) }) : "", hold, rows };
+    const closed = liveAt ? i18n.t("As of {time}", { time: clockTime(liveAt) }) : lastDay ? i18n.t("Closed {date}", { date: Dates().day(lastDay, { weekday: true, year: "auto" }) }) : "";
+    return { day: lastDay, closed, hold, rows };
   }
   // The snapshot's `invest`, from what's loaded, else what was worked out
   // last time (the watchlist and prices load after the first push).
   const WIDGET_KEY = "lifelog-invest-widget";
   function widgetSnapshot(hidden) {
     if (doc && prices) {
-      const out = widgetOf(watchlist(), prices, { hidden: false });
-      try { if (out) localStorage.setItem(WIDGET_KEY, JSON.stringify(watchlist().length ? { list: watchlist(), prices: pricesFor(watchlist()) } : null)); else localStorage.removeItem(WIDGET_KEY); } catch (e) { /* private window */ }
-      return hidden ? widgetOf(watchlist(), prices, { hidden: true }) : out;
+      const map = pricesFor(watchlist());
+      const out = widgetOf(watchlist(), map, { hidden: false });
+      try { if (out) localStorage.setItem(WIDGET_KEY, JSON.stringify(watchlist().length ? { list: watchlist(), prices: map } : null)); else localStorage.removeItem(WIDGET_KEY); } catch (e) { /* private window */ }
+      return hidden ? widgetOf(watchlist(), map, { hidden: true }) : out;
     }
     try {
       const kept = JSON.parse(localStorage.getItem(WIDGET_KEY) || "null");
       return kept ? widgetOf(kept.list, kept.prices, { hidden }) : null;
     } catch (e) { return null; }
   }
-  // A month and a day of closes per ticker is all the widget needs.
+  // A month and a day of closes per ticker is all the widget needs, and
+  // today's price while there is one (a live price older than the newest
+  // close is dropped by withLive).
   function pricesFor(list) {
     const out = {};
     for (const w of list) {
       const all = pointsOf(w.symbol);
       out[w.symbol] = { points: sliceRange(all, "1M").length > 1 ? all.slice(-Math.max(2, sliceRange(all, "1M").length + 1)) : all.slice(-2) };
+      const l = liveOf(w.symbol);
+      if (l) out[w.symbol].live = { price: l.price, day: l.day, at: l.at };
     }
     return out;
   }
@@ -1536,7 +1845,10 @@
   // The widget's numbers, from what's loaded; null while the watchlist and
   // prices load, with a repaint of Home once they have.
   function homeGlance() {
-    if (doc && prices) return { ...widgetOf(watchlist(), prices) || { hold: null, rows: [], closed: "" }, count: watchlist().length, blocked: blocker() };
+    if (doc && prices) {
+      setTimeout(refreshLive, 0);
+      return { ...widgetOf(watchlist(), pricesFor(watchlist())) || { hold: null, rows: [], closed: "" }, count: watchlist().length, blocked: blocker() };
+    }
     Promise.all([ensureLoaded(), loadPrices()]).then(() => { if (onHome()) render({ keepSnapshots: true }); }).catch(() => {});
     return null;
   }
@@ -1553,6 +1865,7 @@
     $("#cancelWatchBtn").onclick = closeWatchModal;
     $("#deleteWatchBtn").onclick = () => { if (editingWatch) deleteWatch(editingWatch); };
     $("#watchSymbol").addEventListener("input", onSymbolInput);
+    for (const b of document.querySelectorAll("#watchTargetDir .seg-btn")) b.onclick = () => setTargetDir(b.dataset.dir);
     $("#investPinForm").addEventListener("submit", (e) => { e.preventDefault(); savePinFromForm(); });
     $("#cancelInvestPinBtn").onclick = closePinModal;
     $("#deleteInvestPinBtn").onclick = () => { if (editingPin) deletePin(editingPin); };
@@ -1576,6 +1889,8 @@
     holdingOf, shortSale, compareDays, unitsText, signedUsd, widgetOf,
     RANGES, rangeStart, sliceRange, priceOn, changeOf, pinSteps, spanLabel, pct, usd,
     parseTiingo, rewritesHistory, joinSeries, parseSearch,
+    atTarget, benchmarkOf, benchmarkAll, BENCHMARK, SAME_INDEX,
+    marketHolidays, isTradingDay, nextTradingDay, nyTime, nyParts, closeDueAt, pricesStale, marketNow, waitWords, parseLive, withLive,
   };
   if (typeof window !== "undefined") window.LifeLogInvest = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

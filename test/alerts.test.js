@@ -136,6 +136,12 @@ test("target: a ticker's hit rings once from what it carries; an old hit is drop
   assert.strictEqual(h[0].body, "A ticker on your watchlist reached its target");
 });
 
+test("target: a target that rings over its price says so", () => {
+  const targets = { w1: { day: "2026-03-10", time: "14:31", price: 612, target: 600, symbol: "VOO", above: true } };
+  const a = alertsOf({ backlog: [] }, { today: "2026-03-10", targets });
+  assert.deepStrictEqual([a[0].title, a[0].body], ["VOO closed at $612.00", "At or over your $600.00 target"]);
+});
+
 test("a task's reminder rings at its own time, keyed by its date; past ones and done ones don't", () => {
   const Tasks = require("../src/tasks.js");
   const data = { notes: [{ id: "L", kind: "list", text: "Trip", items: [

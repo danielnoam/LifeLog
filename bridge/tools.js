@@ -334,6 +334,20 @@ async function closesOf(data, symbol, startDate) {
     return Invest.parseTiingo(await res.json());
   } catch (e) { return "couldn't reach Tiingo"; }
 }
+// Today's price from Tiingo's IEX feed, while the market trades after the
+// last close (the app's own window): { price, day, at } or null.
+async function liveOf(data, symbol, lastDay) {
+  const key = String(((data.settings || {}).mediaKeys || {}).tiingo || "").trim();
+  if (!key || !lastDay || Date.now() < Invest.nyTime(Invest.nextTradingDay(lastDay), 9 * 60 + 30)) return null;
+  try {
+    const res = await fetch("https://api.tiingo.com/iex/" + encodeURIComponent(symbol), {
+      headers: { Authorization: "Token " + key, "User-Agent": "LifeLog-bridge" }, signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return null;
+    const live = Invest.parseLive(await res.json());
+    return live && live.day > lastDay ? live : null;
+  } catch (e) { return null; }
+}
 function boardTexts(b) {
   return (b.elements || []).filter((e) => e.t === "text" && String(e.text || "").trim()).map((e) => String(e.text).trim());
 }
@@ -1087,7 +1101,7 @@ const TOOLS = [
 
   {
     name: "lifelog_watchlist",
-    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price and note, its date pins, and what you hold of it from the buys and sells logged (shares, average cost, value, gain). With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, the change over the range, how far it is from its target, and the change between each pin and to now. Give ticker for one ticker in full.",
+    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price (and whether it rings at or under it, or at or over it) and note, its date pins, and what you hold of it from the buys and sells logged (shares, average cost, value, gain). With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, today's price so far while the US market trades, the change over the range, how far it is from its target, the change between each pin and to now, and what the same money in the S&P 500 (SPY, on the same days) would be worth. Give ticker for one ticker in full.",
     readOnly: true,
     input: { ticker: S.str("One ticker's symbol or id"), range: S.str("The change measured over", { enum: ["1M", "3M", "6M", "YTD", "1Y", "5Y", "Max"] }) },
     async run(a) {
@@ -1098,6 +1112,10 @@ const TOOLS = [
       const d = await readData();
       const start = Invest.rangeStart(range, today()) || "1980-01-01";
       const out = a.ticker ? [] : [`${doc.watchlist.length} ticker${doc.watchlist.length === 1 ? "" : "s"} on the watchlist (change over ${range})`];
+      // SPY's closes from the first buy on, for the same-money comparison.
+      const firstBuy = list.flatMap((w) => (w.buys || []).map((b) => b.date)).sort()[0];
+      const spyCloses = firstBuy && list.some((w) => w.buys && w.buys.length && !Invest.SAME_INDEX.has(w.symbol))
+        ? await closesOf(d, Invest.BENCHMARK, Finance.localDateStr(new Date(Date.parse(firstBuy + "T12:00:00Z") - 10 * 864e5))) : null;
       for (const w of list) {
         const pins = doc.pins.filter((p) => p.watch === w.id);
         const first = pins.length ? pins.map((p) => p.date).sort()[0] : null;
@@ -1108,7 +1126,9 @@ const TOOLS = [
         const bits = [];
         if (last) bits.push(`${Invest.usd(last[1])} at the ${last[0]} close`);
         if (shown.length > 1) bits.push(Invest.pct(Invest.changeOf(shown[0][1], last[1])) + " over " + range);
-        if (w.target) bits.push("target " + Invest.usd(w.target) + (last ? ` (${Invest.pct(Invest.changeOf(w.target, last[1]))} from it)` : ""));
+        if (w.target) bits.push("target " + Invest.usd(w.target) + (w.targetAbove ? " (rings at or over it)" : " (rings at or under it)") + (last ? `, ${Invest.pct(Invest.changeOf(w.target, last[1]))} from it${Invest.atTarget(w, last[1]) ? ", reached" : ""}` : ""));
+        const live = last ? await liveOf(d, w.symbol, last[0]) : null;
+        if (live) bits.push(`today so far ${Invest.usd(live.price)} (${Invest.pct(Invest.changeOf(last[1], live.price))}) at ${new Date(live.at).toISOString().slice(11, 16)} UTC`);
         if (closes === null) bits.push("no prices: no Tiingo key in the app's Settings → Media lookups");
         else if (typeof closes === "string") bits.push("no prices: " + closes);
         out.push(`- ${w.symbol}${w.name ? " (" + w.name + ")" : ""}: ${bits.join(", ") || "no prices"}${w.note ? " — " + cut(w.note, 200) : ""}  (${w.id})`);
@@ -1127,6 +1147,8 @@ const TOOLS = [
           if (h.value != null) bits2.push("worth " + Invest.usd(h.value) + " (" + Invest.signedUsd(h.gain) + ", " + Invest.pct(h.gainPct) + ")");
           if (Math.abs(h.realized) >= 0.005) bits2.push("sales made " + Invest.signedUsd(h.realized));
           out.push(`  holding: ${bits2.join(", ")}`);
+          const bm = Array.isArray(spyCloses) && !Invest.SAME_INDEX.has(w.symbol) ? Invest.benchmarkOf(w.buys, spyCloses, last ? last[1] : null) : null;
+          if (bm) out.push(`  vs the S&P 500: the same money in SPY on the same days would be worth ${Invest.usd(bm.theirs)} (${Invest.pct(bm.spyGainPct)}) against your ${Invest.usd(bm.mine)} (${Invest.pct(bm.gainPct)}), ${bm.ahead >= 0 ? Invest.usd(bm.ahead) + " ahead" : Invest.usd(-bm.ahead) + " behind"} (SPY dividends reinvested, at the ${bm.asOf} close)`);
           if (a.ticker) for (const b of w.buys) out.push(`  ${b.sell ? "sold" : "bought"} ${b.date}: ${Invest.unitsText(b.units)} at ${Invest.usd(b.price)}${b.note ? " \"" + cut(b.note, 80) + "\"" : ""}  (${b.id})`);
           else out.push(`  ${w.buys.length} buy${w.buys.length === 1 ? "" : "s"}/sale${w.buys.length === 1 ? "" : "s"} logged (give ticker to list them)`);
         }
@@ -2491,7 +2513,7 @@ const TOOLS = [
   {
     name: "lifelog_watch_ticker",
     description: "Add a US stock or ETF to the Ledger's Investments watchlist, by its ticker (VOO, AAPL). Prices are in US dollars. A ticker already on it is refused.",
-    input: { symbol: S.str("The ticker, e.g. VOO"), name: S.str("Its name, e.g. Vanguard S&P 500 ETF"), target: S.num("A target price in dollars"), note: S.str("A note, e.g. why you're watching it") },
+    input: { symbol: S.str("The ticker, e.g. VOO"), name: S.str("Its name, e.g. Vanguard S&P 500 ETF"), target: S.num("A target price in dollars"), above: S.bool("true: the target rings when it closes at or over the price (a price to sell at); left out: at or under it (a price to buy at)"), note: S.str("A note, e.g. why you're watching it") },
     required: ["symbol"],
     async run(a) {
       const symbol = Invest.cleanSymbol(a.symbol);
@@ -2501,28 +2523,29 @@ const TOOLS = [
         const list = Invest.sanitizeDoc(doc).watchlist;
         if (list.some((w) => w.symbol === symbol)) fail(`${symbol} is already on the watchlist.`);
         const now = changeNow || nowIso();
-        const w = Invest.sanitizeWatch({ id: L.uid(), symbol, name: a.name, target: a.target, note: a.note, createdAt: now, updatedAt: now });
+        const w = Invest.sanitizeWatch({ id: L.uid(), symbol, name: a.name, target: a.target, targetAbove: a.above === true, note: a.note, createdAt: now, updatedAt: now });
         (doc.watchlist = doc.watchlist || []).push(w);
-        return { text: `Added ${w.symbol}${w.name ? " (" + w.name + ")" : ""} to the watchlist${w.target ? ", target " + Invest.usd(w.target) : ""} (${w.id}).`, touched: [["watchlist", w.id]] };
+        return { text: `Added ${w.symbol}${w.name ? " (" + w.name + ")" : ""} to the watchlist${w.target ? ", target " + Invest.usd(w.target) + (w.targetAbove ? " or more" : "") : ""} (${w.id}).`, touched: [["watchlist", w.id]] };
       }, { file: "invest" });
     },
   },
   {
     name: "lifelog_update_ticker",
-    description: "Change a watched ticker's target price, note or name. An empty value (or target 0) clears it.",
-    input: { ticker: S.str("Its symbol or id"), target: S.num("Target price in dollars; 0 clears it"), note: S.str("The note; empty clears it"), name: S.str("Its name") },
+    description: "Change a watched ticker's target price (and which way it rings), note or name. An empty value (or target 0) clears it.",
+    input: { ticker: S.str("Its symbol or id"), target: S.num("Target price in dollars; 0 clears it"), above: S.bool("true: the target rings at or over its price (to sell); false: at or under it (to buy)"), note: S.str("The note; empty clears it"), name: S.str("Its name") },
     required: ["ticker"],
     async run(a) {
-      if (a.target == null && a.note == null && a.name == null) fail("Nothing to change: give target, note or name.");
+      if (a.target == null && a.above == null && a.note == null && a.name == null) fail("Nothing to change: give target, above, note or name.");
       if (a.target != null && +a.target !== 0 && !Invest.cleanPrice(a.target)) fail("A target is a price above zero, or 0 to clear it.");
       return change(`edit ticker "${a.ticker}"`, (doc) => {
         const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
         const next = { ...(doc.watchlist.find((x) => x.id === w.id)) };
-        if (a.target != null) { if (+a.target) next.target = +a.target; else delete next.target; }
+        if (a.target != null) { if (+a.target) next.target = +a.target; else { delete next.target; delete next.targetAbove; } }
+        if (a.above != null) { if (a.above === true) next.targetAbove = true; else delete next.targetAbove; }
         for (const k of ["note", "name"]) if (a[k] != null) { if (String(a[k]).trim()) next[k] = a[k]; else delete next[k]; }
         const clean = Invest.sanitizeWatch(next);
         replaceItem(doc, "watchlist", clean);
-        return { text: `Updated ${clean.symbol}: ${clean.target ? "target " + Invest.usd(clean.target) : "no target"}${clean.note ? ", note \"" + cut(clean.note, 80) + "\"" : ""}.`, touched: [["watchlist", w.id]] };
+        return { text: `Updated ${clean.symbol}: ${clean.target ? "target " + Invest.usd(clean.target) + (clean.targetAbove ? " or more" : " or less") : "no target"}${clean.note ? ", note \"" + cut(clean.note, 80) + "\"" : ""}.`, touched: [["watchlist", w.id]] };
       }, { file: "invest" });
     },
   },

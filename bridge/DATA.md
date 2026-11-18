@@ -477,7 +477,9 @@ the app fetches daily closes from Tiingo with the key in
 
 - A ticker has `id`, `symbol` (upper case, like `VOO` or `BRK.B`),
   `createdAt`, `updatedAt`, and optionally `name`, `target` (a price in
-  dollars you're waiting for) and `note`. The list's order is the order
+  dollars you're waiting for), `targetAbove` (`true`: the target rings when
+  a close is at or over it, a price to sell at; without it, at or under
+  it, a price to buy at; only kept beside a `target`) and `note`. The list's order is the order
   shown. The same symbol twice (two devices adding it before a sync) folds
   into the one added first, with the other's pins.
 - A pin has `id`, `watch` (its ticker's id), `date`, `createdAt`,
@@ -495,8 +497,12 @@ the app fetches daily closes from Tiingo with the key in
   one ticker keep both (merged buy by buy).
 
 `lifelog_watchlist` lists the tickers with their targets, notes and pins,
-and with a Tiingo key their latest close, the change over a range, how far
-each is from its target, and the change between pins and since the last.
+and with a Tiingo key their latest close, today's price so far while the
+US market trades (Tiingo's IEX feed, never stored), the change over a
+range, how far each is from its target, the change between pins and since
+the last, and for a holding what the same money would be worth in the
+S&P 500 (SPY bought with each buy's dollars on its day, sold with each
+sale's).
 `lifelog_watch_ticker`, `lifelog_update_ticker`, `lifelog_unwatch_ticker`,
 `lifelog_add_pin`, `lifelog_update_pin` and `lifelog_delete_pin` change them.
 `lifelog_compare_pins` gives the change between any two pins, or a pin and

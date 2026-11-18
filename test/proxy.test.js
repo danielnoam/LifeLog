@@ -46,6 +46,7 @@ const routes = [
   ["/tiingo-prices/SPY?startDate=2026-01-01", "api.tiingo.com"],
   ["/tiingo-meta/SPY", "api.tiingo.com"],
   ["/tiingo-search?query=spy", "api.tiingo.com"],
+  ["/tiingo-iex/SPY", "api.tiingo.com"],
   ["/igdb/games?q=fields%20name%3B", "api.igdb.com"],
   ["/hardcover?q=%7B%22query%22%3A%22%7Bme%7Bid%7D%7D%22%7D", "api.hardcover.app"],
   ["/augsteam-app/570", "api.augmentedsteam.com"],
