@@ -16,7 +16,7 @@ CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
   branch.
 - A merge releases only if it bumps the version, and only Daniel decides
   when to release (2026-11-03). By default a PR doesn't bump: its lines go
-  in `changes/<branch>.md`, it merges on green, and the next release PR
+  in `changes/<branch>.md`, it auto-merges on green, and the next release PR
   takes them. Bump only when he asks for a release.
 - To bump: `node tools/release.js x.y.z`. New user-facing feature → minor
   (`0.X.0` → `0.(X+1).0`); fix, small tweak, styling → patch; a change to
@@ -119,14 +119,16 @@ CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
   `contrast.js` from the same folder.
 - Kill the dev server and remove any temporary test scripts afterwards.
 
-## 6. Commit, open a PR, merge on green
+## 6. Commit, open a PR, auto-merge
 
 - Commit the change, its `changes/` note (or the release bump) and the
   notes files together. Push the branch and open a PR; the "why" goes in
   its description.
-- Merge it (squash) once the **Tests** check is green, without asking.
-  "Don't build yet" or "fixes only" means open the PR but don't merge
-  until Daniel says build.
+- Turn on auto-merge (squash) as soon as the work is done, release PRs
+  included, so it merges itself once **Tests** is green.
+  `auto-merge.yml` does it for Daniel's PRs that open ready, so open
+  unfinished work as a draft. "Don't build yet" or "fixes only" means a
+  draft PR (or auto-merge off) until Daniel says build.
 - If `main` moved, merge it into the branch (a squash merge makes an old
   tip unmergeable by fast-forward, so merge, don't rebase or force-push).
   Never force-push `main`. Two releases at once: merge `main` in and run

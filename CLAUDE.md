@@ -41,7 +41,7 @@ and the iOS app (Capacitor). See README.md for the layout.
   `APP_VERSION` publishes the APK and the Windows app (`node tools/release.js x.y.z`).
   Daniel cuts releases himself (2026-11-03): by default a PR doesn't bump
   the version, it writes its lines to `changes/<branch>.md` (never
-  CHANGELOG.md) and merges on green, with no release built. Run
+  CHANGELOG.md) and merges itself on green (auto-merge), with no release built. Run
   `tools/release.js` only when he asks for a release. Check the runs went
   green.
 - When Daniel wants to try a change on his phone before it's merged, add
@@ -78,10 +78,13 @@ Daniel (danielnoam) owns LifeLog. These rules hold in every session.
 
 ### How the work is done
 
-- Open the PR and merge it without asking once the checks are green (the
-  Tests check and the release checklist); then check the CI runs.
-- "Don't build yet" or "fixes only": push the branch and open the PR, but
-  don't merge until he says build.
+- Auto-merge (2026-11-18): as soon as a PR's work is done, turn on
+  auto-merge (squash), release PRs included; it merges itself when Tests
+  go green. `auto-merge.yml` does this for any PR of his that opens
+  ready, so open unfinished work as a draft. Don't end a turn waiting on
+  the run; check the CI runs once it merges.
+- "Don't build yet" or "fixes only": push the branch and open the PR as a
+  draft (or turn auto-merge off), and don't merge until he says build.
 - "Add to TODO" means plan it, not build it. Small asks listed without
   that get built now.
 - Merge to main, don't release (2026-11-03): he wants changes merged and
