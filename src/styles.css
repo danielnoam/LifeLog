@@ -5443,6 +5443,24 @@ html.force-mobile .pace-say { white-space: normal; }
 /* Everything held, at the top of Watching. */
 .invest-sum { display: flex; align-items: baseline; gap: var(--space-10); flex-wrap: wrap; margin: 0 0 var(--space-10); padding-bottom: var(--space-10); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-dim); }
 .invest-sum b { color: var(--text); font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+/* Dividends, a year and all in, under Holding and You hold. */
+.invest-returns { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); margin: 0 0 var(--space-8); color: var(--text-dim); font-size: var(--fs-xs); }
+.invest-return b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.invest-return b:not([class]) { color: var(--text); }
+.invest-sum-returns { margin-bottom: var(--space-10); }
+/* What everything held was worth, beside what was put in. */
+.invest-worth { margin: 0 0 var(--space-12); padding-bottom: var(--space-12); border-bottom: 1px solid var(--border); }
+.invest-worth-h { display: flex; align-items: baseline; gap: var(--space-8); flex-wrap: wrap; font-size: var(--fs-sm); }
+.invest-worth-h b { color: var(--text); }
+.invest-worth-key { display: inline-flex; align-items: center; gap: var(--space-6); margin-inline-start: auto; color: var(--text-dim); font-size: var(--fs-2xs); }
+.invest-worth-key i { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--success); }
+.invest-worth-key i.down { border-top-color: var(--danger-text); }
+.invest-worth-key i.is-put { border-top: 2px dashed var(--accent); margin-inline-start: var(--space-6); }
+.invest-worth-chart { position: relative; height: 120px; margin: var(--space-8) 0 var(--space-4); user-select: none; -webkit-user-select: none; }
+.invest-worth-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; cursor: crosshair; }
+.invest-putline { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.invest-worth-foot { display: flex; justify-content: space-between; gap: var(--space-8); color: var(--text-dim); font-size: var(--fs-2xs); }
+.invest-worth-foot b { font-weight: 600; }
 /* The buy sheet. */
 .invest-buy-kind { margin-bottom: var(--space-12); }
 .invest-buy-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); }

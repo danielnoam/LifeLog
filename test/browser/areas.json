@@ -53,7 +53,7 @@
     },
     "investments": {
       "files": ["src/invest.js"],
-      "suites": ["homeinvest", "invest", "investmarket", "investsearch"]
+      "suites": ["homeinvest", "invest", "investmarket", "investreturns", "investsearch"]
     },
     "home": {
       "files": ["src/home.js"],

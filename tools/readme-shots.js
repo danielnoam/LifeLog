@@ -246,11 +246,14 @@ function buildData() {
   const prices = Object.fromEntries([
     ["ACME", closes(11, 0.0005, 0.022, 612.4)], ["NOVA", closes(29, 0.0007, 0.03, 548.1)],
     ["PLNT", closes(41, 0.0002, 0.016, 28.35)], ["ORBT", closes(57, 0.0003, 0.045, 186.2)],
-  ].map(([sym, points]) => [sym, { at: iso(NOW), points }]));
+  ].map(([sym, points]) => [sym, { at: iso(NOW), points, events: [] }]));
+  // Made-up cash dividends: ACME's each quarter, PLNT's each month.
+  for (let ago = 45; ago < 1500; ago += 91) prices.ACME.events.unshift([ymd(daysAgo(ago)), 1.62, 1]);
+  for (let ago = 20; ago < 1500; ago += 30) prices.PLNT.events.unshift([ymd(daysAgo(ago)), 0.11, 1]);
   // A few buys and a sale on the first, at each day's close, for its Holding.
   const closeOn = (sym, day) => { const pts = prices[sym].points; let v = pts[0][1]; for (const [d2, c] of pts) { if (d2 > day) break; v = c; } return v; };
   const B = (sym, ago, units, extra) => ({ id: id(), date: ymd(daysAgo(ago)), units, price: closeOn(sym, ymd(daysAgo(ago))), createdAt: iso(daysAgo(ago)), updatedAt: iso(daysAgo(ago)), ...extra });
-  watch[0].buys = [B("ACME", 290, 4), B("ACME", 200, 2.5, { note: "Monthly autobuy" }), B("ACME", 170, 3, { note: "The spring dip" }), B("ACME", 60, 2.5, { note: "Monthly autobuy" }), B("ACME", 30, 2, { sell: true })];
+  watch[0].buys = [B("ACME", 700, 3, { fee: 1 }), B("ACME", 290, 4), B("ACME", 200, 2.5, { note: "Monthly autobuy" }), B("ACME", 170, 3, { note: "The spring dip" }), B("ACME", 60, 2.5, { note: "Monthly autobuy" }), B("ACME", 30, 2, { sell: true })];
   watch[1].buys = [B("NOVA", 120, 3)];
   return { data, boards, invest, prices };
 }

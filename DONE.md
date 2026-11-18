@@ -225,6 +225,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Investments holdings: buys and sales per ticker (fractional shares) with shares, average cost, value, gain and what sales made, marks and an average-cost line on the chart, a "You hold" total (0.312.0)
 - Investments: Compare any two pins (or a pin and the latest close), a held day to measure a drag from, target notifications, ticker chips on a phone (0.312.0)
 - Investments vs the S&P 500: a faint SPY line on the chart (S&P 500 button per device), the same money in SPY on the same days under Holding and the You hold total; today's price from Tiingo's IEX feed while the market trades ("As of", every ~15 min); targets at or over a price as well as under; closes asked for by the NYSE clock (holidays by rule), with "Closes in" / "Opens in" (unreleased)
+- Investments returns: shares counted through stock splits, cash dividends on the shares held (before tax), a fee per buy or sale, All in, the money-weighted yearly return from a year in, and a Worth-over-time chart under You hold beside the money put in; a past day's buy fills in that day's price as it was (unreleased)
 
 ## Sync and data
 

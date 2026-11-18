@@ -28,7 +28,7 @@
 
   // ---------- pure: cleaning and price maths (test/invest.test.js) ----------
   const KNOWN_WATCH_KEYS = new Set(["id", "symbol", "name", "target", "targetAbove", "note", "buys", "createdAt", "updatedAt"]);
-  const KNOWN_BUY_KEYS = new Set(["id", "date", "units", "price", "sell", "note", "createdAt", "updatedAt"]);
+  const KNOWN_BUY_KEYS = new Set(["id", "date", "units", "price", "fee", "sell", "note", "createdAt", "updatedAt"]);
   const KNOWN_PIN_KEYS = new Set(["id", "watch", "date", "label", "createdAt", "updatedAt"]);
   // Fields this build doesn't know are carried through, so a newer build's
   // additions survive an older one saving (the same rule as app.js's).
@@ -80,6 +80,15 @@
     const n = typeof v === "number" ? v : parseFloat(String(v == null ? "" : v).replace(/[,\s]/g, ""));
     return isFinite(n) && n > 0 ? Math.round(n * 1e6) / 1e6 : null;
   }
+  // The broker's fee on a buy or a sale, in dollars: blank or 0 is none,
+  // anything else not a number at or above zero is NaN, for the form to refuse.
+  function cleanFee(v) {
+    const t = String(v == null ? "" : v).replace(/[$,\s]/g, "");
+    if (!t) return null;
+    const n = typeof v === "number" ? v : parseFloat(t);
+    if (!isFinite(n) || n < 0 || (typeof v !== "number" && !/^\d*\.?\d+$/.test(t))) return NaN;
+    return n ? Math.round(n * 100) / 100 : null;
+  }
   function sanitizeBuy(b) {
     b = b || {};
     const units = cleanUnits(b.units), price = cleanPrice(b.price);
@@ -90,52 +99,163 @@
       createdAt: b.createdAt || null,
       updatedAt: b.updatedAt || b.createdAt || "1970-01-01T00:00:00.000Z",
     };
+    const fee = cleanFee(b.fee);
+    if (fee > 0) out.fee = fee;
     if (b.sell) out.sell = true;
     const note = text(b.note);
     if (note) out.note = note.slice(0, 200);
     return keepUnknown(b, out, KNOWN_BUY_KEYS);
   }
   const sortBuys = (list) => [...list].sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)));
-  // What the buys add up to, at average cost: a sale takes shares out at the
-  // average paid so far, and what it made over that is realized. `last` is
-  // the latest close, for the value and the gain on what's still held.
-  function holdingOf(buys, last) {
-    let units = 0, cost = 0, realized = 0, bought = 0;
+  // A ticker's splits and cash dividends, from Tiingo's daily rows:
+  // [[day, cash a share, split factor]], oldest first, only the days with
+  // one. Kept beside the closes on this device (refresh), so the buys can
+  // be worked out in the shares and dollars they were made in.
+  const sortEvents = (list) => (Array.isArray(list) ? list : []).filter((e) => Array.isArray(e) && isDay(e[0])).sort((a, b) => a[0].localeCompare(b[0]));
+  // What the buys add up to, at average cost, in today's shares: a split
+  // after a buy multiplies its shares (the cost stays), a cash dividend
+  // pays the shares held the day before it, and a sale takes shares out at
+  // the average paid so far, what it made over that being realized. A fee
+  // adds to what a buy cost and comes off what a sale brought in. `last` is
+  // the latest price, for the value and the gain on what's still held.
+  // Without `events` (no prices yet), no splits or dividends are known.
+  // `flows` is the money in and out by day, for the yearly return.
+  function holdingOf(buys, last, events) {
+    let units = 0, cost = 0, realized = 0, bought = 0, dividends = 0, fees = 0;
+    const flows = [];
+    const evs = sortEvents(events);
+    let k = 0;
+    // An event on a trade's own day comes first: buying on a split's day
+    // buys the new shares, and on a dividend's day misses it (selling then
+    // doesn't).
+    const upTo = (day) => {
+      for (; k < evs.length && evs[k][0] <= day; k++) {
+        const [d, cash, split] = evs[k];
+        if (split > 0 && split !== 1) units *= split;
+        if (cash > 0 && units > 1e-9) { dividends += units * cash; flows.push([d, units * cash]); }
+      }
+    };
     for (const b of sortBuys(buys || [])) {
+      upTo(b.date);
+      const fee = b.fee || 0;
       if (b.sell) {
         const take = Math.min(b.units, units);
         if (!take) continue;
         const avg = cost / units;
-        realized += take * (b.price - avg);
+        const got = take * b.price - fee * (take / b.units);
+        realized += got - take * avg;
         cost -= take * avg;
         units -= take;
+        fees += fee;
+        flows.push([b.date, got]);
         if (units < 1e-9) { units = 0; cost = 0; }
       } else {
+        const paid = b.units * b.price + fee;
         units += b.units;
-        cost += b.units * b.price;
-        bought += b.units * b.price;
+        cost += paid;
+        bought += paid;
+        fees += fee;
+        flows.push([b.date, -paid]);
       }
     }
+    upTo("9999-12-31");
     const value = last != null && units ? units * last : null;
+    const gain = value != null ? value - cost : null;
     return {
       units: Math.round(units * 1e6) / 1e6,
-      cost, avg: units ? cost / units : null, bought, realized,
-      value,
-      gain: value != null ? value - cost : null,
+      cost, avg: units ? cost / units : null, bought, realized, dividends, fees,
+      value, gain,
       gainPct: value != null && cost ? value / cost - 1 : null,
+      // All in: what's held, what sales brought and the dividends, against
+      // everything paid. Null without a price for what's still held.
+      total: units && value == null ? null : (gain || 0) + realized + dividends,
+      flows,
     };
   }
   // The first sale the buys before it can't cover, or null: holdingOf
   // would quietly sell only what was held (nothing, for a sale logged before
-  // a same-day buy), so the form doesn't let the list get that way.
-  function shortSale(buys) {
-    let units = 0;
+  // a same-day buy), so the form doesn't let the list get that way. A split
+  // between a buy and a sale counts, so selling the new shares is fine.
+  function shortSale(buys, events) {
+    let units = 0, k = 0;
+    const evs = sortEvents(events);
     for (const b of sortBuys(buys || [])) {
+      for (; k < evs.length && evs[k][0] <= b.date; k++) if (evs[k][2] > 0 && evs[k][2] !== 1) units *= evs[k][2];
       if (!b.sell) { units += b.units; continue; }
       if (b.units > units + 1e-9) return { sale: b, held: Math.max(0, units) };
       units -= b.units;
     }
     return null;
+  }
+  // The yearly rate that makes the money in and out (holdingOf's flows,
+  // and what's held now as money out on `day`) come to nothing: the
+  // money-weighted return, so a buy made last month counts for a month.
+  // Null with nothing both in and out, or under a year (a month's 2% isn't
+  // "27% a year").
+  const YEAR_MS = 365.25 * 864e5;
+  function yearlyReturn(flows, value, day) {
+    const f = (flows || []).filter((x) => x && isDay(x[0]) && isFinite(x[1]) && x[1]).slice();
+    if (value > 0 && isDay(day)) f.push([day, value]);
+    if (!f.some((x) => x[1] < 0) || !f.some((x) => x[1] > 0)) return null;
+    f.sort((a, b) => a[0].localeCompare(b[0]));
+    const t0 = Date.parse(f[0][0] + "T00:00:00Z");
+    const ts = f.map((x) => [(Date.parse(x[0] + "T00:00:00Z") - t0) / YEAR_MS, x[1]]);
+    if (ts[ts.length - 1][0] < 1) return null;
+    const npv = (r) => ts.reduce((s2, [t, v]) => s2 + v / Math.pow(1 + r, t), 0);
+    let lo = -0.9999, hi = 1;
+    while (npv(hi) > 0 && hi < 1e4) hi *= 2;
+    if (npv(lo) * npv(hi) > 0) return null;
+    for (let i = 0; i < 200 && hi - lo > 1e-9; i++) {
+      const mid = (lo + hi) / 2;
+      if (npv(mid) > 0) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+  // What everything you held was worth on each day, beside the money put
+  // in so far (buys and fees, less what sales brought back): [[day, worth,
+  // put in]], from the first buy on, on the days with prices. Each ticker's
+  // shares are the ones held that day, at that day's price as it was then
+  // (not adjusted), so a split doesn't show as a drop. A day a ticker held
+  // has no price for yet is left out rather than drawn as a dip.
+  // items: [{ buys, points, events }].
+  function worthSeries(items) {
+    const held = (items || []).filter((it) => it.buys && it.buys.length);
+    if (!held.length) return null;
+    const tracks = held.map((it) => {
+      const steps = [];
+      let units = 0, put = 0, k = 0;
+      const evs = sortEvents(it.events);
+      for (const b of sortBuys(it.buys)) {
+        for (; k < evs.length && evs[k][0] <= b.date; k++) if (evs[k][2] > 0 && evs[k][2] !== 1) { units *= evs[k][2]; steps.push([evs[k][0], units, put]); }
+        const fee = b.fee || 0;
+        if (b.sell) { const take = Math.min(b.units, units); units -= take; put -= take * b.price - fee * (b.units ? take / b.units : 0); }
+        else { units += b.units; put += b.units * b.price + fee; }
+        steps.push([b.date, units, put]);
+      }
+      for (; k < evs.length; k++) if (evs[k][2] > 0 && evs[k][2] !== 1) { units *= evs[k][2]; steps.push([evs[k][0], units, put]); }
+      return { steps, raw: (it.points || []).map((p) => [p[0], rawOf(p)]) };
+    });
+    const first = tracks.map((t) => t.steps[0][0]).sort()[0];
+    const days = [...new Set(tracks.flatMap((t) => t.raw.map((p) => p[0]).filter((d) => d >= first)))].sort();
+    if (!days.length) return null;
+    const out = [];
+    for (const day of days) {
+      let worth = 0, put = 0, ok = true;
+      for (const t of tracks) {
+        let s2 = null;
+        for (let i = t.steps.length - 1; i >= 0; i--) if (t.steps[i][0] <= day) { s2 = t.steps[i]; break; }
+        if (!s2) continue;
+        put += s2[2];
+        if (s2[1] > 1e-9) {
+          const price = priceOn(t.raw, day);
+          if (price == null) { ok = false; break; }
+          worth += s2[1] * price;
+        }
+      }
+      if (!ok) continue;
+      out.push([day, Math.round(worth * 100) / 100, Math.round(put * 100) / 100]);
+    }
+    return out.length ? out : null;
   }
   // Whether a price is at the ticker's target, whichever way it points.
   const atTarget = (w, price) => !!(w && w.target && price != null && (w.targetAbove ? price >= w.target : price <= w.target));
@@ -278,16 +398,42 @@
   const signedUsd = (v) => (v == null ? "" : ltr((v >= 0 ? "+" : "") + usd(Math.round(v * 100) / 100)));
 
   // Tiingo's daily rows → [[day, close]]. The adjusted close, so a split
-  // doesn't draw as a crash and a dividend counts as part of the return.
+  // doesn't draw as a crash and a dividend counts as part of the return;
+  // the day's price as it was then rides third when it differs ([day,
+  // adjusted, as it was]), for filling in a buy and what you held was worth.
+  const round4 = (v) => Math.round(v * 10000) / 10000;
   function parseTiingo(rows) {
     if (!Array.isArray(rows)) return [];
     const out = [];
     for (const r of rows) {
       const day = r && typeof r.date === "string" ? r.date.slice(0, 10) : "";
       const close = r && (isFinite(r.adjClose) && r.adjClose > 0 ? +r.adjClose : isFinite(r.close) && r.close > 0 ? +r.close : null);
-      if (isDay(day) && close) out.push([day, Math.round(close * 10000) / 10000]);
+      if (!isDay(day) || !close) continue;
+      const raw = r && isFinite(r.close) && r.close > 0 ? round4(+r.close) : null;
+      out.push(raw != null && raw !== round4(close) ? [day, round4(close), raw] : [day, round4(close)]);
     }
     return out.sort((a, b) => a[0].localeCompare(b[0]));
+  }
+  // A close as it was on its day (a point's third value, else its only one).
+  const rawOf = (p) => (p.length > 2 ? p[2] : p[1]);
+  const rawSeries = (points) => (points || []).map((p) => [p[0], rawOf(p)]);
+  function parseEvents(rows) {
+    if (!Array.isArray(rows)) return [];
+    const out = [];
+    for (const r of rows) {
+      const day = r && typeof r.date === "string" ? r.date.slice(0, 10) : "";
+      const cash = r && isFinite(r.divCash) && +r.divCash > 0 ? Math.round(+r.divCash * 1e6) / 1e6 : 0;
+      const split = r && isFinite(r.splitFactor) && +r.splitFactor > 0 && +r.splitFactor !== 1 ? +r.splitFactor : 1;
+      if (isDay(day) && (cash || split !== 1)) out.push([day, cash, split]);
+    }
+    return sortEvents(out);
+  }
+  // Kept events with a later answer's laid over them, a day at a time.
+  function joinEvents(old, fresh) {
+    const m = new Map();
+    for (const e of sortEvents(old)) m.set(e[0], e);
+    for (const e of sortEvents(fresh)) m.set(e[0], e);
+    return [...m.values()].sort((a, b) => a[0].localeCompare(b[0]));
   }
   // A split or a dividend in the new rows rewrites every adjusted close
   // before it, so the whole history is asked for again rather than patched.
@@ -394,40 +540,47 @@
 
   // ---------- pure: the same money in the S&P 500 ----------
   // What your buys and sales on a ticker would have come to in SPY: each
-  // buy's dollars buy SPY at that day's close, each sale takes the same
-  // dollars back out (no more than is there). SPY's closes are adjusted, so
-  // its dividends count as reinvested; yours aren't logged and don't.
+  // buy's dollars (its fee too) buy SPY at that day's close, each sale takes
+  // the dollars it brought back out (no more than is there). SPY's closes
+  // are adjusted, so its dividends count as reinvested; yours count as the
+  // cash they paid. `events` are the ticker's splits and dividends.
   // Null when SPY's prices don't reach back to the first buy.
   const BENCHMARK = "SPY";
   const SAME_INDEX = new Set(["SPY", "VOO", "IVV", "SPLG"]);
-  function benchmarkOf(buys, spy, last) {
+  function benchmarkOf(buys, spy, last, events) {
     const list = sortBuys(buys || []);
     if (!list.length || !spy || !spy.length || list[0].date < spy[0][0] || last == null) return null;
-    let held = 0, cash = 0, paid = 0, spyUnits = 0, spyCash = 0;
+    const evs = sortEvents(events);
+    let held = 0, cash = 0, paid = 0, spyUnits = 0, spyCash = 0, k = 0;
     for (const b of list) {
+      for (; k < evs.length && evs[k][0] <= b.date; k++) if (evs[k][2] > 0 && evs[k][2] !== 1) held *= evs[k][2];
       const at = priceOn(spy, b.date);
       if (!at) return null;
+      const fee = b.fee || 0;
       if (b.sell) {
         const take = Math.min(b.units, held);
-        held -= take; cash += take * b.price;
-        const out = Math.min(take * b.price / at, spyUnits);
+        const got = take * b.price - fee * (take / b.units);
+        held -= take; cash += got;
+        const out = Math.min(got / at, spyUnits);
         spyUnits -= out; spyCash += out * at;
       } else {
-        held += b.units; paid += b.units * b.price;
-        spyUnits += b.units * b.price / at;
+        const money = b.units * b.price + fee;
+        held += b.units; paid += money;
+        spyUnits += money / at;
       }
     }
     if (!paid) return null;
     // What you hold now is holdingOf's, the one place holdings are worked out.
-    const mine = (holdingOf(list, last).value || 0) + cash;
+    const h = holdingOf(list, last, events);
+    const mine = (h.value || 0) + cash + h.dividends;
     const theirs = spyUnits * spy[spy.length - 1][1] + spyCash;
     return { paid, mine, theirs, gainPct: mine / paid - 1, spyGainPct: theirs / paid - 1, ahead: mine - theirs, asOf: spy[spy.length - 1][0] };
   }
   // The same over several tickers' buys together (the "You hold" line).
   function benchmarkAll(items, spy) {
     let paid = 0, mine = 0, theirs = 0, any = false;
-    for (const { buys, last } of items) {
-      const b = benchmarkOf(buys, spy, last);
+    for (const { buys, last, events } of items) {
+      const b = benchmarkOf(buys, spy, last, events);
       if (!b) { if (buys && buys.length) return null; continue; }
       any = true; paid += b.paid; mine += b.mine; theirs += b.theirs;
     }
@@ -559,6 +712,7 @@
   const keyOf = () => String((state.data.settings.mediaKeys || {}).tiingo || "").trim();
   const proxyOf = () => window.LifeLogPlatform.steamProxy(state.data.settings.steam && state.data.settings.steam.proxyUrl);
   const pointsOf = (symbol) => (prices && prices[symbol] && prices[symbol].points) || [];
+  const eventsOf = (symbol) => (prices && prices[symbol] && prices[symbol].events) || [];
   // What stands between you and prices, in words, or "" when nothing does.
   function blocker() {
     if (!keyOf()) return "key";
@@ -591,16 +745,20 @@
       await loadPrices();
       if (!force && !stale(symbol)) return false;
       const had = prices[symbol];
-      const since = had && had.points && had.points.length && !force ? had.points[had.points.length - 1][0] : "1980-01-01";
+      // A copy from before splits and dividends were kept (no events) is
+      // asked for in full once, on its next due close: no extra request.
+      const since = had && had.points && had.points.length && had.events && !force ? had.points[had.points.length - 1][0] : "1980-01-01";
       try {
         let rows = await tiingo("/tiingo-prices/" + encodeURIComponent(symbol) + "?startDate=" + since);
         let points = parseTiingo(rows);
         if (had && had.points && had.points.length && since !== "1980-01-01" && rewritesHistory(rows.slice(1))) {
           rows = await tiingo("/tiingo-prices/" + encodeURIComponent(symbol) + "?startDate=1980-01-01");
           points = parseTiingo(rows);
-          prices[symbol] = { at: new Date().toISOString(), points };
+          prices[symbol] = { at: new Date().toISOString(), points, events: parseEvents(rows) };
+        } else if (since === "1980-01-01") {
+          prices[symbol] = { at: new Date().toISOString(), points, events: parseEvents(rows) };
         } else {
-          prices[symbol] = { at: new Date().toISOString(), points: since === "1980-01-01" ? points : joinSeries(had.points, points) };
+          prices[symbol] = { at: new Date().toISOString(), points: joinSeries(had.points, points), events: joinEvents(had.events, parseEvents(rows)) };
         }
         lastProblem.delete(symbol);
         savePrices();
@@ -887,7 +1045,7 @@
   function benchBlock(w) {
     if (SAME_INDEX.has(w.symbol) || !(w.buys && w.buys.length)) return null;
     const all = seriesOf(w.symbol);
-    const b = benchmarkOf(w.buys, benchPoints(), all.length ? all[all.length - 1][1] : null);
+    const b = benchmarkOf(w.buys, benchPoints(), all.length ? all[all.length - 1][1] : null, eventsOf(w.symbol));
     if (!b) return null;
     const p = el("p", "invest-bench");
     p.appendChild(ico("activity"));
@@ -938,7 +1096,7 @@
     const box = el("div", "invest-chart no-swipe");
     outer.appendChild(box);
     const W = 1000, H = 300;
-    const hold = holdingOf(w.buys, lastPt ? lastPt[1] : null);
+    const hold = holdingOf(w.buys, lastPt ? lastPt[1] : null, eventsOf(w.symbol));
     let lo = Math.min(...pts.map((p) => p[1])), hi = Math.max(...pts.map((p) => p[1]));
     // A target (or your average cost) close to the range joins the scale; one
     // far off would flatten the line to fit it, so it's left to the chip above.
@@ -1155,6 +1313,26 @@
     return out.filter((_, k) => k % every === 0).filter((a) => a.i / (n - 1) < 0.96);
   }
 
+  // Under the four numbers: the dividends paid, the yearly return and, when
+  // sales or dividends make it differ from the gain, everything together.
+  // `h` is holdingOf's (or the same fields summed); null with none to say.
+  function returnsLine(h, yearly) {
+    const bits = [];
+    if (h.dividends >= 0.005) bits.push([i18n.t("Dividends"), usd(h.dividends), "", i18n.t("Cash dividends on the shares held the day before each, before tax")]);
+    if (yearly != null) bits.push([i18n.t("A year"), pct(yearly), yearly >= 0 ? "invest-up" : "invest-down", i18n.t("The money-weighted return a year: each buy, sale and dividend counted from its own day")]);
+    if (h.total != null && (Math.abs(h.realized) >= 0.005 || h.dividends >= 0.005)) bits.push([i18n.t("All in"), signedUsd(h.total), h.total >= 0 ? "invest-up" : "invest-down", i18n.t("What's held, what sales brought and the dividends, against all that was paid")]);
+    if (!bits.length) return null;
+    const p = el("p", "invest-returns");
+    for (const [label, value, cls, tip] of bits) {
+      const span = el("span", "invest-return");
+      span.title = tip;
+      span.appendChild(document.createTextNode(label + " "));
+      span.appendChild(el("b", cls || null, value));
+      p.appendChild(span);
+    }
+    return p;
+  }
+
   // What you hold of a ticker: from the buys and sells you've logged, at
   // average cost. Typed in by hand (Blink has no export), so it stays small:
   // the four numbers, then the buys, each opening to edit.
@@ -1173,7 +1351,7 @@
       block.appendChild(el("p", "invest-pins-empty", i18n.t("Log what you bought (and sold) to see what you hold, what it cost and how it's doing.")));
       return block;
     }
-    const hd = holdingOf(buys, last ? last[1] : null);
+    const hd = holdingOf(buys, last ? last[1] : null, eventsOf(w.symbol));
     const stats = el("div", "invest-hold-stats");
     const stat = (label, value, cls) => {
       const s2 = el("div", "invest-stat");
@@ -1190,6 +1368,8 @@
     if (Math.abs(hd.realized) >= 0.005) {
       block.appendChild(el("p", "invest-hold-note", i18n.t("Sales so far made {amount} over what those shares cost.", { amount: signedUsd(hd.realized) })));
     }
+    const more = returnsLine(hd, yearlyReturn(hd.flows, hd.value, last && last[0]));
+    if (more) block.appendChild(more);
     const list = el("div", "invest-buys");
     for (const b of [...sortBuys(buys)].reverse()) {
       const row = el("button", "invest-buy" + (b.sell ? " is-sell" : ""));
@@ -1197,9 +1377,9 @@
       row.appendChild(el("span", "invest-buy-k", b.sell ? i18n.t("Sell") : i18n.t("Buy")));
       const l = el("span", "invest-pin-l");
       l.appendChild(el("b", null, i18n.t("{units} at {price}", { units: unitsText(b.units), price: usd(b.price) })));
-      l.appendChild(el("span", null, Dates().day(b.date) + (b.note ? " · " + b.note : "")));
+      l.appendChild(el("span", null, Dates().day(b.date) + (b.fee ? " · " + i18n.t("{amount} fee", { amount: usd(b.fee) }) : "") + (b.note ? " · " + b.note : "")));
       row.appendChild(l);
-      row.appendChild(el("span", "invest-pin-v", usd(b.units * b.price)));
+      row.appendChild(el("span", "invest-pin-v", usd(b.units * b.price + (b.sell ? -1 : 1) * (b.fee || 0))));
       row.setAttribute("aria-label", (b.sell ? i18n.t("Edit sale on {date}", { date: Dates().day(b.date) }) : i18n.t("Edit buy on {date}", { date: Dates().day(b.date) })));
       row.onclick = () => openBuyModal(b, w);
       list.appendChild(row);
@@ -1349,8 +1529,8 @@
     card.appendChild(h);
     const range = uiState().range;
     // Everything you hold, together, when any ticker has buys.
-    const held = watchlist().map((w) => { const all = seriesOf(w.symbol); return holdingOf(w.buys, all.length ? all[all.length - 1][1] : null); })
-      .filter((x) => x.units > 0);
+    const every = watchlist().filter((w) => w.buys && w.buys.length).map((w) => { const all = seriesOf(w.symbol); return { w, last: all.length ? all[all.length - 1] : null, h: holdingOf(w.buys, all.length ? all[all.length - 1][1] : null, eventsOf(w.symbol)) }; });
+    const held = every.map((x) => x.h).filter((x) => x.units > 0);
     if (held.length) {
       const value = held.reduce((t, x) => t + (x.value || 0), 0);
       const cost = held.filter((x) => x.value != null).reduce((t, x) => t + x.cost, 0);
@@ -1360,14 +1540,30 @@
       sum.appendChild(el("b", null, usd(value)));
       if (cost) sum.appendChild(el("span", gain >= 0 ? "invest-up" : "invest-down", signedUsd(gain) + " (" + pct(gain / cost) + ")"));
       card.appendChild(sum);
+      // The dividends, yearly return and all in over every ticker bought,
+      // sold out of ones too; no yearly figure while one held has no price.
+      const tot = { dividends: 0, realized: 0, total: 0 };
+      const flows = [];
+      let day = "", priced = true;
+      for (const x of every) {
+        tot.dividends += x.h.dividends; tot.realized += x.h.realized;
+        if (x.h.total == null) priced = false; else tot.total += x.h.total;
+        flows.push(...x.h.flows);
+        if (x.last && x.last[0] > day) day = x.last[0];
+      }
+      if (!priced) tot.total = null;
+      const more = returnsLine(tot, priced ? yearlyReturn(flows, value, day) : null);
+      if (more) { more.classList.add("invest-sum-returns"); card.appendChild(more); }
       // Everything bought and sold, against the same money in SPY.
-      const all = benchmarkAll(watchlist().filter((w) => w.buys && w.buys.length).map((w) => { const c = seriesOf(w.symbol); return { buys: w.buys, last: c.length ? c[c.length - 1][1] : null }; }), benchPoints());
+      const all = benchmarkAll(every.map((x) => ({ buys: x.w.buys, last: x.last ? x.last[1] : null, events: eventsOf(x.w.symbol) })), benchPoints());
       if (all) {
         const line = el("p", "invest-bench invest-bench-sum");
         line.appendChild(ico("activity"));
         line.appendChild(el("span", null, i18n.t("All you bought: {mine}. The same money in the S&P 500: {theirs}.", { mine: pct(all.gainPct), theirs: pct(all.spyGainPct) })));
         card.appendChild(line);
       }
+      const worth = worthCard(every.map((x) => x.w), range);
+      if (worth) card.appendChild(worth);
     }
     for (const w of watchlist()) {
       const all = seriesOf(w.symbol);
@@ -1385,7 +1581,7 @@
         sym.appendChild(el("i", hit ? "is-hit" : "", hit ? i18n.t("At target {price}", { price: usd(w.target) }) : targetWords(w)));
       }
       t.appendChild(sym);
-      const hd = holdingOf(w.buys, last);
+      const hd = holdingOf(w.buys, last, eventsOf(w.symbol));
       t.appendChild(el("span", null, hd.units > 0 ? unitsText(hd.units) + (hd.value != null ? " · " + usd(hd.value) : "") : (w.name || "")));
       row.appendChild(t);
       row.appendChild(sparkline(pts, ch == null || ch >= 0));
@@ -1398,6 +1594,88 @@
     }
     card.appendChild(el("p", "invest-foot", i18n.t("Prices from Tiingo: closes adjusted for splits and dividends, and today's price from IEX every 15 minutes or so while the US market is open. Only the tickers are sent.")));
     return card;
+  }
+
+  // What everything held was worth on each day of the range, beside the
+  // money put in by then; hovering (or a finger) reads a day.
+  function worthCard(list, range) {
+    const series = worthSeries(list.map((w) => ({ buys: w.buys, points: seriesOf(w.symbol), events: eventsOf(w.symbol) })));
+    const pts = series ? sliceRange(series, range) : [];
+    if (pts.length < 2) return null;
+    const wrap = el("div", "invest-worth");
+    const head = el("div", "invest-worth-h");
+    head.appendChild(el("b", null, i18n.t("Worth, {range}", { range: rangeWords(range) })));
+    const key = el("span", "invest-worth-key");
+    key.appendChild(el("i", "is-worth"));
+    key.appendChild(el("span", null, i18n.t("Worth")));
+    key.appendChild(el("i", "is-put"));
+    key.appendChild(el("span", null, i18n.t("Put in")));
+    head.appendChild(key);
+    wrap.appendChild(head);
+    const box = el("div", "invest-worth-chart no-swipe");
+    const W = 1000, H = 120, n = pts.length;
+    let lo = Math.min(...pts.map((p) => Math.min(p[1], p[2]))), hi = Math.max(...pts.map((p) => Math.max(p[1], p[2])));
+    if (hi === lo) { hi += 1; lo -= 1; }
+    const pad = (hi - lo) * 0.08;
+    lo -= pad; hi += pad;
+    const x = (i) => (i / (n - 1)) * W;
+    const y = (v) => (1 - (v - lo) / (hi - lo)) * H;
+    const line = (k) => pts.map((p, i) => (i ? "L" : "M") + x(i).toFixed(2) + "," + y(p[k]).toFixed(2)).join("");
+    const up = pts[n - 1][1] >= pts[n - 1][2];
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", "aria-hidden": "true" });
+    const d = line(1);
+    svg.appendChild(svgEl("path", { d: d + `L${W},${H}L0,${H}Z` }, "invest-area " + (up ? "up" : "down")));
+    svg.appendChild(svgEl("path", { d: line(2) }, "invest-putline"));
+    key.firstChild.classList.add(up ? "up" : "down");
+    svg.appendChild(svgEl("path", { d }, "invest-line " + (up ? "up" : "down")));
+    const cross = svgEl("line", { x1: 0, x2: 0, y1: 0, y2: H }, "invest-cross");
+    cross.style.display = "none";
+    svg.appendChild(cross);
+    box.appendChild(svg);
+    const tip = el("div", "invest-tip");
+    tip.hidden = true;
+    const dot = el("span", "invest-dot");
+    dot.hidden = true;
+    box.appendChild(dot);
+    box.appendChild(tip);
+    const show = (clientX) => {
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return;
+      const i = Math.max(0, Math.min(n - 1, Math.round(((clientX - r.left) / r.width) * (n - 1))));
+      const [day, worth, put] = pts[i];
+      const px = i / (n - 1) * r.width, py = y(worth) / H * r.height;
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
+      dot.hidden = false; dot.style.left = px + "px"; dot.style.top = py + "px";
+      tip.innerHTML = "";
+      tip.appendChild(el("b", null, usd(worth)));
+      tip.appendChild(el("span", null, Dates().day(day, { weekday: true, year: "auto" })));
+      tip.appendChild(el("span", null, i18n.t("Put in {amount}", { amount: usd(put) })));
+      tip.hidden = false;
+      const half = Math.min(110, r.width / 2);
+      tip.style.left = Math.min(Math.max(px, half), r.width - half) + "px";
+      tip.style.top = py + "px";
+      tip.classList.toggle("below", py < 70);
+    };
+    const hide = () => { tip.hidden = true; dot.hidden = true; cross.style.display = "none"; };
+    svg.addEventListener("pointermove", (e) => show(e.clientX));
+    svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+    svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") hide(); });
+    svg.addEventListener("pointercancel", hide);
+    svg.style.touchAction = "pan-y";
+    wrap.appendChild(box);
+    // The ends, and how far the worth is over (or under) what was put in:
+    // a change in % would count new buys as growth.
+    const first = pts[0], last = pts[n - 1];
+    const foot = el("div", "invest-worth-foot");
+    foot.appendChild(el("span", null, Dates().day(first[0], { year: "auto" })));
+    const now = el("span");
+    const over = last[1] - last[2];
+    now.appendChild(el("b", up ? "invest-up" : "invest-down", usd(Math.abs(Math.round(over * 100) / 100))));
+    now.appendChild(document.createTextNode(" " + (up ? i18n.t("over what's put in") : i18n.t("under what's put in"))));
+    now.title = i18n.t("Worth {worth}, put in {put}", { worth: usd(last[1]), put: usd(last[2]) });
+    foot.appendChild(now);
+    wrap.appendChild(foot);
+    return wrap;
   }
 
   const todayStr = () => {
@@ -1618,10 +1896,14 @@
   }
   function buyTotal() {
     const u = cleanUnits($("#investBuyUnits").value), p = cleanPrice($("#investBuyPrice").value);
-    $("#investBuyTotal").textContent = u && p ? (buyKind === "sell" ? i18n.t("You got {amount} in all.", { amount: usd(u * p) }) : i18n.t("You paid {amount} in all.", { amount: usd(u * p) })) : i18n.t("The close on that day is filled in; change it to what you paid.");
+    const fee = cleanFee($("#investBuyFee").value) || 0;
+    const total = u && p ? u * p + (buyKind === "sell" ? -fee : fee) : null;
+    $("#investBuyTotal").textContent = total != null && !isNaN(total) ? (buyKind === "sell" ? i18n.t("You got {amount} in all.", { amount: usd(total) }) : i18n.t("You paid {amount} in all.", { amount: usd(total) })) : i18n.t("The close on that day is filled in; change it to what you paid.");
   }
   function closeOn(day) {
-    const all = buyWatch ? pointsOf(buyWatch.symbol) : [];
+    // The price as it was that day, not adjusted for later splits and
+    // dividends: what the broker charged.
+    const all = buyWatch ? rawSeries(pointsOf(buyWatch.symbol)) : [];
     const p = priceOn(all, day);
     return p != null ? String(Math.round(p * 100) / 100) : "";
   }
@@ -1635,6 +1917,7 @@
     $("#investBuyDate").max = todayStr();
     $("#investBuyUnits").value = buy ? String(buy.units) : "";
     $("#investBuyPrice").value = buy ? String(buy.price) : closeOn($("#investBuyDate").value);
+    $("#investBuyFee").value = buy && buy.fee ? String(buy.fee) : "";
     $("#investBuyNote").value = (buy && buy.note) || "";
     $("#deleteInvestBuyBtn").hidden = !buy;
     setBuyKind(buy && buy.sell ? "sell" : "buy");
@@ -1649,12 +1932,15 @@
     if (!isDay(date)) { toast(buyKind === "sell" ? i18n.t("Pick the day of the sale") : i18n.t("Pick the day of the buy"), true); return; }
     if (!cleanUnits($("#investBuyUnits").value)) { toast(i18n.t("Shares is a number above zero, like 2.5"), true); return; }
     if (!cleanPrice($("#investBuyPrice").value)) { toast(i18n.t("The price is a number above zero, like 550"), true); return; }
+    const fee = cleanFee($("#investBuyFee").value);
+    if (Number.isNaN(fee)) { toast(i18n.t("The fee is a number in dollars, like 1.50"), true); return; }
+    if (buyKind === "sell" && fee && fee >= cleanUnits($("#investBuyUnits").value) * cleanPrice($("#investBuyPrice").value)) { toast(i18n.t("The fee is more than the sale brought in"), true); return; }
     const now = new Date().toISOString();
-    const fields = { date, units: $("#investBuyUnits").value, price: $("#investBuyPrice").value, sell: buyKind === "sell", note: $("#investBuyNote").value, updatedAt: now };
+    const fields = { date, units: $("#investBuyUnits").value, price: $("#investBuyPrice").value, fee: fee || "", sell: buyKind === "sell", note: $("#investBuyNote").value, updatedAt: now };
     const list = (w.buys || []).slice();
     if (buyKind === "sell") {
       const others = list.filter((b) => !editingBuy || b.id !== editingBuy.id);
-      if (!(holdingOf(others.filter((b) => b.date <= date), null).units > 0)) { toast(i18n.t("Nothing held on that day to sell: log the buy first"), true); return; }
+      if (!(holdingOf(others.filter((b) => b.date <= date), null, eventsOf(w.symbol)).units > 0)) { toast(i18n.t("Nothing held on that day to sell: log the buy first"), true); return; }
     }
     if (editingBuy) {
       const i = list.findIndex((b) => b.id === editingBuy.id);
@@ -1665,7 +1951,7 @@
     } else {
       list.push(sanitizeBuy({ id: newId(), ...fields, createdAt: now }));
     }
-    const short = shortSale(list);
+    const short = shortSale(list, eventsOf(w.symbol));
     if (short) {
       toast(i18n.t("The sale on {date} would be more than the {units} held then. Check the dates and shares.", { date: Dates().day(short.sale.date, { year: "auto" }), units: unitsText(short.held) }), true);
       return;
@@ -1680,7 +1966,7 @@
     if (!w || !editingBuy) return;
     const gone = (w.buys || []).find((b) => b.id === editingBuy.id);
     if (!gone) return;
-    if (!gone.sell && shortSale(w.buys.filter((b) => b.id !== gone.id))) {
+    if (!gone.sell && shortSale(w.buys.filter((b) => b.id !== gone.id), eventsOf(w.symbol))) {
       toast(i18n.t("A later sale needs this buy: change or remove the sale first"), true);
       return;
     }
@@ -1765,7 +2051,7 @@
       const last = all.length ? all[all.length - 1] : null;
       const prev = all.length > 1 ? all[all.length - 2][1] : null;
       if (last && last[0] > lastDay) lastDay = last[0];
-      const hd = holdingOf(w.buys, last ? last[1] : null);
+      const hd = holdingOf(w.buys, last ? last[1] : null, entry.events);
       if (hd.units > 0 && hd.value != null) {
         any = true;
         value += hd.value; cost += hd.cost;
@@ -1830,6 +2116,10 @@
     for (const w of list) {
       const all = pointsOf(w.symbol);
       out[w.symbol] = { points: sliceRange(all, "1M").length > 1 ? all.slice(-Math.max(2, sliceRange(all, "1M").length + 1)) : all.slice(-2) };
+      // Splits and dividends since the first buy, for the shares held.
+      const first = w.buys && w.buys.length ? sortBuys(w.buys)[0].date : null;
+      const evs = first ? eventsOf(w.symbol).filter((e) => e[0] >= first) : [];
+      if (evs.length) out[w.symbol].events = evs;
       const l = liveOf(w.symbol);
       if (l) out[w.symbol].live = { price: l.price, day: l.day, at: l.at };
     }
@@ -1875,6 +2165,7 @@
     for (const b of document.querySelectorAll("#investBuyForm .seg-btn")) b.onclick = () => setBuyKind(b.dataset.kind);
     $("#investBuyUnits").addEventListener("input", buyTotal);
     $("#investBuyPrice").addEventListener("input", buyTotal);
+    $("#investBuyFee").addEventListener("input", buyTotal);
     $("#investBuyDate").addEventListener("change", () => { if (!editingBuy) { const p = closeOn($("#investBuyDate").value); if (p) $("#investBuyPrice").value = p; } buyTotal(); });
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && saveTimer) flush(); });
     window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
@@ -1885,8 +2176,8 @@
     openWatchModal, closeWatchModal, openPinModal, closePinModal, openBuyModal, closeBuyModal,
     checkTargets, select, widgetSnapshot, homeGlance, homeSpark, openTicker,
     // pure, for tests and the bridge
-    sanitizeWatch, sanitizePin, sanitizeBuy, sanitizeDoc, cleanSymbol, cleanPrice, cleanUnits,
-    holdingOf, shortSale, compareDays, unitsText, signedUsd, widgetOf,
+    sanitizeWatch, sanitizePin, sanitizeBuy, sanitizeDoc, cleanSymbol, cleanPrice, cleanUnits, cleanFee,
+    holdingOf, shortSale, yearlyReturn, worthSeries, parseEvents, joinEvents, rawSeries, compareDays, unitsText, signedUsd, widgetOf,
     RANGES, rangeStart, sliceRange, priceOn, changeOf, pinSteps, spanLabel, pct, usd,
     parseTiingo, rewritesHistory, joinSeries, parseSearch,
     atTarget, benchmarkOf, benchmarkAll, BENCHMARK, SAME_INDEX,
