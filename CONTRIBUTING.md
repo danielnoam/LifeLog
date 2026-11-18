@@ -189,7 +189,8 @@ a saved-data change old versions can't read, `data.version` in
 updater ignores lower numbers). It bumps the three version places, folds
 every `changes/*.md` note into one `## [0.300.0] - date` entry in
 CHANGELOG.md and deletes the notes. Look at the diff, commit it as
-"Release 0.300.0", open the PR, merge on green. A release for a single
+"Release 0.300.0", open the PR and turn on auto-merge, so it merges
+itself when Tests go green. A release for a single
 change can write its note and run the tool in the same PR.
 
 **The three places,** so a bump by hand is the same as the tool's:
@@ -221,7 +222,14 @@ always runs; Markdown, the bridge and unit tests run none. A new suite or
 `src/` file goes into that map (`test/browseraffected.test.js` fails until
 it does). A merge to `main` and every release run every suite before
 anything deploys, so the smaller set never ships on its own. No review is required: anyone with
-write access merges on green, and Daniel decides who has write access. If
+write access merges on green. Turn on auto-merge as soon as the work is
+done (`gh pr merge <n> --auto --squash`, or the PR's "Enable auto-merge"
+button) so nobody waits for the run. `.github/workflows/auto-merge.yml`
+turns it on by itself for Daniel's PRs when they open or leave draft, so
+a PR that isn't finished yet is opened as a draft. It merges through the
+`AUTOMERGE_TOKEN` secret, not `GITHUB_TOKEN`: a merge made with
+`GITHUB_TOKEN` starts no other workflows, so `pages.yml` and the release
+builds would never run. Daniel decides who has write access. If
 `main` moved, merge it into the branch rather than rebasing. Never
 force-push `main`.
 

@@ -1,0 +1,27 @@
+# Turns on auto-merge (squash) for Daniel's own PRs, so they merge
+# themselves once Tests pass. Other people's PRs are never touched.
+# Uses AUTOMERGE_TOKEN, not GITHUB_TOKEN: a merge made with GITHUB_TOKEN
+# starts no workflows, so pages.yml and the APK and Windows release builds would never run.
+name: Auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  enable:
+    if: github.event.pull_request.user.login == 'danielnoam' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::AUTOMERGE_TOKEN is not set, so auto-merge was not turned on."
+            exit 0
+          fi
+          gh pr merge "$PR" --auto --squash
