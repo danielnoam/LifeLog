@@ -5,6 +5,7 @@
 //   const R = Keel.releases.create({ name: "Waypage", repo: () => build.repo, fetchText });
 //   await R.latest();  // { version, notes } of the newest release, or null
 //   await R.list();    // { stable, list: [test builds] }
+//   await R.check(mine, "android");  // the update to offer on this device's channel, or null
 //
 // Releases are tagged app-v<x.y.z>. A test build is the pre-release
 // test-<branch> (preview-<branch> before), whose notes start with
@@ -14,6 +15,13 @@
 // In a browser a test build is opened, not installed: open(p) puts it in
 // the cache "<name>-preview" as preview.json, and the service worker
 // (src/keel/sw-preview.js) serves that commit's files while it's there.
+//
+// Channels: "release" (the default) offers releases only. "unreleased"
+// also offers the newest build of main, which isn't a release: the app's
+// workflows build every merge to main, and the Pages deploy puts those
+// files under <site>/unreleased/ with build.json (tools/unreleased.js),
+// not on the Releases page. Hidden, not private: the repo is public, and
+// anyone with the address can download them.
 (function () {
   const API = "https://api.github.com/repos/";
 
@@ -58,6 +66,30 @@
     return host && name ? host[1] + "/" + name : null;
   }
 
+  // The GitHub Pages site of a repo: owner.github.io/repo/.
+  function siteOf(repo) {
+    const [owner, name] = String(repo || "").split("/");
+    return owner && name ? "https://" + owner.toLowerCase() + ".github.io/" + name + "/" : null;
+  }
+
+  // The update to offer, or null. `mine` is this build ({ version, sha, at }:
+  // app-build.json's version, sha and builtAt), `rel` the latest release
+  // ({ version }) or null, `u` the unreleased build for this device's kind
+  // ({ version, sha, at, url }) or null. Releases come first: a newer
+  // version is always offered. On "unreleased", a build of main from
+  // another commit, built later than this one and not behind its version,
+  // is offered too; the release it was cut from is offered over it.
+  function pick(channel, mine, rel, u) {
+    const v = (mine && mine.version) || "0.0.0";
+    if (channel === "unreleased" && u && u.sha && u.url && u.sha !== (mine && mine.sha) && !newer(v, u.version)
+      && (newer(u.version, v) || !(Date.parse(mine && mine.at) >= Date.parse(u.at)))
+      && !(rel && newer(rel.version, u.version))) {
+      return { channel: "unreleased", version: u.version, sha: u.sha, at: u.at, url: u.url };
+    }
+    if (rel && newer(rel.version, v)) return { channel: "release", version: rel.version, notes: rel.notes || "" };
+    return null;
+  }
+
   async function plainFetch(url, opts = {}) {
     const res = await fetch(url, { cache: "no-store", headers: opts.headers || {} });
     return { status: res.status, text: await res.text() };
@@ -80,8 +112,47 @@
     const running = typeof caches === "undefined" ? Promise.resolve(null)
       : caches.open(CACHE).then((c) => c.match("./preview.json")).then((r) => (r ? r.json() : null)).catch(() => null);
 
+    const site = () => (o.site && o.site()) || siteOf(repo());
+    const CHANNEL_KEY = o.channelKey || NAME.toLowerCase() + ".channel";
+
     return {
-      cache: CACHE, running, repo,
+      cache: CACHE, running, repo, site,
+      // "release" or "unreleased", kept on this device.
+      channel() {
+        try { return localStorage.getItem(CHANNEL_KEY) === "unreleased" ? "unreleased" : "release"; } catch (e) { return "release"; }
+      },
+      setChannel(c) {
+        try { if (c === "unreleased") localStorage.setItem(CHANNEL_KEY, c); else localStorage.removeItem(CHANNEL_KEY); } catch (e) { /* stays on release */ }
+      },
+      // unreleased/build.json from the site, each kind's file made a full
+      // address: { android: { version, sha, at, url }, windows: ... }. null
+      // when there is none yet; throws when the site can't be reached.
+      async unreleased() {
+        const s = site();
+        if (!s) return null;
+        const res = await get(s + "unreleased/build.json?t=" + Date.now(), {});
+        if (res.status === 404) return null;
+        if (res.status !== 200) throw new Error("HTTP " + res.status);
+        const j = JSON.parse(res.text) || {};
+        const out = {};
+        for (const k of Object.keys(j)) {
+          const e = j[k];
+          if (e && typeof e.file === "string" && /^[\w.-]+$/.test(e.file)) out[k] = { version: String(e.version || ""), sha: String(e.sha || ""), at: String(e.at || ""), url: s + "unreleased/" + e.file };
+        }
+        return out;
+      },
+      // The update to offer this build (mine: { version, sha, at }) on this
+      // device's channel, for `kind` ("android", "windows"), or null.
+      // Throws when nothing could be reached.
+      async check(mine, kind) {
+        const ch = this.channel();
+        const [rel, u] = await Promise.all([
+          this.latest().then((r) => ({ r }), (e) => ({ e })),
+          ch === "unreleased" ? this.unreleased().then((r) => ({ r }), (e) => ({ e })) : Promise.resolve({ r: null }),
+        ]);
+        if (rel.e && (ch !== "unreleased" || u.e)) throw rel.e;
+        return pick(ch, mine, rel.r || null, (u.r && u.r[kind]) || null);
+      },
       // { version, notes } of the latest release, or null when it isn't
       // one (no app-v tag). Throws when GitHub can't be reached.
       async latest() {
@@ -113,5 +184,5 @@
   }
 
   window.Keel = window.Keel || {};
-  window.Keel.releases = { create, newer, notesOf, parse, webRepo };
+  window.Keel.releases = { create, newer, notesOf, parse, webRepo, siteOf, pick };
 })();

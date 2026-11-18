@@ -231,12 +231,10 @@ force-push `main`.
   pass), version bump or not.
 - **What builds by default (2026-11-04):** the web app, the APK and the
   Windows app, nothing else unless Daniel asks. `android.yml` and
-  `desktop.yml` (Windows) build a push to `main` only when it carries a new
-  `APP_VERSION` (a release) or touches the native or build side
-  (`native/`, `src-tauri/`, `assets/`, the workflows, the build tools,
-  `package.json`, `capacitor.config.json`); a plain merge is web only,
-  since its PR already passed Tests (2026-11-08). Run either by hand to
-  build anyway. `ios.yml` builds
+  `desktop.yml` (Windows) build every push to `main` (2026-11-18, which
+  replaced 2026-11-08's web-only merges): a new `APP_VERSION` is a
+  release, and every merge is the **unreleased** channel's next build.
+  Run either by hand on a branch to build it. `ios.yml` builds
   only when run by hand (Actions → iOS app → Run workflow), and Linux only
   when `desktop.yml` is run by hand with **Linux too** ticked; on `main`
   either attaches to the current version's release. Pushes that only
@@ -248,6 +246,17 @@ force-push `main`.
   (and `latest.json` for the desktop updater, when its key is set).
 - The app's built-in updater reads the repo's latest release (the repo is
   public for this reason) and offers any version **higher** than its own.
+- **Unreleased builds (2026-11-18).** Each build of `main` also leaves
+  the artifact `unreleased-android` / `unreleased-windows` (the file and a
+  note, keel's `tools/unreleased.js`). `pages.yml` puts the newest of each
+  under the site's `unreleased/` with `build.json`, on every deploy and
+  again when a build of `main` finishes. They're never on the Releases
+  page: only Settings → About → **Unreleased builds** (Android and
+  Windows, per device) offers them, on the same update bar. Hidden, not
+  private: the repo is public and the address can be guessed. They keep
+  the last release's version, so the APK installs over the release and
+  the next release installs over it; on Windows the installer downloads
+  in the browser, since Tauri's updater skips a same-version build.
 
 **Test builds.** A pull request labelled `test` gets an APK and the
 Windows app, `test-android` or `test-desktop` just one (sooner);

@@ -3,6 +3,15 @@
 # main whether or not anything worked. The site is the repo as it stands, the
 # same files that branch deploy served (.nojekyll keeps them raw).
 #
+# It also serves the unreleased channel (2026-11-18): the newest build of
+# main (the APK and the Windows installer, which android.yml and
+# desktop.yml leave as the artifacts unreleased-android and
+# unreleased-windows) under unreleased/, with build.json, by keel's
+# tools/unreleased.js. Not on the Releases page, so only Settings → About →
+# Unreleased builds finds it. Hidden, not private: the repo is public and
+# the address can be guessed. Each deploy puts them in, and a finished
+# build of main deploys again to bring its file in.
+#
 # Until the repo's Settings → Pages → Source is "GitHub Actions", Pages is
 # still deploying from the branch on its own, so this says so and stops
 # rather than failing.
@@ -14,9 +23,14 @@ on:
     # Markdown included: the app shows CHANGELOG.md in Settings → About.
     paths-ignore: ["test/**", ".claude/**"]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Android app", "Desktop app"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -26,10 +40,14 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name != 'workflow_run'
     uses: ./.github/workflows/tests.yml
 
   deploy:
     needs: test
+    # After a build of main: only a build that worked, and the test job is
+    # skipped (main's head was tested by its own push, checked below).
+    if: always() && (needs.test.result == 'success' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -46,14 +64,40 @@ jobs:
             echo "::notice::Pages deploys from '$kind', not from this workflow. Set Settings → Pages → Source to GitHub Actions to gate it on the tests."
           fi
 
-      - uses: actions/checkout@v4
+      # After a build, main's head is deployed, never an older commit: the
+      # built one, or a newer one whose own deploy already passed its tests.
+      # Otherwise that deploy is still coming and will bring the file in.
+      - name: Which commit
+        id: at
         if: steps.source.outputs.kind == 'workflow'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILT: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != workflow_run ]; then echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"; exit 0; fi
+          HEAD=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$HEAD" = "$BUILT" ] || [ -n "$(gh run list -R "$GITHUB_REPOSITORY" -w pages.yml -c "$HEAD" -s success -L 1 --json databaseId --jq '.[].databaseId')" ]; then
+            echo "sha=$HEAD" >> "$GITHUB_OUTPUT"
+          else
+            echo "main is at ${HEAD:0:7}, whose own deploy hasn't passed yet; it brings the build in"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.at.outputs.sha
+        with:
+          ref: ${{ steps.at.outputs.sha }}
+
+      - name: The unreleased channel
+        if: steps.at.outputs.sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/unreleased.js fetch unreleased
 
       - uses: actions/upload-pages-artifact@v3
-        if: steps.source.outputs.kind == 'workflow'
+        if: steps.at.outputs.sha
         with:
           path: .
 
       - uses: actions/deploy-pages@v4
-        if: steps.source.outputs.kind == 'workflow'
+        if: steps.at.outputs.sha
         id: deploy

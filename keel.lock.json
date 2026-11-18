@@ -1,5 +1,5 @@
 {
-  "version": "0.11.0",
+  "version": "0.12.0",
   "files": {
     "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
     "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
@@ -9,10 +9,11 @@
     "src/keel/platform.js": "a3a178f83d9cd661a29a99eae4abbd62bfcc056f3831a9761cf012177e26e998",
     "src/keel/motion.js": "350c76efa84b6fd561b3109187fb5f6fdecbd573eb1a18da08800cdd72bb5eed",
     "src/keel/i18n.js": "e8b8b9655942190a1d7700f26680e2a254199334e3c321b609d89b18a5390dc8",
-    "src/keel/releases.js": "0cbd8bc150ad8201d9bac653d6737f3912a6371d12af954825082b7ed6be359c",
+    "src/keel/releases.js": "c8f5699889568696d4372c9b5f0c66d3cc9e3ca623bc257fdb82750512568745",
     "src/keel/sw-preview.js": "3c55e81926300b26d8038c27e3b97f85e9e29d78f195bbd9e1a86823db871c4c",
     "tools/release.js": "cde945173156ec316d7fff3f117f063665bb1549aac5d4b01e2ba30007bb3414",
     "tools/android-version.js": "70f2cb0950e023cb33301f39012f5c9aaa96ad0695a01e0150751bc8a41c5ce1",
+    "tools/unreleased.js": "9148e58dd1a0e961e8ee8f76ebbb5260d97d15cc3696050123208de0d47a8cf6",
     "tools/keel-sync.js": "e2283af6896d9e0c6d33fe57a67fbacd4d3a708e002c49f9b8e37929fe3038e3",
     "tools/keel-checks.js": "e03ff604b156ce021d8591ff4a22485ae85ef301c7ad17d23ded74f34fc11150",
     "test/keel.test.js": "520c4d3be61fb1667955618191c510216ada98550ee2c2822643f279cfdee76e",

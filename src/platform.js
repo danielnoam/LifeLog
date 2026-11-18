@@ -81,11 +81,14 @@
   const APK_MIME = "application/vnd.android.package-archive";
   // A test build (0.299.0) comes from its pre-release `tag` instead, and
   // `version` is then the file's name part (test-<branch>-<sha>).
-  async function downloadUpdate(version, onProgress, tag = "app-v" + version) {
+  // An unreleased build (2026-11-18) passes its own `url` (the site's
+  // unreleased/LifeLog.apk), and `version` is unreleased-<sha>.
+  async function downloadUpdate(version, onProgress, tag, url) {
+    tag = tag || "app-v" + version;
     if (os !== "android") return null;
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
     if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !K.build || !K.build.repo) return null;
-    const url = "https://github.com/" + K.build.repo + "/releases/download/" + tag + "/LifeLog.apk";
+    url = url || "https://github.com/" + K.build.repo + "/releases/download/" + tag + "/LifeLog.apk";
     const path = "LifeLog-" + version + ".apk";
     const listener = await FS.addListener("progress", (p) => {
       if (onProgress && p && p.contentLength > 0) onProgress(Math.min(1, p.bytes / p.contentLength));
@@ -110,7 +113,7 @@
       for (const f of files || []) {
         const name = typeof f === "string" ? f : f.name;
         const m = /^LifeLog-(\d+\.\d+\.\d+)\.apk$/.exec(name || "");
-        if ((m && !isNewer(m[1], currentVersion)) || /^LifeLog-test-.+\.apk$/.test(name || "")) await FS.deleteFile({ path: name, directory: "CACHE" });
+        if ((m && !isNewer(m[1], currentVersion)) || /^LifeLog-(test|unreleased)-.+\.apk$/.test(name || "")) await FS.deleteFile({ path: name, directory: "CACHE" });
       }
     } catch (e) { /* nothing to tidy */ }
   }
