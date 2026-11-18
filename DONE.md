@@ -11,6 +11,7 @@ Every release that adds a feature adds its line here in the same commit.
 
 ## The app as a whole
 
+- Settings → About → Unreleased builds (Android, Windows): the update bar also offers the newest build of main, served from the site's unreleased/, never the Releases page (next release)
 - English and Hebrew, picked in Settings → Appearance → Language (System follows the device): the whole app in gender-neutral Hebrew, right to left, with dates and numbers in the language; titles and names stay as typed (0.319.0)
 - Five tabs: Home, and Notebook, Timeline, Backlog, Ledger, each with modes (0.126.0, Home 0.306.0; Travel taken out, next release)
 - Home in the middle of the bar, where a fresh start opens: In progress covers, Coming up for two weeks (releases and episodes known to the day, recurring charges, habits left), a synced scratchpad with Make a note, notes pinned from a note's ⋯ menu; sections ordered and hidden under View (0.306.0)

@@ -2375,7 +2375,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="about" data-title="About" data-keywords="about errors crash bug log version test builds beta pull request preview branch changelog what's new changes release notes update github source code repo credits licence license open source">
+      <div class="settings-page" hidden data-page="about" data-title="About" data-keywords="about errors crash bug log version test builds unreleased channel nightly main beta pull request preview branch changelog what's new changes release notes update github source code repo credits licence license open source">
       <h2 class="settings-page-title" data-t>About</h2>
       <div class="about-head">
         <img class="about-icon" src="icon.svg" alt="" width="56" height="56" />
@@ -2397,6 +2397,10 @@
             <button type="button" class="sitem" id="errLogCopyBtn" data-t>Copy all</button>
             <button type="button" class="sitem" id="errLogClearBtn" data-t>Clear</button>
           </details>
+          <label class="sitem toggle-label" id="unreleasedRow" hidden>
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Unreleased builds</span></span><span class="sitem-sub"><span data-t>Every change once it's merged, before it's a release. This device only</span></span></span>
+            <input type="checkbox" class="switch" id="unreleasedSwitch" />
+          </label>
           <details class="gh-advanced" id="testBuilds" hidden>
             <summary class="sitem sitem-go"><span class="sitem-text"><span class="sitem-title"><span data-t>Test builds</span></span><span class="sitem-sub" id="testBuildsHint"></span></span></summary>
             <div id="testBuildsList"></div>

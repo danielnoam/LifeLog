@@ -5956,6 +5956,7 @@
     if (Platform.native) {
       // The app's files are already on the device; a worker would only be a
       // second cache of them, and its "new version" isn't the app's.
+      wireUnreleasedSwitch();
       checkForNewerApp();
       if (window.LifeLogAlerts) window.LifeLogAlerts.start({
         changed: () => Widgets.changed(),
@@ -5975,6 +5976,7 @@
       // The Windows and Linux app: its files are in the bundle like the
       // phones', so no worker, and a new version is a release to install.
       // Reminders and heads-ups are rung by src/desktop.js while it runs.
+      wireUnreleasedSwitch();
       checkForNewerApp();
       if (window.LifeLogAlerts) window.LifeLogAlerts.start({
         changed: () => {},
@@ -6052,14 +6054,33 @@
     if (!build || !build.repo) return;
     Platform.clearOldUpdates(APP_VERSION, isNewerVersion);
     try {
-      // keel's releases.js reads /releases/latest, which skips pre-releases.
-      const got = await window.LifeLogTestBuilds.releases.latest();
-      const latest = got && got.version;
-      if (!latest || latest === APP_VERSION) return;
-      if (window.LifeLogMerge.maxVersion(latest, APP_VERSION) !== latest) return;
-      if (latest === offeredUpdate) return;
-      offerUpdate(latest);
+      // keel's releases.js: a newer release (releases/latest skips
+      // pre-releases), or on Settings → About → Unreleased builds the newest
+      // build of main, from the site's unreleased/ (Android and Windows).
+      const kind = Platform.android ? "android" : Platform.windows ? "windows" : null;
+      const got = await window.LifeLogTestBuilds.releases.check({ version: APP_VERSION, sha: build.sha, at: build.builtAt }, kind);
+      if (!got) return;
+      const unreleased = got.channel === "unreleased" ? got : null;
+      if ((unreleased ? unreleased.sha : got.version) === offeredUpdate) return;
+      offerUpdate(got.version, unreleased);
     } catch (e) { /* offline — ask again next launch */ }
+  }
+
+  // Settings → About → Unreleased builds (2026-11-18): the channel, on the
+  // Android and Windows apps only (iPhone builds aren't made per merge, and
+  // the web copy is main already). Off goes back to releases; a bar already
+  // offering an unreleased build goes away.
+  function wireUnreleasedSwitch() {
+    const row = $("#unreleasedRow"), sw = $("#unreleasedSwitch");
+    if (!row || !sw) return;
+    const R = window.LifeLogTestBuilds.releases;
+    row.hidden = !(Platform.android || Platform.windows);
+    sw.checked = R.channel() === "unreleased";
+    sw.onchange = () => {
+      R.setChannel(sw.checked ? "unreleased" : "release");
+      if (!sw.checked && /^[0-9a-f]{40}$/.test(offeredUpdate)) { $("#updateBar").hidden = true; offeredUpdate = ""; }
+      checkForNewerApp();
+    };
   }
 
   // The update bar, as an updater. "Update" downloads the new APK inside the
@@ -6067,12 +6088,17 @@
   // installer is dismissed, "Install" reopens it without downloading again.
   // An app older than 0.179.0 has no plugins for this, and for that one step
   // the bar still sends you to the download in the phone's browser.
-  function offerUpdate(version) {
-    offeredUpdate = version;
+  // An unreleased build (2026-11-18) has main's commit instead of a new
+  // version: the bar names it by that, and its APK comes from the site.
+  function offerUpdate(version, unreleased) {
+    const key = unreleased ? unreleased.sha : version;
+    const short = unreleased ? unreleased.sha.slice(0, 7) : "";
+    const isOut = () => (unreleased ? i18n.t("Unreleased build {sha} is ready", { sha: short }) : i18n.t("LifeLog {version} is out", { version }));
+    offeredUpdate = key;
     const close = $("#updateCloseBtn");
     close.hidden = false;
     close.onclick = () => {
-      try { localStorage.setItem(DISMISSED_KEY, version); } catch (e) { /* hidden until the next launch */ }
+      try { localStorage.setItem(DISMISSED_KEY, key); } catch (e) { /* hidden until the next launch */ }
       $("#updateBar").hidden = true;
     };
     const text = $("#updateBarText");
@@ -6087,24 +6113,26 @@
       say(i18n.t("Opening the installer…"), i18n.t("Install"), true);
       try {
         await Platform.openInstaller(apk);
-        say(i18n.t("LifeLog {version} is ready to install", { version }), i18n.t("Install"));
+        say(unreleased ? i18n.t("Unreleased build {sha} is ready to install", { sha: short }) : i18n.t("LifeLog {version} is ready to install", { version }), i18n.t("Install"));
       } catch (e) {
         say(i18n.t("Couldn't open the installer"), i18n.t("Try again"));
       }
     };
     btn.onclick = async () => {
       if (apk) return install();
-      say(i18n.t("Downloading LifeLog {version}…", { version }), "0%", true);
+      say(unreleased ? i18n.t("Downloading build {sha}…", { sha: short }) : i18n.t("Downloading LifeLog {version}…", { version }), "0%", true);
       try {
-        apk = await Platform.downloadUpdate(version, (f) => { btn.textContent = Math.round(f * 100) + "%"; });
+        apk = unreleased
+          ? await Platform.downloadUpdate("unreleased-" + short, (f) => { btn.textContent = Math.round(f * 100) + "%"; }, null, unreleased.url)
+          : await Platform.downloadUpdate(version, (f) => { btn.textContent = Math.round(f * 100) + "%"; });
       } catch (e) {
         say(i18n.t("The download didn't finish"), i18n.t("Retry"));
         return;
       }
       if (!apk) {
         // An older shell: no in-app downloader, so the browser it is.
-        say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Download"));
-        Platform.openOutside(Platform.apkUrl());
+        say(isOut(), i18n.t("Download"));
+        Platform.openOutside(unreleased ? unreleased.url : Platform.apkUrl());
         return;
       }
       install();
@@ -6112,6 +6140,15 @@
     // On a computer, Tauri's updater installs it and restarts, when the
     // release has its signed files; otherwise the release page has the
     // installer (a .deb is always updated that way).
+    // An unreleased Windows build has the release's version, so Tauri's
+    // updater would skip it: its installer downloads in the browser and
+    // installs over the app, keeping the data.
+    if (Platform.desktop && unreleased) {
+      btn.onclick = () => Platform.openOutside(unreleased.url);
+      say(isOut(), i18n.t("Download"));
+      showUpdateBar(key);
+      return;
+    }
     if (Platform.desktop) {
       // Asked once. When the updater has nothing (no latest.json on the
       // release), the bar turns into a plain link to the release page and
@@ -6148,8 +6185,8 @@
       showUpdateBar(version);
       return;
     }
-    say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Update"));
-    showUpdateBar(version);
+    say(isOut(), i18n.t("Update"));
+    showUpdateBar(key);
   }
 
   // The bar can be closed for one version (a bar you can't dismiss sat on the
