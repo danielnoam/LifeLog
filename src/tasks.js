@@ -209,7 +209,8 @@
   function dueTasks(data, until) {
     const rows = [];
     for (const n of data.notes || []) {
-      if (n.kind !== "list") continue;
+      // A template list (Nov 2026) is a pattern, not tasks to do.
+      if (n.kind !== "list" || n.template) continue;
       // The list itself, as one task: `item` is the note, so its title is
       // the words and its id ticks and opens it.
       if (!n.done && isDay(n.date) && !(until && n.date > until)) rows.push({ note: n, item: n, day: n.date, category: n.category || "", head: true });
@@ -358,7 +359,7 @@
   function fillLists(n) {
     const sel = $("#taskList");
     sel.innerHTML = "";
-    for (const l of (state.data.notes || []).filter((x) => x.kind === "list")) {
+    for (const l of (state.data.notes || []).filter((x) => x.kind === "list" && !x.template)) {
       const o = document.createElement("option");
       o.value = l.id;
       o.textContent = l.text || i18n.t("Untitled list");

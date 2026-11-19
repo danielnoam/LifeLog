@@ -15,6 +15,26 @@
   const QUOTE = /^\s*>\s?(.*)$/;
   const FENCE = /^\s*(```|~~~)/;
   const RULE = /^\s*([-*_])(\s*\1){2,}\s*$/;
+  // Tables (Nov 2026): a row of cells, then a line of dashes under it
+  // (`|---|:--:|`), then rows until a blank line or one with no "|".
+  const TABLE_RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+  const isTableAt = (lines, i) => i + 1 < lines.length && lines[i].includes("|") && lines[i + 1].includes("-")
+    && (lines[i + 1].includes("|") || lines[i].trim().startsWith("|")) && TABLE_RULE.test(lines[i + 1]);
+  // A row's cells: the outer pipes are optional, and \| is a pipe inside a cell.
+  function tableCells(line) {
+    let s = line.trim();
+    if (s.startsWith("|")) s = s.slice(1);
+    if (s.endsWith("|") && !s.endsWith("\\|")) s = s.slice(0, -1);
+    const out = [];
+    let cur = "";
+    for (let k = 0; k < s.length; k++) {
+      if (s[k] === "\\" && s[k + 1] === "|") { cur += "|"; k++; continue; }
+      if (s[k] === "|") { out.push(cur.trim()); cur = ""; continue; }
+      cur += s[k];
+    }
+    out.push(cur.trim());
+    return out;
+  }
 
   // Block structure: headings, fenced code, quotes, lists (tasks, bullets,
   // numbers), rules, and paragraphs of everything else.
@@ -36,6 +56,18 @@
       }
       const h = HEADING.exec(line);
       if (h) { blocks.push({ t: "h", level: h[1].length, text: h[2] }); i++; continue; }
+      if (isTableAt(lines, i)) {
+        const head = tableCells(line);
+        const align = tableCells(lines[i + 1]).map((c) => (/^:-+:$/.test(c) ? "center" : /-+:$/.test(c) ? "right" : ""));
+        i += 2;
+        const rows = [];
+        while (i < lines.length && lines[i].trim() && lines[i].includes("|")) {
+          const cells = tableCells(lines[i++]);
+          rows.push(head.map((_, k) => cells[k] || ""));
+        }
+        blocks.push({ t: "table", head, align: head.map((_, k) => align[k] || ""), rows });
+        continue;
+      }
       if (RULE.test(line)) { blocks.push({ t: "hr" }); i++; continue; }
       if (QUOTE.test(line)) {
         const q = [];
@@ -60,7 +92,7 @@
       }
       const para = [];
       while (i < lines.length && lines[i].trim() && !HEADING.test(lines[i]) && !FENCE.test(lines[i])
-        && !QUOTE.test(lines[i]) && !TASK.test(lines[i]) && !BULLET.test(lines[i]) && !NUMBERED.test(lines[i])) {
+        && !QUOTE.test(lines[i]) && !TASK.test(lines[i]) && !BULLET.test(lines[i]) && !NUMBERED.test(lines[i]) && !isTableAt(lines, i)) {
         para.push(lines[i++]);
       }
       if (!para.length) { para.push(lines[i++]); }
@@ -69,6 +101,7 @@
     return blocks;
   }
 
+  const WIKI = /\[\[([^\[\]|#\n]+)(?:#([^\[\]|\n]*))?(?:\|([^\[\]\n]+))?\]\]/;
   // Inline: `code`, **bold**, *italic* / _italic_, [text](url), and bare
   // links. Earliest match wins; what's inside bold or italic is parsed again.
   const INLINE = [
@@ -77,6 +110,9 @@
     // starts with "!", one place before the link it would otherwise be.
     ["img", /!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/],
     ["embed", /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/],
+    // A link to another note or board (Nov 2026), Obsidian's way:
+    // [[Title]], [[Title|shown as]], [[Title#Heading]].
+    ["wiki", WIKI],
     // An address may hold one level of brackets, as Wikipedia's do.
     ["link", /\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/],
     ["bold", /\*\*([^*]+)\*\*|__([^_]+)__/],
@@ -98,6 +134,7 @@
       if (t === "code") out.push({ t, text: m[1] });
       else if (t === "img") out.push({ t, alt: m[1], src: m[2] });
       else if (t === "embed") out.push({ t: "img", alt: "", src: m[1].trim(), embed: true });
+      else if (t === "wiki") out.push({ t, target: m[1].trim(), heading: (m[2] || "").trim(), label: (m[3] || "").trim() || m[1].trim() });
       else if (t === "link") out.push({ t, href: m[2], children: inline(m[1]) });
       else if (t === "url") out.push({ t: "link", href: m[0], children: [{ t: "text", text: m[0] }] });
       else out.push({ t, children: inline(m[1] || m[2]) });
@@ -147,6 +184,13 @@
         parent.appendChild((opts && opts.image && opts.image(n)) || imageChip(n));
         continue;
       }
+      // What a link to a note is depends on the notes, so the caller draws
+      // it (opts.wiki); on its own it's just its words.
+      if (n.t === "wiki") {
+        const w = opts && opts.wiki && opts.wiki(n);
+        parent.appendChild(w || document.createTextNode(n.label));
+        continue;
+      }
       if (n.t === "link") {
         const href = safeHref(n.href);
         const a = document.createElement(href ? "a" : "span");
@@ -168,6 +212,31 @@
       if (b.t === "h") { node = document.createElement("h" + Math.min(6, b.level + 1)); renderInline(node, inline(b.text), opts); }
       else if (b.t === "p") { node = document.createElement("p"); renderInline(node, inline(b.text), opts); }
       else if (b.t === "hr") node = document.createElement("hr");
+      else if (b.t === "table") {
+        // Wrapped, so a wide table scrolls sideways on its own.
+        node = document.createElement("div");
+        node.className = "md-table";
+        const table = document.createElement("table");
+        const row = (cells, tag) => {
+          const tr = document.createElement("tr");
+          cells.forEach((c, k) => {
+            const cell = document.createElement(tag);
+            if (b.align[k]) cell.className = "md-al-" + b.align[k];
+            renderInline(cell, inline(c), opts);
+            tr.appendChild(cell);
+          });
+          return tr;
+        };
+        const thead = document.createElement("thead");
+        thead.appendChild(row(b.head, "th"));
+        table.appendChild(thead);
+        if (b.rows.length) {
+          const tbody = document.createElement("tbody");
+          for (const r of b.rows) tbody.appendChild(row(r, "td"));
+          table.appendChild(tbody);
+        }
+        node.appendChild(table);
+      }
       else if (b.t === "code") {
         node = document.createElement("pre");
         const c = document.createElement("code");
@@ -206,5 +275,20 @@
     return out;
   }
 
-  window.LifeLogMarkdown = { parse, inline, render, safeHref, images };
+  // Every [[link]] a text makes to a note or board, in order: { target,
+  // heading, label, raw }. An embed (![[picture.png]]) is a picture, not a link.
+  function wikiLinks(text) {
+    const out = [];
+    const re = new RegExp(WIKI.source, "g");
+    const src = String(text || "");
+    for (const m of src.matchAll(re)) {
+      if (m.index && src[m.index - 1] === "!") continue;
+      out.push({ target: m[1].trim(), heading: (m[2] || "").trim(), label: (m[3] || "").trim() || m[1].trim(), raw: m[0] });
+    }
+    return out;
+  }
+  // A text with each [[link]] as the words it shows (previews, exports).
+  const unwiki = (text) => String(text || "").replace(new RegExp("(^|[^!])" + WIKI.source, "g"), (all, pre, t, h, l) => pre + (l || t).trim());
+
+  window.LifeLogMarkdown = { parse, inline, render, safeHref, images, wikiLinks, unwiki };
 })();

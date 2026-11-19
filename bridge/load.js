@@ -27,6 +27,7 @@ function load() {
   window.LifeLogWheel = { init: () => {} };
   const src = (f) => require("../src/" + f);
   const Merge = src("merge.js");
+  src("markdown.js");
   src("finance.js");
   src("journal.js");
   src("backlog.js");

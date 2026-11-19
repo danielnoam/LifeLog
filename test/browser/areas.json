@@ -25,7 +25,7 @@
   "areas": {
     "notes": {
       "files": ["src/notes.js", "src/tasks.js", "src/markdown.js", "src/images.js", "src/docimport.js"],
-      "suites": ["collections", "datefaces", "mdimport", "noteimages", "notekinds", "notemenu", "noteopen", "notesheet", "renames", "tasks", "todomigrate"]
+      "suites": ["collections", "datefaces", "mdimport", "noteimages", "notekinds", "notelinks", "notemenu", "noteopen", "notesheet", "renames", "tasks", "todomigrate"]
     },
     "tags": {
       "files": ["src/tags.js"],

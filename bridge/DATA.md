@@ -202,7 +202,19 @@ Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last
 changed), `kind`, `text`, `title`, `category` (optional, from
 `noteCategories`), `fav` (true when favourited), `pinned` (true when pinned
 to the Home tab; it stays in the Notebook too, `lifelog_pin_note`), `items`,
-`author`, `source`, `tags`.
+`author`, `source`, `tags`, `template` (true on a template: the app
+offers it when a new note or checklist is made and fills `{{date}}`,
+`{{weekday}}` and `{{time}}`; templates stay out of the Notebook's other
+chips, tasks, Home, widgets and the recap; `lifelog_templates`,
+`lifelog_set_template`, `lifelog_add_note_from_template`).
+
+Links (Nov 2026): `[[Title]]`, `[[Title#Heading]]` or `[[Title|shown
+words]]` in a note's text links to the note with that title (a checklist's
+name; a text note's title or first line) or else the board with that name,
+ignoring case. Links aren't stored; they're read from the text each time,
+and the reader shows "Linked from" for the notes that link to it
+(`lifelog_note_links`). Markdown tables (`| a | b |` rows under a `|---|`
+line) show as tables.
 
 ### Tags
 

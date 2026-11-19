@@ -244,7 +244,7 @@
     const inYear = (iso) => { const d = localDay(iso); return d.startsWith(y + "-") && d <= today; };
     const tickCount = (t) => (t.done && inYear(t.doneAt) ? 1 : 0) + (Array.isArray(t.ticks) ? t.ticks.filter(inYear).length : 0);
     let tasksDone = 0;
-    for (const n of (data.notes || []).filter((x) => x.kind === "list")) {
+    for (const n of (data.notes || []).filter((x) => x.kind === "list" && !x.template)) {
       // A list counts as a task of its own only once it has its own day.
       if (n.date || n.ticks) tasksDone += tickCount(n);
       for (const t of n.items || []) tasksDone += tickCount(t);

@@ -483,7 +483,7 @@ function noteText(n, max) {
   const items = n.kind === "list" ? (n.items || []).map((i) => `\n    [${i.done ? "x" : " "}] ${i.text}${tagsText(i.tags)}  (${i.id})`).join("") : "";
   const by = n.kind === "quote" ? [n.author, n.source].filter(Boolean).join(", ") : "";
   return `${n.title || (n.kind === "list" ? "List" : n.kind === "quote" ? "Quote" : "Note")}`
-    + `${n.category ? " [" + n.category + "]" : ""}${tagsText(n.tags)}${n.fav ? " ★" : ""}${n.pinned ? " (pinned to Home)" : ""} (${String(n.createdAt || "").slice(0, 10)}, ${n.id})`
+    + `${n.category ? " [" + n.category + "]" : ""}${tagsText(n.tags)}${n.template ? " (template)" : ""}${n.fav ? " ★" : ""}${n.pinned ? " (pinned to Home)" : ""} (${String(n.createdAt || "").slice(0, 10)}, ${n.id})`
     + (n.text ? ": " + cut(n.text, max) : "") + (by ? " — " + by : "") + items;
 }
 
@@ -862,11 +862,12 @@ const TOOLS = [
       tag: S.str("Only notes with this tag (a checklist counts when one of its tasks has it)"),
       kind: S.str("Only this kind", { enum: ["text", "list", "quote"] }),
       full: S.bool("Whole text instead of the first 500 characters"), limit: S.limit,
+      templates: S.bool("Only templates (left out otherwise, as in the app; lifelog_templates lists them too)"),
     },
     async run(a) {
       const d = await readData();
       const q = lower(a.query);
-      const rows = (d.notes || []).filter((n) => (!q || lower([n.title, n.text, n.author, n.source, ...(n.items || []).map((i) => i.text)].join(" ")).includes(q))
+      const rows = (d.notes || []).filter((n) => !!n.template === !!a.templates && (!q || lower([n.title, n.text, n.author, n.source, ...(n.items || []).map((i) => i.text)].join(" ")).includes(q))
         && (!a.category || lower(n.category) === lower(a.category))
         && (!a.tag || Tags.has(n.tags, a.tag) || (n.items || []).some((i) => Tags.has(i.tags, a.tag)))
         && (!a.kind || (n.kind || "text") === a.kind))
@@ -1689,6 +1690,98 @@ const TOOLS = [
         if (!!n.pinned === on) return { text: `"${label}" is already ${on ? "pinned to" : "off"} Home.`, touched: [] };
         if (on) n.pinned = true; else delete n.pinned;
         return { text: `${on ? "Pinned" : "Unpinned"} "${label}" ${on ? "to" : "from"} Home. id ${n.id}`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_note_links",
+    description: "A note's [[links]]: the notes and boards its text links to (a [[name]] with no note or board of that name yet is listed as missing), and the notes that link to it (the app's \"Linked from\"). A link is [[Title]], [[Title#Heading]] or [[Title|shown words]], matched to a note's title (a checklist's name) or a board's name, ignoring case.",
+    readOnly: true,
+    input: { note: S.str("The note's id, or its title or text") },
+    required: ["note"],
+    async run(a) {
+      const d = await readData();
+      const n = findItem(d, "notes", a.note);
+      const M = window.LifeLogMarkdown;
+      const notes = (d.notes || []).filter((x) => !x.template);
+      const boards = (await readBoards()).filter((b) => !b.deleted);
+      const texts = [n.text, n.note, ...(n.items || []).flatMap((i) => [i.text, i.note])].filter(Boolean).map(String);
+      const seenTargets = new Set();
+      const out = [];
+      for (const l of texts.flatMap((t) => M.wikiLinks(t))) {
+        const key = lower(l.target);
+        if (seenTargets.has(key)) continue;
+        seenTargets.add(key);
+        const hit = Notes.findLinkTarget(l.target, notes, boards);
+        out.push(hit && hit.note ? `- [[${l.target}]] → note "${Notes.linkTitle(hit.note)}" (${hit.note.id})`
+          : hit && hit.board ? `- [[${l.target}]] → board "${hit.board.name}" (${hit.board.id})`
+          : `- [[${l.target}]] → missing (no note or board called this yet)`);
+      }
+      const back = Notes.backlinksOf(n, notes);
+      const title = Notes.linkTitle(n) || cut(n.text, 60);
+      return [`"${title}" (${n.id})`, "", `Links to (${out.length}):`, ...(out.length ? out : ["- nothing"]),
+        "", `Linked from (${back.length}):`, ...(back.length ? back.map((b) => `- "${b.title}" (${b.id}): ${b.line}`) : ["- nothing"])].join("\n");
+    },
+  },
+  {
+    name: "lifelog_templates",
+    description: "Note templates: notes and checklists marked as templates, which the app offers when a new note or checklist is made (\"Start from a template\"). {{date}}, {{weekday}} and {{time}} in one are filled in when it's used. Templates are left out of the Notebook, tasks, Home and the recap.",
+    readOnly: true,
+    input: { full: S.bool("Whole text instead of the first 500 characters") },
+    async run(a) {
+      const d = await readData();
+      const rows = (d.notes || []).filter((n) => n.template);
+      return [head(rows.length, rows.length, "templates"), ...rows.map((n) => "- " + noteText(n, a.full ? 1e9 : 500))].join("\n");
+    },
+  },
+  {
+    name: "lifelog_set_template",
+    description: "Make a note or checklist a template (template: true), or back into an ordinary note (false). With copy: true (the app's \"Save as template\") the note stays as it is and a template copy is made instead, its ticks cleared. Quotes can't be templates.",
+    input: { note: S.str("The note's id, or its title or text"), template: S.bool("true (default) to make it a template, false to make it an ordinary note again"), copy: S.bool("Make a template copy and leave the note as it is") },
+    required: ["note"],
+    async run(a) {
+      const on = a.template !== false;
+      return change(on ? "save as template" : "unmark template", (d) => {
+        const n = findItem(d, "notes", a.note);
+        if ((n.kind || "") === "quote") fail("A quote can't be a template.");
+        const label = cut(Notes.linkTitle(n) || n.text || "note", 60);
+        if (on && a.copy) {
+          const copy = JSON.parse(JSON.stringify(n));
+          for (const k of ["id", "createdAt", "updatedAt", "pinned", "fav", "editedAt"]) delete copy[k];
+          if (copy.items) copy.items = copy.items.map((i) => { const c = { ...i, id: L.uid() }; delete c.done; delete c.doneAt; return c; });
+          delete copy.done; delete copy.doneAt;
+          const t = addItem(d, "notes", { ...copy, template: true });
+          d.notes = [t, ...d.notes.filter((x) => x !== t)];
+          return { text: `Saved a template copy of "${label}". id ${t.id}`, touched: [["notes", t.id]] };
+        }
+        if (!!n.template === on) return { text: `"${label}" is already ${on ? "a template" : "an ordinary note"}.`, touched: [] };
+        if (on) n.template = true; else delete n.template;
+        return { text: `${on ? "Made" : "Unmarked"} "${label}" ${on ? "a template" : "as a template; it's an ordinary note again"}. id ${n.id}`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_add_note_from_template",
+    description: "Start a new note or checklist from a template, as the app's \"Start from a template\" does: its text, title, items, category and tags are copied, with {{date}}, {{weekday}} and {{time}} filled in for today. Extra text is added at the end.",
+    input: { template: S.str("The template's id or title"), text: S.str("Optional text added at the end"), category: S.str("Optional, instead of the template's") },
+    required: ["template"],
+    async run(a) {
+      return change("note from template", (d) => {
+        const t = findItem(d, "notes", a.template);
+        if (!t.template) fail(`"${cut(Notes.linkTitle(t) || t.text, 60)}" isn't a template (lifelog_templates lists them).`);
+        const now = new Date();
+        const fill = (s) => Notes.fillTemplate(s, now);
+        const item = { text: fill(t.text) };
+        if (t.kind) item.kind = t.kind;
+        if (t.title) item.title = fill(t.title);
+        if (t.kind === "list") item.items = (t.items || []).map((i) => { const c = { ...i, id: L.uid(), text: fill(i.text) }; delete c.done; delete c.doneAt; return c; });
+        if (a.text) item.text = (item.text ? item.text.replace(/\s+$/, "") + "\n\n" : "") + String(a.text);
+        const cat = a.category || t.category;
+        if (cat) item.category = cat;
+        if (t.tags) item.tags = [...t.tags];
+        const n = addItem(d, "notes", item);
+        d.notes = [n, ...d.notes.filter((x) => x !== n)];
+        return { text: `Made a new ${t.kind === "list" ? "checklist" : "note"} from the template "${cut(Notes.linkTitle(t), 60)}". id ${n.id}`, touched: [["notes", n.id]] };
       });
     },
   },

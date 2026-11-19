@@ -352,6 +352,9 @@
           <button type="button" role="menuitem" id="noteCopyBtn" hidden><span data-ico="copy"></span> <span data-t>Copy text</span></button>
           <button type="button" role="menuitem" id="noteToEntryBtn" hidden><span data-ico="film"></span> <span data-t>Make entry</span></button>
           <button type="button" role="menuitem" id="notePinBtn" hidden><span data-ico="pin"></span> <span data-t>Pin to Home</span></button>
+          <button type="button" role="menuitem" id="noteTemplateBtn" hidden><span data-ico="layers"></span> <span data-t>Save as template</span></button>
+          <button type="button" role="menuitem" id="noteExportMdBtn" hidden><span data-ico="download"></span> <span data-t>Export as Markdown (.md)</span></button>
+          <button type="button" role="menuitem" id="noteExportPdfBtn" hidden><span data-ico="download"></span> <span data-t>Export as PDF</span></button>
           <button type="button" role="menuitem" class="nv-menu-danger" id="deleteNoteBtn" hidden><span data-ico="trash"></span> <span data-t>Delete note</span></button>
         </div>
       </div>
@@ -389,6 +392,10 @@
               <div id="nTags"></div>
             </div>
           </div>
+          <div class="nv-tpl" id="nTemplates" hidden>
+            <p class="nv-tpl-head" data-t>Start from a template</p>
+            <div class="nv-tpl-row" id="nTemplateChips"></div>
+          </div>
           <button type="button" class="nv-board" id="nBoardPad" hidden><span id="nBoardPadText"><span data-t>Tap to start drawing</span></span></button>
           <p class="note-subs-head" id="nSubsHead" hidden data-t>Subtasks</p>
           <label id="nTextLabel" class="nv-text-label"><span id="nTextLabelText" class="sr-only"><span data-t>Note</span></span>
@@ -411,6 +418,8 @@
         <p class="added-line" id="noteStampLine" hidden></p>
       </div>
     </div>
+    <!-- Typing [[ offers the notes and boards to link to (notes.js). -->
+    <div class="link-pick" id="linkPick" role="listbox" aria-label="Link to" data-t-attr="aria-label" hidden></div>
   </div>
 
   <div class="modal-overlay nv-overlay" id="noteReader" hidden>
@@ -428,6 +437,11 @@
           <button type="button" role="menuitem" id="noteReaderCopyBtn"><span data-ico="copy"></span> <span data-t>Copy text</span></button>
           <button type="button" role="menuitem" id="noteReaderEntryBtn" hidden><span data-ico="film"></span> <span data-t>Make entry</span></button>
           <button type="button" role="menuitem" id="noteReaderPinBtn" hidden><span data-ico="pin"></span> <span data-t>Pin to Home</span></button>
+          <hr />
+          <button type="button" role="menuitem" id="noteReaderExportMdBtn"><span data-ico="download"></span> <span data-t>Export as Markdown (.md)</span></button>
+          <button type="button" role="menuitem" id="noteReaderExportPdfBtn"><span data-ico="download"></span> <span data-t>Export as PDF</span></button>
+          <button type="button" role="menuitem" id="noteReaderTemplateBtn"><span data-ico="layers"></span> <span data-t>Save as template</span></button>
+          <hr />
           <button type="button" role="menuitem" class="nv-menu-danger" id="noteReaderDeleteBtn"><span data-ico="trash"></span> <span data-t>Delete note</span></button>
         </div>
       </div>
@@ -437,6 +451,7 @@
           <p class="nv-cat nv-cat-static" id="noteReaderCat" hidden><span class="dot"></span><span></span></p>
           <p class="nv-tags" id="noteReaderTags" hidden></p>
           <div class="md" id="noteReaderBody"></div>
+          <section class="nv-links" id="noteReaderLinks" hidden></section>
         </div>
       </div>
       <div class="nv-foot">

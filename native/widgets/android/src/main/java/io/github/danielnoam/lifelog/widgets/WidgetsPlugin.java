@@ -362,6 +362,29 @@ public class WidgetsPlugin extends Plugin {
         });
     }
 
+    /** Prints the page as it is now through Android's print service ("Save as PDF" there); resolves once the job ends or is cancelled, so the page keeps its print look until then. */
+    @PluginMethod
+    public void printPage(PluginCall call) {
+        String name = call.getString("name", "LifeLog");
+        getActivity().runOnUiThread(() -> {
+            try {
+                android.print.PrintManager pm = (android.print.PrintManager) getActivity().getSystemService(android.content.Context.PRINT_SERVICE);
+                android.print.PrintDocumentAdapter adapter = getBridge().getWebView().createPrintDocumentAdapter(name);
+                android.print.PrintJob job = pm.print(name, adapter, new android.print.PrintAttributes.Builder().build());
+                android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+                long until = System.currentTimeMillis() + 15 * 60 * 1000;
+                h.postDelayed(new Runnable() {
+                    @Override public void run() {
+                        if (job.isCompleted() || job.isCancelled() || job.isFailed() || System.currentTimeMillis() > until) call.resolve();
+                        else h.postDelayed(this, 500);
+                    }
+                }, 500);
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
+    }
+
     /** The notification's Stop: the app stops its jobs, which releases the service. */
     static void stopWork(android.content.Context c) {
         WidgetsPlugin p = live.get();

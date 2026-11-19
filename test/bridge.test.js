@@ -108,7 +108,7 @@ test("every read tool answers, and none of them ever shows an API key", async ()
   // lifelog_compare_pins needs two pins' ids: the watchlist test runs it.
   for (const t of B.TOOLS.filter((x) => x.readOnly && x.name !== "lifelog_compare_pins")) {
     const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
-      : t.name === "lifelog_note_images" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" } : {};
+      : t.name === "lifelog_note_images" || t.name === "lifelog_note_links" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" } : {};
     const text = await ok(t.name, args);
     assert.ok(!/SECRET/.test(text), t.name + " leaked a secret");
   }
@@ -1374,6 +1374,28 @@ test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", asyn
   assert.match(await ok("lifelog_home", {}), /Pinned notes \(1\):\n- Plan \[Ideas\] \(pinned to Home\)/);
   await ok("lifelog_pin_note", { note: "no1", pinned: false });
   assert.strictEqual(data().notes.find((n) => n.id === "no1").pinned, undefined);
+});
+
+test("note links and templates: links out, linked from, and new notes from a template", async () => {
+  reset();
+  await ok("lifelog_add_note", { title: "Trip", text: "See [[plan]] and [[Doodle]] and [[Nowhere]]" });
+  const links = await ok("lifelog_note_links", { note: "Trip" });
+  assert.match(links, /\[\[plan\]\] → note "Plan" \(no1\)/);
+  assert.match(links, /\[\[Doodle\]\] → board "Doodle" \(bd2\)/);
+  assert.match(links, /\[\[Nowhere\]\] → missing/);
+  assert.match(await ok("lifelog_note_links", { note: "no1" }), /Linked from \(1\):\n- "Trip" \(.+\): See plan and Doodle and Nowhere/);
+  assert.match(await ok("lifelog_set_template", { note: "no1", copy: true }), /^Saved a template copy of "Plan"/);
+  const tpl = data().notes.find((n) => n.template);
+  assert.strictEqual(tpl.text, "Ship the bridge");
+  assert.strictEqual(data().notes.find((n) => n.id === "no1").template, undefined);
+  assert.doesNotMatch(await ok("lifelog_notes", {}), /\(template\)/);
+  assert.match(await ok("lifelog_notes", { templates: true }), /Plan \[Ideas\] \(template\)/);
+  assert.match(await ok("lifelog_templates", {}), /^1 templates/);
+  await refused("lifelog_add_note_from_template", { template: "no1" }, /isn't a template/);
+  assert.match(await ok("lifelog_add_note_from_template", { template: tpl.id, text: "Extra" }), /^Made a new note from the template "Plan"/);
+  const fresh = data().notes[0];
+  assert.deepStrictEqual([fresh.category, fresh.template, fresh.text], ["Ideas", undefined, "Ship the bridge\n\nExtra"]);
+  assert.match(await ok("lifelog_set_template", { note: "no1", template: false }), /already an ordinary note/);
 });
 
 test("Home's scratch board: shown on Home, marked in the list, and kept as a board", async () => {
