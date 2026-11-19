@@ -6,6 +6,20 @@ own DESIGN.md and CONTRIBUTING.md name its classes, tokens and helpers;
 these are the rules behind them. `tools/keel-checks.js` enforces the
 ones marked **(checked)**.
 
+## Every language, every screen
+
+- A feature is done when it works in every language the app has
+  (right to left included) and on every screen and platform it ships
+  to: a phone, a wide window, each app build, and its widgets when it
+  touches what they show. Check each one before calling it done.
+- Built for one platform on purpose is fine, but say so where people
+  look: the pull request, the release note ("Android only: ...") and the
+  feature's docs say it was never built for the others. Silence reads
+  as a bug.
+- UI text goes through the language table, never a string literal set
+  straight into the page. Text that stays English on purpose (a brand,
+  a version) says `// en-only: <why>` on its line. **(checked)**
+
 ## Motion
 
 - Anything that opens also leaves: a menu, list or sheet plays its exit

@@ -4759,8 +4759,8 @@
   function wire() {
     // Rendered under the ⚙ button in the top bar; the brand already says
     // "LifeLog" right there, so just the version reads cleaner.
-    $("#appVersion").textContent = "v" + APP_VERSION;
-    $("#appVersion").title = "LifeLog v" + APP_VERSION;
+    $("#appVersion").textContent = "v" + APP_VERSION; // en-only: the version
+    $("#appVersion").title = "LifeLog v" + APP_VERSION; // en-only: the name and version
 
     // location.reload() rather than anything cleverer: the new build is
     // already in the cache by the time this bar appears (see watchForUpdate),

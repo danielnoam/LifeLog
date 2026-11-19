@@ -1,5 +1,5 @@
 {
-  "version": "0.12.0",
+  "version": "0.13.0",
   "files": {
     "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
     "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
@@ -15,9 +15,9 @@
     "tools/android-version.js": "70f2cb0950e023cb33301f39012f5c9aaa96ad0695a01e0150751bc8a41c5ce1",
     "tools/unreleased.js": "9148e58dd1a0e961e8ee8f76ebbb5260d97d15cc3696050123208de0d47a8cf6",
     "tools/keel-sync.js": "e2283af6896d9e0c6d33fe57a67fbacd4d3a708e002c49f9b8e37929fe3038e3",
-    "tools/keel-checks.js": "e03ff604b156ce021d8591ff4a22485ae85ef301c7ad17d23ded74f34fc11150",
+    "tools/keel-checks.js": "fbae2c184b52cdb8e83dcbc86b722977618a8ec7311d9ae571088ae7c31c5088",
     "test/keel.test.js": "520c4d3be61fb1667955618191c510216ada98550ee2c2822643f279cfdee76e",
     ".claude/skills/github-pages/SKILL.md": "c4f253041e5e36182ed594c03b8cc6e1d3a1cd04135d5ac84ea0806494f565be",
-    "RULES.md": "ca7a48506a16c80820426f04562b189d6e4855f9c913c13b4cf96dc12c05b1fc"
+    "RULES.md": "25a5f9915760ed28a6aacaccd6b67d2eebcd4af3dacb2959ecd3821556a1d079"
   }
 }
