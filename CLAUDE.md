@@ -111,5 +111,10 @@ CONTRIBUTING.md.
   changes or shows something gets bridge tools in the same release
   (CONTRIBUTING.md, "The AI bridge stays complete"). Add tools, never
   rename or remove them.
+- Every language, every screen (2026-11-19): a feature works in English
+  and Hebrew, on phone and wide, in the web, Windows and Android apps
+  (widgets too when it touches them). One built for a single platform on
+  purpose says so in the PR, its `changes/` line and its docs, that the
+  others never got it (CONTRIBUTING.md, "Every language, every screen").
 - README screenshots stay current (2026-10-30): see CONTRIBUTING.md,
   "Keeping the notes files right". Demo data only, never Daniel's.

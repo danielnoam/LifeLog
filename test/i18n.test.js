@@ -13,6 +13,9 @@ const r = i18n.check(i18n.keys(files), i18n.table(path.join(root, "src/lang/he.j
 assert.deepStrictEqual(r.missing, [], "Hebrew missing for: " + r.missing.join(" | "));
 assert.deepStrictEqual(r.stale, [], "Hebrew for text that's gone: " + r.stale.join(" | "));
 assert.deepStrictEqual(r.broken, [], "Hebrew that doesn't match its English: " + JSON.stringify(r.broken));
+const lit = i18n.literals(files.filter((f) => f.endsWith(".js")));
+assert.deepStrictEqual(lit.map((x) => path.relative(root, x.file) + ":" + x.line + " " + x.text), [],
+  "UI text set from an English literal (use t(), or `// en-only: <why>` on the line)");
 console.log("i18n: ok");
 
 // The Android widget picker and widget buttons follow the phone's language,

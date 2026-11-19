@@ -109,6 +109,12 @@ CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
   - Mobile width (≤720px, e.g. 375px): fixed bottom nav bar layout
   - Exercise the views/flows touched by this change at both sizes, and
     confirm zero console errors.
+  - Again in Hebrew (Settings → Language): right to left, nothing in
+    English that should be translated.
+  - The Windows and Android apps (and widgets, if they show what changed)
+    get the change too. If they don't, on purpose, the PR, the `changes/`
+    line and the feature's docs say which platform it was built for and
+    that the others never got it.
   - The `lifelog-ui-audit` skill's "Working in the preview" covers the
     traps: cached assets after a version bump, transitions frozen in
     screenshots, and seeding (then restoring) test data.

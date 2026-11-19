@@ -24,6 +24,15 @@
 //   const keys = i18n.keys([...jsFiles, "index.html"]);
 //   i18n.check(keys, i18n.table("src/lang/he.js")) // → { missing, stale, broken }
 //
+// i18n.literals: UI text set straight from an English string literal,
+// which no table can translate: toast("..."), confirm/alert("..."),
+// .textContent/.innerText/.placeholder/.title/.ariaLabel = "...", and
+// setAttribute("aria-label"|"title"|"placeholder"|"alt", "..."). Text that
+// stays English on purpose (a brand, a version) says so on its line with
+// `// en-only: <why>`.
+//
+//   i18n.literals(jsFiles) // → [{ file, line, text }]
+//
 // motion: RULES.md's motion rules in the app's CSS. Curves are tokens (no
 // literal cubic-bezier() or easing keyword outside a custom property, a
 // status loop with `infinite` aside), and nothing animates a property
@@ -214,6 +223,19 @@ function i18nCheck(used, tbl) {
   return { missing, stale, broken };
 }
 
+const LITERAL = new RegExp(String.raw`(?:(?<![\w$.])(?:toast|confirm|alert)\(\s*|\.(?:textContent|innerText|placeholder|title|ariaLabel)\s*=\s*|setAttribute\(\s*["'](?:aria-label|title|placeholder|alt)["']\s*,\s*)(["'\`])([A-Za-z][^"'\`\n]*)`, "g");
+
+function literals(files) {
+  const out = [];
+  for (const file of files) {
+    fs.readFileSync(file, "utf8").split("\n").forEach((l, i) => {
+      if (/^\s*(\/\/|\*)/.test(l) || /\/\/\s*en-only:/.test(l)) return;
+      for (const m of l.matchAll(LITERAL)) out.push({ file, line: i + 1, text: m[2] });
+    });
+  }
+  return out;
+}
+
 // ---- motion ----
 
 const RELAYOUT = /^(font-size|line-height|letter-spacing|padding(-[a-z-]+)?|margin(-[a-z-]+)?)$/;
@@ -273,7 +295,7 @@ function waitsFind(files, min = 1000) {
 module.exports = {
   contrast: { themes, block, resolve, parse, ratio, check },
   csp: { policyOf, check: cspCheck },
-  i18n: { keys, table, check: i18nCheck },
+  i18n: { keys, table, check: i18nCheck, literals },
   motion: { check: motionCheck },
   waits: { find: waitsFind },
 };
