@@ -75,7 +75,7 @@
         // A list's name is its text; a plain note's first line stands in
         // for the title it may not have.
         items: () => Notes.searchable().map((n) => ({
-          fields: [f(n.title || (n.kind === "list" || n.kind === "board" ? n.text : String(n.text || "").split("\n")[0]), "title"), f(n.kind === "list" || n.kind === "board" ? "" : n.text, "text"), f((n.items || []).map((i) => i.text).join(" · "), "items"), f(n.author, "author"), f(n.source, "source"), f(n.category, "category"),
+          fields: [f(n.title || (n.kind === "list" || n.kind === "board" ? n.text : String(n.text || "").split("\n")[0]), "title"), f(n.kind === "board" ? n.boardText : n.kind === "list" ? "" : n.text, "text"), f((n.items || []).map((i) => i.text).join(" · "), "items"), f(n.author, "author"), f(n.source, "source"), f(n.category, "category"),
             // Tags with their #, so "#weekend" finds them as the Notebook's box does.
             f([...(n.tags || []), ...(n.items || []).flatMap((i) => i.tags || [])].map((t) => "#" + t).join(" "), "tags")],
           meta: [n.category, dateLabel(n.createdAt)].filter(Boolean).join(" · "),

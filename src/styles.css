@@ -2000,7 +2000,7 @@ details.advanced > summary::after { content: ""; position: absolute; inset: -6px
    The habit grid's 16px day cells are left as they are: a calendar of
    hundreds of days can't give each one 44px. */
 .todo-check, .todo-del, .note-card .note-fav, .todo-compose .btn, .note-card .btn-sm,
-.btn-small, .settings-page-close, .modal-head .btn-icon, .modal input.switch, .tab-order-btn,
+.btn-small, .settings-page-close, .modal-head .btn-icon, :is(.modal, .board-opts) input.switch, .tab-order-btn,
 .habit-tick { position: relative; }
 .todo-check::after { content: ""; position: absolute; inset: -7px -4px -6px -4px; }
 .todo-del::after { content: ""; position: absolute; inset: -6px -4px -6px -4px; }
@@ -3247,31 +3247,31 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
    it's 10px above and below but 4px at the sides, so the corner radius is
    given per axis (half the 24px track plus each border) to keep the
    visible track a true pill. One radius for both drew an oval. */
-.modal input.switch {
+:is(.modal, .board-opts) input.switch {
   -webkit-appearance: none; appearance: none; position: relative; flex: 0 0 auto;
   width: 40px; height: 24px; margin: -10px -4px; border: 10px solid transparent; border-inline-width: 4px;
   box-sizing: content-box; background-clip: padding-box; border-radius: calc(var(--r-card) + 4px) / calc(var(--r-card) + 10px); cursor: pointer;
   background-color: var(--border-strong); transition: background-color var(--dur-fast) var(--ease);
 }
-.modal input.switch::before {
+:is(.modal, .board-opts) input.switch::before {
   content: ""; position: absolute; top: 3px; inset-inline-start: 3px; width: 18px; height: 18px;
   border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
   clip-path: none; transform: none; transition: transform var(--dur-fast) var(--ease);
 }
-.modal input.switch:checked { background-color: var(--accent); }
-.modal input.switch:checked::before { transform: translateX(16px); }
-.modal input.switch:disabled { cursor: default; }
+:is(.modal, .board-opts) input.switch:checked { background-color: var(--accent); }
+:is(.modal, .board-opts) input.switch:checked::before { transform: translateX(16px); }
+:is(.modal, .board-opts) input.switch:disabled { cursor: default; }
 /* The tap border stays transparent: the checkbox hover rule would paint it,
    a ring round the whole 48x44 tap area (and it sticks after a tap on a
    phone). The outline would trace that same box, so the keyboard ring is
    drawn round the track instead. */
-.modal input.switch:hover:not(:disabled) { border-color: transparent; }
-.modal input.switch:focus-visible { outline: none; }
-.modal input.switch:focus-visible::after {
+:is(.modal, .board-opts) input.switch:hover:not(:disabled) { border-color: transparent; }
+:is(.modal, .board-opts) input.switch:focus-visible { outline: none; }
+:is(.modal, .board-opts) input.switch:focus-visible::after {
   content: ""; position: absolute; inset: -4px; border-radius: calc(var(--r-card) + 4px);
   box-shadow: 0 0 0 2px var(--accent); pointer-events: none;
 }
-@media (prefers-reduced-motion: reduce) { .modal input.switch, .modal input.switch::before { transition: none; } }
+@media (prefers-reduced-motion: reduce) { :is(.modal, .board-opts) input.switch, :is(.modal, .board-opts) input.switch::before { transition: none; } }
 
 /* A view's own options (the View button in the header). */
 .modal.view-options { width: 520px; }
@@ -4622,8 +4622,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .notes-toolbar .sort-select { margin-inline-start: auto; }
 .notes-count { font-size: var(--fs-xs); color: var(--text-dim); }
 .board-cat-select {
-  flex: 0 0 auto; max-width: 220px; height: 36px; background: var(--bg-elev); border: 1px solid var(--border);
-  color: var(--text); border-radius: var(--r-lg); padding: 0 8px; font: inherit; font-size: var(--fs-sm); box-shadow: var(--shadow);
+  flex: 0 0 auto; max-width: 220px; height: 44px; background: var(--bg-elev); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--r-card); padding: 0 10px; font: inherit; font-size: var(--fs-sm); box-shadow: var(--shadow);
 }
 /* A phone's top bar has no room for it beside the name: it gets its own
    line under the name, as wide as its category needs. */
@@ -5797,6 +5797,9 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
 .tag-sheet .modal, #noteCatModal .modal { overflow: visible; }
 /* A phone's top bar has no room for it beside the name: there it's in ⋯. */
 @media (max-width: 720px) { .board-tags-btn { display: none; } }
+/* Where the Tags button shows, ⋯ doesn't repeat it (Nov 2026). */
+@media (min-width: 721px) { .board-menu .board-tags-item { display: none; } }
+.board-tags-btn { min-width: 44px; min-height: 44px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--shadow); }
 
 /* Right to left (2026-11-16, groundwork for Hebrew): the sides above are
    logical (inline-start/end), so the layout mirrors with <html dir="rtl">.
@@ -5807,7 +5810,7 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
    and a mode's slide-in go the other way. test/rtl.test.js keeps new
    physical sides out. */
 :root[dir="rtl"] svg.ico:is([data-ico="chevron-left"], [data-ico="chevron-right"], [data-ico="undo-2"], [data-ico="redo-2"], [data-ico="log-in"], [data-ico="log-out"]) { transform: scaleX(-1); }
-:root[dir="rtl"] .modal input.switch:checked::before { transform: translateX(-16px); }
+:root[dir="rtl"] :is(.modal, .board-opts) input.switch:checked::before { transform: translateX(-16px); }
 :root[dir="rtl"] .space-fill { transform-origin: right; }
 @media (prefers-reduced-motion: no-preference) {
   :root[dir="rtl"] .mode-slide-fwd { animation-name: mode-slide-back; }
@@ -5825,3 +5828,41 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
 :root[dir="rtl"] :is(.activity-pill-text, .storage-status .stxt, .dd-opt .dd-text, .month-cat-name, .proj-group-name, .proj-expense-name, .entry .etitle, .bl-author, .etitle-text, .eauthor, .entry .entry-cat, .picker-filter-name, .picker-row .etitle, .picker-snippet, .picker-row .ecat, .picker-fill-val, .bar-row .lbl, .yir-rated-title, .backlog-section-name, .backlog-item-rich .bl-title, .cal-name, .tile-info-label, .bulkp-name, .bulkp-detail, .activity-meta, .game-time-label, .ac-item .ac-title, .recap-listlabel, .habit-left-name, .habit-name, .habit-archived-name, .board-name, .note-list-title, .home-row-title, .home-ledger-cat, .pace-name, .tag-pill, .tags-name-text, .item > .n, .acc, .bl-summary) { unicode-bidi: plaintext; text-align: right; }
 /* What's typed runs in its own direction: an English note keeps its full stop at its end. */
 :root[dir="rtl"] :is(textarea, input:not([type]), input[type="text"], input[type="search"]) { unicode-bidi: plaintext; }
+
+/* ---------- boards: options, guides, links, locks, crop (Nov 2026) ---------- */
+/* The grid in place of the dots, the same 24px step snapping uses. */
+.board-svg.board-grid {
+  background-image: linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+}
+.board-guide { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; fill: none; }
+.board-link-badge { color: var(--accent); cursor: pointer; }
+.board-link-badge rect { fill: var(--bg-elev); stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.board-link-badge.is-missing { color: var(--text-faint); }
+.board-link-badge.is-missing rect { stroke: var(--text-faint); stroke-dasharray: 3 3; }
+.board-lock-badge { color: var(--text-dim); pointer-events: none; }
+.board-lock-badge circle { fill: var(--bg-elev-2); stroke: var(--border-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.board-crop-handle { fill: var(--bg-elev); stroke-width: 2; }
+.board-sel-btn.on { background: var(--accent-soft); color: var(--accent); }
+.board-sel-btn[hidden], #boardCropReset[hidden] { display: none; }
+.board-opts { display: flex; flex-direction: column; padding: var(--space-4) 0; }
+.board-opts-head { margin: var(--space-4) var(--space-12); font-size: var(--fs-2xs); font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; }
+.board-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); min-height: 44px;
+  padding: 0 var(--space-12); border-radius: var(--r-md); font-size: var(--fs-md); color: var(--text); cursor: pointer;
+}
+.board-opt span { white-space: nowrap; }
+.board-opt:hover { background: var(--bg-elev-2); }
+/* Link to…: over the board, just above its bars. */
+.board-link-pick {
+  position: absolute; z-index: 4; inset-inline: 0; margin-inline: auto; width: min(360px, calc(100% - 20px));
+  bottom: calc(var(--board-safe-bottom) + 130px); display: flex; flex-direction: column; gap: var(--space-4);
+}
+.board-link-pick[hidden] { display: none; }
+.board-link-query {
+  height: 40px; padding: 0 var(--space-10); border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--bg); color: var(--text); font: inherit; font-size: var(--fs-md);
+}
+.board-link-list { max-height: min(320px, 45vh); overflow-y: auto; }
+.board-link-off .ico { color: var(--danger); }
+.link-pick-empty { margin: var(--space-8) var(--space-10); color: var(--text-dim); font-size: var(--fs-sm); }
+@media (pointer: coarse) { .board-link-query { height: 44px; } }

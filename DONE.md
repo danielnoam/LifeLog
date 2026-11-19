@@ -171,6 +171,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Drawing boards, as a kind of note (0.193.0, 0.194.0, 0.204.0)
 - Pictures on boards: Image button, paste or drop; moved, resized at their own shape, turned; kept with the notes' images and counted by Clean up; exported inside PNG and SVG (0.310.0)
 - Boards: copy, cut and paste a selection (Ctrl/Cmd + C, X, V and Copy / Paste buttons) through the system clipboard, across boards and apps; the drag box highlights what it covers live, and the box itself shows while you drag (mouse or touch)
+- Board options per device (grid, snap to grid, alignment guides, arrows that stick to shapes and follow them, pen smoothing); group and lock; crop pictures; Link to… a note or board from a text, shape or picture; board text in search; bridge lifelog_link_board_text (next release)
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)

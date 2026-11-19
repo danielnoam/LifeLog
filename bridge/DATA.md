@@ -463,11 +463,21 @@ brought in from Excalidraw with a solid fill also `fc`, its fill colour. A pictu
 `img`, the id of a picture kept on the `lifelog-images` branch like a
 note's; `url`, an https web picture the app shows from its address every
 time and never keeps; or `miss`, the file an Excalidraw import couldn't
-find among the files picked (a dashed box until Find in folder). Only the
+find among the files picked (a dashed box until Find in folder).
+Any element can also have (Nov 2026) `lk: true` (locked: it can't be
+moved, turned, resized, erased or deleted until unlocked), `gp` (a group
+id; picking one picks every element with it) and `ln` (`"note:<id>"` or
+`"board:<id>"`, a link the element's icon opens). A line or arrow can stick
+to shapes: `b1` (its start) and `b2` (its end) are `{ id, fx, fy }`, the
+element it sticks to and the point on that element's box by fractions, so
+the end follows when the shape moves. The text on a board is found by the
+app's search and the Notebook's search box. Only the
+
 text says anything an AI can use, and the pictures: `lifelog_boards` lists
 the boards with their text and picture count, `lifelog_board_images` sends
 a board's pictures;
-`lifelog_update_board` renames, files, stars or keeps one; `lifelog_delete_board`
+`lifelog_update_board` renames, files, stars or keeps one;
+`lifelog_link_board_text` links a text to a note or board; `lifelog_delete_board`
 deletes one. Nothing draws.
 
 ## Trips (`travel.json`): no longer read

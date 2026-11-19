@@ -372,6 +372,17 @@ function boardTexts(b) {
 // A board's pictures (t "img"): kept on the images branch (`img`), a web
 // picture shown from its address (`url`), or a file an import couldn't find
 // (`miss`).
+// What a board's elements link to (Nov 2026): "note:<id>" or "board:<id>".
+function boardLinks(b, notes, boards) {
+  return (b.elements || []).filter((e) => e.ln).map((e) => {
+    const [kind, id] = String(e.ln).split(":");
+    const what = e.t === "text" ? `"${cut(e.text, 60)}"` : e.t === "img" ? "a picture" : `a ${e.t === "rect" ? "rectangle" : e.t}`;
+    const n = kind === "note" ? notes.find((x) => x.id === id) : null;
+    const o = kind === "board" ? boards.find((x) => x.id === id) : null;
+    const to = n ? `note "${cut(Notes.linkTitle(n) || n.text, 60)}" (${n.id})` : o ? `board "${o.name}" (${o.id})` : `a ${kind} that's gone (${id})`;
+    return `- ${what} → ${to}`;
+  });
+}
 const boardPictures = (b) => (b.elements || []).filter((e) => e.t === "img");
 const picturesNote = (b) => { const n = boardPictures(b).length; return n ? `, ${n} picture${n === 1 ? "" : "s"}` : ""; };
 
@@ -1079,8 +1090,12 @@ const TOOLS = [
       if (a.board) {
         const b = findBoard(list, a.board);
         const texts = boardTexts(b);
-        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${tagsText(b.tags)}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements${picturesNote(b)}, last changed ${String(b.updatedAt).slice(0, 10)}.`,
-          texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it."].join("\n");
+        const links = boardLinks(b, (await readData()).notes || [], list);
+        const locked = b.elements.filter((e) => e.lk).length, groups = new Set(b.elements.filter((e) => e.gp).map((e) => e.gp)).size;
+        const extra = [locked && `${locked} locked`, groups && `${groups} group${groups === 1 ? "" : "s"}`].filter(Boolean).join(", ");
+        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${tagsText(b.tags)}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements${picturesNote(b)}${extra ? ", " + extra : ""}, last changed ${String(b.updatedAt).slice(0, 10)}.`,
+          texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it.",
+          ...(links.length ? ["Links (tapping the icon opens them):", ...links] : [])].join("\n");
       }
       const q = lower(a.query);
       const rows = list.filter((b) => (!q || lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) && (!a.category || lower(b.category) === lower(a.category)) && (!a.tag || Tags.has(b.tags, a.tag)))
@@ -2649,6 +2664,38 @@ const TOOLS = [
         }
         replaceItem(doc, "boards", Boards.sanitizeBoard(next));
         return { text: `Updated the board ${b.id}: "${next.name}"${next.category ? " [" + next.category + "]" : ""}${tagsText(next.tags)}${next.fav ? " ★" : ""}.`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_link_board_text",
+    description: "Link a text on a drawing board to a note or another board, as the board's Link to… does: the text gets a link icon that opens it. Give to_note or to_board, or remove: true to take the link off. The text is matched by its words.",
+    input: { board: S.str("The board's id or name"), text: S.str("Words of the text on the board"), to_note: S.str("A note's id or title"), to_board: S.str("Another board's id or name"), remove: S.bool("Take the link off") },
+    required: ["board", "text"],
+    async run(a) {
+      if (!a.remove && !a.to_note && !a.to_board) fail("Give to_note, to_board, or remove: true.");
+      const d = a.to_note ? await readData() : null;
+      const note = a.to_note ? findItem(d, "notes", a.to_note) : null;
+      return change(`link board text "${a.text}"`, (doc) => {
+        const all = (doc.boards || []).map(Boards.sanitizeBoard);
+        const b = findBoard(all, a.board);
+        const target = a.to_board ? findBoard(all, a.to_board) : null;
+        if (target && target.id === b.id) fail("A board can't link to itself.");
+        const q = lower(a.text);
+        const raw = doc.boards.find((x) => x.id === b.id);
+        const hits = (raw.elements || []).filter((e) => e.t === "text" && lower(e.text).includes(q));
+        if (!hits.length) fail(`No text on "${b.name}" has "${a.text}" (lifelog_boards with board shows its text).`);
+        if (hits.length > 1 && !hits.some((e) => lower(e.text) === q)) fail(`${hits.length} texts on "${b.name}" have "${a.text}": ${hits.map((e) => '"' + cut(e.text, 40) + '"').join(", ")}. Give more of the words.`);
+        const e = hits.find((x) => lower(x.text) === q) || hits[0];
+        const next = { ...raw, elements: raw.elements.map((x) => {
+          if (x !== e) return x;
+          const out = { ...x };
+          if (a.remove) delete out.ln; else out.ln = note ? "note:" + note.id : "board:" + target.id;
+          return out;
+        }) };
+        replaceItem(doc, "boards", Boards.sanitizeBoard({ ...next, updatedAt: nowIso() }));
+        const what = a.remove ? "Took the link off" : `Linked`;
+        return { text: `${what} "${cut(e.text, 60)}" on "${b.name}"${a.remove ? "" : " to " + (note ? `the note "${cut(Notes.linkTitle(note) || note.text, 60)}"` : `the board "${target.name}"`)}.`, touched: [["boards", b.id]] };
       }, { file: "boards" });
     },
   },
