@@ -187,6 +187,74 @@ test("with no base at all, boards and strokes from both sides are united", () =>
   assert.deepStrictEqual(out.find((b) => b.id === "b1").elements.map((e) => e.id).sort(), ["l", "r"]);
 });
 
+// ---------- Nov 2026: smoothing, guides, sticky arrows, groups, crop ----------
+test("smoothing keeps the ends and calms a zig-zag", () => {
+  const pts = [[0, 0], [10, 10], [20, 0], [30, 10], [40, 0], [50, 10]];
+  const out = B.smoothPoints(pts, 2);
+  assert.deepStrictEqual(out[0], [0, 0]);
+  assert.deepStrictEqual(out[out.length - 1], [50, 10]);
+  const swing = (p) => Math.max(...p.slice(1, -1).map((q) => q[1])) - Math.min(...p.slice(1, -1).map((q) => q[1]));
+  assert.ok(swing(out) < swing(pts));
+});
+
+test("guides nudge a box onto another's edge or middle within the tolerance, else not at all", () => {
+  const g = B.guideSnap({ x: 103, y: 300, w: 50, h: 50 }, [{ x: 100, y: 0, w: 80, h: 40 }], 6);
+  assert.strictEqual(g.dx, -3);
+  assert.strictEqual(g.dy, null);
+  assert.deepStrictEqual(g.lines[0].slice(0, 1), [100]);
+  const mid = B.guideSnap({ x: 0, y: 18, w: 10, h: 4 }, [{ x: 200, y: 0, w: 40, h: 40 }], 3);
+  assert.strictEqual(mid.dy, 0);
+  assert.strictEqual(B.guideSnap({ x: 0, y: 0, w: 10, h: 10 }, [{ x: 100, y: 100, w: 10, h: 10 }], 5).lines.length, 0);
+});
+
+test("an arrow's ends stick to shapes and follow them when they move", () => {
+  const box = { id: "r", t: "rect", x: 100, y: 100, w: 100, h: 50, sw: 2 };
+  const b = B.bindAt([box], 200, 125, 5);
+  assert.deepStrictEqual(b, { id: "r", fx: 1, fy: 0.5 });
+  assert.strictEqual(B.bindAt([box], 400, 400, 5), null);
+  const arrow = { id: "a", t: "arrow", x: 0, y: 0, x2: 200, y2: 125, sw: 2, b2: b };
+  const els = [box, arrow];
+  assert.strictEqual(B.followBindings(els), els, "nothing moved, nothing new");
+  const after = B.followBindings([{ ...box, x: 300 }, arrow]);
+  assert.deepStrictEqual([after[1].x2, after[1].y2], [400, 125]);
+  assert.deepStrictEqual([after[1].x, after[1].y], [0, 0]);
+  const gone = [arrow];
+  assert.strictEqual(B.followBindings(gone), gone, "a missing shape leaves the end where it was");
+});
+
+test("picking one of a group picks the group; a paste gives groups and stuck ends new ids", () => {
+  const els = [{ id: "a", gp: "g1" }, { id: "b", gp: "g1" }, { id: "c" }];
+  assert.deepStrictEqual([...B.withGroups(els, new Set(["a"]))].sort(), ["a", "b"]);
+  assert.deepStrictEqual([...B.withGroups(els, new Set(["c"]))], ["c"]);
+  let n = 0;
+  const out = B.reid([{ id: "a", gp: "g1" }, { id: "b", gp: "g1" }, { id: "l", t: "arrow", b1: { id: "a", fx: 0, fy: 0 }, b2: { id: "zz", fx: 1, fy: 1 } }], () => "n" + n++);
+  assert.notStrictEqual(out[0].gp, "g1");
+  assert.strictEqual(out[0].gp, out[1].gp);
+  assert.strictEqual(out[2].b1.id, out[0].id);
+  assert.strictEqual(out[2].b2, undefined);
+});
+
+test("a crop is the drawn box over the whole picture, and back", () => {
+  const e = { x: 50, y: 20, w: 100, h: 40, cr: [0.25, 0.5, 0.5, 0.5] };
+  const full = B.fullPictureBox(e);
+  assert.deepStrictEqual(full, { x: 0, y: -20, w: 200, h: 80 });
+  assert.deepStrictEqual(B.cropFrom(full, { x: 50, y: 20, w: 100, h: 40 }), [0.25, 0.5, 0.5, 0.5]);
+  assert.strictEqual(B.cropFrom(full, full), null);
+});
+
+test("lock, group, link and stuck ends are kept only in their shape", () => {
+  const els = B.sanitizeBoard({ id: "x", elements: [
+    { id: "a", t: "rect", x: 0, y: 0, w: 1, h: 1, lk: true, gp: "g", ln: "note:abc" },
+    { id: "b", t: "rect", x: 0, y: 0, w: 1, h: 1, lk: "yes", gp: 5, ln: "javascript:alert(1)", b1: { id: "a", fx: 0, fy: 0 } },
+    { id: "c", t: "arrow", x: 0, y: 0, x2: 1, y2: 1, b1: { id: "a", fx: 2, fy: -1 }, b2: { id: 3 } },
+  ] }).elements;
+  assert.deepStrictEqual([els[0].lk, els[0].gp, els[0].ln], [true, "g", "note:abc"]);
+  assert.deepStrictEqual([els[1].lk, els[1].gp, els[1].ln, els[1].b1], [undefined, undefined, undefined, undefined]);
+  assert.deepStrictEqual(els[2].b1, { id: "a", fx: 1, fy: 0 });
+  assert.strictEqual(els[2].b2, undefined);
+  assert.strictEqual(B.boardText({ elements: [{ t: "text", text: "Day 1" }, { t: "rect" }, { t: "text", text: "Camp" }] }), "Day 1\nCamp");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 
 // ---------- clipboard ----------

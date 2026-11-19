@@ -3072,8 +3072,17 @@
         </div>
         <button type="button" class="btn btn-icon" id="boardMenuBtn" title="More" aria-label="More" data-t-attr="title,aria-label"><span data-ico="ellipsis"></span></button>
         <div class="menu-pop board-menu" id="boardMenu" hidden>
-          <button type="button" id="boardTagsItem" data-t>Tags…</button>
+          <div class="board-opts" id="boardOpts">
+            <p class="board-opts-head" data-t>Board options</p>
+            <label class="board-opt"><span data-t>Grid</span><input type="checkbox" class="switch" data-opt="grid" /></label>
+            <label class="board-opt"><span data-t>Snap to grid</span><input type="checkbox" class="switch" data-opt="snap" /></label>
+            <label class="board-opt"><span data-t>Alignment guides</span><input type="checkbox" class="switch" data-opt="guides" /></label>
+            <label class="board-opt"><span data-t>Arrows stick to shapes</span><input type="checkbox" class="switch" data-opt="stick" /></label>
+            <label class="board-opt"><span data-t>Smooth the pen</span><input type="checkbox" class="switch" data-opt="smooth" /></label>
+          </div>
           <div class="menu-pop-divider" role="separator"></div>
+          <button type="button" id="boardTagsItem" class="board-tags-item" data-t>Tags…</button>
+          <div class="menu-pop-divider board-tags-item" role="separator"></div>
           <button type="button" id="boardExportPng" data-t>Export PNG</button>
           <button type="button" id="boardExportSvg" data-t>Export SVG</button>
           <div class="menu-pop-divider" role="separator"></div>
@@ -3091,10 +3100,19 @@
       <div class="board-style" id="boardStyle">
         <button type="button" class="board-delete board-clip" id="boardCopy" hidden aria-label="Copy selected" title="Copy (Ctrl+C)" data-t-attr="title,aria-label"><span data-ico="copy"></span></button>
         <button type="button" class="board-delete board-clip" id="boardPaste" hidden aria-label="Paste" title="Paste (Ctrl+V)" data-t-attr="title,aria-label"><span data-ico="clipboard-paste"></span></button>
+        <button type="button" class="board-delete board-clip board-sel-btn" id="boardGroup" hidden aria-label="Group" title="Group" data-t-attr="title,aria-label"><span data-ico="group"></span></button>
+        <button type="button" class="board-delete board-clip board-sel-btn" id="boardLock" hidden aria-label="Lock" title="Lock" data-t-attr="title,aria-label"><span data-ico="lock"></span></button>
+        <button type="button" class="board-delete board-clip board-sel-btn" id="boardLink" hidden aria-label="Link to…" title="Link to a note or board" data-t-attr="title,aria-label"><span data-ico="link"></span></button>
+        <button type="button" class="board-delete board-clip board-sel-btn" id="boardCrop" hidden aria-label="Crop" title="Crop" data-t-attr="title,aria-label"><span data-ico="crop"></span></button>
+        <button type="button" class="board-delete board-clip" id="boardCropReset" hidden aria-label="Show the whole picture" title="Show the whole picture" data-t-attr="title,aria-label"><span data-ico="rotate-ccw"></span></button>
         <button type="button" class="board-delete" id="boardDelete" hidden aria-label="Delete selected" title="Delete selected (Del)" data-t-attr="title,aria-label"><span data-ico="trash"></span></button>
         <button type="button" class="board-fill" id="boardFill" aria-pressed="false" aria-label="Fill shapes" title="Fill rectangles and ellipses" data-t-attr="title,aria-label"></button>
       </div>
       <div class="board-tools" id="boardTools"></div>
+    </div>
+    <div class="link-pick board-link-pick" id="boardLinkPick" hidden>
+      <input type="search" id="boardLinkQuery" class="board-link-query" placeholder="Link to a note or board" aria-label="Link to a note or board" data-t-attr="placeholder,aria-label" autocomplete="off" />
+      <div class="board-link-list" id="boardLinkList" role="listbox"></div>
     </div>
   </div>
 

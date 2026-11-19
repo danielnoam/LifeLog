@@ -24,6 +24,13 @@
 // `c` is a colour, or "ink" for the theme's text colour, so a board drawn in
 // the dark theme still reads in the light one. `seed` keeps a rough shape's
 // wobble the same every time it's drawn.
+//
+// Nov 2026, on any element: `lk` true when locked (can't be moved, turned,
+// resized, erased or deleted until unlocked), `gp` a group id (picking one
+// picks the group), `ln` "note:<id>" or "board:<id>" (a link, opened from
+// its icon). A line or arrow can stick to shapes: `b1` and `b2`, its start
+// and end, are { id, fx, fy }, a point on that element's box by fractions,
+// so the end follows the shape when it moves, turns or resizes.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
@@ -259,6 +266,124 @@
     const last = pts[pts.length - 1];
     return d + `L${last[0]} ${last[1]}`;
   }
+  // The pen's own smoothing: each point the average of its neighbours, the
+  // ends kept, so a shaky hand draws a calmer line. `r` is how many on
+  // each side.
+  function smoothPoints(pts, r = 2) {
+    if (pts.length < 3 || r < 1) return pts.slice();
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) {
+      const k = Math.min(r, i, pts.length - 1 - i);
+      let x = 0, y = 0;
+      for (let j = i - k; j <= i + k; j++) { x += pts[j][0]; y += pts[j][1]; }
+      out.push([x / (2 * k + 1), y / (2 * k + 1)]);
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+  // Alignment guides: how far to nudge `box` so an edge or the middle lines
+  // up with another element's, within `tol`, and the lines to draw for it.
+  function guideSnap(box, others, tol) {
+    const xs = (b) => [b.x, b.x + b.w / 2, b.x + b.w], ys = (b) => [b.y, b.y + b.h / 2, b.y + b.h];
+    let bx = null, by = null;
+    for (const o of others) {
+      for (const a of xs(box)) for (const t of xs(o)) { const d = t - a; if (Math.abs(d) <= tol && (!bx || Math.abs(d) < Math.abs(bx.d))) bx = { d, at: t }; }
+      for (const a of ys(box)) for (const t of ys(o)) { const d = t - a; if (Math.abs(d) <= tol && (!by || Math.abs(d) < Math.abs(by.d))) by = { d, at: t }; }
+    }
+    const dx = bx ? bx.d : 0, dy = by ? by.d : 0;
+    const moved = { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
+    const lines = [];
+    const near = (v) => Math.abs(v) < 0.5;
+    if (bx) {
+      const on = others.filter((o) => xs(o).some((t) => near(t - bx.at)));
+      const y1 = Math.min(moved.y, ...on.map((o) => o.y)), y2 = Math.max(moved.y + moved.h, ...on.map((o) => o.y + o.h));
+      lines.push([bx.at, y1, bx.at, y2]);
+    }
+    if (by) {
+      const on = others.filter((o) => ys(o).some((t) => near(t - by.at)));
+      const x1 = Math.min(moved.x, ...on.map((o) => o.x)), x2 = Math.max(moved.x + moved.w, ...on.map((o) => o.x + o.w));
+      lines.push([x1, by.at, x2, by.at]);
+    }
+    return { dx: bx ? dx : null, dy: by ? dy : null, lines };
+  }
+  const snapTo = (v, g) => Math.round(v / g) * g;
+  // Sticky arrows: what a line's end at (x, y) sticks to, the topmost shape,
+  // text or picture whose box holds the point (within `tol`), or null.
+  const STICKS = new Set(["rect", "ellipse", "text", "img"]);
+  function bindAt(elements, x, y, tol, skip) {
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const e = elements[i];
+      if (!STICKS.has(e.t) || e.id === skip) continue;
+      const r = rawBox(e);
+      let [lx, ly] = [x, y];
+      if (e.a) [lx, ly] = rotatePt(x, y, r.x + r.w / 2, r.y + r.h / 2, -e.a);
+      if (lx < r.x - tol || lx > r.x + r.w + tol || ly < r.y - tol || ly > r.y + r.h + tol) continue;
+      const f = (v, a, w) => (w ? Math.round(Math.max(0, Math.min(1, (v - a) / w)) * 1000) / 1000 : 0.5);
+      return { id: e.id, fx: f(lx, r.x, r.w), fy: f(ly, r.y, r.h) };
+    }
+    return null;
+  }
+  function bindPoint(target, b) {
+    const r = rawBox(target);
+    const x = r.x + r.w * b.fx, y = r.y + r.h * b.fy;
+    return target.a ? rotatePt(x, y, r.x + r.w / 2, r.y + r.h / 2, target.a) : [x, y];
+  }
+  // Every stuck end put back on its shape. The same array when nothing
+  // moved, so a redraw costs nothing; a shape that's gone leaves the end
+  // where it was (undo brings both back).
+  function followBindings(elements) {
+    let byId = null, out = null;
+    elements.forEach((e, i) => {
+      if ((e.t !== "line" && e.t !== "arrow") || (!e.b1 && !e.b2)) return;
+      byId = byId || new Map(elements.map((x) => [x.id, x]));
+      let next = e;
+      for (const [key, px, py] of [["b1", "x", "y"], ["b2", "x2", "y2"]]) {
+        const b = e[key], t = b && byId.get(b.id);
+        if (!t) continue;
+        const [x, y] = bindPoint(t, b).map(Math.round);
+        if (x !== next[px] || y !== next[py]) next = { ...next, [px]: x, [py]: y };
+      }
+      if (next !== e) { out = out || elements.slice(); out[i] = next; }
+    });
+    return out || elements;
+  }
+  // A selection's ids grown to whole groups.
+  function withGroups(elements, ids) {
+    const gps = new Set(elements.filter((e) => ids.has(e.id) && e.gp).map((e) => e.gp));
+    if (!gps.size) return ids;
+    return new Set([...ids, ...elements.filter((e) => e.gp && gps.has(e.gp)).map((e) => e.id)]);
+  }
+  // Pasted or imported elements get new ids: groups and stuck ends follow
+  // to the new ids, and an end stuck to something left behind comes loose.
+  function reid(list, uidFn) {
+    const ids = new Map(list.map((e) => [e.id, uidFn()]));
+    const gps = new Map();
+    return list.map((e) => {
+      const out = { ...e, id: ids.get(e.id) };
+      if (e.gp) { if (!gps.has(e.gp)) gps.set(e.gp, uidFn()); out.gp = gps.get(e.gp); }
+      for (const k of ["b1", "b2"]) {
+        if (!e[k]) continue;
+        if (ids.has(e[k].id)) out[k] = { ...e[k], id: ids.get(e[k].id) }; else delete out[k];
+      }
+      return out;
+    });
+  }
+  // A picture's crop as the box it's drawn in: the whole picture's box (what
+  // the crop handles can't leave), and back again.
+  function fullPictureBox(e) {
+    const [cx, cy, cw, ch] = e.cr || [0, 0, 1, 1];
+    const W = e.w / cw, H = e.h / ch;
+    return { x: e.x - cx * W, y: e.y - cy * H, w: W, h: H };
+  }
+  function cropFrom(full, box) {
+    const r = (v) => Math.round(v * 1e4) / 1e4;
+    const cr = [r((box.x - full.x) / full.w), r((box.y - full.y) / full.h), r(box.w / full.w), r(box.h / full.h)];
+    return cr[0] === 0 && cr[1] === 0 && cr[2] === 1 && cr[3] === 1 ? null : cr;
+  }
+
+  // A board's words, for search: its text elements, in drawing order.
+  const boardText = (b) => (b.elements || []).filter((e) => e.t === "text" && e.text).map((e) => e.text).join("\n");
+
   // A picture's fields hold only what they're for: an id of images.js's
   // shape, an https address, a file name. Nothing else is ever drawn.
   const PIC_ID = /^[a-z0-9]{8,40}\.(jpg|png|gif|webp)$/;
@@ -284,13 +409,28 @@
     }
     return out.img || out.url || out.miss ? out : null;
   }
+  // The Nov 2026 fields any element can carry, each kept only in its shape.
+  const LINK = /^(note|board):[\w-]{1,80}$/;
+  function cleanShared(e) {
+    if (!("lk" in e || "gp" in e || "ln" in e || "b1" in e || "b2" in e)) return e;
+    const out = { ...e };
+    if (out.lk !== true) delete out.lk;
+    if (typeof out.gp !== "string" || !out.gp || out.gp.length > 80) delete out.gp;
+    if (!LINK.test(String(out.ln || ""))) delete out.ln;
+    for (const k of ["b1", "b2"]) {
+      const v = out[k];
+      if (!v || typeof v.id !== "string" || !Number.isFinite(+v.fx) || !Number.isFinite(+v.fy) || (e.t !== "line" && e.t !== "arrow")) delete out[k];
+      else out[k] = { id: v.id, fx: Math.max(0, Math.min(1, +v.fx)), fy: Math.max(0, Math.min(1, +v.fy)) };
+    }
+    return out;
+  }
   function sanitizeBoard(b) {
     const out = {
       id: b.id || (uid ? uid() : "b" + Date.now().toString(36)),
       name: String(b.name == null ? "" : b.name).trim() || "Untitled board",
       createdAt: b.createdAt || null,
       updatedAt: b.updatedAt || b.createdAt || "1970-01-01T00:00:00.000Z",
-      elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t).map(cleanPicture).filter(Boolean) : [],
+      elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t).map(cleanPicture).filter(Boolean).map(cleanShared) : [],
     };
     // A note category (0.206.0), so a board sits in the feed and in a
     // collection beside the notes it belongs with.
@@ -898,12 +1038,32 @@
   let spaceDown = false;
   let lastTap = null;
   let svg, world, overlay, liveLayer;
+  let cropping = null;       // { id, full }: a picture being cropped
+  // Board options (Nov 2026), per device: the grid behind the drawing,
+  // snapping to it, alignment guides, arrows that stick, the pen's smoothing.
+  const OPTS_KEY = "lifelog-board-opts-v1";
+  const OPT_DEFAULTS = { grid: false, snap: false, guides: true, stick: true, smooth: true };
+  const GRID = 24;
+  let opts = { ...OPT_DEFAULTS };
+  try { opts = { ...OPT_DEFAULTS, ...JSON.parse(localStorage.getItem(OPTS_KEY) || "{}") }; } catch (e) { /* the defaults */ }
+  function setOpt(k, v) {
+    opts = { ...opts, [k]: !!v };
+    try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* this session only */ }
+    syncOpts();
+    if (editing) redraw();
+  }
+  function syncOpts() {
+    if (!svg) return;
+    svg.classList.toggle("board-grid", opts.grid);
+    document.querySelectorAll("#boardOpts [data-opt]").forEach((i) => { i.checked = !!opts[i.dataset.opt]; });
+  }
 
   function openBoard(id) {
     const b = findBoard(id);
     if (!b) return;
     editing = b;
-    selection = new Set(); undoStack = []; redoStack = []; op = null; pointers.clear(); pinch = null;
+    selection = new Set(); undoStack = []; redoStack = []; op = null; pointers.clear(); pinch = null; cropping = null;
+    closeLinkPick();
     $("#boardName").value = b.name;
     fillCategory(b.category || "");
     syncTagsBtn();
@@ -963,7 +1123,9 @@
   function closeBoard() {
     if (!editing) return;
     closeBoardTags();
+    closeLinkPick();
     commitText();
+    endCrop();
     const name = $("#boardName").value.trim() || "Untitled board";
     if (name !== editing.name) { editing.name = name; changed(editing); }
     editing = null;
@@ -984,17 +1146,78 @@
     if (textInput && !textInput.hidden) placeTextInput();
   }
   function redraw() {
+    editing.elements = followBindings(editing.elements);
     world.innerHTML = "";
     for (const e of editing.elements) {
       if (textEditing && e.id === textEditing.id) continue;
+      if (cropping && e.id === cropping.id) {
+        // The whole picture, dimmed, behind the part that's kept.
+        const f = cropping.full;
+        const ghost = drawElement({ ...e, id: e.id + "~", x: f.x, y: f.y, w: f.w, h: f.h, cr: undefined, a: 0 });
+        ghost.setAttribute("opacity", ".3");
+        ghost.removeAttribute("data-id");
+        world.appendChild(ghost);
+      }
       world.appendChild(drawElement(e));
     }
+    for (const e of editing.elements) if (e.ln) world.appendChild(linkBadge(e));
     drawSelection();
     applyView();
     $("#boardUndo").disabled = !undoStack.length;
     $("#boardRedo").disabled = !redoStack.length;
-    $("#boardDelete").hidden = !selection.size;
+    const sel = selected();
+    $("#boardDelete").hidden = !sel.some((e) => !e.lk);
     syncClipButtons();
+    syncSelButtons(sel);
+  }
+  const selected = () => editing.elements.filter((e) => selection.has(e.id));
+  // The selection's own buttons: Group, Lock, Link to…, Crop.
+  function syncSelButtons(sel) {
+    const g = $("#boardGroup"), l = $("#boardLock"), k = $("#boardLink"), c = $("#boardCrop");
+    if (!g) return;
+    const grouped = sel.length > 1 && sel[0].gp && sel.every((e) => e.gp === sel[0].gp);
+    g.hidden = sel.length < 2;
+    g.replaceChildren(ico(grouped ? "ungroup" : "group"));
+    g.title = grouped ? i18n.t("Ungroup") : i18n.t("Group");
+    g.setAttribute("aria-label", g.title);
+    const locked = sel.length && sel.every((e) => e.lk);
+    l.hidden = !sel.length;
+    l.replaceChildren(ico(locked ? "lock-open" : "lock"));
+    l.title = locked ? i18n.t("Unlock it") : i18n.t("Lock");
+    l.setAttribute("aria-label", l.title);
+    l.classList.toggle("on", !!locked);
+    k.hidden = !sel.some((e) => e.t !== "pen" && e.t !== "line" && e.t !== "arrow");
+    k.classList.toggle("on", sel.some((e) => e.ln));
+    const pic = sel.length === 1 && sel[0].t === "img" && !sel[0].a && !sel[0].lk;
+    c.hidden = !pic && !cropping;
+    c.classList.toggle("on", !!cropping);
+    c.title = cropping ? i18n.t("Done cropping") : i18n.t("Crop");
+    c.setAttribute("aria-label", c.title);
+    $("#boardCropReset").hidden = !cropping;
+  }
+  // A link's icon, at the top end of what carries it; a tap on it opens it.
+  const BADGE = 22;
+  function badgeBox(e) {
+    const b = bbox(e), s = BADGE / Math.max(view.k, 0.5);
+    return { x: b.x + b.w + 4 / view.k, y: b.y - s * 0.2, s };
+  }
+  function linkBadge(e) {
+    const { x, y, s } = badgeBox(e);
+    const g = svgEl("g", { class: "board-link-badge" + (linkTarget(e.ln) ? "" : " is-missing") });
+    g.appendChild(svgEl("rect", { x, y, width: s, height: s, rx: s / 4 }));
+    const icon = svgEl("svg", { x: x + s * 0.18, y: y + s * 0.18, width: s * 0.64, height: s * 0.64, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linecap": "round", "stroke-linejoin": "round" });
+    for (const c of [...ico("link").childNodes]) icon.appendChild(c);
+    g.appendChild(icon);
+    return g;
+  }
+  function linkAt(x, y) {
+    for (let i = editing.elements.length - 1; i >= 0; i--) {
+      const e = editing.elements[i];
+      if (!e.ln) continue;
+      const b = badgeBox(e), pad = 6 / view.k;
+      if (x >= b.x - pad && x <= b.x + b.s + pad && y >= b.y - pad && y <= b.y + b.s + pad) return e;
+    }
+    return null;
   }
   function redrawAfterMerge() {
     const fresh = findBoard(editing.id);
@@ -1019,8 +1242,29 @@
       const r = norm(op.x0, op.y0, op.x1 - op.x0, op.y1 - op.y0);
       overlay.appendChild(svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, class: "board-box" }));
     }
+    if (op && op.guides) for (const [x1, y1, x2, y2] of op.guides) overlay.appendChild(svgEl("line", { x1, y1, x2, y2, class: "board-guide" }));
+    for (const e of els) {
+      if (!e.lk) continue;
+      const b = bbox(e), s = 18 / view.k;
+      const g = svgEl("g", { class: "board-lock-badge" });
+      g.appendChild(svgEl("circle", { cx: b.x + b.w + 4 / view.k, cy: b.y + b.h + 4 / view.k, r: s / 2 + 3 / view.k }));
+      const icon = svgEl("svg", { x: b.x + b.w + 4 / view.k - s * 0.35, y: b.y + b.h + 4 / view.k - s * 0.35, width: s * 0.7, height: s * 0.7, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linecap": "round", "stroke-linejoin": "round" });
+      for (const c of [...ico("lock").childNodes]) icon.appendChild(c);
+      g.appendChild(icon);
+      overlay.appendChild(g);
+    }
+    if (cropping) {
+      const e = editing.elements.find((x) => x.id === cropping.id);
+      if (!e) return;
+      const hs = 6 / view.k;
+      for (const [corner, hx, hy] of [["nw", e.x, e.y], ["ne", e.x + e.w, e.y], ["se", e.x + e.w, e.y + e.h], ["sw", e.x, e.y + e.h]]) {
+        handles.push({ kind: "crop", corner, x: hx, y: hy });
+        overlay.appendChild(svgEl("rect", { x: hx - hs, y: hy - hs, width: hs * 2, height: hs * 2, class: "board-handle board-crop-handle", "data-handle": corner }));
+      }
+      return;
+    }
     const boxing = op && op.kind === "box", moving = op && op.kind === "move" && op.moved;
-    if (tool !== "select" || !els.length || boxing) return;
+    if (tool !== "select" || !els.length || boxing || els.some((e) => e.lk)) return;
     const B = boundsOf(els), pad = 8 / view.k, hs = 5 / view.k;
     const x1 = B.x - pad, y1 = B.y - pad, x2 = B.x + B.w + pad, y2 = B.y + B.h + pad;
     if (els.length > 1) overlay.appendChild(svgEl("rect", { x: x1, y: y1, width: x2 - x1, height: y2 - y1, class: "board-sel board-sel-group" }));
@@ -1076,10 +1320,10 @@
     changed(editing); redraw();
   }
   function deleteSelection() {
-    if (!selection.size) return;
+    if (!selection.size || !selected().some((e) => !e.lk)) return;
     remember();
-    editing.elements = editing.elements.filter((e) => !selection.has(e.id));
-    selection = new Set();
+    editing.elements = editing.elements.filter((e) => !selection.has(e.id) || e.lk);
+    selection = new Set(editing.elements.filter((e) => selection.has(e.id)).map((e) => e.id));
     changed(editing); redraw();
   }
 
@@ -1088,6 +1332,7 @@
     const r = norm(o.x0, o.y0, o.x1 - o.x0, o.y1 - o.y0);
     if (!(r.w > 2 || r.h > 2)) return [];
     return editing.elements.filter((e) => {
+      if (e.lk) return false;
       const b = bbox(e);
       return b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h;
     }).map((e) => e.id);
@@ -1119,6 +1364,17 @@
     }
     if (tool === "eraser") { op = { kind: "erase", gone: new Set(), last: [x, y] }; eraseAt(x, y, tolerance(ev)); return; }
     if (tool === "text") { op = { kind: "text", x, y }; return; }
+    if (tool === "select" || tool === "hand") {
+      const linked = !spaceDown && ev.button !== 1 && linkAt(x, y);
+      if (linked) { op = null; pointers.delete(ev.pointerId); openLink(linked.ln); return; }
+    }
+    if (tool === "select" && cropping) {
+      const h = handleAt(x, y, tolerance(ev));
+      const e = editing.elements.find((v) => v.id === cropping.id);
+      if (h && h.kind === "crop") { remember(); op = { kind: "crop", h, orig: { ...e } }; return; }
+      if (e && hitTest({ ...e, a: 0 }, x, y, 0)) { remember(); op = { kind: "croppan", x0: x, y0: y, orig: { ...e } }; return; }
+      endCrop();
+    }
     if (tool === "select") {
       const h = handleAt(x, y, tolerance(ev));
       const orig = () => editing.elements.filter((e) => selection.has(e.id)).map((e) => ({ ...e }));
@@ -1126,8 +1382,8 @@
       if (h && h.kind === "rotate") { op = { kind: "rotate", h, a0: Math.atan2(y - h.cy, x - h.cx), orig: orig(), moved: false }; return; }
       const hit = topHit(x, y, tolerance(ev));
       if (hit) {
-        if (!selection.has(hit.id)) selection = ev.shiftKey ? new Set([...selection, hit.id]) : new Set([hit.id]);
-        op = { kind: "move", x0: x, y0: y, orig: editing.elements.filter((e) => selection.has(e.id)).map((e) => ({ ...e })), moved: false, tapped: hit };
+        if (!selection.has(hit.id)) selection = withGroups(editing.elements, ev.shiftKey ? new Set([...selection, hit.id]) : new Set([hit.id]));
+        op = { kind: "move", x0: x, y0: y, orig: editing.elements.filter((e) => selection.has(e.id) && !e.lk).map((e) => ({ ...e })), moved: false, tapped: hit };
       } else {
         if (!ev.shiftKey) selection = new Set();
         op = { kind: "box", x0: x, y0: y, x1: x, y1: y, base: new Set(selection) };
@@ -1138,8 +1394,13 @@
     // A shape: drawn live from where the pointer went down.
     const e = { id: uid(), t: tool, c: color, sw: width, seed: Math.floor(Math.random() * 2 ** 31) };
     if (fill && (tool === "rect" || tool === "ellipse")) e.f = true;
-    if (tool === "rect" || tool === "ellipse") Object.assign(e, { x: Math.round(x), y: Math.round(y), w: 0, h: 0 });
-    else Object.assign(e, { x: Math.round(x), y: Math.round(y), x2: Math.round(x), y2: Math.round(y) });
+    const lineish = tool === "line" || tool === "arrow";
+    // A line's start on a shape sticks there; elsewhere it snaps to the grid.
+    const b1 = lineish && opts.stick ? bindAt(editing.elements, x, y, tolerance(ev)) : null;
+    const [sx, sy] = b1 ? [x, y] : snapPt(x, y);
+    if (tool === "rect" || tool === "ellipse") Object.assign(e, { x: sx, y: sy, w: 0, h: 0 });
+    else Object.assign(e, { x: sx, y: sy, x2: sx, y2: sy });
+    if (b1) e.b1 = b1;
     op = { kind: "shape", e };
   }
   function onPointerMove(ev) {
@@ -1156,7 +1417,7 @@
       return;
     }
     if (!op) return;
-    const [x, y] = pointerWorld(ev);
+    let [x, y] = pointerWorld(ev);
     if (op.kind === "pan") {
       view = { ...op.view, x: op.view.x + ev.clientX - op.sx, y: op.view.y + ev.clientY - op.sy };
       applyView();
@@ -1164,7 +1425,7 @@
       // Coalesced events keep a fast stroke smooth where the browser batches.
       const evs = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
       for (const c of evs.length ? evs : [ev]) op.pts.push(pointerWorld(c));
-      op.node.setAttribute("d", penPath(op.pts));
+      op.node.setAttribute("d", penPath(opts.smooth ? smoothPoints(op.pts, 2) : op.pts));
     } else if (op.kind === "erase") {
       // Along the way from the last position, not just at it: a quick swipe
       // arrives in a few far-apart events and would jump over a stroke.
@@ -1173,9 +1434,32 @@
       for (let i = 1; i <= steps; i++) eraseAt(lx + (x - lx) * i / steps, ly + (y - ly) * i / steps, tol);
       op.last = [x, y];
     } else if (op.kind === "move") {
-      const dx = x - op.x0, dy = y - op.y0;
+      let dx = x - op.x0, dy = y - op.y0;
+      if (!op.orig.length) return;
       if (!op.moved && Math.hypot(dx, dy) * view.k < 3) return;
-      if (!op.moved) { remember(); op.moved = true; }
+      if (!op.moved) {
+        remember(); op.moved = true;
+        // An arrow moved on its own comes loose from what it stuck to.
+        const ids = new Set(op.orig.map((e) => e.id));
+        op.orig = op.orig.map((e) => {
+          if (!e.b1 && !e.b2) return e;
+          const out = { ...e };
+          for (const k of ["b1", "b2"]) if (out[k] && !ids.has(out[k].id)) delete out[k];
+          return out;
+        });
+        op.box = boundsOf(op.orig);
+        op.others = editing.elements.filter((e) => !ids.has(e.id) && !(e.b1 && ids.has(e.b1.id)) && !(e.b2 && ids.has(e.b2.id))).slice(-400).map(bbox);
+      }
+      op.guides = null;
+      const box = { ...op.box, x: op.box.x + dx, y: op.box.y + dy };
+      let gx = null, gy = null;
+      if (opts.guides && !ev.altKey) {
+        const g = guideSnap(box, op.others, 6 / view.k);
+        gx = g.dx; gy = g.dy;
+        if (g.lines.length) op.guides = g.lines;
+      }
+      if (gx != null) dx += gx; else if (opts.snap && !ev.altKey) dx += snapTo(box.x, GRID) - box.x;
+      if (gy != null) dy += gy; else if (opts.snap && !ev.altKey) dy += snapTo(box.y, GRID) - box.y;
       const byId = new Map(op.orig.map((e) => [e.id, moved(e, dx, dy)]));
       editing.elements = editing.elements.map((e) => byId.get(e.id) || e);
       redraw();
@@ -1201,13 +1485,38 @@
       const byId = new Map(op.orig.map((e) => [e.id, next(e)]));
       editing.elements = editing.elements.map((e) => byId.get(e.id) || e);
       redraw();
+    } else if (op.kind === "crop" || op.kind === "croppan") {
+      const f = cropping.full, o = op.orig, min = 8;
+      let r;
+      if (op.kind === "croppan") {
+        const nx = Math.max(f.x, Math.min(f.x + f.w - o.w, o.x + x - op.x0));
+        const ny = Math.max(f.y, Math.min(f.y + f.h - o.h, o.y + y - op.y0));
+        r = { x: nx, y: ny, w: o.w, h: o.h };
+      } else {
+        let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h;
+        const c = op.h.corner, cx = Math.max(f.x, Math.min(f.x + f.w, x)), cy = Math.max(f.y, Math.min(f.y + f.h, y));
+        if (c.includes("w")) x1 = Math.min(cx, x2 - min); else x2 = Math.max(cx, x1 + min);
+        if (c.includes("n")) y1 = Math.min(cy, y2 - min); else y2 = Math.max(cy, y1 + min);
+        r = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+      }
+      const r2 = { x: Math.round(r.x), y: Math.round(r.y), w: Math.max(1, Math.round(r.w)), h: Math.max(1, Math.round(r.h)) };
+      const cr = cropFrom(f, r2);
+      editing.elements = editing.elements.map((e) => {
+        if (e.id !== o.id) return e;
+        const out = { ...e, ...r2 };
+        if (cr) out.cr = cr; else delete out.cr;
+        return out;
+      });
+      redraw();
     } else if (op.kind === "box") {
       op.x1 = x; op.y1 = y;
       // What the box covers lights up as it grows, not only on release.
-      selection = new Set([...op.base, ...boxHits(op)]);
+      selection = withGroups(editing.elements, new Set([...op.base, ...boxHits(op)]));
       drawSelection();
     } else if (op.kind === "shape") {
       const e = op.e;
+      if (e.t !== "line" && e.t !== "arrow") [x, y] = snapPt(x, y);
+      else if (!(opts.stick && bindAt(editing.elements, x, y, tolerance(ev), e.b1 && e.b1.id))) [x, y] = snapPt(x, y);
       if (e.t === "rect" || e.t === "ellipse") {
         e.w = Math.round(x - e.x); e.h = Math.round(y - e.y);
         if (ev.shiftKey) { const s = Math.max(Math.abs(e.w), Math.abs(e.h)); e.w = Math.sign(e.w || 1) * s; e.h = Math.sign(e.h || 1) * s; }
@@ -1224,7 +1533,7 @@
     if (!done) return;
     if (done.kind === "pen") {
       liveLayer.innerHTML = "";
-      const pts = simplify(done.pts, 0.8 / view.k);
+      const pts = simplify(opts.smooth ? smoothPoints(done.pts, 2) : done.pts, 0.8 / view.k);
       remember();
       editing.elements.push({ id: uid(), t: "pen", c: color, sw: width, p: encodePoints(pts) });
       changed(editing); redraw();
@@ -1233,16 +1542,20 @@
     } else if (done.kind === "resize" || done.kind === "rotate") {
       if (done.moved) changed(editing);
       redraw();
+    } else if (done.kind === "crop" || done.kind === "croppan") {
+      changed(editing); redraw();
     } else if (done.kind === "move") {
-      if (done.moved) changed(editing);
-      else if (done.tapped && done.tapped.t === "text") {
+      if (done.moved) { changed(editing); redraw(); }
+      else if (done.tapped && (done.tapped.t === "text" || done.tapped.t === "img") && !done.tapped.lk) {
         // A pointerup's `detail` is always 0, so a double tap is timed here.
         const now = Date.now();
-        if (lastTap && lastTap.id === done.tapped.id && now - lastTap.at < 450) { lastTap = null; editText(done.tapped); }
-        else lastTap = { id: done.tapped.id, at: now };
+        if (lastTap && lastTap.id === done.tapped.id && now - lastTap.at < 450) {
+          lastTap = null;
+          if (done.tapped.t === "text") editText(done.tapped); else startCrop(done.tapped.id);
+        } else lastTap = { id: done.tapped.id, at: now };
       }
     } else if (done.kind === "box") {
-      selection = new Set([...done.base, ...boxHits(done)]);
+      selection = withGroups(editing.elements, new Set([...done.base, ...boxHits(done)]));
       redraw();
     } else if (done.kind === "shape") {
       liveLayer.innerHTML = "";
@@ -1250,6 +1563,11 @@
       const size = e.t === "rect" || e.t === "ellipse" ? Math.hypot(e.w, e.h) : Math.hypot(e.x2 - e.x, e.y2 - e.y);
       if (size * view.k < 4) return;
       if (e.t === "rect" || e.t === "ellipse") Object.assign(e, norm(e.x, e.y, e.w, e.h));
+      else if (opts.stick) {
+        const b2 = bindAt(editing.elements, e.x2, e.y2, tolerance(ev), e.b1 && e.b1.id);
+        if (b2) e.b2 = b2;
+      }
+      if (!opts.stick) { delete e.b1; delete e.b2; }
       remember();
       editing.elements.push(e);
       changed(editing); redraw();
@@ -1261,7 +1579,7 @@
   }
   function eraseAt(x, y, tol) {
     const hit = topHit(x, y, tol);
-    if (!hit) return;
+    if (!hit || hit.lk) return;
     if (!op.gone.size) remember();
     op.gone.add(hit.id);
     editing.elements = editing.elements.filter((e) => e !== hit);
@@ -1284,6 +1602,159 @@
     const r = svg.getBoundingClientRect();
     if (ev.ctrlKey || ev.metaKey) zoomAt(ev.clientX - r.left, ev.clientY - r.top, view.k * Math.exp(-ev.deltaY * 0.01));
     else { view = { ...view, x: view.x - ev.deltaX, y: view.y - ev.deltaY }; applyView(); }
+  }
+
+  // A point on the grid when Snap to grid is on.
+  const snapPt = (x, y) => (opts.snap ? [snapTo(x, GRID), snapTo(y, GRID)] : [Math.round(x), Math.round(y)]);
+
+  // ---------- group, lock ----------
+  function toggleGroup() {
+    const sel = selected();
+    if (sel.length < 2) return;
+    const grouped = sel[0].gp && sel.every((e) => e.gp === sel[0].gp);
+    const gp = grouped ? null : uid();
+    remember();
+    editing.elements = editing.elements.map((e) => {
+      if (!selection.has(e.id)) return e;
+      const out = { ...e };
+      if (gp) out.gp = gp; else delete out.gp;
+      return out;
+    });
+    changed(editing); redraw();
+    toast(gp ? i18n.t("Grouped. Picking one picks them all") : i18n.t("Ungrouped"));
+  }
+  function toggleLock() {
+    const sel = selected();
+    if (!sel.length) return;
+    const lock = !sel.every((e) => e.lk);
+    remember();
+    editing.elements = editing.elements.map((e) => {
+      if (!selection.has(e.id)) return e;
+      const out = { ...e };
+      if (lock) out.lk = true; else delete out.lk;
+      return out;
+    });
+    if (lock) endCrop();
+    changed(editing); redraw();
+  }
+
+  // ---------- crop ----------
+  // A picture's crop is the box it's drawn in: the handles move that box
+  // over the whole picture (dimmed behind it), and `cr` follows.
+  function startCrop(id) {
+    const e = editing && editing.elements.find((x) => x.id === id);
+    if (!e || e.t !== "img" || e.a || e.lk) return;
+    commitText();
+    tool = "select";
+    selection = new Set([id]);
+    cropping = { id, full: fullPictureBox(e) };
+    syncToolbar(); redraw();
+  }
+  function endCrop() {
+    if (!cropping) return;
+    cropping = null;
+    if (editing) redraw();
+  }
+  function resetCrop() {
+    if (!cropping) return;
+    const f = cropping.full;
+    remember();
+    editing.elements = editing.elements.map((e) => {
+      if (e.id !== cropping.id) return e;
+      const out = { ...e, x: Math.round(f.x), y: Math.round(f.y), w: Math.round(f.w), h: Math.round(f.h) };
+      delete out.cr;
+      return out;
+    });
+    changed(editing); redraw();
+  }
+
+  // ---------- links ----------
+  // "note:<id>" or "board:<id>": what it opens, or null when it's gone.
+  function linkTarget(ln) {
+    const m = /^(note|board):(.+)$/.exec(ln || "");
+    if (!m) return null;
+    if (m[1] === "board") { const b = findBoard(m[2]); return b ? { board: b } : null; }
+    const n = (state.data.notes || []).find((x) => x.id === m[2]);
+    return n ? { note: n } : null;
+  }
+  function openLink(ln) {
+    const hit = linkTarget(ln);
+    if (!hit) { toast(i18n.t("What this linked to is gone. Link to… picks another")); return; }
+    if (hit.board) { if (editing && hit.board.id === editing.id) return; closeBoard(); openBoard(hit.board.id); return; }
+    closeBoard();
+    window.LifeLogNotes.openNote(hit.note);
+  }
+  const linkName = (n) => (window.LifeLogNotes.linkTitle ? window.LifeLogNotes.linkTitle(n) : n.title || n.text) || "";
+  // Link to…: the notes and boards, newest first, narrowed by what's typed.
+  function linkChoices(q) {
+    q = String(q || "").trim().toLowerCase();
+    const out = [];
+    for (const n of state.data.notes || []) {
+      if (n.template) continue;
+      const name = n.kind === "quote" ? String(n.text || "").split("\n")[0] : linkName(n);
+      if (!name) continue;
+      out.push({ ln: "note:" + n.id, name, icon: n.kind === "list" ? "list-checks" : n.kind === "quote" ? "quote" : "notebook-text", sub: n.category || "", at: n.updatedAt || n.createdAt || "" });
+    }
+    for (const b of listed()) {
+      if (editing && b.id === editing.id) continue;
+      out.push({ ln: "board:" + b.id, name: b.name, icon: "presentation", sub: i18n.t("Board"), at: b.updatedAt || "" });
+    }
+    out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    const hits = q ? out.filter((c) => c.name.toLowerCase().includes(q)) : out;
+    return hits.slice(0, 30);
+  }
+  function openLinkPick() {
+    if (!editing || !selection.size) return;
+    const pop = $("#boardLinkPick");
+    pop.hidden = false;
+    pop.classList.remove("is-leaving");
+    const input = $("#boardLinkQuery");
+    input.value = "";
+    drawLinkPick();
+    setTimeout(() => input.focus(), 0);
+  }
+  function closeLinkPick() {
+    const pop = typeof document !== "undefined" && $ && $("#boardLinkPick");
+    if (!pop || pop.hidden) return false;
+    pop.hidden = true;
+    return true;
+  }
+  function drawLinkPick() {
+    const list = $("#boardLinkList");
+    list.replaceChildren();
+    const has = selected().some((e) => e.ln);
+    if (has) {
+      const off = el("button", "link-pick-row board-link-off");
+      off.type = "button";
+      off.appendChild(ico("x"));
+      off.appendChild(el("span", "link-pick-name", i18n.t("Remove the link")));
+      off.onclick = () => setLink(null);
+      list.appendChild(off);
+    }
+    const choices = linkChoices($("#boardLinkQuery").value);
+    if (!choices.length) list.appendChild(el("p", "link-pick-empty", i18n.t("No notes or boards match")));
+    for (const c of choices) {
+      const b = el("button", "link-pick-row");
+      b.type = "button";
+      b.appendChild(ico(c.icon));
+      b.appendChild(el("span", "link-pick-name", c.name));
+      if (c.sub) b.appendChild(el("small", null, c.sub));
+      b.onclick = () => setLink(c.ln);
+      list.appendChild(b);
+    }
+  }
+  function setLink(ln) {
+    closeLinkPick();
+    const can = (e) => e.t !== "pen" && e.t !== "line" && e.t !== "arrow";
+    if (!editing || !selected().some(can)) return;
+    remember();
+    editing.elements = editing.elements.map((e) => {
+      if (!selection.has(e.id) || !can(e)) return e;
+      const out = { ...e };
+      if (ln) out.ln = ln; else delete out.ln;
+      return out;
+    });
+    changed(editing); redraw();
   }
 
   // ---------- text ----------
@@ -1421,7 +1892,7 @@
     let dx, dy;
     if (visible) dx = dy = (pasteCount + 1) * 16;
     else { dx = Math.round((vx1 + vx2) / 2 - (box.x + box.w / 2)); dy = Math.round((vy1 + vy2) / 2 - (box.y + box.h / 2)); }
-    const added = clean.map((e) => ({ ...moved(e, dx, dy), id: uid() }));
+    const added = reid(clean.map((e) => moved(e, dx, dy)), uid);
     remember();
     editing.elements.push(...added);
     pasteCount++;
@@ -1472,6 +1943,7 @@
   }
   function setTool(t) {
     commitText();
+    if (t !== "select") endCrop();
     tool = t;
     if (t !== "select") selection = new Set();
     syncToolbar();
@@ -1481,7 +1953,7 @@
   // drawn next — fill only to the shapes that can hold one, and a width to a
   // resized text puts it back on the three sizes.
   function restyle(patch) {
-    const fits = (e) => e.t !== "img" && (!("f" in patch) || e.t === "rect" || e.t === "ellipse");
+    const fits = (e) => e.t !== "img" && !e.lk && (!("f" in patch) || e.t === "rect" || e.t === "ellipse");
     if (!editing || !editing.elements.some((e) => selection.has(e.id) && fits(e))) return;
     remember();
     editing.elements = editing.elements.map((e) => {
@@ -1501,18 +1973,23 @@
       e.preventDefault();
       const menus = ["#boardMenu", "#boardZoomMenu"].map((m) => $(m)).filter((m) => !m.hidden);
       if (closeBoardTags()) { /* the tags sheet first */ }
+      else if (closeLinkPick()) { /* then the link picker */ }
       else if (menus.length) menus.forEach((m) => { m.hidden = true; });
+      else if (cropping) endCrop();
       else if (textEditing) commitText();
       else if (selection.size) { selection = new Set(); redraw(); }
       else closeBoard();
       return true;
     }
-    if (typing || document.activeElement === $("#boardName") || !$("#tagSheet").hidden) return true;
+    if (typing || document.activeElement === $("#boardName") || !$("#tagSheet").hidden || !$("#boardLinkPick").hidden) return true;
+    if (cropping && e.key === "Enter") { e.preventDefault(); endCrop(); return true; }
     const mod = e.ctrlKey || e.metaKey;
     const letter = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (mod && letter === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return true; }
     if (mod && letter === "y") { e.preventDefault(); redo(); return true; }
-    if (mod && letter === "a") { e.preventDefault(); setTool("select"); selection = new Set(editing.elements.map((x) => x.id)); redraw(); return true; }
+    if (mod && letter === "g") { e.preventDefault(); toggleGroup(); return true; }
+    if (mod && letter === "l") { e.preventDefault(); toggleLock(); return true; }
+    if (mod && letter === "a") { e.preventDefault(); setTool("select"); selection = new Set(editing.elements.filter((x) => !x.lk).map((x) => x.id)); redraw(); return true; }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelection(); return true; }
     if (e.key === " ") { spaceDown = true; svg.classList.add("panning"); e.preventDefault(); return true; }
     if (!mod && (e.key === "+" || e.key === "=")) { zoomBy(1.25); return true; }
@@ -1669,6 +2146,19 @@
     document.addEventListener("copy", onCopy);
     document.addEventListener("cut", onCut);
     $("#boardCopy").onclick = copyNow;
+    $("#boardGroup").onclick = toggleGroup;
+    $("#boardLock").onclick = toggleLock;
+    $("#boardLink").onclick = (e) => { e.stopPropagation(); if ($("#boardLinkPick").hidden) openLinkPick(); else closeLinkPick(); };
+    $("#boardCrop").onclick = () => { if (cropping) endCrop(); else { const one = selected()[0]; if (one) startCrop(one.id); } };
+    $("#boardCropReset").onclick = resetCrop;
+    $("#boardLinkQuery").addEventListener("input", drawLinkPick);
+    $("#boardLinkQuery").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); const first = $("#boardLinkList .link-pick-row:not(.board-link-off)"); if (first) first.click(); }
+    });
+    $("#boardLinkPick").addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("click", () => closeLinkPick());
+    for (const i of document.querySelectorAll("#boardOpts [data-opt]")) i.addEventListener("change", () => setOpt(i.dataset.opt, i.checked));
+    $("#boardOpts").addEventListener("click", (e) => e.stopPropagation());
     $("#boardPaste").onclick = pasteNow;
     textInput.addEventListener("input", placeTextInput);
     textInput.addEventListener("blur", () => commitText());
@@ -1718,6 +2208,7 @@
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && saveTimer) flush(); });
     window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
     syncToolbar();
+    syncOpts();
   }
 
   window.LifeLogBoards = {
@@ -1728,6 +2219,7 @@
     ensureLoaded, flush, addBoards, boardsForExport, replaceAll, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn, renameTag, renameTagIn, closeBoardTags,
     // pure helpers (test/boards.test.js)
+    smoothPoints, guideSnap, bindAt, bindPoint, followBindings, withGroups, reid, fullPictureBox, cropFrom, cleanShared, linkTarget, boardText,
     parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };
 })();

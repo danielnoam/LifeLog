@@ -1398,6 +1398,19 @@ test("note links and templates: links out, linked from, and new notes from a tem
   assert.match(await ok("lifelog_set_template", { note: "no1", template: false }), /already an ordinary note/);
 });
 
+test("a board's text links to a note or board, shown with the board and taken off again", async () => {
+  reset();
+  assert.match(await ok("lifelog_link_board_text", { board: "Kitchen plan", text: "island", to_note: "Plan" }), /^Linked "Island here" on "Kitchen plan" to the note "Plan"/);
+  assert.strictEqual(boards().find((b) => b.id === "bd1").elements[0].ln, "note:no1");
+  assert.match(await ok("lifelog_boards", { board: "bd1" }), /Links \(tapping the icon opens them\):\n- "Island here" → note "Plan" \(no1\)/);
+  await ok("lifelog_link_board_text", { board: "bd1", text: "Island here", to_board: "Doodle" });
+  assert.strictEqual(boards().find((b) => b.id === "bd1").elements[0].ln, "board:bd2");
+  await refused("lifelog_link_board_text", { board: "bd1", text: "nowhere", to_board: "Doodle" }, /No text on "Kitchen plan"/);
+  await refused("lifelog_link_board_text", { board: "bd1", text: "island" }, /Give to_note, to_board/);
+  await ok("lifelog_link_board_text", { board: "bd1", text: "island", remove: true });
+  assert.strictEqual(boards().find((b) => b.id === "bd1").elements[0].ln, undefined);
+});
+
 test("Home's scratch board: shown on Home, marked in the list, and kept as a board", async () => {
   reset();
   const doc = JSON.parse(fs.readFileSync(BOARDS, "utf8"));

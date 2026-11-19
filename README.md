@@ -123,6 +123,13 @@ view a note opens in.
 <td><img src="docs/screenshots/note-editor-phone.webp" alt="Editing a note with line numbers on a phone" width="200"></td>
 </tr></table>
 
+On a board, ⋯ holds the board options for this device: a grid, snapping to
+it, alignment guides while moving, arrows that stick to the shapes they're
+drawn between (and follow them), and pen smoothing. A selection can be
+grouped (Ctrl+G) or locked (Ctrl+L), a picture cropped (double-tap it), and
+a text, shape or picture linked to a note or another board with Link to…;
+its link icon opens it. What's written on a board is found by search.
+
 ### Images in notes
 
 Add image at the foot of a note you're writing, or paste or drop one in. Each sits on its

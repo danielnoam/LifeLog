@@ -177,7 +177,7 @@
   // Everything a search should find, whatever the kind.
   // A picture's address isn't something you'd search for; its alt text is.
   const IMG_REF = /!\[([^\]]*)\]\(lifelog-img:[^)]*\)/g;
-  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.author, n.source, n.category, ...(n.tags || []), ...(n.items || []).flatMap((i) => [i.text, i.note, ...(i.tags || [])])]
+  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.boardText, n.author, n.source, n.category, ...(n.tags || []), ...(n.items || []).flatMap((i) => [i.text, i.note, ...(i.tags || [])])]
     .filter(Boolean).join("\n").toLowerCase();
 
   // A note with no createdAt at all (hand-edited JSON, a bad import) still
@@ -209,7 +209,7 @@
       return [];
     }
     return B.boardsNow().map((b) => ({
-      id: BOARD + b.id, kind: "board", text: b.name, category: b.category, ...(b.tags ? { tags: b.tags } : {}),
+      id: BOARD + b.id, kind: "board", text: b.name, boardText: B.boardText(b), category: b.category, ...(b.tags ? { tags: b.tags } : {}),
       createdAt: b.createdAt || b.updatedAt, updatedAt: b.updatedAt, board: b, ...(b.fav ? { fav: true } : {}),
     }));
   }
