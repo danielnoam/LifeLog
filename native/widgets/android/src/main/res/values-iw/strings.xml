@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_habits_label">הרגלים של LifeLog</string>
+    <string name="widget_habits_description">ההרגלים של היום, לסימון בלי לפתוח את האפליקציה</string>
+    <string name="widget_todos_label">משימות של LifeLog</string>
+    <string name="widget_todos_description">המשימות, כולן או הרשימות שנבחרו, לסימון בלי לפתוח את האפליקציה</string>
+    <string name="widget_quickadd_label">הוספה מהירה של LifeLog</string>
+    <string name="widget_quickadd_description">הוספת רשומה, הוצאה, פריט לתור, פתק או משימה</string>
+    <string name="widget_spend_label">הוצאות של LifeLog</string>
+    <string name="widget_spend_description">כמה החודש עלה עד עכשיו, ועל מה</string>
+    <string name="widget_invest_label">השקעות של LifeLog</string>
+    <string name="widget_invest_description">מה מוחזק ואיך הטיקרים זזו</string>
+    <string name="widget_note_label">פתק של LifeLog</string>
+    <string name="widget_note_description">פתק אחד לבחירה, במסך הבית</string>
+    <string name="widget_randomnote_label">פתק אקראי של LifeLog</string>
+    <string name="widget_randomnote_description">פתק אחר בכל שעה, בכל יום או בהקשה</string>
+    <string name="widget_upcoming_label">בקרוב של LifeLog</string>
+    <string name="widget_upcoming_description">מה מהתור יוצא בקרוב, בספירה לאחור, והמשימות עם תאריך</string>
+    <string name="widget_inprogress_label">בתהליך של LifeLog</string>
+    <string name="widget_inprogress_description">מה בתהליך בתור, וממתי</string>
+    <string name="widget_next_note">פתק אחר</string>
+    <string name="widget_add">הוספה</string>
+    <string name="widget_tick_list">סימון כל הרשימה</string>
+    <string name="widget_add_entry">רשומה</string>
+    <string name="widget_add_expense">הוצאה</string>
+    <string name="widget_add_backlog">תור</string>
+    <string name="widget_add_note">פתק</string>
+    <string name="widget_add_todo">משימה</string>
+    <string name="payments_listener_label">LifeLog: תשלומי Google Wallet</string>
+</resources>
