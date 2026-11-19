@@ -442,5 +442,7 @@ and never blaming.
 | Input | hover states, keyboard shortcuts (see the `?` sheet) | press feedback, long-press, swipe-down on sheets (0.222.0). No swipe actions on rows (DROPPED.md) |
 | Native extras | none | `html.native`: safe-area padding (`--sat`/`--sab`), no WebView overscroll glow, the share sheet for exports |
 
-Test every UI change at **1280px and 375px**, in **all four themes**, and
-once with reduced motion on.
+Test every UI change at **1280px and 375px**, in **all four themes**, in
+**English and Hebrew** (right to left), and once with reduced motion on.
+A screen built for one platform only says so (CONTRIBUTING.md, "Every
+language, every screen").

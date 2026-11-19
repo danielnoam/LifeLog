@@ -335,3 +335,4 @@ Every release that adds a feature adds its line here in the same commit.
 - Consistent type and spacing scales (0.223.0)
 - Animation pass: dropdowns close with a fade and swipe down on a phone, Settings steps back the right way, closes run faster than opens, the jump bar scales instead of re-laying out, the settle curve and ease are tokens everywhere (0.321.0)
 - Rules that stop drift: keel's RULES.md with LifeLog's names in DESIGN.md and CONTRIBUTING.md, checks for animation curves, layout animation and long fixed waits in tests; the Ledger says expense everywhere and deleting one offers Undo (0.321.0)
+- Rule: every feature works in English and Hebrew, on phone and wide, in the web, Windows and Android apps, or says plainly which platform it was built for; a check fails on English set straight into the UI (next release)

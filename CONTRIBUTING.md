@@ -62,10 +62,19 @@ sends, to whom, and what a page, file or other site could do with it. Use
 the least access (narrow tokens and scopes). Untrusted content stays
 sandboxed. Any trade-off is stated plainly in the pull request.
 
-**Every platform.** Everything works on Android and on a computer, and on
-iOS later. A feature that can't work somewhere gets that platform's nearest
-equivalent. iOS-only work goes on the to-do list's iOS section (or an
-issue).
+**Every language, every screen.** A change is done when it works in
+English and Hebrew (right to left), at phone width (375px) and wide
+(1280px), in the web app, the Windows app and the Android app, and in the
+Android widgets when it changes what they show. iOS is built only when
+Daniel asks, so it isn't checked by default. A feature that can't work
+somewhere gets that platform's nearest equivalent.
+
+Built for one platform on purpose is fine, but it is written down, never
+left for someone to find: the PR description, the `changes/` line ("Android
+only: ...", "Not in the web app: ...") and the feature's lines in
+ARCHITECTURE.md or DESIGN.md say which platforms it was built for and that
+the others never got it. A missing platform with no such line is a bug.
+iOS-only work goes on the to-do list's iOS section (or an issue).
 
 **Every outside service works in a browser too.** The phone and computer
 apps reach other sites through native HTTP, so CORS never stops them; the
@@ -116,8 +125,10 @@ fixed `"en-US"`. See ARCHITECTURE.md, "Right to left".
 **Every word has its Hebrew.** UI text goes through `i18n.t()` or
 `i18n.tn()` (markup: `data-t`), with its Hebrew added to `src/lang/he.js`
 in the same change, gender-neutral (nouns and infinitives, no "you"
-verbs). `test/i18n.test.js` checks it. Stored data and the bridge stay
-English.
+verbs). `test/i18n.test.js` checks it, and fails on text set straight
+from an English literal (`toast("...")`, `.textContent = "..."`); a line
+that stays English on purpose says `// en-only: <why>`. Stored data and
+the bridge stay English.
 
 **Ask first for big things.** A new look, a reworked screen or a big change
 is shown or explained to Daniel (a mockup, a screenshot, a short write-up)
