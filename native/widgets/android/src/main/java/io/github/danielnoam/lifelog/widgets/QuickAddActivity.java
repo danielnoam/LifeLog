@@ -129,7 +129,7 @@ public class QuickAddActivity extends Activity {
         TextView open = pill("Open in LifeLog", false);
         open.setBackground(null);
         open.setTextColor(color(R.color.widget_accent));
-        open.setPadding(dp(4), 0, dp(12), 0);
+        open.setPaddingRelative(dp(4), 0, dp(12), 0);
         open.setOnClickListener((v) -> { forgetDraft(); openApp(fullFormAction()); });
         foot.addView(open);
         View gap = new View(this);
@@ -167,7 +167,7 @@ public class QuickAddActivity extends Activity {
             String k = KINDS[i];
             LinearLayout tab = new LinearLayout(this);
             tab.setGravity(Gravity.CENTER_VERTICAL);
-            tab.setPadding(dp(12), 0, dp(14), 0);
+            tab.setPaddingRelative(dp(12), 0, dp(14), 0);
             tab.setMinimumHeight(dp(40));
             ImageView ico = new ImageView(this);
             ico.setImageResource(QuickAddWidget.ICONS[i]);
@@ -176,7 +176,7 @@ public class QuickAddActivity extends Activity {
             label.setText(QuickAddWidget.LABELS[i]);
             label.setTextSize(14);
             label.setTypeface(Typeface.DEFAULT_BOLD);
-            label.setPadding(dp(6), 0, 0, 0);
+            label.setPaddingRelative(dp(6), 0, 0, 0);
             boolean on = k.equals(kind);
             // Five labels don't fit a phone's width: the one you're on says
             // what it is, the others are their icons.
@@ -435,7 +435,7 @@ public class QuickAddActivity extends Activity {
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setGravity(Gravity.CENTER_VERTICAL);
         t.setMinHeight(dp(40));
-        t.setPadding(dp(14), 0, dp(16), 0);
+        t.setPaddingRelative(dp(14), 0, dp(16), 0);
         t.setCompoundDrawablePadding(dp(6));
         Runnable paint = () -> {
             t.setText(starred ? "Starred" : "Star it");
@@ -458,7 +458,7 @@ public class QuickAddActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setBackground(rounded(color(R.color.widget_button), 14));
-        row.setPadding(dp(16), 0, dp(12), 0);
+        row.setPaddingRelative(dp(16), 0, dp(12), 0);
         TextView sym = new TextView(this);
         String s = WidgetStore.str(snap, "currencySymbol");
         sym.setText(s.isEmpty() ? WidgetStore.str(snap, "currency") : s);
@@ -477,10 +477,12 @@ public class QuickAddActivity extends Activity {
         amount.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         amount.setKeyListener(android.text.method.DigitsKeyListener.getInstance("0123456789.,"));
         amount.setImeOptions(EditorInfo.IME_ACTION_NEXT);
-        amount.setPadding(dp(8), dp(10), 0, dp(10));
+        amount.setPaddingRelative(dp(8), dp(10), 0, dp(10));
         amount.addTextChangedListener(watcher());
         row.addView(amount, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        form.addView(row);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(12);
+        form.addView(row, lp);
     }
 
     // ---- adding ----
@@ -732,7 +734,7 @@ public class QuickAddActivity extends Activity {
         t.setAllCaps(true);
         t.setLetterSpacing(0.06f);
         t.setTextColor(color(R.color.widget_muted));
-        t.setPadding(dp(4), dp(14), 0, dp(6));
+        t.setPaddingRelative(dp(4), dp(14), 0, dp(6));
         form.addView(t);
     }
 
