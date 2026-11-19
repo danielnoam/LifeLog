@@ -311,7 +311,7 @@
   // ---------- the view ----------
   let state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr;
   function init(ctx) {
-    ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr } = ctx);
+    ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr, coverEl, emptyCoverEl } = ctx);
     // Google Calendar's events arrive after the Home calendar is drawn.
     const G = window.LifeLogGcal;
     if (G) G.onChange(() => { if (state.view === "home" && floors().some((f) => f.includes("calendar"))) render(); });
@@ -842,6 +842,20 @@
     const dayKey = (d) => calMonth + "-" + String(d).padStart(2, "0");
 
     const sec = el("section", "home-sec home-calendar");
+    // Big covers (Nov 2026): each day the cover of what was finished on it,
+    // as the Timeline's calendar shows on a phone. Right-click switches.
+    const covers = state.visual.homeCalCovers === true;
+    sec.addEventListener("contextmenu", (ev) => {
+      const CM = window.LifeLogContextMenu;
+      if (!CM || ev.target.closest("input, textarea, a[href]")) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      CM.open(ev.clientX, ev.clientY, [
+        { head: i18n.t("Calendar") },
+        covers ? { icon: "list", label: i18n.t("Show names"), run: () => setCalCovers(false) }
+          : { icon: "image", label: i18n.t("Show big covers"), run: () => setCalCovers(true) },
+      ]);
+    });
     const toTimeline = viewEnabled("timeline") && modeEnabled("timeline", "entries") ? () => {
       J.openCalendarAt(y, m, calDay);
       state.visual.timelineLayout = "calendar";
@@ -850,7 +864,7 @@
       switchToView("timeline");
     } : null;
     sec.appendChild(sectionHead("calendar", toTimeline ? { label: i18n.t("Timeline"), run: toTimeline } : null));
-    const card = el("div", "home-card home-cal");
+    const card = el("div", "home-card home-cal" + (covers ? " is-covers" : ""));
     const main = el("div", "home-cal-main");
     const head = el("div", "home-cal-head");
     head.appendChild(el("h3", "home-cal-title", D.MONTH_NAMES[m - 1] + " " + y));
@@ -893,6 +907,13 @@
         + (gev.length ? ", " + i18n.tn(gev.length, "{n} event", "{n} events") : "")
         + (outs.length ? ", " + i18n.tn(outs.length, "{n} release", "{n} releases") : "")
         + (due.length ? ", " + i18n.tn(due.length, "{n} task", "{n} tasks") : ""));
+      if (covers && (fin.length || outs.length) && coverEl) {
+        const first = fin[0] || outs[0].b, url = first.coverUrl, cat = first.category;
+        const cls = "home-cal-cover" + (fin.length ? "" : " is-release");
+        cell.classList.add("has-cover");
+        cell.appendChild(url ? coverEl(url, "", cls, cat) : emptyCoverEl(cls + " cover-empty", cat));
+        if (fin.length > 1) cell.appendChild(el("span", "home-cal-more", "+" + (fin.length - 1)));
+      }
       cell.appendChild(el("span", "home-cal-n", String(d)));
       const lines = [...gev.map((x) => ["event", x]), ...fin.map((x) => ["entry", x]), ...outs.map((x) => ["release", x]), ...due.map((x) => ["task", x])];
       if (lines.length) {
@@ -923,6 +944,22 @@
     card.appendChild(main);
     card.appendChild(calendarDayList(mo, evs.get(calDay) || [], dayKey(calDay), today, y, m));
     sec.appendChild(card);
+    return sec;
+  }
+
+  function setCalCovers(on) {
+    if (on) state.visual.homeCalCovers = true; else delete state.visual.homeCalCovers;
+    saveVisualSettings(state.visual);
+    render();
+    const B = window.LifeLogBoards;
+    if (B && B.isEditing()) B.refreshLive();
+  }
+  // One Home section on its own, for a board's live panel (Nov 2026).
+  function buildPanel(id) {
+    const make = BUILD[id];
+    if (!make) return null;
+    const sec = make();
+    sec.dataset.sec = id;
     return sec;
   }
 
@@ -1488,7 +1525,7 @@
   }
 
   const api = {
-    init, renderHome, fillViewOptions,
+    init, renderHome, fillViewOptions, buildPanel, setCalCovers,
     // pure
     SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, yearSoFar, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
     taskRow,

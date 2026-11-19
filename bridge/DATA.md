@@ -471,7 +471,15 @@ id; picking one picks every element with it) and `ln` (`"note:<id>"` or
 to shapes: `b1` (its start) and `b2` (its end) are `{ id, fx, fy }`, the
 element it sticks to and the point on that element's box by fractions, so
 the end follows when the shape moves. The text on a board is found by the
-app's search and the Notebook's search box. Only the
+app's search and the Notebook's search box. Live elements show HTML
+over the drawing: `{ t: "card", ref, item }` shows the note, quote or tasks
+list with id `ref` (or with `item`, one task in it) as it is now, ticked
+and edited in place; `{ t: "embed", url }` is a YouTube, Spotify or
+SoundCloud player that loads nothing until tapped; `{ t: "panel", kind }`
+is one of Home's sections (`progress`, `upcoming`, `scratchpad`, `pinned`,
+`ledger`, `invest`, `calendar`, `pick`, `year`). Each has `x`, `y`, `w`,
+`h`, and `x2`, `y2` (its far corner, so an older build draws a line rather
+than failing); `lifelog_add_to_board` adds one. Only the
 
 text says anything an AI can use, and the pictures: `lifelog_boards` lists
 the boards with their text and picture count, `lifelog_board_images` sends

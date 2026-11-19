@@ -255,6 +255,36 @@ test("lock, group, link and stuck ends are kept only in their shape", () => {
   assert.strictEqual(B.boardText({ elements: [{ t: "text", text: "Day 1" }, { t: "rect" }, { t: "text", text: "Camp" }] }), "Day 1\nCamp");
 });
 
+test("players are made only from YouTube, Spotify and SoundCloud links, as their own embeds", () => {
+  assert.strictEqual(B.playerOf("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42").src, "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=42");
+  assert.strictEqual(B.playerOf("https://youtu.be/dQw4w9WgXcQ").site, "YouTube");
+  assert.strictEqual(B.playerOf("https://www.youtube.com/shorts/abcdefghijk").src, "https://www.youtube-nocookie.com/embed/abcdefghijk");
+  assert.strictEqual(B.playerOf("https://open.spotify.com/intl-de/track/4uLU6hMCjMI75M1A2tKUQC?si=x").src, "https://open.spotify.com/embed/track/4uLU6hMCjMI75M1A2tKUQC");
+  assert.strictEqual(B.playerOf("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M").tall, true);
+  assert.match(B.playerOf("https://soundcloud.com/artist/a-song").src, /^https:\/\/w\.soundcloud\.com\/player\/\?url=https%3A%2F%2Fsoundcloud\.com%2Fartist%2Fa-song/);
+  for (const bad of ["http://www.youtube.com/watch?v=dQw4w9WgXcQ", "https://evil.com/watch?v=dQw4w9WgXcQ", "https://www.youtube.com/watch?v=<script>", "javascript:alert(1)", "https://open.spotify.com/user/x", ""]) {
+    assert.strictEqual(B.playerOf(bad), null, bad);
+  }
+});
+
+test("cards, players and panels keep their far corner for older builds, and drop what they can't show", () => {
+  const els = B.sanitizeBoard({ id: "x", elements: [
+    { id: "c", t: "card", x: 10, y: 20, w: 200, h: 100, ref: "n1" },
+    { id: "c2", t: "card", x: 0, y: 0, w: 10, h: 10 },
+    { id: "e", t: "embed", x: 0, y: 0, w: 320, h: 200, url: "https://youtu.be/dQw4w9WgXcQ" },
+    { id: "e2", t: "embed", x: 0, y: 0, w: 320, h: 200, url: "https://evil.com/x" },
+    { id: "p", t: "panel", x: 0, y: 0, w: 300, h: 300, kind: "calendar" },
+    { id: "p2", t: "panel", x: 0, y: 0, w: 300, h: 300, kind: "nope" },
+  ] }).elements;
+  assert.deepStrictEqual(els.map((e) => e.id), ["c", "e", "p"]);
+  assert.deepStrictEqual([els[0].x2, els[0].y2], [210, 120]);
+  const m = B.moved(els[0], 5, 5);
+  assert.deepStrictEqual([m.x2, m.y2], [215, 125]);
+  assert.strictEqual(B.rotated(els[0], 0, 0, 1), els[0]);
+  assert.ok(B.hitTest(els[0], 100, 60, 1));
+  assert.deepStrictEqual(B.bindAt([els[0]], 210, 70, 2), { id: "c", fx: 1, fy: 0.5 });
+});
+
 console.log(`\n${passed} test(s) passed.`);
 
 // ---------- clipboard ----------

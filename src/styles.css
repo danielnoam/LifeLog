@@ -5866,3 +5866,85 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
 .board-link-off .ico { color: var(--danger); }
 .link-pick-empty { margin: var(--space-8) var(--space-10); color: var(--text-dim); font-size: var(--fs-sm); }
 @media (pointer: coarse) { .board-link-query { height: 44px; } }
+
+/* The Home calendar's big covers (Nov 2026): a cover per day, the number
+   over it, as the Timeline's calendar on a phone. */
+.home-cal.is-covers .home-cal-day { aspect-ratio: 3 / 4; min-height: 0; padding: 0; justify-content: flex-start; }
+.home-cal.is-covers .home-cal-names, .home-cal.is-covers .home-cal-marks { display: none; }
+.home-cal-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; border-radius: inherit; }
+.home-cal-cover.cover-empty { display: flex; align-items: center; justify-content: center; }
+.home-cal-cover.is-release { opacity: .5; }
+.home-cal-day.has-cover .home-cal-n { position: relative; margin-top: var(--space-2); color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
+.home-cal-day.is-today.has-cover .home-cal-n { text-shadow: none; }
+.home-cal-more {
+  position: absolute; inset-inline-end: var(--space-2); bottom: var(--space-2); padding: 0 var(--space-4); border-radius: var(--r-pill);
+  font-size: var(--fs-3xs); background: var(--surface-card); color: var(--text);
+}
+
+/* ---------- boards: cards, players and Home panels (Nov 2026) ---------- */
+.board-live {
+  box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--shadow);
+  color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: var(--fs-md); line-height: 1.45;
+}
+.board-live-head {
+  flex: none; display: flex; align-items: center; gap: var(--space-6); min-height: 32px; padding: 0 var(--space-6) 0 var(--space-12);
+  color: var(--text-dim); font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; cursor: grab;
+}
+.board-live-head .ico { width: 14px; height: 14px; flex: none; }
+.board-live-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-live-open {
+  display: inline-flex; align-items: center; gap: var(--space-4); min-height: 28px; padding: 0 var(--space-8); border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--accent); font: inherit; font-size: var(--fs-xs); font-weight: 500; letter-spacing: 0; text-transform: none; cursor: pointer;
+}
+.board-live-open:hover { background: var(--hover-bg); }
+.board-live-open .ico { width: 12px; height: 12px; }
+.board-live-body { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--space-12) var(--space-12); cursor: auto; user-select: text; -webkit-user-select: text; }
+.board-live-gone { color: var(--text-dim); font-size: var(--fs-sm); margin: 0; }
+.board-card-title { margin: 0 0 var(--space-6); font-size: var(--fs-read); }
+.board-card-md > :first-child { margin-top: 0; }
+.board-card-md > :last-child { margin-bottom: 0; }
+.board-card-quote { margin: 0 0 var(--space-6); font-style: italic; font-size: var(--fs-read); }
+.board-card-by, .board-card-from { margin: 0; color: var(--text-dim); font-size: var(--fs-xs); }
+.board-card-desc { margin: var(--space-4) 0; color: var(--text-dim); font-size: var(--fs-sm); }
+.board-card-edit {
+  box-sizing: border-box; width: 100%; height: 100%; min-height: 80px; resize: none; padding: var(--space-8);
+  border: 1px solid var(--accent); border-radius: var(--r-sm); background: var(--bg); color: var(--text); font: inherit;
+}
+.board-task { display: flex; align-items: center; gap: var(--space-8); min-height: 32px; }
+.board-task.is-sub { padding-inline-start: var(--space-24); }
+.board-task.is-done .board-task-text { color: var(--text-dim); text-decoration: line-through; }
+.board-tick {
+  flex: none; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border-radius: 50%;
+  border: 2px solid var(--text-dim); background: none; color: var(--text-on-accent); cursor: pointer;
+}
+.board-tick.on { background: var(--accent-fill); border-color: var(--accent-fill); }
+.board-tick .ico { width: 12px; height: 12px; }
+.board-player { padding: 0; display: flex; }
+.board-player iframe, .note-player iframe { flex: 1; width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }
+.board-play {
+  flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4);
+  padding: var(--space-12); border: 0; background: var(--bg-elev-2); color: var(--text); font: inherit; cursor: pointer; text-align: center;
+}
+.board-play:hover { background: var(--hover-bg); }
+.board-play-btn { width: 56px; height: 40px; border-radius: var(--r-lg); display: grid; place-items: center; background: var(--accent-fill); color: var(--text-on-accent); margin-bottom: var(--space-4); }
+.board-play-btn .ico { width: 20px; height: 20px; }
+.board-play-site { font-weight: 600; }
+.board-play-url { max-width: 100%; color: var(--text-dim); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-play-note { color: var(--text-faint); font-size: var(--fs-2xs); }
+.board-panel { padding: 0 var(--space-8) var(--space-8); }
+.board-panel > .home-sec { margin: 0; }
+/* Where HTML can't go (thumbnails, PNG, SVG): a box with the name. */
+.board-still rect { fill: var(--bg-elev); stroke: var(--border-strong); stroke-width: 1.5; }
+.board-still text { fill: currentColor; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+/* A note's player: tap to load, at the site's own shape. */
+.note-player { display: flex; width: 100%; max-width: 560px; aspect-ratio: var(--ratio, 1.8); margin: var(--space-12) 0; border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+/* On a phone the tools that add something sit behind one "+". */
+.board-add-more { display: none; }
+.board-add-menu { position: absolute; z-index: 4; inset-inline-end: 10px; bottom: calc(var(--board-safe-bottom) + 120px); }
+.board-add-menu button { display: flex; align-items: center; gap: var(--space-10); min-height: 44px; }
+.board-add-menu .ico { width: 18px; height: 18px; color: var(--text-dim); }
+@media (max-width: 480px) {
+  .board-tool-add { display: none; }
+  .board-add-more { display: grid; }
+}

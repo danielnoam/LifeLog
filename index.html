@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src https://www.youtube-nocookie.com https://open.spotify.com https://w.soundcloud.com; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
   <link rel="stylesheet" href="src/styles.css?v=0.322.0" />
@@ -3092,6 +3092,7 @@
     </div>
     <svg id="boardSvg" class="board-svg" aria-label="Drawing board" data-t-attr="aria-label">
       <g class="board-world"></g>
+      <g class="board-live-els"></g>
       <g class="board-live"></g>
       <g class="board-overlay"></g>
     </svg>

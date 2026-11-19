@@ -31,6 +31,16 @@
 // its icon). A line or arrow can stick to shapes: `b1` and `b2`, its start
 // and end, are { id, fx, fy }, a point on that element's box by fractions,
 // so the end follows the shape when it moves, turns or resizes.
+//
+// Live elements (Nov 2026), boxes of HTML over the drawing:
+//   card   { id, t: "card", x, y, w, h, ref, item }  a note, quote or
+//          tasks list (`ref`, its id), or one task in a list (`item`),
+//          shown as it is now and edited in place
+//   embed  { id, t: "embed", x, y, w, h, url }  a YouTube, Spotify or
+//          SoundCloud link, a player only once tapped
+//   panel  { id, t: "panel", x, y, w, h, kind }  one of Home's sections
+// Each also carries x2, y2 (its far corner), so an older build that
+// doesn't know them draws a line there rather than failing on the board.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
@@ -54,7 +64,12 @@
     ["rect", "square", i18n.t("Rectangle")], ["ellipse", "circle", i18n.t("Ellipse")],
     ["arrow", "arrow-up-right", i18n.t("Arrow")], ["line", "slash", i18n.t("Line")], ["text", "type", i18n.t("Text")],
     ["image", "image", i18n.t("Image"), " " + i18n.t("— or paste or drop one")],
+    ["card", "notebook-text", i18n.t("Note, quote or task card")],
+    ["embed", "play", i18n.t("Video or music link")],
+    ["panel", "layout-grid", i18n.t("Home panel")],
   ];
+  // Tools that add something at once rather than drawing.
+  const ADDS = new Set(["image", "card", "embed", "panel"]);
   const Keys = () => (typeof window !== "undefined" && window.LifeLogKeys) || null;
   // "Pen (P)", with the key as Settings → Keyboard has it now.
   function toolTitle([id, , label, more = ""]) {
@@ -129,8 +144,9 @@
   const BOARD_FONT = "Virgil, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
   const ROTATES = new Set(["rect", "ellipse", "text", "img"]);
   // A shape's own box, before any rotation: what `a` turns about its centre.
+  const LIVE = new Set(["card", "embed", "panel"]);
   function rawBox(e) {
-    if (e.t === "rect" || e.t === "ellipse" || e.t === "img") return norm(e.x, e.y, e.w, e.h);
+    if (e.t === "rect" || e.t === "ellipse" || e.t === "img" || LIVE.has(e.t)) return norm(e.x, e.y, e.w, e.h);
     const size = textSize(e), lines = textLines(e);
     return { x: e.x, y: e.y, w: Math.max(size / 2, ...lines.map((l) => textWidth(l, size))), h: lines.length * size * 1.25 };
   }
@@ -147,6 +163,7 @@
       const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
       return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
     }
+    if (LIVE.has(e.t)) return rawBox(e);
     if (e.t === "pen") {
       const pts = decodePoints(e.p);
       let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
@@ -179,6 +196,7 @@
       e = { ...e, a: 0 };
     }
     const reach = tol + (e.sw || 0) / 2;
+    if (LIVE.has(e.t)) { const b = rawBox(e); return x >= b.x - tol && x <= b.x + b.w + tol && y >= b.y - tol && y <= b.y + b.h + tol; }
     if (e.t === "pen") {
       const pts = decodePoints(e.p);
       if (pts.length === 1) return Math.hypot(x - pts[0][0], y - pts[0][1]) <= reach;
@@ -208,6 +226,7 @@
     if (e.t === "pen") { out.p = e.p.slice(); out.p[0] += Math.round(dx); out.p[1] += Math.round(dy); return out; }
     out.x = Math.round(e.x + dx); out.y = Math.round(e.y + dy);
     if (e.t === "line" || e.t === "arrow") { out.x2 = Math.round(e.x2 + dx); out.y2 = Math.round(e.y2 + dy); }
+    if (LIVE.has(e.t)) { out.x2 = out.x + out.w; out.y2 = out.y + out.h; }
     return out;
   }
   // Resizing: every point pushed away from (or towards) the anchor corner by
@@ -230,13 +249,15 @@
       const k = Math.sqrt(Math.abs(sx * sy));
       out.fs = Math.max(6, Math.round(textSize(e) * k));
       w = r.w * k; h = r.h * k;
-    } else { out.w = Math.max(1, Math.round(w)); out.h = Math.max(1, Math.round(h)); }
+    } else { out.w = Math.max(LIVE.has(e.t) ? 40 : 1, Math.round(w)); out.h = Math.max(LIVE.has(e.t) ? 40 : 1, Math.round(h)); }
     out.x = Math.round(cx - w / 2); out.y = Math.round(cy - h / 2);
+    if (LIVE.has(e.t)) { out.x2 = out.x + out.w; out.y2 = out.y + out.h; }
     return out;
   }
   // Rotating by `da` about (cx, cy). Lines and strokes turn their points;
   // shapes and text move their centre round and add to their angle.
   function rotated(e, cx, cy, da) {
+    if (LIVE.has(e.t)) return e;
     const R = (x, y) => rotatePt(x, y, cx, cy, da);
     const out = { ...e };
     if (e.t === "pen") { out.p = encodePoints(decodePoints(e.p).map(([x, y]) => R(x, y))); return out; }
@@ -309,7 +330,7 @@
   const snapTo = (v, g) => Math.round(v / g) * g;
   // Sticky arrows: what a line's end at (x, y) sticks to, the topmost shape,
   // text or picture whose box holds the point (within `tol`), or null.
-  const STICKS = new Set(["rect", "ellipse", "text", "img"]);
+  const STICKS = new Set(["rect", "ellipse", "text", "img", "card", "embed", "panel"]);
   function bindAt(elements, x, y, tol, skip) {
     for (let i = elements.length - 1; i >= 0; i--) {
       const e = elements[i];
@@ -424,13 +445,53 @@
     }
     return out;
   }
+  // A live element's fields, checked: a player only for the three sites it
+  // knows, a panel only for a Home section, a card only with an id.
+  const PANEL_KINDS = ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest", "calendar", "pick", "year"];
+  function cleanLive(e) {
+    if (!LIVE.has(e.t)) return e;
+    const out = { ...e, x: Math.round(+e.x || 0), y: Math.round(+e.y || 0), w: Math.max(40, Math.round(+e.w || 0)), h: Math.max(40, Math.round(+e.h || 0)) };
+    out.x2 = out.x + out.w; out.y2 = out.y + out.h;
+    if (e.t === "card") {
+      if (typeof e.ref !== "string" || !e.ref || e.ref.length > 80) return null;
+      if (e.item != null && (typeof e.item !== "string" || e.item.length > 80)) delete out.item;
+    }
+    if (e.t === "embed" && !playerOf(e.url)) return null;
+    if (e.t === "panel" && !PANEL_KINDS.includes(e.kind)) return null;
+    return out;
+  }
+  // A link a player can be made from: { site, src, ratio, tall } or null.
+  // Nothing is fetched from the site until the player is tapped.
+  function playerOf(url) {
+    let u;
+    try { u = new URL(String(url || "")); } catch (e) { return null; }
+    if (u.protocol !== "https:" || String(url).length > 500) return null;
+    const host = u.hostname.replace(/^(www|m|music)\./, "");
+    if (host === "youtube.com" || host === "youtu.be") {
+      const id = host === "youtu.be" ? u.pathname.slice(1).split("/")[0]
+        : u.pathname === "/watch" ? u.searchParams.get("v") : (/^\/(?:shorts|embed|live)\/([^/]+)/.exec(u.pathname) || [])[1];
+      if (!/^[\w-]{6,20}$/.test(id || "")) return null;
+      const t = parseInt(u.searchParams.get("t") || u.searchParams.get("start") || "", 10);
+      return { site: "YouTube", src: "https://www.youtube-nocookie.com/embed/" + id + (t > 0 ? "?start=" + t : ""), ratio: 16 / 9 };
+    }
+    if (host === "open.spotify.com") {
+      const m = /^\/(?:intl-[\w-]+\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]{10,40})/.exec(u.pathname);
+      if (!m) return null;
+      return { site: "Spotify", src: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, tall: m[1] !== "track" && m[1] !== "episode" };
+    }
+    if (host === "soundcloud.com") {
+      if (!/^\/[\w-]+\/[\w-]+/.test(u.pathname)) return null;
+      return { site: "SoundCloud", src: "https://w.soundcloud.com/player/?url=" + encodeURIComponent("https://soundcloud.com" + u.pathname) + "&visual=true" };
+    }
+    return null;
+  }
   function sanitizeBoard(b) {
     const out = {
       id: b.id || (uid ? uid() : "b" + Date.now().toString(36)),
       name: String(b.name == null ? "" : b.name).trim() || "Untitled board",
       createdAt: b.createdAt || null,
       updatedAt: b.updatedAt || b.createdAt || "1970-01-01T00:00:00.000Z",
-      elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t).map(cleanPicture).filter(Boolean).map(cleanShared) : [],
+      elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t).map(cleanPicture).filter(Boolean).map(cleanLive).filter(Boolean).map(cleanShared) : [],
     };
     // A note category (0.206.0), so a board sits in the feed and in a
     // collection beside the notes it belongs with.
@@ -974,6 +1035,7 @@
   }
   function drawElement(e, opts) {
     if (e.t === "img") return drawPicture(e, opts);
+    if (LIVE.has(e.t)) return drawLiveStill(e);
     const color = inkOf(e.c);
     if (e.t === "pen") {
       return svgEl("path", { d: penPath(decodePoints(e.p)), stroke: color, "stroke-width": e.sw, fill: "none",
@@ -1008,6 +1070,28 @@
     }
     return g;
   }
+  // A live element where HTML can't go (thumbnails, PNG and SVG export): a
+  // card with its name, so the picture still says what was there.
+  function drawLiveStill(e) {
+    const g = svgEl("g", { "data-id": e.id, class: "board-still" });
+    g.appendChild(svgEl("rect", { x: e.x, y: e.y, width: e.w, height: e.h, rx: 12 }));
+    const label = svgEl("text", { x: e.x + 14, y: e.y + 26, "font-size": 15 });
+    label.textContent = cut(liveTitle(e), Math.max(4, Math.floor((e.w - 28) / 8)));
+    g.appendChild(label);
+    return g;
+  }
+  const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
+  function liveTitle(e) {
+    if (e.t === "embed") { const p = playerOf(e.url); return (p ? p.site + " · " : "") + e.url.replace(/^https:\/\/(www\.)?/, ""); }
+    if (e.t === "panel") { const H = typeof window !== "undefined" && window.LifeLogHome; const sec = H && H.SECTIONS.find(([id]) => id === e.kind); return sec ? sec[1] : e.kind; }
+    const n = cardNote(e);
+    if (!n) return i18n.t("A note that's gone");
+    if (e.item) { const it = (n.items || []).find((i) => i.id === e.item); return it ? it.text : i18n.t("A task that's gone"); }
+    const N = typeof window !== "undefined" && window.LifeLogNotes;
+    return (N && N.linkTitle ? N.linkTitle(n) : "") || String(n.text || "").split("\n")[0] || i18n.t("Untitled");
+  }
+  const cardNote = (e) => ((state && state.data && state.data.notes) || []).find((n) => n.id === e.ref) || null;
+
   // Excalidraw's fills are pale, picked for a white page: full strength in
   // the Light theme, toned down on a dark one so the ink on them reads.
   const solidOpacity = () => (typeof document !== "undefined" && document.documentElement.classList.contains("theme-light") ? 1 : 0.4);
@@ -1037,7 +1121,7 @@
   let pinch = null;
   let spaceDown = false;
   let lastTap = null;
-  let svg, world, overlay, liveLayer;
+  let svg, world, overlay, liveLayer, liveEls;
   let cropping = null;       // { id, full }: a picture being cropped
   // Board options (Nov 2026), per device: the grid behind the drawing,
   // snapping to it, alignment guides, arrows that stick, the pen's smoothing.
@@ -1063,6 +1147,7 @@
     if (!b) return;
     editing = b;
     selection = new Set(); undoStack = []; redoStack = []; op = null; pointers.clear(); pinch = null; cropping = null;
+    clearLive(); playing.clear();
     closeLinkPick();
     $("#boardName").value = b.name;
     fillCategory(b.category || "");
@@ -1129,6 +1214,7 @@
     const name = $("#boardName").value.trim() || "Untitled board";
     if (name !== editing.name) { editing.name = name; changed(editing); }
     editing = null;
+    clearLive(); playing.clear();
     $("#boardEditor").hidden = true;
     flush();
     // Boards show in the notes feed too (0.206.0), so any Notes page redraws.
@@ -1138,6 +1224,7 @@
 
   function applyView() {
     world.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`);
+    liveEls.setAttribute("transform", world.getAttribute("transform"));
     overlay.setAttribute("transform", world.getAttribute("transform"));
     liveLayer.setAttribute("transform", world.getAttribute("transform"));
     svg.style.backgroundPosition = `${view.x}px ${view.y}px`;
@@ -1149,7 +1236,7 @@
     editing.elements = followBindings(editing.elements);
     world.innerHTML = "";
     for (const e of editing.elements) {
-      if (textEditing && e.id === textEditing.id) continue;
+      if ((textEditing && e.id === textEditing.id) || LIVE.has(e.t)) continue;
       if (cropping && e.id === cropping.id) {
         // The whole picture, dimmed, behind the part that's kept.
         const f = cropping.full;
@@ -1161,6 +1248,7 @@
       world.appendChild(drawElement(e));
     }
     for (const e of editing.elements) if (e.ln) world.appendChild(linkBadge(e));
+    syncLive();
     drawSelection();
     applyView();
     $("#boardUndo").disabled = !undoStack.length;
@@ -1278,6 +1366,7 @@
       handles.push({ kind: "resize", corner, x: hx, y: hy, cx, cy, ax, ay });
       overlay.appendChild(svgEl("rect", { x: hx - hs, y: hy - hs, width: hs * 2, height: hs * 2, class: "board-handle", "data-handle": corner }));
     }
+    if (els.some((e) => LIVE.has(e.t))) return;
     const rx = (x1 + x2) / 2, ry = y1 - 26 / view.k;
     handles.push({ kind: "rotate", x: rx, y: ry, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2 });
     overlay.appendChild(svgEl("line", { x1: rx, y1: ry, x2: rx, y2: y1, class: "board-sel" }));
@@ -1294,6 +1383,9 @@
   }
   const tolerance = (ev) => (ev.pointerType === "touch" ? 14 : 7) / view.k;
   function topHit(x, y, tol) {
+    for (let i = editing.elements.length - 1; i >= 0; i--) {
+      if (LIVE.has(editing.elements[i].t) && hitTest(editing.elements[i], x, y, tol)) return editing.elements[i];
+    }
     for (let i = editing.elements.length - 1; i >= 0; i--) {
       if (hitTest(editing.elements[i], x, y, tol)) return editing.elements[i];
     }
@@ -1340,6 +1432,9 @@
 
   function onPointerDown(ev) {
     if (!editing || (ev.button && ev.button !== 1)) return;
+    // Inside a card, player or panel, the select tool works what's there:
+    // a tick, a button, the text. Its head is what moves it.
+    if (tool === "select" && !spaceDown && ev.button !== 1 && ev.target.closest && ev.target.closest(".board-live-body")) return;
     commitText();
     // Throws for a pointer that's already gone; drawing on without capture
     // beats dropping the touch.
@@ -1598,6 +1693,8 @@
   }
   function onWheel(ev) {
     if (!editing) return;
+    const body = !(ev.ctrlKey || ev.metaKey) && ev.target.closest && ev.target.closest(".board-live-body");
+    if (body && body.scrollHeight > body.clientHeight + 1) return;
     ev.preventDefault();
     const r = svg.getBoundingClientRect();
     if (ev.ctrlKey || ev.metaKey) zoomAt(ev.clientX - r.left, ev.clientY - r.top, view.k * Math.exp(-ev.deltaY * 0.01));
@@ -1705,6 +1802,11 @@
   }
   function openLinkPick() {
     if (!editing || !selection.size) return;
+    pickMode = "link";
+    const input0 = $("#boardLinkQuery");
+    input0.placeholder = i18n.t("Link to a note or board");
+    input0.setAttribute("aria-label", input0.placeholder);
+    input0.type = "search";
     const pop = $("#boardLinkPick");
     pop.hidden = false;
     pop.classList.remove("is-leaving");
@@ -1722,6 +1824,39 @@
   function drawLinkPick() {
     const list = $("#boardLinkList");
     list.replaceChildren();
+    const row = (icon, name, sub, run) => {
+      const b = el("button", "link-pick-row");
+      b.type = "button";
+      b.appendChild(ico(icon));
+      b.appendChild(el("span", "link-pick-name", name));
+      if (sub) b.appendChild(el("small", null, sub));
+      b.onclick = run;
+      list.appendChild(b);
+    };
+    const q = $("#boardLinkQuery").value;
+    if (pickMode === "card") {
+      const choices = cardChoices(q);
+      if (!choices.length) list.appendChild(el("p", "link-pick-empty", i18n.t("No notes, quotes or tasks match")));
+      for (const c of choices) row(c.icon, c.name, c.sub, () => { closeLinkPick(); placeLive({ t: "card", ref: c.ref, ...(c.item ? { item: c.item } : {}), ...cardSize(c) }); });
+      return;
+    }
+    if (pickMode === "panel") {
+      const H = window.LifeLogHome, want = q.trim().toLowerCase();
+      for (const [id, label, icon] of H ? H.SECTIONS : []) {
+        if (!PANEL_KINDS.includes(id) || (want && !label.toLowerCase().includes(want))) continue;
+        const [w, h] = PANEL_SIZE[id] || [380, 320];
+        row(icon, label, "", () => { closeLinkPick(); placeLive({ t: "panel", kind: id, w, h }); });
+      }
+      if (!list.childNodes.length) list.appendChild(el("p", "link-pick-empty", i18n.t("No Home panel is called that")));
+      return;
+    }
+    if (pickMode === "embed") {
+      const p = playerOf(q.trim());
+      if (!q.trim()) list.appendChild(el("p", "link-pick-empty", i18n.t("A YouTube video, or a Spotify or SoundCloud track, album or playlist. It plays on the board when tapped.")));
+      else if (!p) list.appendChild(el("p", "link-pick-empty", i18n.t("That isn't a YouTube, Spotify or SoundCloud link")));
+      else row("play", i18n.t("Add the {site} player", { site: p.site }), q.trim().replace(/^https:\/\/(www\.)?/, ""), () => { closeLinkPick(); placeLive({ t: "embed", url: q.trim(), ...playerSize(p) }); });
+      return;
+    }
     const has = selected().some((e) => e.ln);
     if (has) {
       const off = el("button", "link-pick-row board-link-off");
@@ -1756,6 +1891,273 @@
     });
     changed(editing); redraw();
   }
+
+  // ---------- live elements: cards, players, panels ----------
+  // They sit in a layer of their own over the drawing, and their HTML is
+  // kept between redraws (a player that's playing goes on playing while the
+  // board is moved round it); only where they are is set each time. What's
+  // inside is built again when the note or Home changes (refreshLive).
+  const live = new Map();     // id → { fo, sig }
+  const playing = new Set();  // players tapped open, this session only
+  function syncLive() {
+    const want = editing.elements.filter((e) => LIVE.has(e.t));
+    const ids = new Set(want.map((e) => e.id));
+    for (const [id, v] of live) if (!ids.has(id)) { v.fo.remove(); live.delete(id); }
+    want.forEach((e) => {
+      let v = live.get(e.id);
+      const sig = liveSig(e);
+      if (!v) {
+        const fo = svgEl("foreignObject", { "data-live": e.id });
+        v = { fo, sig: null };
+        live.set(e.id, v);
+      }
+      if (v.fo.parentNode !== liveEls || liveEls.lastChild !== v.fo) liveEls.appendChild(v.fo);
+      for (const [k, val] of [["x", e.x], ["y", e.y], ["width", e.w], ["height", e.h]]) if (v.fo.getAttribute(k) !== String(val)) v.fo.setAttribute(k, val);
+      if (v.sig !== sig) { v.sig = sig; fillLive(v.fo, e); }
+    });
+  }
+  const liveSig = (e) => JSON.stringify([e.t, e.ref, e.item, e.url, e.kind, playing.has(e.id)]);
+  function clearLive() {
+    for (const v of live.values()) v.fo.remove();
+    live.clear();
+  }
+  // The note or Home changed (a tick, an edit, another device): every card
+  // and panel is built again, except one being typed in.
+  function refreshLive() {
+    if (!editing) return;
+    for (const [id, v] of live) {
+      const a = document.activeElement;
+      if (v.fo.contains(a) && a.matches("textarea, input, [contenteditable='true']")) continue;
+      const e = editing.elements.find((x) => x.id === id);
+      if (e && e.t !== "embed") fillLive(v.fo, e);
+    }
+  }
+  function fillLive(fo, e) {
+    const box = el("div", "board-live board-live-" + e.t);
+    if (e.t === "card") cardInto(box, e);
+    else if (e.t === "embed") playerInto(box, e);
+    else panelInto(box, e);
+    fo.replaceChildren(box);
+  }
+  function liveHead(icon, label, extra) {
+    const h = el("div", "board-live-head");
+    h.appendChild(ico(icon));
+    h.appendChild(el("span", "board-live-label", label));
+    if (extra) h.appendChild(extra);
+    return h;
+  }
+  function openBtn(run) {
+    const b = el("button", "board-live-open", i18n.t("Open"));
+    b.type = "button";
+    b.appendChild(ico("external-link"));
+    b.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+    b.onclick = (ev) => { ev.stopPropagation(); run(); };
+    return b;
+  }
+  const N = () => window.LifeLogNotes;
+  function cardInto(box, e) {
+    const n = cardNote(e);
+    const it = n && e.item ? (n.items || []).find((i) => i.id === e.item) : null;
+    if (!n || (e.item && !it)) {
+      box.appendChild(liveHead("notebook-text", i18n.t("Note")));
+      box.appendChild(el("p", "board-live-body board-live-gone", e.item ? i18n.t("This task is gone. Delete the card, or undo if that wasn't meant.") : i18n.t("This note is gone. Delete the card, or undo if that wasn't meant.")));
+      return;
+    }
+    const kind = n.kind === "list" ? "list" : n.kind === "quote" ? "quote" : "text";
+    const open = openBtn(() => { closeBoard(); N().openNote(n); });
+    const body = el("div", "board-live-body");
+    if (it) {
+      box.appendChild(liveHead("square-check-big", i18n.t("Task"), open));
+      body.appendChild(taskRow(n, it));
+      if (it.note) body.appendChild(el("p", "board-card-desc", it.note));
+      body.appendChild(el("p", "board-card-from", linkName(n) || i18n.t("Untitled list")));
+    } else if (kind === "list") {
+      box.appendChild(liveHead("list-checks", i18n.t("Tasks"), open));
+      body.appendChild(el("h4", "board-card-title", n.text || i18n.t("Untitled list")));
+      const items = n.items || [];
+      for (const i of items.filter((x) => !x.parent)) {
+        body.appendChild(taskRow(n, i));
+        for (const sub of items.filter((x) => x.parent === i.id)) body.appendChild(taskRow(n, sub, true));
+      }
+      if (!items.length) body.appendChild(el("p", "board-card-desc", i18n.t("No tasks yet")));
+    } else if (kind === "quote") {
+      box.appendChild(liveHead("quote", i18n.t("Quote"), open));
+      body.appendChild(el("p", "board-card-quote", "“" + String(n.text || "").trim() + "”"));
+      const by = [n.author, n.source].filter(Boolean).join(", ");
+      if (by) body.appendChild(el("p", "board-card-by", "— " + by));
+      editable(body, n, "text");
+    } else {
+      box.appendChild(liveHead("notebook-text", i18n.t("Note"), open));
+      if (n.title) body.appendChild(el("h4", "board-card-title", n.title));
+      const md = el("div", "md board-card-md");
+      const M = window.LifeLogMarkdown;
+      if (M) md.appendChild(M.render(String(n.text || ""), { wiki: (w) => el("span", "md-wiki", w.label || w.target) }));
+      else md.textContent = n.text || "";
+      body.appendChild(md);
+      editable(body, n, "text");
+    }
+    box.appendChild(body);
+  }
+  function taskRow(n, it, sub) {
+    const row = el("div", "board-task" + (it.done ? " is-done" : "") + (sub ? " is-sub" : ""));
+    const tick = el("button", "board-tick" + (it.done ? " on" : ""));
+    tick.type = "button";
+    tick.setAttribute("role", "checkbox");
+    tick.setAttribute("aria-checked", String(!!it.done));
+    tick.setAttribute("aria-label", it.text);
+    if (it.done) tick.appendChild(ico("check"));
+    tick.onclick = async (ev) => { ev.stopPropagation(); await N().tickItem(n.id, it.id, !it.done); refreshLive(); };
+    row.append(tick, el("span", "board-task-text", it.text));
+    return row;
+  }
+  // A note's or quote's words, edited where they are: a double-click (or a
+  // double tap) turns the card's body into a text box; leaving it saves.
+  function editable(body, n, field) {
+    body.title = i18n.t("Double-click to edit");
+    body.addEventListener("dblclick", (ev) => {
+      ev.stopPropagation();
+      if (body.querySelector("textarea")) return;
+      const ta = el("textarea", "board-card-edit");
+      ta.value = n[field] || "";
+      ta.setAttribute("aria-label", i18n.t("Edit"));
+      body.replaceChildren(ta);
+      ta.focus();
+      const done = async (save) => {
+        ta.onblur = null;
+        if (save && ta.value !== (n[field] || "")) await N().setNoteText(n.id, ta.value);
+        const v = [...live.values()].find((x) => x.fo.contains(body));
+        if (v) { const e = editing && editing.elements.find((x) => x.id === v.fo.dataset.live); if (e) fillLive(v.fo, e); }
+      };
+      ta.onblur = () => done(true);
+      ta.addEventListener("keydown", (k) => {
+        k.stopPropagation();
+        if (k.key === "Escape") { k.preventDefault(); done(false); }
+        if (k.key === "Enter" && (k.ctrlKey || k.metaKey)) { k.preventDefault(); ta.blur(); }
+      });
+    });
+  }
+  function playerInto(box, e) {
+    const p = playerOf(e.url);
+    box.appendChild(liveHead("play", p ? p.site : i18n.t("Player"), openBtn(() => window.open(e.url, "_blank", "noopener"))));
+    const body = el("div", "board-live-body board-player");
+    if (playing.has(e.id) && p) {
+      const f = document.createElement("iframe");
+      f.src = p.src + (p.src.includes("?") ? "&" : "?") + "autoplay=1";
+      f.title = p.site;
+      f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write";
+      f.referrerPolicy = "strict-origin-when-cross-origin";
+      f.setAttribute("allowfullscreen", "");
+      f.loading = "lazy";
+      body.appendChild(f);
+    } else {
+      const b = el("button", "board-play");
+      b.type = "button";
+      b.appendChild(el("span", "board-play-btn")).appendChild(ico("play"));
+      b.appendChild(el("span", "board-play-site", p ? p.site : ""));
+      b.appendChild(el("span", "board-play-url", e.url.replace(/^https:\/\/(www\.)?/, "")));
+      b.appendChild(el("span", "board-play-note", i18n.t("Tap to play. Nothing loads from {site} until then.", { site: p ? p.site : "" })));
+      b.onclick = (ev) => { ev.stopPropagation(); playing.add(e.id); redraw(); };
+      body.appendChild(b);
+    }
+    box.appendChild(body);
+  }
+  function panelInto(box, e) {
+    const H = window.LifeLogHome;
+    const [, label, icon] = (H && H.SECTIONS.find(([id]) => id === e.kind)) || [e.kind, e.kind, "layout-grid"];
+    box.appendChild(liveHead(icon, label));
+    const body = el("div", "board-live-body board-panel home");
+    const sec = H && H.buildPanel(e.kind);
+    if (sec) {
+      const head = sec.querySelector(".home-sec-head");
+      if (head) head.remove();
+      body.appendChild(sec);
+    }
+    box.appendChild(body);
+  }
+
+  // A player for a note's Read view: the same tap-to-load box, as HTML.
+  function embedWidget(url) {
+    const p = playerOf(url);
+    if (!p) return null;
+    const box = el("div", "note-player");
+    const b = el("button", "board-play");
+    b.type = "button";
+    b.appendChild(el("span", "board-play-btn")).appendChild(ico("play"));
+    b.appendChild(el("span", "board-play-site", p.site));
+    b.appendChild(el("span", "board-play-url", String(url).replace(/^https:\/\/(www\.)?/, "")));
+    b.appendChild(el("span", "board-play-note", i18n.t("Tap to play. Nothing loads from {site} until then.", { site: p.site })));
+    b.onclick = () => {
+      const f = document.createElement("iframe");
+      f.src = p.src + (p.src.includes("?") ? "&" : "?") + "autoplay=1";
+      f.title = p.site;
+      f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write";
+      f.referrerPolicy = "strict-origin-when-cross-origin";
+      f.setAttribute("allowfullscreen", "");
+      box.replaceChildren(f);
+    };
+    box.style.setProperty("--ratio", p.ratio ? String(p.ratio) : p.tall ? "0.9" : p.site === "Spotify" ? "2.2" : "1.8");
+    box.appendChild(b);
+    return box;
+  }
+
+  // ---------- adding cards, players and panels ----------
+  // The same picker as Link to…, listing what each adds. Each lands in the
+  // middle of the screen, selected.
+  let pickMode = "link";
+  function placeLive(e) {
+    if (!editing) return;
+    const r = svg.getBoundingClientRect();
+    const [cx, cy] = toWorld(r.width / 2, r.height / 2);
+    const off = (editing.elements.filter((x) => LIVE.has(x.t)).length % 5) * 24;
+    Object.assign(e, { id: uid(), x: Math.round(cx - e.w / 2 + off), y: Math.round(cy - e.h / 2 + off) });
+    const clean = cleanLive(e);
+    if (!clean) return;
+    remember();
+    editing.elements.push(clean);
+    tool = "select";
+    selection = new Set([clean.id]);
+    syncToolbar();
+    changed(editing); redraw();
+  }
+  function startAdd(kind) {
+    if (!editing) return;
+    commitText();
+    pickMode = kind;
+    const pop = $("#boardLinkPick");
+    pop.hidden = false;
+    const input = $("#boardLinkQuery");
+    input.value = "";
+    input.placeholder = kind === "card" ? i18n.t("Find a note, quote or task") : kind === "embed" ? i18n.t("Paste a YouTube, Spotify or SoundCloud link") : i18n.t("Find a Home panel");
+    input.setAttribute("aria-label", input.placeholder);
+    input.type = kind === "embed" ? "url" : "search";
+    drawLinkPick();
+    setTimeout(() => input.focus(), 0);
+  }
+  function cardChoices(q) {
+    q = String(q || "").trim().toLowerCase();
+    const out = [];
+    for (const n of state.data.notes || []) {
+      if (n.template) continue;
+      const name = n.kind === "quote" ? String(n.text || "").split("\n")[0] : linkName(n) || (n.kind === "list" ? i18n.t("Untitled list") : "");
+      if (name) out.push({ ref: n.id, name, icon: n.kind === "list" ? "list-checks" : n.kind === "quote" ? "quote" : "notebook-text", sub: n.category || "", at: n.updatedAt || n.createdAt || "" });
+      if (n.kind === "list") for (const i of n.items || []) if (!i.done && i.text) out.push({ ref: n.id, item: i.id, name: i.text, icon: "square-check-big", sub: n.text || i18n.t("Untitled list"), at: n.updatedAt || "" });
+    }
+    out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    return (q ? out.filter((c) => c.name.toLowerCase().includes(q) || c.sub.toLowerCase().includes(q)) : out).slice(0, 30);
+  }
+  function cardSize(c) {
+    const n = (state.data.notes || []).find((x) => x.id === c.ref);
+    if (c.item) return { w: 260, h: 110 };
+    if (n && n.kind === "quote") return { w: 260, h: 150 };
+    if (n && n.kind === "list") return { w: 260, h: Math.min(420, 90 + 30 * (n.items || []).length) };
+    return { w: 280, h: 220 };
+  }
+  function playerSize(p) {
+    if (p.site === "YouTube") return { w: 360, h: Math.round(360 / p.ratio) + 32 };
+    if (p.site === "Spotify") return { w: 340, h: p.tall ? 384 : 184 };
+    return { w: 360, h: 200 };
+  }
+  const PANEL_SIZE = { calendar: [560, 520], progress: [560, 300], upcoming: [380, 380], scratchpad: [380, 300], pinned: [380, 320], ledger: [380, 360], invest: [380, 360], pick: [380, 360], year: [420, 380] };
 
   // ---------- text ----------
   let textInput = null, textEditing = null;
@@ -1997,7 +2399,7 @@
     if (!mod && e.key === "0") { fitView(); applyView(); return true; }
     // By the physical key (src/keys.js), so a Hebrew layout still finds them.
     const t = Keys() && Keys().matchBoard(e);
-    if (t) { e.preventDefault(); if (t === "image") pickPictures(); else setTool(t); return true; }
+    if (t) { e.preventDefault(); if (t === "image") pickPictures(); else if (ADDS.has(t)) startAdd(t); else setTool(t); return true; }
     return true;
   }
   function handleKeyUp(e) {
@@ -2100,18 +2502,42 @@
     svg = $("#boardSvg");
     world = svg.querySelector(".board-world");
     liveLayer = svg.querySelector(".board-live");
+    liveEls = svg.querySelector(".board-live-els");
     overlay = svg.querySelector(".board-overlay");
     textInput = $("#boardTextInput");
 
     const tools = $("#boardTools");
     for (const t of TOOLS) {
       const [id, icon, label] = t;
-      const b = el("button", "board-tool");
+      const b = el("button", "board-tool" + (ADDS.has(id) && id !== "image" ? " board-tool-add" : ""));
       b.appendChild(ico(icon));
       b.type = "button"; b.dataset.tool = id; b.title = toolTitle(t); b.setAttribute("aria-label", label);
-      b.onclick = () => (id === "image" ? pickPictures() : setTool(id));
+      b.onclick = (ev) => { ev.stopPropagation(); if (id === "image") pickPictures(); else if (ADDS.has(id)) startAdd(id); else setTool(id); };
       tools.appendChild(b);
     }
+    // A phone has no room for every tool: the ones that add something go
+    // behind one "+" there (styles.css hides one set or the other).
+    const plus = el("button", "board-tool board-add-more");
+    plus.type = "button";
+    plus.appendChild(ico("plus"));
+    plus.title = i18n.t("Add");
+    plus.setAttribute("aria-label", plus.title);
+    plus.setAttribute("aria-haspopup", "menu");
+    const addMenu = el("div", "menu-pop board-add-menu");
+    addMenu.id = "boardAddMenu";
+    addMenu.hidden = true;
+    for (const t of TOOLS.filter(([id]) => ADDS.has(id) && id !== "image")) {
+      const b = el("button");
+      b.type = "button";
+      b.appendChild(ico(t[1]));
+      b.appendChild(document.createTextNode(t[2]));
+      b.onclick = (ev) => { ev.stopPropagation(); addMenu.hidden = true; startAdd(t[0]); };
+      addMenu.appendChild(b);
+    }
+    plus.onclick = (ev) => { ev.stopPropagation(); addMenu.hidden = !addMenu.hidden; };
+    document.addEventListener("click", () => { addMenu.hidden = true; });
+    tools.appendChild(plus);
+    $("#boardEditor").appendChild(addMenu);
     const style = $("#boardStyle");
     for (const c of COLORS) {
       const b = el("button", "board-swatch");
@@ -2219,6 +2645,7 @@
     ensureLoaded, flush, addBoards, boardsForExport, replaceAll, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn, renameTag, renameTagIn, closeBoardTags,
     // pure helpers (test/boards.test.js)
+    refreshLive, playerOf, cleanLive, embedWidget,
     smoothPoints, guideSnap, bindAt, bindPoint, followBindings, withGroups, reid, fullPictureBox, cropFrom, cleanShared, linkTarget, boardText,
     parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };

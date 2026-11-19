@@ -33,7 +33,7 @@
     },
     "boards": {
       "files": ["src/boards.js"],
-      "suites": ["boardimages", "boards", "boardtools", "excalidraw", "renames"]
+      "suites": ["boardimages", "boardlive", "boards", "boardtools", "excalidraw", "renames"]
     },
     "habits": {
       "files": ["src/habits.js"],

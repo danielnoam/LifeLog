@@ -383,6 +383,17 @@ function boardLinks(b, notes, boards) {
     return `- ${what} → ${to}`;
   });
 }
+// The cards, players and Home panels on a board (Nov 2026), each a line.
+function boardLive(b, notes) {
+  return (b.elements || []).filter((e) => e.t === "card" || e.t === "embed" || e.t === "panel").map((e) => {
+    if (e.t === "embed") return `- a player: ${e.url}  (${e.id})`;
+    if (e.t === "panel") { const s = (Home.SECTIONS.find(([id]) => id === e.kind) || [])[1] || e.kind; return `- Home's ${s} panel, live  (${e.id})`; }
+    const n = notes.find((x) => x.id === e.ref);
+    if (!n) return `- a card of a note that's gone (${e.ref})  (${e.id})`;
+    if (e.item) { const it = (n.items || []).find((i) => i.id === e.item); return it ? `- a card of the task "${cut(it.text, 60)}" in "${cut(n.text, 40)}" [${it.done ? "x" : " "}] (${n.id})  (${e.id})` : `- a card of a task that's gone  (${e.id})`; }
+    return `- a card of the ${n.kind === "list" ? "tasks list" : n.kind === "quote" ? "quote" : "note"} "${cut(Notes.linkTitle(n) || n.text, 60)}" (${n.id})  (${e.id})`;
+  });
+}
 const boardPictures = (b) => (b.elements || []).filter((e) => e.t === "img");
 const picturesNote = (b) => { const n = boardPictures(b).length; return n ? `, ${n} picture${n === 1 ? "" : "s"}` : ""; };
 
@@ -1090,11 +1101,14 @@ const TOOLS = [
       if (a.board) {
         const b = findBoard(list, a.board);
         const texts = boardTexts(b);
-        const links = boardLinks(b, (await readData()).notes || [], list);
+        const notes = (await readData()).notes || [];
+        const links = boardLinks(b, notes, list);
+        const liveEls = boardLive(b, notes);
         const locked = b.elements.filter((e) => e.lk).length, groups = new Set(b.elements.filter((e) => e.gp).map((e) => e.gp)).size;
         const extra = [locked && `${locked} locked`, groups && `${groups} group${groups === 1 ? "" : "s"}`].filter(Boolean).join(", ");
         return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${tagsText(b.tags)}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements${picturesNote(b)}${extra ? ", " + extra : ""}, last changed ${String(b.updatedAt).slice(0, 10)}.`,
           texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it.",
+          ...(liveEls.length ? ["Cards, players and panels (shown live):", ...liveEls] : []),
           ...(links.length ? ["Links (tapping the icon opens them):", ...links] : [])].join("\n");
       }
       const q = lower(a.query);
@@ -2696,6 +2710,48 @@ const TOOLS = [
         replaceItem(doc, "boards", Boards.sanitizeBoard({ ...next, updatedAt: nowIso() }));
         const what = a.remove ? "Took the link off" : `Linked`;
         return { text: `${what} "${cut(e.text, 60)}" on "${b.name}"${a.remove ? "" : " to " + (note ? `the note "${cut(Notes.linkTitle(note) || note.text, 60)}"` : `the board "${target.name}"`)}.`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_add_to_board",
+    description: "Put something live on a drawing board, as its Card, Player and Home panel tools do: a card of a note, quote or tasks list (note), or of one task in a list (note + task); a YouTube, Spotify or SoundCloud player (player_url; nothing loads from the site until it's tapped); or one of Home's panels (panel). It goes to the right of what's drawn.",
+    input: {
+      board: S.str("The board's id or name"), note: S.str("A note, quote or tasks list: id or title"), task: S.str("With note: one task in that list, by id or words"),
+      player_url: S.str("A YouTube, Spotify or SoundCloud link"),
+      panel: S.str("A Home panel", { enum: ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest", "calendar", "pick", "year"] }),
+    },
+    required: ["board"],
+    async run(a) {
+      const given = [a.note, a.player_url, a.panel].filter(Boolean).length;
+      if (given !== 1) fail("Give one of note, player_url or panel.");
+      const d = a.note ? await readData() : null;
+      const n = a.note ? findItem(d, "notes", a.note) : null;
+      let item = null;
+      if (a.task) {
+        if (!n || n.kind !== "list") fail("task needs note to be a tasks list.");
+        const q = lower(a.task);
+        item = (n.items || []).find((i) => i.id === a.task) || (n.items || []).find((i) => lower(i.text) === q) || (n.items || []).find((i) => lower(i.text).includes(q));
+        if (!item) fail(`No task in "${n.text}" matches "${a.task}".`);
+      }
+      if (a.player_url && !Boards.playerOf(a.player_url)) fail("That isn't a YouTube, Spotify or SoundCloud link.");
+      return change("add to board", (doc) => {
+        const all = (doc.boards || []).map(Boards.sanitizeBoard);
+        const b = findBoard(all, a.board);
+        const raw = doc.boards.find((x) => x.id === b.id);
+        const box = Boards.boundsOf((raw.elements || []).filter((e) => e && e.t)) || { x: 0, y: 0, w: 0, h: 0 };
+        const p = a.player_url ? Boards.playerOf(a.player_url) : null;
+        const size = n ? (item ? [260, 110] : n.kind === "quote" ? [260, 150] : n.kind === "list" ? [260, Math.min(420, 90 + 30 * (n.items || []).length)] : [280, 220])
+          : p ? (p.site === "YouTube" ? [360, Math.round(360 / p.ratio) + 32] : p.site === "Spotify" ? [340, p.tall ? 384 : 184] : [360, 200])
+          : a.panel === "calendar" ? [560, 520] : [380, 340];
+        const e = { id: L.uid(), t: n ? "card" : p ? "embed" : "panel", x: Math.round(box.x + box.w + (box.w ? 40 : 0)), y: Math.round(box.y), w: size[0], h: size[1] };
+        if (n) { e.ref = n.id; if (item) e.item = item.id; }
+        if (p) e.url = a.player_url;
+        if (a.panel) e.kind = a.panel;
+        const clean = Boards.cleanLive(e);
+        replaceItem(doc, "boards", Boards.sanitizeBoard({ ...raw, elements: [...(raw.elements || []), clean], updatedAt: nowIso() }));
+        const what = n ? `a card of ${item ? `the task "${cut(item.text, 60)}"` : `"${cut(Notes.linkTitle(n) || n.text, 60)}"`}` : p ? `a ${p.site} player` : `Home's ${(Home.SECTIONS.find(([id]) => id === a.panel) || [])[1]} panel`;
+        return { text: `Put ${what} on "${b.name}". id ${clean.id}`, touched: [["boards", b.id]] };
       }, { file: "boards" });
     },
   },

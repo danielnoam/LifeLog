@@ -1411,6 +1411,26 @@ test("a board's text links to a note or board, shown with the board and taken of
   assert.strictEqual(boards().find((b) => b.id === "bd1").elements[0].ln, undefined);
 });
 
+test("cards, players and Home panels go on a board and are listed with it", async () => {
+  reset();
+  assert.match(await ok("lifelog_add_to_board", { board: "Doodle", note: "Plan" }), /^Put a card of "Plan" on "Doodle"/);
+  assert.match(await ok("lifelog_add_to_board", { board: "Doodle", note: "no2", task: "eggs" }), /^Put a card of the task "Eggs" on "Doodle"/);
+  assert.match(await ok("lifelog_add_to_board", { board: "Doodle", player_url: "https://youtu.be/dQw4w9WgXcQ" }), /^Put a YouTube player on "Doodle"/);
+  assert.match(await ok("lifelog_add_to_board", { board: "Doodle", panel: "calendar" }), /^Put Home's Calendar panel on "Doodle"/);
+  await refused("lifelog_add_to_board", { board: "Doodle", player_url: "https://example.com/v" }, /isn't a YouTube/);
+  await refused("lifelog_add_to_board", { board: "Doodle", note: "Plan", panel: "calendar" }, /Give one of/);
+  await refused("lifelog_add_to_board", { board: "Doodle", note: "Plan", task: "x" }, /tasks list/);
+  const els = boards().find((b) => b.id === "bd2").elements;
+  assert.deepStrictEqual(els.map((e) => e.t), ["card", "card", "embed", "panel"]);
+  assert.ok(els.every((e) => e.x2 === e.x + e.w && e.y2 === e.y + e.h));
+  assert.ok(els[1].x > els[0].x, "each goes to the right of what's there");
+  const text = await ok("lifelog_boards", { board: "bd2" });
+  assert.match(text, /Cards, players and panels \(shown live\):\n- a card of the note "Plan" \(no1\)/);
+  assert.match(text, /- a card of the task "Eggs" in "" \[ \] \(no2\)/);
+  assert.match(text, /- a player: https:\/\/youtu\.be\/dQw4w9WgXcQ/);
+  assert.match(text, /- Home's Calendar panel, live/);
+});
+
 test("Home's scratch board: shown on Home, marked in the list, and kept as a board", async () => {
   reset();
   const doc = JSON.parse(fs.readFileSync(BOARDS, "utf8"));
