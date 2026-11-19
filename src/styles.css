@@ -652,6 +652,8 @@ body.modal-open .activity-pill { visibility: hidden; }
    own 52px, and 12px so the last row isn't flush against it. .content's
    bottom padding on a phone is this plus the bar itself. */
 :root { --fab-clear: 76px; }
+/* One note printed (Export as PDF) is dark on white in every theme. */
+:root { --print-ink: #111; --print-link: #1a4fb5; --print-shade: #f2f2f2; }
 /* Where a header sticks under the top bar. --topbar-h is a fractional
    measurement (safe-area inset, 2.625x screens), and a sticky edge and the
    bar's edge round to device pixels separately, so a flush offset left a
@@ -4776,6 +4778,22 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .md blockquote { margin: 0 0 .9em; padding-block: 2px; padding-inline: 14px 0; border-inline-start: 3px solid var(--border); color: var(--text-dim); }
 .md hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em 0; }
 .md a { color: var(--accent); }
+/* Links between notes (Nov 2026): [[Title]] in the accent with its kind's
+   icon; one to a note that isn't there yet is dashed, and a tap makes it. */
+.md a.md-wiki { text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.md a.md-wiki .ico { width: .95em; height: .95em; vertical-align: -.12em; margin-inline-end: 3px; }
+.md a.md-wiki.is-missing { color: var(--text-dim); border-bottom-style: dashed; border-bottom-color: var(--text-dim); }
+/* Tables (Nov 2026): a frame of their own that scrolls sideways when wide. */
+.md .md-table { overflow-x: auto; margin: 0 0 .9em; border: 1px solid var(--border); border-radius: var(--r-md); }
+.md table { border-collapse: collapse; width: 100%; font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.md th, .md td { padding: var(--space-8) var(--space-12); text-align: start; border-bottom: 1px solid var(--border); vertical-align: top; }
+.md th { font-weight: 600; font-size: var(--fs-xs); color: var(--text-dim); background: var(--bg-elev-2); white-space: nowrap; }
+.md tr:last-child td { border-bottom: 0; }
+.md .md-al-right { text-align: end; }
+.md .md-al-center { text-align: center; }
+.note-md .md-table { margin-bottom: .5em; }
+.note-md table { font-size: var(--fs-xs); }
+.note-md th, .note-md td { padding: var(--space-4) var(--space-8); }
 /* Images in notes (0.297.0): a picture LifeLog keeps is drawn at the
    column's width; anything it couldn't draw is a dashed line saying what it
    was, so a note imported from Obsidian shows where its picture went. */
@@ -4924,6 +4942,51 @@ html.note-lines .nv-gutter { display: block; }
 }
 .nv-bar { position: relative; }
 .nv-menu.nv-menu-end { inset-inline-end: var(--space-12); }
+/* "Linked from" under a note (Nov 2026): the notes that link here, each
+   with the line the link is on. */
+.nv-links { margin-top: var(--space-32); padding-top: var(--space-16); border-top: 1px solid var(--border); }
+.nv-links[hidden] { display: none; }
+.nv-links-head { display: flex; align-items: center; gap: var(--space-6); margin: 0 0 var(--space-8); font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); }
+.nv-links-head .ico { width: 14px; height: 14px; }
+.nv-link-row { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); width: 100%; min-height: 44px; margin-bottom: var(--space-6); padding: var(--space-10) var(--space-12); border: 0; border-radius: var(--r-md); background: var(--bg-elev-2); color: var(--text); font: inherit; text-align: start; cursor: pointer; }
+.nv-link-row:hover { background: var(--hover-bg); }
+.nv-link-row b { font-size: var(--fs-md); font-weight: 600; }
+.nv-link-row span { font-size: var(--fs-sm); color: var(--text-dim); }
+.nv-link-row mark { background: none; color: var(--accent); }
+/* Typing [[ (Nov 2026): the notes and boards to link to, under the caret. */
+.link-pick { position: fixed; z-index: 90; width: 280px; max-width: calc(100vw - 16px); padding: var(--space-4); background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-md); box-shadow: var(--shadow); animation: dd-in .16s var(--ll-move-ease); }
+.link-pick[hidden] { display: none; }
+.link-pick.is-leaving { opacity: 0; transition: opacity .14s var(--ease); }
+.link-pick hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-4) 0; }
+.link-pick-row { display: flex; align-items: center; gap: var(--space-10); width: 100%; min-height: 40px; padding: 0 var(--space-10); border: 0; border-radius: var(--r-sm); background: none; color: var(--text); font: inherit; font-size: var(--fs-md); text-align: start; cursor: pointer; }
+.link-pick-row.on, .link-pick-row:hover { background: var(--hover-bg); }
+.link-pick-row .ico { width: 16px; height: 16px; flex: none; color: var(--text-dim); }
+.link-pick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-pick-row small { color: var(--text-dim); font-size: var(--fs-2xs); }
+@media (pointer: coarse) { .link-pick-row { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .link-pick { animation: none; } .link-pick.is-leaving { transition: none; } }
+/* A new note's templates (Nov 2026), above the text until one is picked. */
+.nv-tpl { margin: 0 0 var(--space-16); }
+.nv-tpl[hidden] { display: none; }
+.nv-tpl-head { margin: 0 0 var(--space-8); font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); }
+.nv-tpl-row { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.tpl-chip { display: inline-flex; align-items: center; gap: var(--space-6); min-height: 36px; padding: 0 var(--space-12); border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--bg-elev-2); color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+.tpl-chip:hover { background: var(--hover-bg); }
+.tpl-chip .ico { width: 15px; height: 15px; color: var(--text-dim); }
+@media (pointer: coarse) { .tpl-chip { min-height: 44px; } }
+/* Export as PDF (Nov 2026): the print dialog gets the note on its own, in
+   ink on paper whatever the theme. */
+@media print {
+  html.printing-note body > *:not(#noteReader) { display: none !important; }
+  html.printing-note, html.printing-note body { background: #fff !important; }
+  html.printing-note #noteReader { position: static !important; inset: auto; background: none !important; display: block !important; }
+  html.printing-note #noteReader .modal { position: static !important; max-width: none !important; width: auto !important; height: auto !important; max-height: none !important; box-shadow: none !important; border: 0 !important; background: #fff !important; transform: none !important; animation: none !important; }
+  html.printing-note #noteReader .nv-bar, html.printing-note #noteReader .nv-foot, html.printing-note #noteReaderLinks { display: none !important; }
+  html.printing-note #noteReader .nv-scroll { overflow: visible !important; height: auto !important; }
+  html.printing-note #noteReader * { color: var(--print-ink) !important; }
+  html.printing-note #noteReader .md a { color: var(--print-link) !important; }
+  html.printing-note #noteReader .md pre, html.printing-note #noteReader .md code, html.printing-note #noteReader .md th { background: var(--print-shade) !important; }
+}
 .nv-menu[hidden] { display: none; }
 .nv-menu-label { margin: 0; padding: var(--space-6) var(--space-10) var(--space-2); font-size: var(--fs-2xs); color: var(--text-dim); }
 .nv-menu-label[hidden], .nv-menu hr[hidden], .nv-menu button[hidden] { display: none; }

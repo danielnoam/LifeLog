@@ -77,5 +77,23 @@ test("images (0.297.0): ![alt](src) and Obsidian's ![[file|size]], before a link
   assert.strictEqual(M.images("![[one.png]]")[0].raw, "![[one.png]]");
 });
 
+test("a table is a header row, a |---| rule and rows, with alignment and escaped pipes", () => {
+  const [t] = M.parse("| Day | Miles |\n|:---|---:|\n| Mon | 3 |\n| a \\| b | 4");
+  assert.strictEqual(t.t, "table");
+  assert.deepStrictEqual(t.head, ["Day", "Miles"]);
+  assert.deepStrictEqual(t.align, ["", "right"]);
+  assert.deepStrictEqual(t.rows, [["Mon", "3"], ["a | b", "4"]]);
+  assert.strictEqual(kinds("Some words\n| a | b |\n|---|---|\n| 1 | 2 |"), "p,table");
+  assert.strictEqual(kinds("| not a table |\nno rule under it"), "p");
+});
+
+test("[[links]] are read with their heading and shown words, and an embed isn't one", () => {
+  const links = M.wikiLinks("See [[Trip plan]] and [[Recipes#Soup|the soup]], not ![[pic.png]].");
+  assert.deepStrictEqual(links.map((l) => [l.target, l.heading || "", l.label || ""]), [["Trip plan", "", "Trip plan"], ["Recipes", "Soup", "the soup"]]);
+  assert.strictEqual(M.unwiki("Go to [[Trip plan]] or [[Recipes|food]]"), "Go to Trip plan or food");
+  const inl = M.inline("a [[Trip plan]] b").find((n) => n.t === "wiki");
+  assert.strictEqual(inl.target, "Trip plan");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

@@ -72,10 +72,10 @@
   function gather(data, year) {
     const entries = (data.entries || []).filter((e) => +e.year === year);
     const prevEntries = (data.entries || []).filter((e) => +e.year === year - 1);
-    const notes = (data.notes || []).filter((n) => yearOf(n.createdAt) === year);
+    const notes = (data.notes || []).filter((n) => !n.template && yearOf(n.createdAt) === year);
     const prevNotes = (data.notes || []).filter((n) => yearOf(n.createdAt) === year - 1);
     // Ticked list items — the To-do mode's lists became list notes (0.197.0).
-    const todosDone = (data.notes || []).filter((n) => n.kind === "list").flatMap((n) => n.items || [])
+    const todosDone = (data.notes || []).filter((n) => n.kind === "list" && !n.template).flatMap((n) => n.items || [])
       .filter((t) => t.done && yearOf(t.doneAt) === year);
     const backlogAdded = (data.backlog || []).filter((b) => yearOf(b.createdAt) === year);
     const spend = (data.financeEntries || []).filter((f) => !f.skipped && yearOf(f.date) === year);

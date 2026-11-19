@@ -3603,10 +3603,13 @@
   // number at once, like the rows around it (0.214.0), and none is all; its
   // label selects every one or none. Boards on its own is the Boards page,
   // with New board; beside another kind they're cards in the feed, as in All.
-  const NOTE_KIND_CHIPS = [["text", i18n.t("Notes"), "notebook-text"], ["list", i18n.t("Tasks"), "list-checks"], ["quote", i18n.t("Quotes"), "quote"], ["board", i18n.t("Boards"), "presentation"]];
-  const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || !!window.LifeLogBoards);
+  // Templates (Nov 2026) are a chip of their own once there is one: on,
+  // the list shows only them, and a note made then is a template.
+  const NOTE_KIND_CHIPS = [["text", i18n.t("Notes"), "notebook-text"], ["list", i18n.t("Tasks"), "list-checks"], ["quote", i18n.t("Quotes"), "quote"], ["board", i18n.t("Boards"), "presentation"], ["template", i18n.t("Templates"), "layers"]];
+  const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => (k !== "board" || !!window.LifeLogBoards)
+    && (k !== "template" || state.noteKinds.has("template") || state.data.notes.some((n) => n.template)));
   function toggleAllKinds() {
-    const all = noteKindChips().map(([k]) => k);
+    const all = noteKindChips().map(([k]) => k).filter((k) => k !== "template");
     const set = state.noteKinds;
     if (all.every((k) => set.has(k))) set.clear(); else all.forEach((k) => set.add(k));
     buildCatFilter();

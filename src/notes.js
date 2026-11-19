@@ -50,7 +50,7 @@
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
-  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned", "tags"]);
+  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned", "tags", "template"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -62,6 +62,9 @@
     if (n.fav) out.fav = true;
     // Shown on the Home tab (home.js); it stays in the Notebook too.
     if (n.pinned) out.pinned = true;
+    // A template (Nov 2026): kept out of the lists, offered when a new note
+    // of its kind starts. Notes and task lists only.
+    if (n.template && n.kind !== "quote") out.template = true;
     if (n.kind === "list" || n.kind === "quote") out.kind = n.kind;
     const title = String(n.title == null ? "" : n.title).trim();
     if (title && !out.kind) out.title = title;
@@ -226,9 +229,13 @@
     const { text: words } = Tags().parseQuery(state.search);
     const q = words.toLowerCase();
     const tf = tagKeys();
-    const yf = state.activeYears, cf = state.noteActiveCats, kinds = state.noteKinds;
-    const pool = !kinds.size || kinds.has("board") ? state.data.notes.concat(boardItems()) : state.data.notes;
+    const yf = state.activeYears, cf = state.noteActiveCats;
+    // Templates have a chip of their own and show only under it.
+    const templates = state.noteKinds.has("template");
+    const kinds = new Set([...state.noteKinds].filter((k) => k !== "template"));
+    const pool = !templates && (!kinds.size || kinds.has("board")) ? state.data.notes.concat(boardItems()) : state.data.notes;
     return pool.filter((n) => {
+      if (!!n.template !== templates) return false;
       // A collection is by name, not by when: the year chips don't reach it.
       if (yf.size && !openCollections() && !yf.has(noteYear(n))) return false;
       // A list is found through a task filed under the category too.
@@ -1323,7 +1330,7 @@
     }).catch(() => img.replaceWith(el("span", "md-img-missing", i18n.t("Couldn't load this image"))));
     return img;
   }
-  const mdOpts = { image: drawImage };
+  const mdOpts = { image: drawImage, wiki: drawWikiLink };
   // A card's few lines of preview, without the Markdown's punctuation.
   const plainPreview = (text) => String(text || "")
     .replace(/```[\s\S]*?(```|$)/g, " ")
@@ -1472,9 +1479,11 @@
     } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
     if (!out.childNodes.length) out.appendChild(el("p", "muted", i18n.t("Nothing written under the title yet.")));
+    drawLinkedFrom(n);
     // Wide code and tables scroll sideways themselves, so no Read/Edit swipe starts on them.
     out.querySelectorAll("pre, table").forEach((x) => x.classList.add("no-swipe"));
     $("#noteReaderEntryBtn").hidden = kindOf(n) !== "text";
+    $("#noteReaderTemplateBtn").hidden = !!n.template || kindOf(n) === "quote";
     syncPinButton(n, $("#noteReaderPinBtn"));
     syncFavButton(n, $("#noteReaderFavBtn"));
     closeNoteMenu("#noteReaderMenu", "#noteReaderMoreBtn");
@@ -2221,6 +2230,8 @@
     if (!note) catDefaults($("#nCategory").value);
     syncSheetTags();
     $("#deleteNoteBtn").hidden = !note;
+    $("#noteTemplateBtn").hidden = !note || !!note.template || kindOf(note) === "quote";
+    for (const id of ["#noteExportMdBtn", "#noteExportPdfBtn"]) $(id).hidden = !note;
     const stamp = $("#noteStampLine");
     $("#noteFoot").hidden = !note;
     if (note) {
@@ -2234,7 +2245,8 @@
     } else stamp.hidden = true;
     // A new note starts as the kind the list is showing.
     // Only when it's showing one; with several there's no telling which.
-    const shown = state.noteKinds.size === 1 ? [...state.noteKinds][0] : "";
+    const kindsOn = [...state.noteKinds].filter((k) => k !== "template");
+    const shown = kindsOn.length === 1 ? kindsOn[0] : "";
     setSheetKind(note ? kindOf(note) : (kind || shown || "text"));
     // A new one says what it is in the bar; an open note's own title does.
     const head = $("#noteModalTitle");
@@ -2242,6 +2254,7 @@
     head.classList.toggle("sr-only", !!note);
     if (sheetKind === "board") primeBoardSheet();
     renderSheetImages();
+    drawTemplateRow(note);
     $("#noteForm").scrollTop = 0;
     if ($("#noteModal").hidden) $("#noteModal").hidden = false;
     fitText();
@@ -2251,7 +2264,7 @@
     if (!note) (sheetKind === "list" || sheetKind === "board" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
     openedAs = sheetNow();
   }
-  function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
+  function closeNoteModal() { closeNoteMenu(); closeLinkPick(); $("#noteModal").hidden = true; }
   // There's no Save button: leaving the editor (×, Escape, phone Back, a
   // tap outside) keeps what was written. Untouched, or a new note left
   // empty, it just closes.
@@ -2328,7 +2341,9 @@
         if (said(n) !== before) n.editedAt = now;
       }
     } else {
-      state.data.notes.unshift(sanitizeNote({ ...fields, category, createdAt: now, updatedAt: now }));
+      // Made while the Templates chip is on, it's a template.
+      const template = state.noteKinds.has("template") && kind !== "quote" ? { template: true } : {};
+      state.data.notes.unshift(sanitizeNote({ ...fields, ...template, category, createdAt: now, updatedAt: now }));
     }
     if (after) after(); else closeNoteModal();
     render();
@@ -2419,6 +2434,26 @@
       new ResizeObserver(() => { const now = $("#nText").clientWidth; if (now !== w) { w = now; fitText(); } }).observe($("#nText"));
     }
     $("#deleteNoteBtn").onclick = () => deleteNote();
+    // Links, templates and export (Nov 2026).
+    $("#nText").addEventListener("input", updateLinkPick);
+    $("#nText").addEventListener("keydown", linkPickKey);
+    $("#nText").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("#nText")) closeLinkPick(); }, 0));
+    $("#nText").addEventListener("click", updateLinkPick);
+    $("#noteForm").addEventListener("scroll", closeLinkPick, { passive: true });
+    // From the editor, what's written is kept first.
+    const savedThen = (fn) => async () => {
+      const id = editingNoteId;
+      if (!id) return;
+      if (sheetNow() !== openedAs && (await saveNote()) === false) return;
+      closeNoteModal();
+      fn(id);
+    };
+    $("#noteTemplateBtn").onclick = savedThen(saveAsTemplate);
+    $("#noteExportMdBtn").onclick = savedThen(exportNoteMarkdown);
+    $("#noteExportPdfBtn").onclick = () => { const id = editingNoteId; if (id) exportNotePdf(id); };
+    $("#noteReaderTemplateBtn").onclick = () => saveAsTemplate(readingId);
+    $("#noteReaderExportMdBtn").onclick = () => exportNoteMarkdown(readingId);
+    $("#noteReaderExportPdfBtn").onclick = () => exportNotePdf(readingId);
     $("#noteClearDoneBtn").onclick = () => clearDoneSheetItems();
     $("#noteToEntryBtn").onclick = () => makeEntryFromNote();
     // The sheet as it stands, so unsaved words copy too.
@@ -2493,6 +2528,352 @@
     };
   }
 
+
+  // ---------- links between notes (Nov 2026, from Odinote) ----------
+  // [[Title]] in a note points at the note or board with that title, any
+  // case. Nothing is stored about it: what a note links to is its own text,
+  // and what links to it is worked out when it opens, so a deleted or
+  // renamed note never leaves a stale list behind.
+  const linkKey = (s) => String(s || "").trim().toLowerCase();
+  // The name a link uses for a note: its title, a list's name, else its first line.
+  function linkTitle(n) {
+    if (kindOf(n) === "quote") return "";
+    if (kindOf(n) === "list") return String(n.text || "").trim();
+    if (n.title) return n.title;
+    const line = String(n.text || "").split("\n").find((l) => l.trim());
+    return line ? line.replace(/^#+\s*/, "").trim() : "";
+  }
+  // What [[target]] opens: { note } or { board }, else null. A note wins
+  // over a board of the same name, and a template is never a target.
+  function findLinkTarget(target, notes, boards = []) {
+    const k = linkKey(target);
+    if (!k) return null;
+    const note = notes.find((n) => !n.template && linkKey(linkTitle(n)) === k);
+    if (note) return { note };
+    const board = boards.find((b) => linkKey(b.name) === k);
+    return board ? { board } : null;
+  }
+  // The notes whose text links to `note`, each with the line it's on.
+  function backlinksOf(note, notes) {
+    const k = linkKey(linkTitle(note));
+    const M = window.LifeLogMarkdown;
+    if (!k || !M) return [];
+    const out = [];
+    for (const n of notes) {
+      if (n.id === note.id || n.template) continue;
+      const texts = [n.text, n.note, ...(n.items || []).flatMap((i) => [i.text, i.note])].filter(Boolean).map(String);
+      for (const t of texts) {
+        const hit = M.wikiLinks(t).find((l) => linkKey(l.target) === k);
+        if (!hit) continue;
+        const line = t.split("\n").find((l) => l.includes(hit.raw)) || "";
+        const plain = M.unwiki(line).replace(/^\s*([-*+]\s+(\[[ xX]\]\s+)?|#+\s+|>\s*|\d+[.)]\s+)/, "").trim();
+        out.push({ id: n.id, title: linkTitle(n) || splitTitle(n).title, line: plain.length > 140 ? plain.slice(0, 139) + "…" : plain, word: hit.label });
+        break;
+      }
+    }
+    return out;
+  }
+  const boardsList = () => (window.LifeLogBoards && window.LifeLogBoards.isLoaded() ? window.LifeLogBoards.boardsNow() : []);
+  function drawWikiLink(node) {
+    const hit = findLinkTarget(node.target, state.data.notes, boardsList());
+    const a = el("a", "md-wiki" + (hit ? "" : " is-missing"));
+    a.href = "#";
+    if (hit) a.appendChild(ico(hit.board ? "presentation" : kindOf(hit.note) === "list" ? "list-checks" : "notebook-text"));
+    a.appendChild(document.createTextNode(node.label));
+    a.title = hit ? "" : i18n.t("No note called this yet. Tap to make it");
+    a.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); followLink(node.target); };
+    return a;
+  }
+  function followLink(target) {
+    const hit = findLinkTarget(target, state.data.notes, boardsList());
+    if (hit && hit.board) { closeNoteReader(); closeNoteModal(); window.LifeLogBoards.openBoard(hit.board.id); return; }
+    if (hit) {
+      if (kindOf(hit.note) === "list") { closeNoteReader(); openNoteModal(hit.note); return; }
+      openNoteReader(hit.note.id);
+      return;
+    }
+    closeNoteReader();
+    openNoteModal(null, "text", { preset: { title: String(target).trim() } });
+  }
+  function drawLinkedFrom(n) {
+    const box = $("#noteReaderLinks");
+    if (!box) return;
+    const links = backlinksOf(n, state.data.notes);
+    box.hidden = !links.length;
+    box.replaceChildren();
+    if (!links.length) return;
+    const h = el("h3", "nv-links-head");
+    h.appendChild(ico("link"));
+    h.appendChild(document.createTextNode(i18n.tn(links.length, "Linked from {n} note", "Linked from {n} notes")));
+    box.appendChild(h);
+    for (const l of links) {
+      const row = el("button", "nv-link-row");
+      row.type = "button";
+      row.appendChild(el("b", null, l.title));
+      if (l.line) {
+        const line = el("span");
+        const at = l.line.indexOf(l.word);
+        if (at >= 0) {
+          line.appendChild(document.createTextNode(l.line.slice(0, at)));
+          line.appendChild(el("mark", null, l.word));
+          line.appendChild(document.createTextNode(l.line.slice(at + l.word.length)));
+        } else line.textContent = l.line;
+        row.appendChild(line);
+      }
+      row.onclick = () => { const t = findList(l.id); if (t) { if (kindOf(t) === "list") { closeNoteReader(); openNoteModal(t); } else openNoteReader(l.id); } };
+      box.appendChild(row);
+    }
+  }
+
+  // Typing [[ in a note offers the notes and boards to link to. Arrows
+  // move, Enter or Tab picks, Escape closes; picking writes the title and
+  // the closing ]].
+  const LINK_OPEN = /\[\[([^\[\]\n|#]{0,60})$/;
+  let linkPick = null; // { from, query, items, at }
+  function linkCandidates(query) {
+    const q = linkKey(query);
+    const seen = new Set();
+    const all = [];
+    for (const n of state.data.notes) {
+      if (n.template || n.id === editingNoteId) continue;
+      const t = linkTitle(n);
+      if (!t || seen.has(linkKey(t))) continue;
+      seen.add(linkKey(t));
+      all.push({ title: t, icon: kindOf(n) === "list" ? "list-checks" : "notebook-text", sub: n.category || "" });
+    }
+    for (const b of boardsList()) {
+      if (!b.name || seen.has(linkKey(b.name))) continue;
+      seen.add(linkKey(b.name));
+      all.push({ title: b.name, icon: "presentation", sub: i18n.t("Board") });
+    }
+    const starts = all.filter((x) => linkKey(x.title).startsWith(q));
+    const has = all.filter((x) => !linkKey(x.title).startsWith(q) && linkKey(x.title).includes(q));
+    return starts.concat(has).slice(0, 6);
+  }
+  // Where the caret is on screen, by laying the text out again in a copy of the box.
+  function caretPoint(ta) {
+    const cs = getComputedStyle(ta);
+    const m = el("div");
+    for (const k of ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderLeftWidth", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "tabSize", "direction"]) m.style[k] = cs[k];
+    m.style.position = "absolute"; m.style.visibility = "hidden"; m.style.top = "0"; m.style.left = "-9999px";
+    m.style.width = ta.clientWidth + "px"; m.style.whiteSpace = "pre-wrap"; m.style.overflowWrap = "break-word";
+    m.textContent = ta.value.slice(0, ta.selectionStart);
+    const mark = el("span", null, "​");
+    m.appendChild(mark);
+    document.body.appendChild(m);
+    const r = ta.getBoundingClientRect();
+    const x = r.left + mark.offsetLeft - ta.scrollLeft, y = r.top + mark.offsetTop - ta.scrollTop + (parseFloat(cs.lineHeight) || 20);
+    m.remove();
+    return { x, y };
+  }
+  function closeLinkPick() {
+    const pop = $("#linkPick");
+    linkPick = null;
+    if (!pop || pop.hidden) return;
+    pop.classList.add("is-leaving");
+    setTimeout(() => { pop.hidden = true; pop.classList.remove("is-leaving"); }, reducedMotion() ? 0 : 140);
+  }
+  function drawLinkPick() {
+    const pop = $("#linkPick");
+    pop.replaceChildren();
+    linkPick.items.forEach((it, k) => {
+      const b = el("button", "link-pick-row" + (k === linkPick.at ? " on" : ""));
+      b.type = "button";
+      b.setAttribute("role", "option");
+      b.setAttribute("aria-selected", String(k === linkPick.at));
+      b.appendChild(ico(it.icon));
+      b.appendChild(el("span", "link-pick-name", it.title));
+      if (it.sub) b.appendChild(el("small", null, it.sub));
+      b.onpointerdown = (ev) => { ev.preventDefault(); pickLink(it.title); };
+      pop.appendChild(b);
+    });
+    if (linkPick.query.trim()) {
+      if (linkPick.items.length) pop.appendChild(el("hr"));
+      const b = el("button", "link-pick-row" + (linkPick.at === linkPick.items.length ? " on" : ""));
+      b.type = "button";
+      b.appendChild(ico("plus"));
+      b.appendChild(el("span", "link-pick-name", i18n.t("New note “{name}”", { name: linkPick.query.trim() })));
+      b.onpointerdown = (ev) => { ev.preventDefault(); pickLink(linkPick.query.trim()); };
+      pop.appendChild(b);
+    }
+  }
+  function updateLinkPick() {
+    const ta = $("#nText"), pop = $("#linkPick");
+    if (!pop || sheetKind !== "text" || ta.selectionStart !== ta.selectionEnd) { closeLinkPick(); return; }
+    const m = LINK_OPEN.exec(ta.value.slice(0, ta.selectionStart));
+    if (!m) { closeLinkPick(); return; }
+    const items = linkCandidates(m[1]);
+    if (!items.length && !m[1].trim()) { closeLinkPick(); return; }
+    const total = items.length + (m[1].trim() ? 1 : 0);
+    linkPick = { from: ta.selectionStart - m[1].length, query: m[1], items, at: Math.min(linkPick ? linkPick.at : 0, total - 1) };
+    drawLinkPick();
+    pop.classList.remove("is-leaving");
+    pop.hidden = false;
+    const p = caretPoint(ta), w = pop.offsetWidth, h = pop.offsetHeight;
+    const left = Math.max(8, Math.min(p.x, innerWidth - w - 8));
+    const top = p.y + 4 + h > innerHeight - 8 ? Math.max(8, p.y - (parseFloat(getComputedStyle(ta).lineHeight) || 20) - h - 4) : p.y + 4;
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+  }
+  function pickLink(title) {
+    const ta = $("#nText");
+    if (!linkPick) return;
+    const end = ta.selectionStart;
+    const after = ta.value.slice(end);
+    const close = after.startsWith("]]") ? "" : "]]";
+    ta.setRangeText(title + close, linkPick.from, end, "end");
+    if (!close) ta.selectionStart = ta.selectionEnd = linkPick.from + title.length + 2;
+    closeLinkPick();
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    ta.focus();
+  }
+  function linkPickKey(ev) {
+    if (!linkPick) return;
+    const total = linkPick.items.length + (linkPick.query.trim() ? 1 : 0);
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      linkPick.at = (linkPick.at + (ev.key === "ArrowDown" ? 1 : total - 1)) % total;
+      drawLinkPick();
+    } else if (ev.key === "Enter" || ev.key === "Tab") {
+      ev.preventDefault();
+      pickLink(linkPick.at < linkPick.items.length ? linkPick.items[linkPick.at].title : linkPick.query.trim());
+    } else if (ev.key === "Escape") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      closeLinkPick();
+    }
+  }
+
+  // ---------- templates (Nov 2026) ----------
+  // A template is a note or task list marked `template`. A new note of its
+  // kind offers it; picking one fills the sheet, with {{date}},
+  // {{weekday}} and {{time}} written out as now.
+  function fillTemplate(text, now = new Date()) {
+    const D = Dates();
+    return String(text || "")
+      .replace(/\{\{\s*date\s*\}\}/gi, () => D.day(now, { year: "auto" }))
+      .replace(/\{\{\s*weekday\s*\}\}/gi, () => D.WEEKDAY_NAMES[now.getDay()])
+      .replace(/\{\{\s*time\s*\}\}/gi, () => now.toLocaleTimeString(i18n.lang || [], { hour: "2-digit", minute: "2-digit" }));
+  }
+  const templatesFor = (kind) => state.data.notes.filter((n) => n.template && kindOf(n) === kind)
+    .sort((a, b) => linkTitle(a).localeCompare(linkTitle(b)));
+  function drawTemplateRow(note) {
+    const row = $("#nTemplates");
+    if (!row) return;
+    const list = note || state.noteKinds.has("template") ? [] : templatesFor(sheetKind);
+    row.hidden = !list.length;
+    const chips = $("#nTemplateChips");
+    chips.replaceChildren();
+    for (const t of list) {
+      const b = el("button", "tpl-chip");
+      b.type = "button";
+      b.appendChild(ico(kindOf(t) === "list" ? "list-checks" : "layers"));
+      b.appendChild(document.createTextNode(linkTitle(t) || i18n.t("Untitled")));
+      b.onclick = () => useTemplate(t);
+      chips.appendChild(b);
+    }
+  }
+  function useTemplate(t) {
+    const now = new Date();
+    if (kindOf(t) === "list") {
+      $("#nTitle").value = fillTemplate(t.text, now);
+      sheetItems = (t.items || []).map((i) => ({ ...i, id: uid(), text: fillTemplate(i.text, now), done: undefined, doneAt: undefined }))
+        .map((i) => { delete i.done; delete i.doneAt; return i; });
+      renderSheetItems();
+    } else {
+      $("#nTitle").value = fillTemplate(t.title || "", now);
+      $("#nText").value = fillTemplate(t.text, now);
+    }
+    if (t.category) fillCategorySelect(t.category);
+    if (t.tags) { sheetTags = [...new Set(sheetTags.concat(t.tags))]; syncSheetTags(); }
+    $("#nTemplates").hidden = true;
+    fitText();
+    const ta = $("#nText");
+    if (kindOf(t) !== "list") { ta.focus({ preventScroll: true }); ta.selectionStart = ta.selectionEnd = ta.value.length; }
+  }
+  // A copy of the note as a template; the note itself stays as it is.
+  async function saveAsTemplate(id) {
+    const n = findList(id);
+    if (!n || kindOf(n) === "quote") return;
+    const now = new Date().toISOString();
+    const copy = JSON.parse(JSON.stringify(n));
+    delete copy.id; delete copy.pinned; delete copy.fav; delete copy.editedAt;
+    if (copy.items) copy.items = copy.items.map((i) => { const c = { ...i, id: uid() }; delete c.done; delete c.doneAt; return c; });
+    state.data.notes.unshift(sanitizeNote({ ...copy, template: true, createdAt: now, updatedAt: now }));
+    render();
+    await persist();
+    toast(i18n.t("Saved as a template. New notes offer it"));
+  }
+
+  // ---------- one note out (Nov 2026) ----------
+  // Markdown keeps the note as written: its pictures go inside the file, so
+  // it opens whole in Obsidian or anywhere else, and [[links]] stay links.
+  function noteMarkdown(n) {
+    const kind = kindOf(n);
+    if (kind === "list") {
+      const items = n.items || [];
+      const byParent = (pid) => items.filter((i) => (i.parent || "") === (pid || ""));
+      const lines = [];
+      const walk = (pid, depth) => { for (const i of byParent(pid)) { lines.push("  ".repeat(depth) + "- [" + (i.done ? "x" : " ") + "] " + i.text); walk(i.id, depth + 1); } };
+      walk("", 0);
+      // Items whose parent is gone still go out, at the top level.
+      for (const i of items) if (i.parent && !items.some((x) => x.id === i.parent)) lines.push("- [" + (i.done ? "x" : " ") + "] " + i.text);
+      return ["# " + (n.text || i18n.t("Untitled list")), n.note || "", lines.join("\n")].filter(Boolean).join("\n\n") + "\n";
+    }
+    if (kind === "quote") {
+      const by = [n.author, n.source].filter(Boolean).join(", ");
+      return String(n.text || "").split("\n").map((l) => "> " + l).join("\n") + (by ? "\n>\n> — " + by : "") + "\n";
+    }
+    const { title, body } = splitTitle(n);
+    return (n.title ? "# " + title + "\n\n" + String(n.text || "") : String(n.text || "")).trim() + "\n";
+  }
+  const fileSafe = (s) => String(s || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "note";
+  async function exportNoteMarkdown(id) {
+    const n = findList(id);
+    if (!n) return;
+    let text = noteMarkdown(n);
+    const I = Images();
+    if (I) {
+      for (const m of [...text.matchAll(/!\[([^\]]*)\]\((lifelog-img:[^)\s]+)\)/g)]) {
+        const pid = I.idOf(m[2]);
+        try {
+          const u = pid && await I.url(pid);
+          if (!u) continue;
+          const blob = await (await fetch(u)).blob();
+          const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+          text = text.replace(m[0], "![" + m[1] + "](" + data + ")");
+        } catch (e) { /* the line stays as it was */ }
+      }
+    }
+    window.LifeLogIO.download(fileSafe(linkTitle(n) || splitTitle(n).title) + ".md", text, "text/markdown");
+  }
+  // PDF is the system's print dialog with the note on its own ("Save as
+  // PDF" there), so the text stays text. A phone prints through Android's
+  // own print service.
+  async function exportNotePdf(id) {
+    const n = findList(id);
+    if (!n) return;
+    if (!$("#noteModal").hidden) {
+      const ok = await saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
+      if (ok === false) return;
+    } else if (readingId !== id) openNoteReader(id);
+    const root = document.documentElement;
+    const title = document.title;
+    document.title = fileSafe(splitTitle(n).title);
+    root.classList.add("printing-note");
+    const done = () => { root.classList.remove("printing-note"); document.title = title; };
+    const P = window.LifeLogPlatform;
+    const plugin = P && P.plugin && P.plugin("Widgets");
+    try {
+      if (plugin && P.android && plugin.printPage) { await plugin.printPage({ name: document.title }); done(); return; }
+      window.addEventListener("afterprint", done, { once: true });
+      window.print();
+    } catch (e) {
+      done();
+      toast(i18n.t("Couldn't open printing: {error}", { error: (e && e.message) || e }), true);
+    }
+  }
+
   window.LifeLogNotes = {
     init, wire,
     tagCounts, toggleTagFilter, openTagsModal, closeTagsModal, handleTagsEscape, renameTag, catTagsOf, tagPills,
@@ -2511,5 +2892,7 @@
     },
     // pure helpers (test/notes.test.js)
     noteDate, noteYear, splitNoteForEntry, splitTitle, plainPreview,
+    linkTitle, findLinkTarget, backlinksOf, fillTemplate, noteMarkdown, templatesFor,
+    followLink, saveAsTemplate,
   };
 })();

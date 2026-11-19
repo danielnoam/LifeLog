@@ -109,7 +109,12 @@ it.
 A note opens as one page with **Read** and **Edit** at the top: the title,
 a category chip under it, and the dates at the foot (on a phone, swipe
 sideways to switch). The star beside ⋯ makes it a favourite; the ⋯ menu
-copies the text and pins it to Home. **Notebook → View**
+copies the text, pins it to Home, saves it as a template and exports it
+as Markdown or PDF. Type `[[` to link to another note or a board; a
+note's Read view lists the notes that link to it under **Linked from**.
+Markdown tables show as tables. A template (⋯ → Save as template) is
+offered when a new note or tasks list is made, with `{{date}}`,
+`{{weekday}}` and `{{time}}` filled in. **Notebook → View**
 turns on line numbers in the editor, sets the text size and picks which
 view a note opens in.
 

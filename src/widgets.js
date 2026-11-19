@@ -182,7 +182,7 @@
       if (desc) out.desc = desc.slice(0, 140);
       return out;
     };
-    const lists = (data.notes || []).filter((n) => n.kind === "list")
+    const lists = (data.notes || []).filter((n) => n.kind === "list" && !n.template)
       .sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
     const todos = [];
     const doneCount = {};
@@ -257,7 +257,7 @@
     const cut = (t, n) => { t = String(t || "").trim(); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
     const pinned = new Set(pins);
     const rank = (n) => (pinned.has(n.id) ? 2 : 0) + (n.fav ? 1 : 0);
-    const sorted = (data.notes || []).slice()
+    const sorted = (data.notes || []).filter((n) => !n.template)
       .sort((a, b) => rank(b) - rank(a) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     const notes = [];
     let used = 0;

@@ -280,4 +280,56 @@ test("nothing to fold is a no-op", () => {
   assert.deepStrictEqual(d.notes, [{ id: "n", text: "x" }]);
 });
 
+// ---------- links, templates, export (Nov 2026) ----------
+require("../src/markdown.js");
+test("[[links]] find a note by title, then a board, never a template", () => {
+  const notes = [
+    { id: "a", title: "Trip plan", text: "Go [[Packing]] soon" },
+    { id: "t", title: "Packing", text: "x", template: true },
+    { id: "p", kind: "list", text: "Packing", items: [] },
+  ];
+  assert.strictEqual(Notes.findLinkTarget("packing", notes).note.id, "p");
+  assert.strictEqual(Notes.findLinkTarget("Moodboard", notes, [{ id: "b1", name: "moodboard" }]).board.id, "b1");
+  assert.strictEqual(Notes.findLinkTarget("Nothing", notes, []), null);
+  assert.strictEqual(Notes.linkTitle({ text: "## First line\nmore" }), "First line");
+});
+
+test("backlinks list the notes that link here, with the line, skipping templates", () => {
+  const target = { id: "p", title: "Packing", text: "" };
+  const notes = [target,
+    { id: "a", title: "Trip plan", text: "Intro\n- [ ] check [[packing|the list]]" },
+    { id: "t", title: "Tpl", text: "[[Packing]]", template: true },
+    { id: "l", kind: "list", text: "Errands", items: [{ id: "i", text: "see [[Packing]]" }] }];
+  const back = Notes.backlinksOf(target, notes);
+  assert.deepStrictEqual(back.map((b) => b.id), ["a", "l"]);
+  assert.strictEqual(back[0].line, "check the list");
+});
+
+test("a template fills {{date}}, {{weekday}} and {{time}}", () => {
+  const out = Notes.fillTemplate("{{weekday}} · {{ date }} · {{time}} · {{other}}", new Date(2026, 10, 20, 9, 5));
+  assert.match(out, /^Friday · /);
+  assert.match(out, /20/);
+  assert.match(out, /09:05|9:05/);
+  assert.match(out, /\{\{other\}\}$/);
+});
+
+test("templates keep their flag, and only the Templates chip shows them", () => {
+  assert.strictEqual(sanitizeNote({ text: "x", template: true }).template, true);
+  assert.strictEqual(sanitizeNote({ kind: "quote", text: "x", template: true }).template, undefined);
+  state.data.notes = [sanitizeNote({ id: "n1", text: "plain" }), sanitizeNote({ id: "n2", text: "tpl", template: true })];
+  Object.assign(state, { search: "", activeYears: new Set(), noteActiveCats: new Set(), noteKinds: new Set() });
+  assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["n1"]);
+  state.noteKinds = new Set(["template"]);
+  assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["n2"]);
+  state.noteKinds = new Set();
+  state.data.notes = [];
+});
+
+test("a note goes out as Markdown: checklists as ticks, quotes as a quote", () => {
+  const list = { id: "g", kind: "list", text: "Groceries", items: [{ id: "i1", text: "Milk", done: true }, { id: "i2", text: "Eggs" }, { id: "i3", text: "Brown", parent: "i2" }] };
+  assert.strictEqual(Notes.noteMarkdown(list), "# Groceries\n\n- [x] Milk\n- [ ] Eggs\n  - [ ] Brown\n");
+  const q = sanitizeNote({ kind: "quote", text: "Be kind", author: "Ann" });
+  assert.strictEqual(Notes.noteMarkdown(q), "> Be kind\n>\n> — Ann\n");
+});
+
 console.log(`\n${passed} test(s) passed.`);
