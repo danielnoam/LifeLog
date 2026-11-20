@@ -130,7 +130,7 @@ const SEED = {
 
   // Board tools: their own group, sharing keys with the app but not each other.
   const boardRows = await page.evaluate(() => [...document.querySelectorAll("#kbBoards .kb-row")].map((r) => r.dataset.kb));
-  check("every board tool has a row", boardRows.length === 10 && boardRows.includes("board:pen") && boardRows.includes("board:image"), boardRows);
+  check("every board tool has a row", boardRows.length === 13 && boardRows.includes("board:pen") && boardRows.includes("board:image") && boardRows.includes("board:panel"), boardRows);
   await page.click('[data-kb="board:pen"] .kb-key');
   await page.keyboard.press("n");
   await page.waitForTimeout(200);
