@@ -3,6 +3,52 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.323.0] - 2026-11-20
+
+### Added
+- Card tool on boards: place a note, quote, tasks list or task as a live card you can read, tick and edit in place (double-click the text to change it).
+- Player tool on boards: a YouTube, Spotify or SoundCloud link plays on the board. Nothing loads from them until you press play.
+- Panel tool on boards: place a Home panel (Calendar, Coming up, Ledger, Investments and the rest) that stays up to date.
+- On a phone the new board tools sit behind a + at the end of the toolbar.
+- A note line that's only a YouTube, Spotify or SoundCloud link shows a player in Read view, loaded on tap.
+- Home Calendar: right-click it (or long-press) for Show big covers, the days' covers in place of the names; on boards too.
+- AI bridge: lifelog_add_to_board puts a note, task, player or Home panel on a board; lifelog_boards lists a board's live items.
+- Board options in a board's ⋯ menu, kept per device: Grid, Snap to grid, Alignment guides, Arrows stick to shapes and Smooth the pen.
+- Arrows and lines drawn from one shape to another stick to both ends and follow when a shape moves, turns or resizes.
+- Alignment guides: moving a selection near another shape's edge or middle lines it up and shows the line it matched (hold Alt to move freely).
+- Group (Ctrl+G) and Lock (Ctrl+L) on a board: picking one of a group picks them all; a locked one can't be moved, resized, erased or deleted until it's unlocked.
+- Crop a picture on a board: double-tap it or press Crop, drag the corners over the dimmed whole picture, and press Crop again when done.
+- Link to…: a text, shape or picture on a board can link to a note or another board, and its link icon opens it.
+- The text written on a board is found by search and the Notebook's search box.
+- AI bridge: lifelog_link_board_text; lifelog_boards shows a board's links, locks and groups.
+- Investments compares you with the S&P 500: a faint SPY line on each ticker's chart (the S&P 500 button turns it off), and under Holding what the same money would be worth in SPY bought on the same days, with how far ahead or behind you are. The You hold total says the same for everything you bought.
+- Today's price while the US market is open: the chart, the list and Home show it (the widget too, from the app's last look) with "As of" and the time, refreshed about every 15 minutes, until the day's close comes in.
+- A target can ring at or over its price as well as at or under it, for a price to sell at. The ticker sheet has the choice; the bridge's watch_ticker and update_ticker take `above`.
+- Under each ticker's price: when the market closes, or when it next opens.
+- Holding counts cash dividends: the dividends paid on the shares you held the day before each (before tax), worked out from Tiingo's prices, and an "All in" figure with what's held, what sales brought and the dividends against everything paid.
+- The yearly return under Holding and You hold, once your first buy is a year old: money-weighted, so a buy made last month counts for a month.
+- A fee on a buy or a sale: it adds to what a buy cost and comes off what a sale brought in. The buy sheet has the field; the bridge's add_buy and update_buy take `fee`.
+- Worth over time under You hold: what everything you held was worth each day of the range, beside the money you'd put in by then. The bridge's new lifelog_holdings_worth gives it month by month.
+- Notes link to each other: type `[[` in a note and pick a note or board (or name a new one), and the link opens it. A note's Read view lists the notes that link to it under "Linked from", with the line each link sits on. `[[Title|other words]]` shows other words, `[[Title#Heading]]` names a heading.
+- Tables in notes: Markdown tables (`| a | b |` rows under a `|---|` line) show as tables, with columns aligned by `:---:` and `---:`.
+- Note templates: ⋯ → Save as template on any note or tasks list makes a template copy; a new note or list then offers "Start from a template" at the top. `{{date}}`, `{{weekday}}` and `{{time}}` are filled in. Templates have their own Templates chip in the Notebook and stay out of tasks, Home, widgets and the recap.
+- Export one note from its ⋯ menu: as Markdown (.md, pictures inside the file, links kept) or as PDF through the print dialog ("Save as PDF").
+- AI bridge: lifelog_note_links, lifelog_templates, lifelog_set_template and lifelog_add_note_from_template; lifelog_notes leaves templates out unless asked.
+- Pin on top (Windows app): the window turns small and stays above other windows, with Today, Coming up, Notes and Scratchpad tabs and a quick-add line for a task, note, entry or expense ("12.50 coffee"). From the pin button in the top bar, the tray's Pin on top or Ctrl+Shift+P; Unpin puts the window back where it was. Not in the browser or on the phone: they can't keep a window on top.
+- Settings → Import & export → Calendar saves an .ics of your dated tasks, releases and recurring charges for the next year, to open in Google Calendar or Outlook.
+- AI bridge: lifelog_calendar_ics returns the same calendar.
+
+### Changed
+- A board's top bar: the category box is as tall as the name, and ⋯ only lists Tags… on a phone, where the Tags button doesn't fit.
+- The S&P 500 comparison counts your dividends and fees too.
+- Closes are asked for once the next one should be out (about 17:30 New York time), not every six hours, so there are no requests on weekends or market holidays and the day's close shows up sooner.
+
+### Fixed
+- A stock split no longer reads as a loss: the shares you bought before it are multiplied (a 4-for-1 turns 10 shares into 40 at the same cost), and a sale of the new shares isn't refused as more than you held. The app asks Tiingo for each ticker's full history once more, at its next close, to learn its splits and dividends.
+- A buy on a past day fills in the price as it was that day, not the price adjusted for later splits and dividends.
+- The widget's Add expense window: the amount box no longer sits flush under the tabs, and on a phone set to Hebrew the gaps between the currency sign and the amount, a tab's icon and its name, and the section labels fall on the right side.
+- With the phone in Hebrew, the widget picker's names and descriptions and the widgets' own buttons (Add, Another note, Tick the whole list) are in Hebrew.
+
 ## [0.322.0] - 2026-11-18
 
 ### Added
