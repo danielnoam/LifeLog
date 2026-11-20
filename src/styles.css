@@ -4610,6 +4610,9 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .board-fill.on { background: var(--accent-soft); color: var(--accent); }
 .board-fill.on::before { opacity: 1; }
+.board-heads::before { content: none; }
+.board-heads { font-size: var(--fs-lg); }
+.board-dash::before { width: 20px; height: 0; border: 0; border-top: 3px dashed currentColor; border-radius: 0; background: none; }
 .board-delete[hidden], .board-style > [hidden] { display: none; }
 @media (max-width: 480px) {
   .board-tool { width: 34px; height: 40px; }

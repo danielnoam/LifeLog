@@ -287,17 +287,52 @@ test("cards, players and panels keep their far corner for older builds, and drop
 
 // ---------- the style bar ----------
 test("the style bar offers only what the tool or selection can use", () => {
-  const off = { color: false, width: false, fill: false, size: false };
+  const off = { color: false, width: false, fill: false, line: false, size: false };
   for (const t of ["hand", "eraser", "image", "card", "embed", "panel"]) assert.deepStrictEqual(B.styleFor(t), off, t);
-  assert.deepStrictEqual(B.styleFor("pen"), { color: true, width: true, fill: false, size: false });
-  assert.deepStrictEqual(B.styleFor("rect"), { color: true, width: true, fill: true, size: false });
-  assert.deepStrictEqual(B.styleFor("arrow"), { color: true, width: true, fill: false, size: false });
-  assert.deepStrictEqual(B.styleFor("text"), { color: true, width: true, fill: false, size: true });
+  assert.deepStrictEqual(B.styleFor("pen"), { color: true, width: true, fill: false, line: false, size: false });
+  assert.deepStrictEqual(B.styleFor("rect"), { color: true, width: true, fill: true, line: false, size: false });
+  assert.deepStrictEqual(B.styleFor("arrow"), { color: true, width: true, fill: false, line: true, size: false });
+  assert.deepStrictEqual(B.styleFor("text"), { color: true, width: true, fill: false, line: false, size: true });
   assert.deepStrictEqual(B.styleFor("select", []), off);
   assert.deepStrictEqual(B.styleFor("select", [{ t: "img" }, { t: "card" }]), off);
   assert.deepStrictEqual(B.styleFor("select", [{ t: "ellipse", lk: 1 }]), off, "a locked shape isn't restyled");
-  assert.deepStrictEqual(B.styleFor("select", [{ t: "ellipse" }, { t: "pen" }]), { color: true, width: true, fill: true, size: false });
-  assert.deepStrictEqual(B.styleFor("select", [{ t: "text" }, { t: "img" }]), { color: true, width: true, fill: false, size: true });
+  assert.deepStrictEqual(B.styleFor("select", [{ t: "ellipse" }, { t: "line" }]), { color: true, width: true, fill: true, line: true, size: false });
+  assert.deepStrictEqual(B.styleFor("select", [{ t: "text" }, { t: "img" }]), { color: true, width: true, fill: false, line: false, size: true });
+});
+test("the bar lights up what the whole selection shares, and nothing when it differs", () => {
+  assert.deepStrictEqual(B.commonStyle([{ t: "pen", c: "#e03131", sw: 8 }, { t: "rect", c: "#e03131", sw: 8, f: true }]),
+    { c: "#e03131", sw: 8, f: true, ah: null, ds: false });
+  const mixed = B.commonStyle([{ t: "arrow", c: "ink", sw: 2 }, { t: "line", c: "#1971c2", sw: 2, ds: true }, { t: "img" }]);
+  assert.deepStrictEqual(mixed, { c: null, sw: 2, f: false, ah: null, ds: false });
+  assert.strictEqual(B.commonStyle([{ t: "line", ah: "end" }, { t: "arrow" }]).ah, "end", "an arrow's own head counts as end");
+  assert.strictEqual(B.commonStyle([{ t: "rect", f: true, lk: true }]).f, false, "locked ones don't count");
+});
+test("each tool keeps its own style, and a new element stores only what isn't its default", () => {
+  const styles = { pen: { c: "#e03131", sw: 8 }, line: { ah: "both", ds: true } };
+  assert.deepStrictEqual(B.toolStyle(styles, "pen"), { c: "#e03131", sw: 8, f: false, ah: "none", ds: false });
+  assert.deepStrictEqual(B.toolStyle(styles, "arrow"), { c: "ink", sw: 4, f: false, ah: "end", ds: false });
+  assert.deepStrictEqual(B.styleFields("line", B.toolStyle(styles, "line")), { c: "ink", sw: 4, ah: "both", ds: true });
+  assert.deepStrictEqual(B.styleFields("arrow", B.toolStyle(styles, "arrow")), { c: "ink", sw: 4 });
+  assert.deepStrictEqual(B.styleFields("pen", { c: "ink", sw: 2, f: true, ah: "both", ds: true }), { c: "ink", sw: 2 });
+});
+test("arrowheads: none, one at the end, or both; dashes and heads kept only on lines", () => {
+  const a = { t: "arrow", x: 0, y: 0, x2: 100, y2: 0, sw: 4 };
+  assert.strictEqual(B.arrowHeads(a).length, 2);
+  assert.ok(B.arrowHeads(a).every(([tx]) => tx === 100));
+  assert.strictEqual(B.arrowHeads({ ...a, ah: "none" }).length, 0);
+  const both = B.arrowHeads({ ...a, t: "line", ah: "both" });
+  assert.deepStrictEqual(both.map(([tx]) => tx), [100, 100, 0, 0]);
+  assert.strictEqual(B.arrowHeads({ ...a, t: "line" }).length, 0);
+  const els = B.sanitizeBoard({ id: "s", elements: [
+    { id: "a", t: "arrow", x: 0, y: 0, x2: 1, y2: 1, ah: "end", ds: true },
+    { id: "b", t: "line", x: 0, y: 0, x2: 1, y2: 1, ah: "sideways", ds: "yes" },
+    { id: "c", t: "rect", x: 0, y: 0, w: 1, h: 1, ah: "both", ds: true },
+    { id: "d", t: "line", x: 0, y: 0, x2: 1, y2: 1, ah: "both" },
+  ] }).elements;
+  assert.ok(!("ah" in els[0]) && els[0].ds === true, "an arrow's own head isn't stored");
+  assert.ok(!("ah" in els[1]) && !("ds" in els[1]));
+  assert.ok(!("ah" in els[2]) && !("ds" in els[2]), "a rectangle has no heads or dashes");
+  assert.strictEqual(els[3].ah, "both");
 });
 
 console.log(`\n${passed} test(s) passed.`);

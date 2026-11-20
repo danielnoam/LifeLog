@@ -9,7 +9,10 @@
 // Elements are kept small, because freehand strokes are most of a board:
 //   pen    { id, t: "pen", c, sw, p: [x0, y0, dx1, dy1, …] }   integer deltas
 //   rect / ellipse { id, t, c, sw, seed, x, y, w, h }
-//   line / arrow   { id, t, c, sw, seed, x, y, x2, y2 }
+//   line / arrow   { id, t, c, sw, seed, x, y, x2, y2, ah?, ds? }
+//                  ah: arrowheads "none" | "end" | "both" when not the
+//                  tool's own (an arrow has one at the end, a line none);
+//                  ds: true for a dashed line
 //   text   { id, t: "text", c, sw, x, y, text }                 sw picks the size
 //   img    { id, t: "img", x, y, w, h, img, cr, url, miss }
 // A picture (img) is one of images.js's, on the lifelog-images branch like
@@ -74,10 +77,39 @@
   // the eraser and the adding tools offer none.
   const STYLED = new Set(["pen", "rect", "ellipse", "arrow", "line", "text"]);
   const FILLED = new Set(["rect", "ellipse"]);
+  const LINES = new Set(["line", "arrow"]);
   function styleFor(tool, sel = []) {
     const kinds = tool === "select" ? sel.filter((e) => !e.lk).map((e) => e.t) : [tool];
     const color = kinds.some((t) => STYLED.has(t));
-    return { color, width: color, fill: kinds.some((t) => FILLED.has(t)), size: color && kinds.every((t) => t === "text" || !STYLED.has(t)) };
+    return { color, width: color, fill: kinds.some((t) => FILLED.has(t)), line: kinds.some((t) => LINES.has(t)),
+      size: color && kinds.every((t) => t === "text" || !STYLED.has(t)) };
+  }
+  const HEADS = ["none", "end", "both"];
+  const headsOf = (e) => (HEADS.includes(e.ah) ? e.ah : e.t === "arrow" ? "end" : "none");
+  // What the bar lights up for a selection: a value all of it shares, else
+  // null (nothing lit). Fill and dashes count as on only when all are.
+  function commonStyle(sel) {
+    const live = sel.filter((e) => !e.lk && STYLED.has(e.t));
+    const same = (list, f) => (list.length && list.every((e) => f(e) === f(list[0])) ? f(list[0]) : null);
+    const shapes = live.filter((e) => FILLED.has(e.t)), lines = live.filter((e) => LINES.has(e.t));
+    return { c: same(live, (e) => e.c || "ink"), sw: same(live, (e) => e.sw), f: !!shapes.length && shapes.every((e) => e.f),
+      ah: same(lines, headsOf), ds: !!lines.length && lines.every((e) => e.ds) };
+  }
+  // Each drawing tool keeps its own colour, width, fill, heads and dashes,
+  // per device.
+  function toolStyle(styles, t) {
+    return { c: "ink", sw: 4, f: false, ah: t === "arrow" ? "end" : "none", ds: false, ...((styles && styles[t]) || {}) };
+  }
+  // A new element's style fields from its tool's, leaving out what's the
+  // tool's own default.
+  function styleFields(t, s) {
+    const out = { c: s.c, sw: s.sw };
+    if (s.f && FILLED.has(t)) out.f = true;
+    if (LINES.has(t)) {
+      if (s.ah !== (t === "arrow" ? "end" : "none")) out.ah = s.ah;
+      if (s.ds) out.ds = true;
+    }
+    return out;
   }
   // Tools that add something at once rather than drawing.
   const ADDS = new Set(["image", "card", "embed", "panel"]);
@@ -444,8 +476,10 @@
   // The Nov 2026 fields any element can carry, each kept only in its shape.
   const LINK = /^(note|board):[\w-]{1,80}$/;
   function cleanShared(e) {
-    if (!("lk" in e || "gp" in e || "ln" in e || "b1" in e || "b2" in e)) return e;
+    if (!("lk" in e || "gp" in e || "ln" in e || "b1" in e || "b2" in e || "ah" in e || "ds" in e)) return e;
     const out = { ...e };
+    if (!LINES.has(e.t) || !HEADS.includes(out.ah) || out.ah === (e.t === "arrow" ? "end" : "none")) delete out.ah;
+    if (!LINES.has(e.t) || out.ds !== true) delete out.ds;
     if (out.lk !== true) delete out.lk;
     if (typeof out.gp !== "string" || !out.gp || out.gp.length > 80) delete out.gp;
     if (!LINK.test(String(out.ln || ""))) delete out.ln;
@@ -931,7 +965,7 @@
   function roughPaths(e) {
     if (!window.rough) return null;
     roughGen = roughGen || window.rough.generator();
-    const key = JSON.stringify([e.t, e.x, e.y, e.w, e.h, e.x2, e.y2, e.sw, e.seed, !!e.f, !!e.fc]);
+    const key = JSON.stringify([e.t, e.x, e.y, e.w, e.h, e.x2, e.y2, e.sw, e.seed, !!e.f, !!e.fc, headsOf(e), !!e.ds]);
     const hit = roughCache.get(e.id);
     if (hit && hit.key === key) return hit.paths;
     // "S" and "F" stand in for the stroke and fill colour: the colour itself
@@ -944,20 +978,31 @@
     if (e.t === "rect") drawables = [roughGen.rectangle(e.x, e.y, e.w, e.h, o)];
     else if (e.t === "ellipse") drawables = [roughGen.ellipse(e.x + e.w / 2, e.y + e.h / 2, Math.abs(e.w), Math.abs(e.h), o)];
     else {
-      drawables = [roughGen.line(e.x, e.y, e.x2, e.y2, o)];
-      if (e.t === "arrow") for (const [hx, hy] of arrowHead(e)) drawables.push(roughGen.line(e.x2, e.y2, hx, hy, o));
+      // A dashed line is one stroke, not rough.js's two, or the dashes double.
+      drawables = [roughGen.line(e.x, e.y, e.x2, e.y2, e.ds ? { ...o, disableMultiStroke: true } : o)];
+      for (const [tx, ty, hx, hy] of arrowHeads(e)) drawables.push(roughGen.line(tx, ty, hx, hy, o));
     }
-    const paths = drawables.flatMap((d) => roughGen.toPaths(d))
-      .map((p) => ({ d: p.d, stroke: p.stroke !== "none", fill: !!p.fill && p.fill !== "none", w: p.strokeWidth }));
+    // `body`: the line itself, which a dash applies to; never the heads.
+    const paths = drawables.flatMap((d, i) => roughGen.toPaths(d).map((p) => ({ ...p, body: i === 0 })))
+      .map((p) => ({ d: p.d, stroke: p.stroke !== "none", fill: !!p.fill && p.fill !== "none", w: p.strokeWidth, body: p.body }));
     roughCache.set(e.id, { key, paths });
     return paths;
   }
-  function arrowHead(e) {
+  // Each arrowhead's two strokes, [tipX, tipY, endX, endY]: at the end, and
+  // at the start too for "both".
+  function arrowHeads(e) {
+    if (!LINES.has(e.t)) return [];
+    const h = headsOf(e);
+    if (h === "none") return [];
     const len = Math.hypot(e.x2 - e.x, e.y2 - e.y);
-    const size = Math.min(len * 0.35, 12 + e.sw * 3);
-    const ang = Math.atan2(e.y2 - e.y, e.x2 - e.x);
-    return [ang + Math.PI * 0.82, ang - Math.PI * 0.82].map((a) => [e.x2 + Math.cos(a) * size, e.y2 + Math.sin(a) * size]);
+    const size = Math.min(len * (h === "both" ? 0.25 : 0.35), 12 + e.sw * 3);
+    const at = (tx, ty, fx, fy) => {
+      const ang = Math.atan2(ty - fy, tx - fx);
+      return [ang + Math.PI * 0.82, ang - Math.PI * 0.82].map((a) => [tx, ty, tx + Math.cos(a) * size, ty + Math.sin(a) * size]);
+    };
+    return [...at(e.x2, e.y2, e.x, e.y), ...(h === "both" ? at(e.x, e.y, e.x2, e.y2) : [])];
   }
+  const dashOf = (e) => (e.ds ? `${e.sw * 2 + 4} ${e.sw * 2 + 6}` : null);
   // ---------- pictures ----------
   // Where each picture is shown from, once known: an object URL from
   // images.js (this device, else fetched from GitHub once), or null when
@@ -1068,7 +1113,7 @@
       for (const p of paths) {
         const solid = p.fill && e.f && e.fc;
         g.appendChild(svgEl("path", { d: p.d, stroke: p.stroke ? color : "none", fill: p.fill ? (solid ? inkOf(e.fc) : color) : "none",
-          "fill-opacity": solid ? solidOpacity() : null, "stroke-width": p.w }));
+          "fill-opacity": solid ? solidOpacity() : null, "stroke-width": p.w, "stroke-dasharray": p.body ? dashOf(e) : null }));
       }
     } else if (e.t === "rect" || e.t === "ellipse") {
       const solid = e.f && e.fc ? { fill: inkOf(e.fc), "fill-opacity": solidOpacity() } : {};
@@ -1076,8 +1121,8 @@
         : svgEl("ellipse", { cx: e.x + e.w / 2, cy: e.y + e.h / 2, rx: Math.abs(e.w / 2), ry: Math.abs(e.h / 2), ...solid }));
     }
     else {
-      g.appendChild(svgEl("line", { x1: e.x, y1: e.y, x2: e.x2, y2: e.y2 }));
-      if (e.t === "arrow") for (const [hx, hy] of arrowHead(e)) g.appendChild(svgEl("line", { x1: e.x2, y1: e.y2, x2: hx, y2: hy }));
+      g.appendChild(svgEl("line", { x1: e.x, y1: e.y, x2: e.x2, y2: e.y2, "stroke-dasharray": dashOf(e) }));
+      for (const [tx, ty, hx, hy] of arrowHeads(e)) g.appendChild(svgEl("line", { x1: tx, y1: ty, x2: hx, y2: hy }));
     }
     return g;
   }
@@ -1124,7 +1169,16 @@
   // ---------- the editor ----------
   let editing = null;        // the board open in the editor
   let view = { x: 0, y: 0, k: 1 };
-  let tool = "pen", color = "ink", width = 4, fill = false;
+  let tool = "pen";
+  const STYLES_KEY = "lifelog-board-styles-v1";
+  let styles = {};
+  try { styles = JSON.parse(localStorage.getItem(STYLES_KEY)) || {}; } catch (e) { /* defaults */ }
+  const cur = () => toolStyle(styles, tool);
+  function setStyle(patch) {
+    styles = { ...styles, [tool]: { ...(styles[tool] || {}), ...patch } };
+    try { localStorage.setItem(STYLES_KEY, JSON.stringify(styles)); } catch (e) { /* this session only */ }
+    syncToolbar();
+  }
   let selection = new Set();
   let undoStack = [], redoStack = [];
   let op = null;             // what the pointer is doing
@@ -1460,7 +1514,7 @@
     const [x, y] = pointerWorld(ev);
     if (tool === "hand" || spaceDown || ev.button === 1) { op = { kind: "pan", sx: ev.clientX, sy: ev.clientY, view: { ...view } }; return; }
     if (tool === "pen") {
-      op = { kind: "pen", pts: [[x, y]], node: svgEl("path", { stroke: inkOf(color), "stroke-width": width, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }) };
+      op = { kind: "pen", pts: [[x, y]], node: svgEl("path", { stroke: inkOf(cur().c), "stroke-width": cur().sw, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }) };
       liveLayer.appendChild(op.node);
       op.node.setAttribute("d", penPath(op.pts));
       return;
@@ -1495,8 +1549,7 @@
       return;
     }
     // A shape: drawn live from where the pointer went down.
-    const e = { id: uid(), t: tool, c: color, sw: width, seed: Math.floor(Math.random() * 2 ** 31) };
-    if (fill && (tool === "rect" || tool === "ellipse")) e.f = true;
+    const e = { id: uid(), t: tool, ...styleFields(tool, cur()), seed: Math.floor(Math.random() * 2 ** 31) };
     const lineish = tool === "line" || tool === "arrow";
     // A line's start on a shape sticks there; elsewhere it snaps to the grid.
     const b1 = lineish && opts.stick ? bindAt(editing.elements, x, y, tolerance(ev)) : null;
@@ -1638,7 +1691,7 @@
       liveLayer.innerHTML = "";
       const pts = simplify(opts.smooth ? smoothPoints(done.pts, 2) : done.pts, 0.8 / view.k);
       remember();
-      editing.elements.push({ id: uid(), t: "pen", c: color, sw: width, p: encodePoints(pts) });
+      editing.elements.push({ id: uid(), t: "pen", ...styleFields("pen", cur()), p: encodePoints(pts) });
       changed(editing); redraw();
     } else if (done.kind === "erase") {
       if (done.gone.size) changed(editing);
@@ -1677,7 +1730,8 @@
     } else if (done.kind === "text") {
       const [x, y] = [done.x, done.y];
       const hit = editing.elements.slice().reverse().find((e) => e.t === "text" && hitTest(e, x, y, tolerance(ev)));
-      editText(hit || { id: uid(), t: "text", c: color, sw: width, x: Math.round(x), y: Math.round(y - textSize({ sw: width }) * 0.6), text: "" });
+      const ts = cur();
+      editText(hit || { id: uid(), t: "text", ...styleFields("text", ts), x: Math.round(x), y: Math.round(y - textSize({ sw: ts.sw }) * 0.6), text: "" });
     }
   }
   function eraseAt(x, y, tol) {
@@ -2335,6 +2389,21 @@
       b.setAttribute("aria-label", b.title);
     });
     $("#boardFill").hidden = !s.fill;
+    $("#boardHeads").hidden = $("#boardDash").hidden = !s.line;
+    // Lit: the selection's own style when something is picked, else the
+    // tool's.
+    const lit = tool === "select" ? commonStyle(sel) : cur();
+    bar.querySelectorAll("[data-color]").forEach((b) => b.classList.toggle("on", b.dataset.color === lit.c));
+    bar.querySelectorAll("[data-width]").forEach((b) => b.classList.toggle("on", +b.dataset.width === lit.sw));
+    $("#boardFill").classList.toggle("on", lit.f);
+    $("#boardFill").setAttribute("aria-pressed", String(lit.f));
+    $("#boardDash").classList.toggle("on", lit.ds);
+    $("#boardDash").setAttribute("aria-pressed", String(lit.ds));
+    const heads = $("#boardHeads"), h = lit.ah || "end";
+    heads.replaceChildren(ico({ none: "minus", end: "arrow-right", both: "move-horizontal" }[h]));
+    heads.title = { none: i18n.t("No arrowheads"), end: i18n.t("Arrowhead at the end"), both: i18n.t("Arrowheads at both ends") }[h];
+    heads.setAttribute("aria-label", heads.title);
+    heads.classList.toggle("on", !!lit.ah && lit.ah !== "none");
     const shown = [...bar.children].filter((b) => !b.hidden);
     if (shown.length) {
       styleShown = shown; styleFading = false;
@@ -2377,10 +2446,6 @@
       if (!cap) { cap = el("span", "board-tool-key"); cap.setAttribute("aria-hidden", "true"); b.appendChild(cap); }
       cap.textContent = K.parts(combo).join("+");
     });
-    document.querySelectorAll("#boardStyle [data-color]").forEach((b) => b.classList.toggle("on", b.dataset.color === color));
-    document.querySelectorAll("#boardStyle [data-width]").forEach((b) => b.classList.toggle("on", +b.dataset.width === width));
-    $("#boardFill").classList.toggle("on", fill);
-    $("#boardFill").setAttribute("aria-pressed", String(fill));
     svg.dataset.tool = tool;
     syncStyleBar();
   }
@@ -2392,21 +2457,30 @@
     syncToolbar();
     if (editing) redraw();
   }
-  // Colour, width and fill apply to what's selected as well as to what's
-  // drawn next — fill only to the shapes that can hold one, and a width to a
+  // Colour, width and fill apply to what's selected — fill only to the
+  // shapes that can hold one, heads and dashes only to lines, and a width to a
   // resized text puts it back on the three sizes.
   function restyle(patch) {
-    const fits = (e) => STYLED.has(e.t) && !e.lk && (!("f" in patch) || FILLED.has(e.t));
+    const fits = (e) => STYLED.has(e.t) && !e.lk && (!("f" in patch) || FILLED.has(e.t)) && (!("ah" in patch || "ds" in patch) || LINES.has(e.t));
     if (!editing || !editing.elements.some((e) => selection.has(e.id) && fits(e))) return;
     remember();
     editing.elements = editing.elements.map((e) => {
       if (!selection.has(e.id) || !fits(e)) return e;
       const out = { ...e, ...patch };
       if (out.f === false) { delete out.f; delete out.fc; }
+      if (out.ds === false) delete out.ds;
+      if ("ah" in out && out.ah === (e.t === "arrow" ? "end" : "none")) delete out.ah;
       if ("sw" in patch && e.t === "text") delete out.fs;
       return out;
     });
     changed(editing); redraw();
+  }
+
+  // The select tool restyles what's picked; a drawing tool changes its own
+  // style for what it draws next.
+  function applyStyle(patch) {
+    if (tool === "select") restyle(patch);
+    else setStyle(patch);
   }
 
   function handleKey(e) {
@@ -2585,7 +2659,7 @@
       b.type = "button"; b.dataset.color = c; b.title = c === "ink" ? i18n.t("Ink") : c;
       b.setAttribute("aria-label", i18n.t("Colour {name}", { name: b.title }));
       b.style.setProperty("--swatch", c === "ink" ? "var(--text)" : c);
-      b.onclick = () => { color = c; syncToolbar(); restyle({ c }); };
+      b.onclick = () => applyStyle({ c });
       style.appendChild(b);
     }
     for (const w of WIDTHS) {
@@ -2593,10 +2667,12 @@
       b.type = "button"; b.dataset.width = w; b.title = [i18n.t("Thin"), i18n.t("Medium"), i18n.t("Bold")][WIDTHS.indexOf(w)];
       b.setAttribute("aria-label", b.title);
       b.appendChild(el("span", "board-width-dot")).style.height = w + 1 + "px";
-      b.onclick = () => { width = w; syncToolbar(); restyle({ sw: w }); };
+      b.onclick = () => applyStyle({ sw: w });
       style.appendChild(b);
     }
     style.appendChild($("#boardFill"));
+    style.appendChild($("#boardHeads"));
+    style.appendChild($("#boardDash"));
     style.addEventListener("transitionend", (ev) => {
       if (ev.target !== style || !style.classList.contains("is-off") || !styleFading) return;
       styleFading = false;
@@ -2654,7 +2730,10 @@
     $("#boardMenuBtn").onclick = (e) => { e.stopPropagation(); zoomMenu.hidden = true; menu.hidden = !menu.hidden; };
     $("#boardZoomBtn").onclick = (e) => { e.stopPropagation(); menu.hidden = true; zoomMenu.hidden = !zoomMenu.hidden; };
     document.addEventListener("click", () => { menu.hidden = true; zoomMenu.hidden = true; });
-    $("#boardFill").onclick = () => { fill = !fill; syncToolbar(); restyle({ f: fill }); };
+    const lit = () => (tool === "select" ? commonStyle(selected()) : cur());
+    $("#boardFill").onclick = () => applyStyle({ f: !lit().f });
+    $("#boardDash").onclick = () => applyStyle({ ds: !lit().ds });
+    $("#boardHeads").onclick = () => applyStyle({ ah: HEADS[(HEADS.indexOf(lit().ah || "end") + 1) % HEADS.length] });
     $("#boardExportPng").onclick = exportPng;
     $("#boardExportSvg").onclick = exportSvg;
     $("#boardDeleteBoard").onclick = deleteBoard;
@@ -2691,7 +2770,7 @@
     ensureLoaded, flush, addBoards, boardsForExport, replaceAll, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn, renameTag, renameTagIn, closeBoardTags,
     // pure helpers (test/boards.test.js)
-    refreshLive, playerOf, styleFor, cleanLive, embedWidget,
+    refreshLive, playerOf, styleFor, commonStyle, toolStyle, styleFields, arrowHeads, cleanLive, embedWidget,
     smoothPoints, guideSnap, bindAt, bindPoint, followBindings, withGroups, reid, fullPictureBox, cropFrom, cleanShared, linkTarget, boardText,
     parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };
