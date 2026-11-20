@@ -12,8 +12,8 @@ Every release that adds a feature adds its line here in the same commit.
 ## The app as a whole
 
 - Settings → About → Unreleased builds (Android, Windows): the update bar also offers the newest build of main, served from the site's unreleased/, never the Releases page (0.322.0)
-- English and Hebrew, picked in Settings → Appearance → Language (System follows the device): the whole app in gender-neutral Hebrew, right to left, with dates and numbers in the language; titles and names stay as typed (0.319.0)
-- Five tabs: Home, and Notebook, Timeline, Backlog, Ledger, each with modes (0.126.0, Home 0.306.0; Travel taken out, next release)
+- English and Hebrew, picked in Settings → Appearance → Language (System follows the device): the whole app in gender-neutral Hebrew, right to left, with dates and numbers in the language; titles and names stay as typed; the Android widget picker and widget buttons too (0.319.0, widgets 0.323.0)
+- Five tabs: Home, and Notebook, Timeline, Backlog, Ledger, each with modes (0.126.0, Home 0.306.0; Travel taken out 0.316.0)
 - Home in the middle of the bar, where a fresh start opens: In progress covers, Coming up for two weeks (releases and episodes known to the day, recurring charges, habits left), a synced scratchpad with Make a note, notes pinned from a note's ⋯ menu; sections ordered and hidden under View (0.306.0)
 - On a computer, Home sections next to each other (Coming up, Scratchpad, Pinned notes) share one row, two or three across (0.307.0)
 - Home scratchpad Note / Board switch: a scratch board (boards.json, `scratch`) kept out of the Boards list, opened in the editor, Keep as a board; switch per device (0.307.0); slimmer switch, board as tall as the note, Save to Notebook (0.307.1)
@@ -45,7 +45,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Lucide icons everywhere, no emoji in the UI, and the timeline-pin app icon (0.247.0)
 - Right-click menus on a computer: Timeline, In progress, Backlog, Ledger, notes, boards and habits rows have their own actions, Select starts selecting, and with items selected it acts on all of them (0.305.0)
 - Dropdowns open the app's own list in every theme: a menu under the field on a computer, a sheet from the bottom on a phone, arrow keys and type-to-jump included (0.307.0)
-- "New version ready" with a Reload button (0.118.0) and a close button (next release)
+- "New version ready" with a Reload button (0.118.0) and a close button (0.316.0)
 - Activity: everything that takes a while in one list, with a ring or pill while it runs (0.244.0)
 - Work on the same site waits its turn; different sites run side by side (0.244.0)
 - Work the app was closed on is offered again (0.245.0)
@@ -133,7 +133,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Source choices and API keys sync between devices (0.16.0, 0.17.0)
 - Self-hosted CORS proxy for Steam and SteamGridDB on the web; no proxy needed on Android (0.59.0, 0.215.0)
 - How Long to Beat times (Main Story is the length) and OpenCritic and Metacritic user scores for Steam games, shown on the sheet's cover; Settings → Connections switch (0.282.0)
-- IGDB's time-to-beat in the same strip where How Long to Beat has nothing, or for an IGDB game with no Steam App ID, with IGDB keys set (next release)
+- IGDB's time-to-beat in the same strip where How Long to Beat has nothing, or for an IGDB game with no Steam App ID, with IGDB keys set (0.315.0)
 - A sheet's cover shows the length (runtime, seasons and episodes, pages, playtime) along its foot, review scores top left, store links top right (0.282.1)
 - Every source's score named on the cover ("TMDB 8.4"), kept on timeline entries too; a show's status and episodes out on the cover (0.282.2)
 - Failed game-time lookups wait a day and show in Activity, instead of re-asking the same games every launch (0.282.3)
@@ -147,10 +147,10 @@ Every release that adds a feature adds its line here in the same commit.
 - AniList: every list, Completed as timeline history, Paused and Dropped as dropped (0.73.0, 0.265.0, 0.268.0)
 - AniList both ways: applied automatically (every open to monthly), episode counts, starts, finishes and drops sent back once signed in, newer change wins (0.292.0)
 - Waypage reading log: reading.json from your Waypage sync repo (read-only token, every few minutes, ETag); Backlog books started with their %, new ones added, finished ones moved to the Timeline, a category per kind, re-reads and author clashes reviewed, minutes into a minutes habit; bridge tools (0.313.0)
-- Hardcover both ways: one category in step with your Hardcover library (Want to Read, Reading, Read, Did Not Finish), matched by title and author, new books through the review, starts/finishes/drops sent back (Waypage's too), newer change wins (next release)
-- Connections as a list with one screen per app; What comes in on Hardcover, AniList, Stremio and Steam: new titles ask/add/skip, a switch per status, send changes on/off (next release)
-- Waypage controls: on/off, Disconnect, check timing, new books ask/add/skip, start-and-finish and progress switches, From Waypage list with Unlink, Kept out with Allow again (next release)
-- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (next release)
+- Hardcover both ways: one category in step with your Hardcover library (Want to Read, Reading, Read, Did Not Finish), matched by title and author, new books through the review, starts/finishes/drops sent back (Waypage's too), newer change wins (0.315.0)
+- Connections as a list with one screen per app; What comes in on Hardcover, AniList, Stremio and Steam: new titles ask/add/skip, a switch per status, send changes on/off (0.315.0)
+- Waypage controls: on/off, Disconnect, check timing, new books ask/add/skip, start-and-finish and progress switches, From Waypage list with Unlink, Kept out with Allow again (0.315.0)
+- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (0.315.0)
 - Letterboxd import (0.252.0)
 - Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (0.313.0)
 - Stremio in a browser: straight to Stremio, through your proxy when it turns the browser away; a test runs the proxy and checks it has every route the apps have
@@ -162,7 +162,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
-- Calendar export: an .ics of dated tasks, releases and new episodes, and recurring charges for the next year (Settings → Import & export); bridge lifelog_calendar_ics (next release)
+- Calendar export: an .ics of dated tasks, releases and new episodes, and recurring charges for the next year (Settings → Import & export); bridge lifelog_calendar_ics (0.323.0)
 
 ## Notebook (Notes)
 
@@ -172,8 +172,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Drawing boards, as a kind of note (0.193.0, 0.194.0, 0.204.0)
 - Pictures on boards: Image button, paste or drop; moved, resized at their own shape, turned; kept with the notes' images and counted by Clean up; exported inside PNG and SVG (0.310.0)
 - Boards: copy, cut and paste a selection (Ctrl/Cmd + C, X, V and Copy / Paste buttons) through the system clipboard, across boards and apps; the drag box highlights what it covers live, and the box itself shows while you drag (mouse or touch)
-- Board options per device (grid, snap to grid, alignment guides, arrows that stick to shapes and follow them, pen smoothing); group and lock; crop pictures; Link to… a note or board from a text, shape or picture; board text in search; bridge lifelog_link_board_text (next release)
-- Live board items: Card (a note, quote, tasks list or task, edited and ticked in place), Player (YouTube, Spotify, SoundCloud, loaded on tap; also in a note's Read view), Panel (any Home panel, kept current); a + for them on a phone; Home Calendar big covers from its right-click menu; bridge lifelog_add_to_board (next release)
+- Board options per device (grid, snap to grid, alignment guides, arrows that stick to shapes and follow them, pen smoothing); group and lock; crop pictures; Link to… a note or board from a text, shape or picture; board text in search; bridge lifelog_link_board_text (0.323.0)
+- Live board items: Card (a note, quote, tasks list or task, edited and ticked in place), Player (YouTube, Spotify, SoundCloud, loaded on tap; also in a note's Read view), Panel (any Home panel, kept current); a + for them on a phone; Home Calendar big covers from its right-click menu; bridge lifelog_add_to_board (0.323.0)
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
@@ -187,7 +187,7 @@ Every release that adds a feature adds its line here in the same commit.
 - A tasks list is a task itself (description, category, date, priority, tags in one box on its page; its tick ticks every row; repeats), rows are its flat subtasks with a pen to open each; the same box above the text on notes and quotes (Author and Source rows on quotes); Tags row always shown with All tags first and "+" for a new tag; Clear finished moved into the list page's ⋯; bridge lifelog_list_task (0.318.0)
 - Tasks widget list headings with the list's own tick, priority colour and day; quick add's Task tab makes a new list with "+" (0.319.0); heading tick, details (repeat, reminder, deadline, own category, tags) and description line under each task, each with a switch in the widget's settings, round ticks (0.319.1)
 - A screen per kind from the + menu (Note, Checklist, Quote, Board), no kind switch in the sheet or ⋯; a new board asks its name and category first and opens on a tap of the blank board; the Favourite star sits beside ⋯ in Read and Edit (0.314.0)
-- [[Links]] between notes and to boards, picked by typing `[[`; "Linked from" in a note's Read view; Markdown tables; note and tasks list templates with {{date}}, {{weekday}}, {{time}} and a Templates chip; export one note as Markdown or PDF; bridge lifelog_note_links, lifelog_templates, lifelog_set_template, lifelog_add_note_from_template (next release)
+- [[Links]] between notes and to boards, picked by typing `[[`; "Linked from" in a note's Read view; Markdown tables; note and tasks list templates with {{date}}, {{weekday}}, {{time}} and a Templates chip; export one note as Markdown or PDF; bridge lifelog_note_links, lifelog_templates, lifelog_set_template, lifelog_add_note_from_template (0.323.0)
 
 ## Notebook (Habits)
 
@@ -228,8 +228,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Investments mode: a watchlist of US stocks and ETFs with Tiingo prices (your own key), a chart over 1M to Max, a target and a note per ticker, and date pins with the change between them (0.310.0)
 - Investments holdings: buys and sales per ticker (fractional shares) with shares, average cost, value, gain and what sales made, marks and an average-cost line on the chart, a "You hold" total (0.312.0)
 - Investments: Compare any two pins (or a pin and the latest close), a held day to measure a drag from, target notifications, ticker chips on a phone (0.312.0)
-- Investments vs the S&P 500: a faint SPY line on the chart (S&P 500 button per device), the same money in SPY on the same days under Holding and the You hold total; today's price from Tiingo's IEX feed while the market trades ("As of", every ~15 min); targets at or over a price as well as under; closes asked for by the NYSE clock (holidays by rule), with "Closes in" / "Opens in" (unreleased)
-- Investments returns: shares counted through stock splits, cash dividends on the shares held (before tax), a fee per buy or sale, All in, the money-weighted yearly return from a year in, and a Worth-over-time chart under You hold beside the money put in; a past day's buy fills in that day's price as it was (unreleased)
+- Investments vs the S&P 500: a faint SPY line on the chart (S&P 500 button per device), the same money in SPY on the same days under Holding and the You hold total; today's price from Tiingo's IEX feed while the market trades ("As of", every ~15 min); targets at or over a price as well as under; closes asked for by the NYSE clock (holidays by rule), with "Closes in" / "Opens in" (0.323.0)
+- Investments returns: shares counted through stock splits, cash dividends on the shares held (before tax), a fee per buy or sale, All in, the money-weighted yearly return from a year in, and a Worth-over-time chart under You hold beside the money put in; a past day's buy fills in that day's price as it was (0.323.0)
 
 ## Sync and data
 
@@ -246,9 +246,9 @@ Every release that adds a feature adds its line here in the same commit.
 - This device's copy in IndexedDB (0.268.0)
 - Setup link to add another device (0.174.0)
 - Restore settings from a backup (0.194.0)
-- Settings → Sync shows how much room the GitHub repo has left of its 5 GB, with a bar that turns yellow past 90%, and Space on GitHub breaks it down (each part of your data, pictures with Clean up, history as a rough figure); bridge tool lifelog_sync_space (next release)
-- Google Drive backups in Settings → Sync: Back up now or automatic (daily to monthly), last three kept plus one a week old, restore as a new save, delete; drive.file scope only; browser, Android and Windows app (next release)
-- Privacy and Terms pages on the web app (privacy.html, terms.html), linked from Google's sign-in screen (next release)
+- Settings → Sync shows how much room the GitHub repo has left of its 5 GB, with a bar that turns yellow past 90%, and Space on GitHub breaks it down (each part of your data, pictures with Clean up, history as a rough figure); bridge tool lifelog_sync_space (0.316.0)
+- Google Drive backups in Settings → Sync: Back up now or automatic (daily to monthly), last three kept plus one a week old, restore as a new save, delete; drive.file scope only; browser, Android and Windows app (0.316.0)
+- Privacy and Terms pages on the web app (privacy.html, terms.html), linked from Google's sign-in screen (0.317.0)
 
 ## Privacy and security
 
@@ -268,7 +268,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Cover art size per view (0.45.0)
 - Currency (0.22.0)
 - Dates: the week starts on Sunday, Monday or Saturday (weekly goals, habit grids, the calendar, widgets, the bridge; a Saturday week makes the weekend Friday and Saturday), and five date formats used everywhere a date is shown; synced (0.301.0)
-- About: what's new (folded shut until opened), repo links, credits, and errors on this device (0.232.0, 0.246.0, 0.264.0), copied with addresses and anything like a token cut out (next release)
+- About: what's new (folded shut until opened), repo links, credits, and errors on this device (0.232.0, 0.246.0, 0.264.0), copied with addresses and anything like a token cut out (0.316.0)
 - About → Test builds: install a pull request's build on Android, open it on iPhone, or run it in place in a browser, and go back to the release (0.299.0)
 - Notifications: a switch per kind on the phones (habits, charges, release days, price drops) (0.278.0)
 
@@ -301,10 +301,10 @@ Every release that adds a feature adds its line here in the same commit.
 - Updates itself when the release has signed update files, else opens the release page (0.304.0); with nothing to install the bar goes straight to the page ("Open page") instead of looping, and has a close button that holds for that version (0.314.1)
 - Clicking a reminder or heads-up opens the habit, the Ledger, Upcoming or the Backlog, from the tray too (0.305.0)
 - Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
-- Pin on top: the window small and always on top with Today, Coming up, Notes and Scratchpad tabs and a quick add (task, note, entry, expense); top-bar pin, tray item, Ctrl+Shift+P; kept across restarts (next release)
+- Pin on top: the window small and always on top with Today, Coming up, Notes and Scratchpad tabs and a quick add (task, note, entry, expense); top-bar pin, tray item, Ctrl+Shift+P; kept across restarts (0.323.0)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
-- Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (next release)
-- Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (next release)
+- Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (0.315.0)
+- Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (0.316.0)
 
 ## The AI bridge
 
@@ -335,8 +335,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Keyboard reach for chips, labels on icon buttons, focus rings (0.86.0, 0.87.0)
 - Screen reader and keyboard pass (0.254.0)
 - Reduce motion turns off every animation (0.136.0)
-- Settings → Appearance → Animations: off stops every slide, spring and fade on this device; springs from keel's motion engine, without overshoot with a mouse on a big screen (next release)
+- Settings → Appearance → Animations: off stops every slide, spring and fade on this device; springs from keel's motion engine, without overshoot with a mouse on a big screen (0.316.1)
 - Consistent type and spacing scales (0.223.0)
 - Animation pass: dropdowns close with a fade and swipe down on a phone, Settings steps back the right way, closes run faster than opens, the jump bar scales instead of re-laying out, the settle curve and ease are tokens everywhere (0.321.0)
 - Rules that stop drift: keel's RULES.md with LifeLog's names in DESIGN.md and CONTRIBUTING.md, checks for animation curves, layout animation and long fixed waits in tests; the Ledger says expense everywhere and deleting one offers Undo (0.321.0)
-- Rule: every feature works in English and Hebrew, on phone and wide, in the web, Windows and Android apps, or says plainly which platform it was built for; a check fails on English set straight into the UI (next release)
+- Rule: every feature works in English and Hebrew, on phone and wide, in the web, Windows and Android apps, or says plainly which platform it was built for; a check fails on English set straight into the UI (0.323.0)
