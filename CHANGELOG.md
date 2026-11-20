@@ -3,6 +3,26 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.324.0] - 2026-11-20
+
+### Added
+- AI bridge: AIs can now make boards and draw on them. `lifelog_new_board` makes one, `lifelog_board_elements` lists every shape, line and text with its place and style, `lifelog_draw_on_board` draws rectangles, ellipses, lines, arrows (stuck to shapes) and text, `lifelog_edit_board_elements` moves, restyles, rewrites or locks them, and `lifelog_delete_board_elements` deletes them. Every change shows in Settings → History and can be undone.
+- Boards: arrows and lines take an arrowhead at no end, one end or both, and can be dashed.
+- Every Home panel has a menu: right-click it on a computer, or long-press it on a phone. Remove from Home hides it (with Undo), and the Calendar keeps its Show names / Show big covers switch there. On a phone the menu also has Move up and Move down, the same as the arrows under View.
+- The web app on a Windows PC offers the Windows app: once, in a bar at the bottom (Download, or close it and it doesn't come back), and always as "Get the Windows app" in Settings → About. Web on Windows only: the apps, phones and other computers never see it.
+
+### Changed
+- Boards: the bar with colours and widths shows only what the tool can use. The eraser, the hand and an empty selection hide it, fill shows only for rectangles and ellipses, and the widths read Small, Medium and Large for text. With the select tool, it offers what fits what's selected and lights up that selection's own colour, width and fill. Every platform, English and Hebrew.
+- Boards: each drawing tool keeps its own colour, width and fill on this device, so the pen can stay red and bold while text stays ink.
+- The Windows app is now portable, with no installer: download LifeLog-portable.zip, unzip it anywhere and open LifeLog.exe. Its data stays in the `data` folder beside it, so moving the folder moves the data. Settings → Desktop → Data folder still switches it to AppData or a folder you pick. The web app's "Get the Windows app" links to the zip.
+- The Windows app updates itself without an installer: it downloads the new LifeLog.exe, checks its signature, swaps it in for the running one and restarts. In a folder it can't write to (such as Program Files) the bar says so and opens the release page.
+- A copy the old installer put on a PC takes one last installer update, then updates the portable way in the same folder, with the same data. Its Start menu entry and uninstaller keep working.
+- Notifications on Windows keep LifeLog's name and icon without the installer's Start menu shortcut.
+- Settings → About → Downloads now says it has the Android APK and the Windows app (the iOS file is only built by hand).
+
+### Fixed
+- Opening LifeLog.exe straight from inside the zip no longer starts an app whose data would be lost with Windows' temp folder: it says to unzip first.
+
 ## [0.323.0] - 2026-11-20
 
 ### Added

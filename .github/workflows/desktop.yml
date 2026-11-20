@@ -139,7 +139,7 @@ jobs:
 
       # Fixed names, so the release page and the app's links stay the same
       # from one version to the next. Windows also gets the portable app:
-      # LifeLog.exe and LifeLog-windows.zip.
+      # LifeLog.exe and LifeLog-portable.zip.
       - name: Collect
         shell: bash
         run: node tools/desktop-files.js ${{ matrix.name }} out
@@ -171,8 +171,8 @@ jobs:
         # Its own folder, so the note never joins out/* on a release.
         run: |
           mkdir unreleased
-          cp out/LifeLog-windows.zip unreleased/
-          node tools/unreleased.js note windows unreleased/LifeLog-windows.zip > unreleased/unreleased-windows.json
+          cp out/LifeLog-portable.zip unreleased/
+          node tools/unreleased.js note windows unreleased/LifeLog-portable.zip > unreleased/unreleased-windows.json
 
       - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.name == 'windows'

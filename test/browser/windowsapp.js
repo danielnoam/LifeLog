@@ -9,7 +9,7 @@ const DOC = {
   financeEntries: [], recurringExpenses: [], financeCategories: [], settings: {}, accomplishments: {}, notes: [],
 };
 const WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
-const ZIP = "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-windows.zip";
+const ZIP = "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-portable.zip";
 
 async function open(b, userAgent) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block", userAgent });

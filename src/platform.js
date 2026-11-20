@@ -278,6 +278,6 @@
     // (the portable app, 2026-11-20) keeps its name from one release to
     // the next (desktop.yml).
     windowsBrowser: !bundled && (/^windows$/i.test((navigator.userAgentData && navigator.userAgentData.platform) || "") || /Windows NT/i.test(navigator.userAgent)),
-    windowsAppUrl: "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-windows.zip",
+    windowsAppUrl: "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-portable.zip",
   };
 })();

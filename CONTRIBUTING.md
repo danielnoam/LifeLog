@@ -261,7 +261,7 @@ force-push `main`.
   `tools/readme-shots.js` don't run them.
 - On `main`, when `APP_VERSION` has no release yet and the signing secrets
   are set, the Android workflow publishes the release `app-v<version>` with
-  `LifeLog.apk`, and the desktop workflow attaches `LifeLog-windows.zip`
+  `LifeLog.apk`, and the desktop workflow attaches `LifeLog-portable.zip`
   (the portable app people download), `LifeLog.exe` (what the portable
   app's own updater downloads) and `LifeLog-setup.exe` (kept only as the
   update that moves copies the old installer put on a PC to the portable

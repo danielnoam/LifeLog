@@ -241,10 +241,10 @@ test("the portable app is LifeLog.exe, and a zip with it in a LifeLog folder", (
   fs.writeFileSync(path.join(release, "lifelog.exe"), exe);
   fs.writeFileSync(path.join(release, "lifelog.pdb"), "pdb");
   const out = path.join(tmp, "out-portable");
-  assert.deepStrictEqual(portable(out, release), ["LifeLog.exe", "LifeLog-windows.zip"]);
+  assert.deepStrictEqual(portable(out, release), ["LifeLog.exe", "LifeLog-portable.zip"]);
   assert.ok(fs.readFileSync(path.join(out, "LifeLog.exe")).equals(exe));
   // Read the zip back by its central directory, as Windows does.
-  const z = fs.readFileSync(path.join(out, "LifeLog-windows.zip"));
+  const z = fs.readFileSync(path.join(out, "LifeLog-portable.zip"));
   const end = z.length - 22;
   assert.strictEqual(z.readUInt32LE(end), 0x06054b50);
   assert.strictEqual(z.readUInt16LE(end + 10), 1);
