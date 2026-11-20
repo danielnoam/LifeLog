@@ -285,6 +285,21 @@ test("cards, players and panels keep their far corner for older builds, and drop
   assert.deepStrictEqual(B.bindAt([els[0]], 210, 70, 2), { id: "c", fx: 1, fy: 0.5 });
 });
 
+// ---------- the style bar ----------
+test("the style bar offers only what the tool or selection can use", () => {
+  const off = { color: false, width: false, fill: false, size: false };
+  for (const t of ["hand", "eraser", "image", "card", "embed", "panel"]) assert.deepStrictEqual(B.styleFor(t), off, t);
+  assert.deepStrictEqual(B.styleFor("pen"), { color: true, width: true, fill: false, size: false });
+  assert.deepStrictEqual(B.styleFor("rect"), { color: true, width: true, fill: true, size: false });
+  assert.deepStrictEqual(B.styleFor("arrow"), { color: true, width: true, fill: false, size: false });
+  assert.deepStrictEqual(B.styleFor("text"), { color: true, width: true, fill: false, size: true });
+  assert.deepStrictEqual(B.styleFor("select", []), off);
+  assert.deepStrictEqual(B.styleFor("select", [{ t: "img" }, { t: "card" }]), off);
+  assert.deepStrictEqual(B.styleFor("select", [{ t: "ellipse", lk: 1 }]), off, "a locked shape isn't restyled");
+  assert.deepStrictEqual(B.styleFor("select", [{ t: "ellipse" }, { t: "pen" }]), { color: true, width: true, fill: true, size: false });
+  assert.deepStrictEqual(B.styleFor("select", [{ t: "text" }, { t: "img" }]), { color: true, width: true, fill: false, size: true });
+});
+
 console.log(`\n${passed} test(s) passed.`);
 
 // ---------- clipboard ----------

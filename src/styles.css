@@ -4565,8 +4565,17 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .board-bar {
   position: absolute; z-index: 2; left: 50%; transform: translateX(-50%);
   bottom: calc(var(--board-safe-bottom) + 12px); max-width: calc(100% - 20px);
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
 }
+.board-bar > * { pointer-events: auto; }
+/* Only what the tool can use; with nothing to offer it fades out (boards.js
+   syncStyleBar keeps its last buttons until it has). */
+.board-style { transition: opacity .2s var(--ll-move-ease), transform .2s var(--ll-move-ease); }
+.board-style.is-off {
+  opacity: 0; transform: translateY(6px) scale(.96); pointer-events: none;
+  transition-duration: .14s; transition-timing-function: var(--ease);
+}
+@media (prefers-reduced-motion: reduce) { .board-style, .board-style.is-off { transform: none; } }
 .board-tools, .board-style {
   display: flex; align-items: center; gap: 2px; padding: 4px; max-width: 100%; overflow-x: auto;
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow);
@@ -4601,7 +4610,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .board-fill.on { background: var(--accent-soft); color: var(--accent); }
 .board-fill.on::before { opacity: 1; }
-.board-delete[hidden] { display: none; }
+.board-delete[hidden], .board-style > [hidden] { display: none; }
 @media (max-width: 480px) {
   .board-tool { width: 34px; height: 40px; }
   .board-width, .board-swatch, .board-delete, .board-fill { width: 30px; height: 40px; }

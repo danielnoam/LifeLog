@@ -68,6 +68,17 @@
     ["embed", "play", i18n.t("Video or music link")],
     ["panel", "layout-grid", i18n.t("Home panel")],
   ];
+  // What the style bar offers: colour and width for anything drawn (width
+  // is a text's size), fill only for the shapes that hold one. The select
+  // tool offers what fits the unlocked part of the selection; the hand,
+  // the eraser and the adding tools offer none.
+  const STYLED = new Set(["pen", "rect", "ellipse", "arrow", "line", "text"]);
+  const FILLED = new Set(["rect", "ellipse"]);
+  function styleFor(tool, sel = []) {
+    const kinds = tool === "select" ? sel.filter((e) => !e.lk).map((e) => e.t) : [tool];
+    const color = kinds.some((t) => STYLED.has(t));
+    return { color, width: color, fill: kinds.some((t) => FILLED.has(t)), size: color && kinds.every((t) => t === "text" || !STYLED.has(t)) };
+  }
   // Tools that add something at once rather than drawing.
   const ADDS = new Set(["image", "card", "embed", "panel"]);
   const Keys = () => (typeof window !== "undefined" && window.LifeLogKeys) || null;
@@ -1253,10 +1264,7 @@
     applyView();
     $("#boardUndo").disabled = !undoStack.length;
     $("#boardRedo").disabled = !redoStack.length;
-    const sel = selected();
-    $("#boardDelete").hidden = !sel.some((e) => !e.lk);
-    syncClipButtons();
-    syncSelButtons(sel);
+    syncStyleBar();
   }
   const selected = () => editing.elements.filter((e) => selection.has(e.id));
   // The selection's own buttons: Group, Lock, Link to…, Crop.
@@ -2263,7 +2271,7 @@
     clip = selectedJson(); pasteCount = 0;
     ev.clipboardData.setData("text/plain", clip);
     ev.preventDefault();
-    syncClipButtons();
+    syncStyleBar();
   }
   function onCut(ev) {
     if (!boardKeys() || !selection.size) return;
@@ -2274,7 +2282,7 @@
     if (!editing || !selection.size) return;
     clip = selectedJson(); pasteCount = 0;
     try { await navigator.clipboard.writeText(clip); } catch (e) { /* the in-app copy still works */ }
-    syncClipButtons();
+    syncStyleBar();
     toast(i18n.t("Copied"));
   }
   async function pasteNow() {
@@ -2307,7 +2315,39 @@
   function syncClipButtons() {
     const c = $("#boardCopy"), p = $("#boardPaste");
     if (c) c.hidden = !selection.size;
-    if (p) p.hidden = !clip;
+    if (p) p.hidden = !clip || (tool !== "select" && tool !== "hand");
+  }
+  // Only what the tool (or the selection) can use. A bar left with nothing
+  // fades out still showing its last buttons, so it doesn't shrink first.
+  let styleShown = [], styleFading = false;
+  function syncStyleBar() {
+    const bar = $("#boardStyle");
+    if (!bar || !svg) return;
+    const sel = editing ? selected() : [];
+    $("#boardDelete").hidden = !sel.some((e) => !e.lk);
+    syncClipButtons();
+    syncSelButtons(sel);
+    const s = styleFor(tool, tool === "select" ? sel : []);
+    bar.querySelectorAll("[data-color]").forEach((b) => { b.hidden = !s.color; });
+    bar.querySelectorAll("[data-width]").forEach((b, i) => {
+      b.hidden = !s.width;
+      b.title = (s.size ? [i18n.t("Small"), i18n.t("Medium"), i18n.t("Large")] : [i18n.t("Thin"), i18n.t("Medium"), i18n.t("Bold")])[i];
+      b.setAttribute("aria-label", b.title);
+    });
+    $("#boardFill").hidden = !s.fill;
+    const shown = [...bar.children].filter((b) => !b.hidden);
+    if (shown.length) {
+      styleShown = shown; styleFading = false;
+      bar.classList.remove("is-off");
+      bar.removeAttribute("aria-hidden");
+      return;
+    }
+    if (!bar.classList.contains("is-off")) {
+      bar.classList.add("is-off");
+      bar.setAttribute("aria-hidden", "true");
+      styleFading = true;
+    }
+    if (styleFading) styleShown.forEach((b) => { b.hidden = false; });
   }
 
   function onPaste(ev) {
@@ -2342,6 +2382,7 @@
     $("#boardFill").classList.toggle("on", fill);
     $("#boardFill").setAttribute("aria-pressed", String(fill));
     svg.dataset.tool = tool;
+    syncStyleBar();
   }
   function setTool(t) {
     commitText();
@@ -2355,7 +2396,7 @@
   // drawn next — fill only to the shapes that can hold one, and a width to a
   // resized text puts it back on the three sizes.
   function restyle(patch) {
-    const fits = (e) => e.t !== "img" && !e.lk && (!("f" in patch) || e.t === "rect" || e.t === "ellipse");
+    const fits = (e) => STYLED.has(e.t) && !e.lk && (!("f" in patch) || FILLED.has(e.t));
     if (!editing || !editing.elements.some((e) => selection.has(e.id) && fits(e))) return;
     remember();
     editing.elements = editing.elements.map((e) => {
@@ -2556,6 +2597,11 @@
       style.appendChild(b);
     }
     style.appendChild($("#boardFill"));
+    style.addEventListener("transitionend", (ev) => {
+      if (ev.target !== style || !style.classList.contains("is-off") || !styleFading) return;
+      styleFading = false;
+      styleShown.forEach((b) => { b.hidden = true; });
+    });
 
     svg.addEventListener("pointerdown", onPointerDown);
     svg.addEventListener("pointermove", onPointerMove);
@@ -2645,7 +2691,7 @@
     ensureLoaded, flush, addBoards, boardsForExport, replaceAll, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn, renameTag, renameTagIn, closeBoardTags,
     // pure helpers (test/boards.test.js)
-    refreshLive, playerOf, cleanLive, embedWidget,
+    refreshLive, playerOf, styleFor, cleanLive, embedWidget,
     smoothPoints, guideSnap, bindAt, bindPoint, followBindings, withGroups, reid, fullPictureBox, cropFrom, cleanShared, linkTarget, boardText,
     parseClip, simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };

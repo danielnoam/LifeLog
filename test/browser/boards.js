@@ -238,8 +238,15 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await page.click("text=+ New board");
     await page.click("#nBoardPad");
     await page.waitForTimeout(200);
-    await page.click("#boardFill");
+    check("the pen offers no fill", await page.isHidden("#boardFill"));
+    await page.click('[data-tool="eraser"]');
+    await page.waitForTimeout(300);
+    check("the eraser offers no style at all", await page.evaluate(() => {
+      const bar = document.querySelector("#boardStyle");
+      return bar.classList.contains("is-off") && getComputedStyle(bar).opacity === "0" && [...bar.children].every((b) => b.hidden);
+    }));
     await page.click('[data-tool="rect"]');
+    await page.click("#boardFill");
     await stroke(page, [[400, 300], [450, 350], [600, 400]]);
     let r = (await els(page))[0];
     check("with fill on, a rectangle is drawn filled", r.f === true && r.w === 200 && r.h === 100, r);
@@ -247,7 +254,10 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
       [...document.querySelectorAll(".board-world g path")].some((p) => (p.getAttribute("d").match(/M/g) || []).length > 10)));
 
     await page.click('[data-tool="select"]');
+    check("the select tool with nothing picked hides the style bar", await page.evaluate(() => document.querySelector("#boardStyle").classList.contains("is-off")));
     await page.mouse.click(400, 350);
+    check("picking a rectangle brings back its colours, widths and fill", await page.evaluate(() =>
+      !document.querySelector("#boardStyle").classList.contains("is-off") && !document.querySelector("#boardFill").hidden && !document.querySelector("#boardStyle [data-color]").hidden));
     const handle = (name) => page.evaluate((n) => {
       const b = document.querySelector(`.board-overlay [data-handle="${n}"]`).getBoundingClientRect();
       return [b.x + b.width / 2, b.y + b.height / 2];
