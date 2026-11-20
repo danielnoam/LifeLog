@@ -174,6 +174,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Boards: copy, cut and paste a selection (Ctrl/Cmd + C, X, V and Copy / Paste buttons) through the system clipboard, across boards and apps; the drag box highlights what it covers live, and the box itself shows while you drag (mouse or touch)
 - Board options per device (grid, snap to grid, alignment guides, arrows that stick to shapes and follow them, pen smoothing); group and lock; crop pictures; Link to… a note or board from a text, shape or picture; board text in search; bridge lifelog_link_board_text (0.323.0)
 - Live board items: Card (a note, quote, tasks list or task, edited and ticked in place), Player (YouTube, Spotify, SoundCloud, loaded on tap; also in a note's Read view), Panel (any Home panel, kept current); a + for them on a phone; Home Calendar big covers from its right-click menu; bridge lifelog_add_to_board (0.323.0)
+- Board style bar follows the tool (none for the eraser, hand or an empty selection; fill only for shapes; text sizes), lights the selection's own style, each tool keeps its own style per device; arrowheads (none, end, both) and dashed lines on arrows and lines (next release)
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
@@ -324,6 +325,7 @@ Every release that adds a feature adds its line here in the same commit.
 - The Ledger's watchlist: tickers with their targets, notes and pins, prices straight from Tiingo with the app's key, and tools to watch, edit and unwatch tickers and add, move and delete pins (0.310.0)
 - Tags: list, add, remove, rename and delete them, a category's tags for new notes, and a tag filter on notes and boards (0.317.0)
 - A tasks list's own task fields (description, priority, date, repeat, reminder, deadline) and its tick, `lifelog_list_task` (0.318.0)
+- Drawing boards: make one, list every shape, line and text with ids, places and styles, draw rectangles, ellipses, lines, arrows (stuck to shapes) and labelled shapes, and move, restyle, rewrite, lock or delete them; `lifelog_new_board`, `lifelog_board_elements`, `lifelog_draw_on_board`, `lifelog_edit_board_elements`, `lifelog_delete_board_elements` (next release)
 
 ## Building and shipping
 
