@@ -73,7 +73,7 @@
     },
     "native": {
       "files": ["src/headless.js", "src/widgets.js", "src/reminders.js", "src/alerts.js", "src/share.js", "src/desktop.js"],
-      "suites": ["datafolder", "desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "pricealert", "share", "webupdate"]
+      "suites": ["datafolder", "desktopupdate", "habits", "headless", "ios", "native", "nativehttp", "noteopen", "outtoday", "phonebackup", "portableupdate", "pricealert", "share", "webupdate"]
     }
   }
 }

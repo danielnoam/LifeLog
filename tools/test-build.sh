@@ -59,7 +59,7 @@ publish() {
     fi
     if [ "$DESKTOP" = true ]; then
       echo
-      echo "**Windows and Linux:** LifeLog-setup.exe and LifeLog.AppImage are added when they're built. Each installs over the desktop app you have and keeps its data."
+      echo "**Windows and Linux:** LifeLog-windows.zip and LifeLog.AppImage are added when they're built. On Windows, put the zip's LifeLog.exe over the one in your LifeLog folder; the data beside it stays."
     fi
   } > test-notes.md
   gh release create "$TAG" "${FILES[@]}" --prerelease --target "$GITHUB_SHA" --title "Test: $TITLE" --notes-file test-notes.md

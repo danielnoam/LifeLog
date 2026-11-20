@@ -11,8 +11,9 @@
 //     which is why closing the window keeps it in the tray and Start at
 //     login exists;
 //   - start at login, into the tray;
-//   - updating: Tauri's updater when the release carries its signed files,
-//     else the release page.
+//   - updating: on Windows the portable app swaps in its own new exe
+//     (src-tauri/src/portable.rs), on Linux Tauri's updater, when the
+//     release carries their signed files; else the release page.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const P = window.LifeLogPlatform;
@@ -247,19 +248,33 @@
 
   // ---------- updating ----------
   // Two steps, so the bar says "Downloading" only when there is something to
-  // download. findUpdate resolves Tauri's update, or null when the updater has
-  // nothing for this copy (the release has no signed update files, so no
+  // download. findUpdate resolves the update, or null when there's nothing
+  // for this copy (the release has no signed update files, so no
   // latest.json, or this is a .deb, or the check itself failed): the caller
   // then sends you to the release page. installUpdate resolves true once the
-  // new version is installed and the app restarts.
+  // new version is in place and the app restarts.
+  //
+  // Windows is the portable app (2026-11-20): src-tauri/src/portable.rs
+  // swaps in the new LifeLog.exe itself, and fails with "readonly" when its
+  // folder can't be written to, before downloading anything. Linux's
+  // AppImage keeps Tauri's own updater.
   async function findUpdate() {
-    const U = T() && T().updater;
-    if (!U) return null;
-    try { return (await U.check()) || null; } catch (e) { return null; }
+    const t = T();
+    if (!t) return null;
+    if (P.windows) {
+      try { const v = await invoke("portable_check"); return v ? { version: v, portable: true } : null; } catch (e) { return null; }
+    }
+    if (!t.updater) return null;
+    try { return (await t.updater.check()) || null; } catch (e) { return null; }
   }
   async function installUpdate(onProgress, found) {
     const update = found || await findUpdate();
     if (!update) return false;
+    if (update.portable) {
+      const ch = new (T().core.Channel)();
+      ch.onmessage = (f) => { if (onProgress && typeof f === "number") onProgress(f); };
+      return !!(await invoke("portable_update", { progress: ch }));
+    }
     let total = 0, got = 0;
     await update.downloadAndInstall((e) => {
       if (e.event === "Started") total = (e.data && e.data.contentLength) || 0;
@@ -268,6 +283,7 @@
     if (T().process) await T().process.relaunch();
     return true;
   }
+  const readOnly = (e) => String((e && e.message) || e) === "readonly";
 
   // Settings → Notifications' Send a test notification.
   function ringTest() {
@@ -291,7 +307,7 @@
   window.LifeLogDesktop = {
     available: () => !!T(),
     notifier, start, tick, dueNow, keptSince, notifyId, ringTest,
-    startsAtLogin, setStartsAtLogin, findUpdate, installUpdate,
+    startsAtLogin, setStartsAtLogin, findUpdate, installUpdate, readOnly,
     prefs, setPref, FIRED_KEY, PREFS_KEY,
     dataFolder, chooseDataFolder, pickFolder, openDataFolder, removeOldDataCopy,
   };
