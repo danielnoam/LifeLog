@@ -331,6 +331,15 @@ test("its HTTP may reach only the hosts the no-proxy routes map to", () => {
   assert.ok(caps.permissions.every((p) => typeof p !== "string" || !/^fs:(default|allow-read|allow-remove|scope)/.test(p)));
 });
 
+// opener:allow-open-url alone allows the command but no address, so every
+// link, Connect button and sign-in did nothing in the Windows app (0.324.0).
+test("links leave for the browser: the opener may open web and mail addresses", () => {
+  assert.ok(!caps.permissions.includes("opener:allow-open-url"));
+  const opener = caps.permissions.find((p) => typeof p === "object" && p.identifier === "opener:allow-open-url");
+  const urls = opener.allow.map((a) => a.url).sort();
+  assert.deepStrictEqual(urls, ["http://*", "https://*", "mailto:*"]);
+});
+
 test("the updater reads latest.json from the latest release", () => {
   assert.deepStrictEqual(conf.plugins.updater.endpoints, ["https://github.com/danielnoam/LifeLog/releases/latest/download/latest.json"]);
 });

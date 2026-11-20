@@ -5,7 +5,10 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:allow-open-url",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*" }, { "url": "http://*" }, { "url": "mailto:*" }]
+    },
     "dialog:allow-save",
     "dialog:allow-open",
     "fs:allow-write-file",
