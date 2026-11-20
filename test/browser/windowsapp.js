@@ -18,7 +18,7 @@ async function open(b, userAgent) {
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   // The offer waits a few seconds after launch; the clock skips them.
   await ctx.clock.install();
-  await ctx.route(/^https?:\/\/(?!localhost[:/])/, (r) => { asked.push(r.request().url()); return r.fulfill({ status: 204, body: "" }); });
+  await ctx.route(/^https:\/\/(github\.com|api\.github\.com)\//, (r) => { asked.push(r.request().url()); return r.fulfill({ status: 204, body: "" }); });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await forgetCopy(page);
   await page.evaluate((d) => { localStorage.clear(); localStorage.setItem("lifelog-cache-v1", JSON.stringify(d)); }, DOC);
