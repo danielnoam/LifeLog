@@ -566,6 +566,8 @@ The same files in the system's own WebView, built by
 [Tauri](https://tauri.app) (`src-tauri/`): `LifeLog-setup.exe` for
 Windows on each release, and `LifeLog.AppImage` or `LifeLog.deb` for
 Linux when `desktop.yml` is run by hand with **Linux too** ticked.
+The web app opened on a Windows PC offers it once, and keeps a
+**Get the Windows app** row in Settings → About.
 
 - **Offline and fast**: the files are inside the app, so it opens with no
   connection and without waiting on one, and syncs when it can.

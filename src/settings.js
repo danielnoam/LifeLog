@@ -908,6 +908,7 @@
     if (name === "about") {
       const P = window.LifeLogPlatform;
       $("#aboutVersion").textContent = i18n.t("Version {version} · {kind}", { version: APP_VERSION, kind: P.android ? i18n.t("Android app") : P.ios ? i18n.t("iOS app") : i18n.t("Web app") });
+      $("#windowsAppRow").hidden = !P.windowsBrowser;
       $("#changelogFold").open = false;
       renderErrLog();
       if (window.LifeLogTestBuilds) window.LifeLogTestBuilds.render();
