@@ -846,19 +846,8 @@
 
     const sec = el("section", "home-sec home-calendar");
     // Big covers (Nov 2026): each day the cover of what was finished on it,
-    // as the Timeline's calendar shows on a phone. Right-click switches.
+    // as the Timeline's calendar shows on a phone. Its panel menu switches.
     const covers = state.visual.homeCalCovers === true;
-    sec.addEventListener("contextmenu", (ev) => {
-      const CM = window.LifeLogContextMenu;
-      if (!CM || ev.target.closest("input, textarea, a[href]")) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      CM.open(ev.clientX, ev.clientY, [
-        { head: i18n.t("Calendar") },
-        covers ? { icon: "list", label: i18n.t("Show names"), run: () => setCalCovers(false) }
-          : { icon: "image", label: i18n.t("Show big covers"), run: () => setCalCovers(true) },
-      ]);
-    });
     const toTimeline = viewEnabled("timeline") && modeEnabled("timeline", "entries") ? () => {
       J.openCalendarAt(y, m, calDay);
       state.visual.timelineLayout = "calendar";
@@ -1277,6 +1266,7 @@
       for (const id of row) {
         const sec = BUILD[id]();
         sec.dataset.sec = id;
+        attachPanelMenu(sec, id);
         built[id] = sec;
       }
     }
@@ -1527,6 +1517,96 @@
 
   const sectionLabel = (id) => (SECTIONS.find(([s]) => s === id) || [, id])[1];
 
+  // ---------- a panel's own menu: right-click, or a long press on a phone ----------
+  // Remove (it goes back to the hidden ones, with Undo), the panel's own
+  // switches, and on a phone, where there's no drag, Move up / Move down:
+  // the View sheet's arrows. Text fields and links keep the system's menu;
+  // a row with a menu of its own (In progress covers) keeps that one.
+  const PANEL_OPTIONS = {
+    calendar: () => [state.visual.homeCalCovers === true
+      ? { icon: "list", label: i18n.t("Show names"), run: () => setCalCovers(false) }
+      : { icon: "image", label: i18n.t("Show big covers"), run: () => setCalCovers(true) }],
+  };
+  const OWN_MENU = "input, textarea, select, a[href], [contenteditable='true']";
+
+  function panelMenuItems(id) {
+    const flat = floors().flat();
+    const i = flat.indexOf(id);
+    const label = sectionLabel(id);
+    const own = PANEL_OPTIONS[id] ? PANEL_OPTIONS[id]() : [];
+    const phone = isMobileLayout();
+    return [{ head: label }, ...own, own.length ? { divider: true } : null,
+      phone && i > 0 ? { icon: "arrow-up", label: i18n.t("Move up"), run: () => nudgeSection(id, -1) } : null,
+      phone && i >= 0 && i < flat.length - 1 ? { icon: "arrow-down", label: i18n.t("Move down"), run: () => nudgeSection(id, 1) } : null,
+      phone && flat.length > 1 ? { divider: true } : null,
+      { icon: "eye-off", label: i18n.t("Remove from Home"), run: () => removeSection(id) }].filter(Boolean);
+  }
+
+  function attachPanelMenu(sec, id) {
+    const CM = () => window.LifeLogContextMenu;
+    let timer = null, start = null, opened = false;
+    const cancel = () => { clearTimeout(timer); timer = null; start = null; };
+    sec.addEventListener("contextmenu", (ev) => {
+      if (ev.target.closest(OWN_MENU)) return;
+      // A touch's own contextmenu (Android's long press) is the timer's.
+      if (opened || start) { ev.preventDefault(); return; }
+      if (!CM() || drag) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      let x = ev.clientX, y = ev.clientY;
+      if (!x && !y) { const r = sec.getBoundingClientRect(); x = r.left + 24; y = r.top + 40; }
+      CM().open(x, y, panelMenuItems(id));
+    });
+    sec.addEventListener("pointerdown", (ev) => {
+      opened = false;
+      if (ev.pointerType === "mouse" || ev.target.closest(OWN_MENU)) return;
+      start = { x: ev.clientX, y: ev.clientY };
+      timer = setTimeout(() => {
+        timer = null;
+        if (!CM() || !sec.isConnected) return;
+        opened = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+        CM().open(start.x, start.y, panelMenuItems(id));
+      }, 500);
+    });
+    sec.addEventListener("pointermove", (ev) => {
+      if (start && (Math.abs(ev.clientX - start.x) > 10 || Math.abs(ev.clientY - start.y) > 10)) cancel();
+    });
+    sec.addEventListener("pointerup", cancel);
+    sec.addEventListener("pointercancel", cancel);
+    // The finger lifting after the menu opened isn't a tap on what's under it.
+    sec.addEventListener("click", (ev) => {
+      if (!opened) return;
+      opened = false;
+      ev.preventDefault();
+      ev.stopPropagation();
+    }, true);
+  }
+
+  function restoreLayout(was) {
+    saveFloors(was.homeFloors);
+    state.visual.homeHidden = was.homeHidden || [];
+    saveVisualSettings(state.visual);
+    fillViewOptions();
+    render();
+  }
+
+  function removeSection(id) {
+    const was = { homeFloors: state.visual.homeFloors, homeHidden: state.visual.homeHidden };
+    saveFloors(floorLayout(floors(), { hidden: [id] }));
+    fillViewOptions();
+    render();
+    toast(i18n.t("{section} removed from Home", { section: sectionLabel(id) }), false, { label: i18n.t("Undo"), onClick: () => restoreLayout(was) });
+  }
+
+  function nudgeSection(id, delta) {
+    saveFloors(swapSections(floors(), id, delta));
+    fillViewOptions();
+    render();
+    const sec = document.querySelector(`.home [data-sec="${id}"]`);
+    if (sec) sec.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+
   // ---------- the View sheet: which sections show, the arrows, Reset ----------
   function fillViewOptions() {
     const wrap = $("#homeSectionRows");
@@ -1593,17 +1673,11 @@
     saveFloors(DEFAULT_FLOORS.map((f) => f.slice()));
     fillViewOptions();
     render();
-    toast(i18n.t("Home layout reset"), false, { label: i18n.t("Undo"), onClick: () => {
-      saveFloors(was.homeFloors);
-      state.visual.homeHidden = was.homeHidden || [];
-      saveVisualSettings(state.visual);
-      fillViewOptions();
-      render();
-    } });
+    toast(i18n.t("Home layout reset"), false, { label: i18n.t("Undo"), onClick: () => restoreLayout(was) });
   }
 
   const api = {
-    init, renderHome, fillViewOptions, buildPanel, setCalCovers,
+    init, renderHome, fillViewOptions, buildPanel, setCalCovers, panelMenuItems,
     // pure
     SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, yearSoFar, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance, icsOf,
     taskRow,
