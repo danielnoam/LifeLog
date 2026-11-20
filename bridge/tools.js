@@ -1390,6 +1390,17 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_calendar_ics",
+    description: "An .ics calendar file's text, as Settings → Import & export → Calendar saves it: open tasks with a date (overdue ones on their day, timed ones at their time for 30 minutes), releases and new episodes known to the day, and recurring charges, from today to `days` ahead. Habits and Google Calendar's own events aren't in it.",
+    readOnly: true,
+    input: { days: S.int("How far ahead, default 365") },
+    async run(a) {
+      const d = await readData();
+      const days = Math.max(1, Math.min(730, parseInt(a.days, 10) || 365));
+      return Home.icsOf(d, today(), { Backlog, Finance, Tasks, days, money: (r) => money(d, r.amount) });
+    },
+  },
+  {
     name: "lifelog_home",
     description: "What the Home tab shows: what's in progress, what's coming in the next days (tasks with a date, overdue ones included, releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, the Year so far card (finished this year against last year by the same date, by category, tasks done, spending, the best habit run), and the Ledger card (this month so far against last month by the same day, top categories, latest expenses). Home's Pick for tonight is lifelog_pick.",
     readOnly: true,

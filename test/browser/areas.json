@@ -56,8 +56,8 @@
       "suites": ["homeinvest", "invest", "investmarket", "investreturns", "investsearch"]
     },
     "home": {
-      "files": ["src/home.js"],
-      "suites": ["homeinvest", "tasks"]
+      "files": ["src/home.js", "src/pin.js"],
+      "suites": ["homeinvest", "pinview", "tasks"]
     },
     "imports": {
       "files": ["src/io.js", "src/sync.js", "src/letterboxd.js", "src/stremio.js", "src/connections.js", "src/hardcover.js", "src/waypage.js"],

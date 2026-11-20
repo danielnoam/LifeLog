@@ -18,6 +18,7 @@ src/habits.js       Habits
 src/finance.js      Ledger: expenses, recurring bills, Summary
 src/invest.js       The Ledger's Investments mode: watchlist and pins (investments.json)
 src/home.js         Home: in progress, coming up, the scratchpad and pinned notes
+src/pin.js          The pinned window (computer app): Today, Coming up, Notes, Scratchpad, quick add
 src/recap.js        the yearly Recap
 src/search.js       one search across everything
 src/media.js        cover art and metadata from the media sources

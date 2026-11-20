@@ -1810,6 +1810,8 @@
     }
     // A board's cards and Home panels show the same data, live.
     if (window.LifeLogBoards && window.LifeLogBoards.isEditing()) window.LifeLogBoards.refreshLive();
+    // The pinned window shows Home's sections over the hidden page.
+    if (window.LifeLogPin && window.LifeLogPin.isOn()) window.LifeLogPin.refresh();
   }
 
   // While actively searching, badges the tabs you're NOT currently looking
@@ -5076,6 +5078,7 @@
     Waypage.wire(); // its group on Settings → Connections
 
     $("#exportJsonBtn").onclick = IO.exportJson;
+    $("#exportIcsBtn").onclick = IO.exportIcs;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
     $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJson(e.target.files[0]); e.target.value = ""; };
 
@@ -5274,6 +5277,10 @@
       }
       // Ctrl+E (note Read/Edit) is notes.js's own, inside the note sheets.
       if (isAnyModalOpen() || hit.id === "noteMode") return;
+      const Pin = window.LifeLogPin;
+      if (hit.id === "pin") { if (Pin && window.LifeLogDesktop && window.LifeLogDesktop.available()) { e.preventDefault(); Pin.toggle(); } return; }
+      // The pinned window has no tabs or search to go to.
+      if (Pin && Pin.isOn() && hit.id !== "add" && hit.id !== "help") return;
       if (hit.id === "help") { e.preventDefault(); openShortcutsModal(); return; }
       if (hit.id === "search") { e.preventDefault(); focusSearch(); return; }
       if (hit.id === "add") { e.preventDefault(); Journal.openEntryModal(null); return; }
@@ -5466,6 +5473,8 @@
     // A Windows habit reminder's Done: kept, with the window left as it was
     // (in the tray, most likely).
     if (action.startsWith("done-habit:")) { Habits.finishToday(action.slice("done-habit:".length)); return; }
+    // The tray's Pin on top (desktop only, src/pin.js).
+    if (action === "pin") { if (window.LifeLogPin) window.LifeLogPin.toggle(); return; }
     if (clearForAction(action)) return;
     if (action.startsWith("share?")) { Share.open(action.slice("share?".length)); return; }
     const goTo = (view, mode) => {
@@ -5992,6 +6001,7 @@
       });
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: () => {}, render });
       if (window.LifeLogDesktop) window.LifeLogDesktop.start({ state, runAction, hidden: widgetsHidden, refresh: pollForUpdates });
+      if (window.LifeLogPin) window.LifeLogPin.restore();
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
@@ -6488,6 +6498,7 @@
   Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page),
     openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, coverEl, emptyCoverEl, todayStr: () => Finance.localDateStr(new Date()) });
+  if (window.LifeLogPin) window.LifeLogPin.init({ state, el, ico, toast, uid, persist, afterDataChange, render, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, toast, viewEnabled, modeEnabled });

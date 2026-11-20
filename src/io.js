@@ -74,6 +74,12 @@
     // from there.
     download("lifelog.json", JSON.stringify({ ...window.LifeLogStorage.withoutSecrets(state.data), boards }, null, 2), "application/json");
   }
+  // Settings → Import & export's Calendar: what's dated ahead (home.js icsOf).
+  function exportIcs() {
+    const H = window.LifeLogHome, F = window.LifeLogFinance;
+    const text = H.icsOf(state.data, F.localDateStr(new Date()), { Backlog: window.LifeLogBacklog, Finance: F, Tasks: window.LifeLogTasks, money: (r) => F.amountText(r) });
+    download("lifelog.ics", text, "text/calendar");
+  }
   function csvEsc(s) {
     s = String(s == null ? "" : s);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -2081,7 +2087,7 @@
   window.LifeLogIO = {
     init,
     download, csvEsc, parseCsv,
-    exportJson, exportTabJson, exportTabCsv, importJson, importTabCsv, importMarkdown, TAB_KINDS,
+    exportJson, exportIcs, exportTabJson, exportTabCsv, importJson, importTabCsv, importMarkdown, TAB_KINDS,
     buildImportItems,
     importItemIncomplete, reviewAndImport, importStraight, openImportPicker,
     // pure helpers (exported for test/io.test.js)

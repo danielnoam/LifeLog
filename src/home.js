@@ -341,6 +341,9 @@
     if (!viewEnabled(view)) return null;
     if (mode && !modeEnabled(view, mode)) return null;
     return () => {
+      // From the pinned window, the full window comes back to show it.
+      const Pin = window.LifeLogPin;
+      if (Pin && Pin.isOn()) Pin.set(false);
       if (mode) {
         if (view === "backlog") state.backlogMode = mode;
         if (view === "notes") state.notesMode = mode;
@@ -954,6 +957,81 @@
     const B = window.LifeLogBoards;
     if (B && B.isEditing()) B.refreshLive();
   }
+  // Today on its own, for the pinned window (pin.js): what's overdue, the
+  // habits left today, then the day as the Calendar lists it (events, tasks,
+  // releases, what was finished).
+  function todaySection() {
+    const B = window.LifeLogBacklog, T = window.LifeLogTasks, G = window.LifeLogGcal;
+    const today = todayStr();
+    const [y, m] = today.split("-").map(Number);
+    const sec = el("section", "home-sec home-today");
+    const card = sec.appendChild(el("div", "home-card"));
+    const rows = comingUp(state.data, today, { Habits: window.LifeLogHabits, Tasks: T, days: 0 })
+      .filter((r) => (r.kind === "task" && r.day < today) || (r.kind === "habit" && r.day === today));
+    const late = rows.filter((r) => r.kind === "task");
+    if (late.length) {
+      card.appendChild(el("p", "home-day", i18n.t("Overdue")));
+      for (const r of late) card.appendChild(taskRow(r, today));
+    }
+    const mo = calendarMonth(state.data, y, m, { Backlog: B, Tasks: T, releases: state.visual.calendarReleases !== "hide" });
+    if (G && G.on) G.ensure(y, m);
+    const gev = (G && G.on ? G.eventsFor(y, m).get(+today.slice(8)) : null) || [];
+    const list = calendarDayList(mo, gev, today, today, y, m);
+    // The month's undated and rough lists belong to the Calendar, not to today.
+    for (const k of [".home-cal-undated", ".home-cal-rough"]) {
+      const head = list.querySelector(k);
+      if (head) while (head.nextSibling && !head.nextSibling.matches(".home-cal-sync")) head.nextSibling.remove();
+      if (head) head.remove();
+    }
+    // Today's habits under the day's heading, before its events and tasks.
+    const after = list.firstChild;
+    for (const r of rows.filter((x) => x.kind === "habit").reverse()) after.after(upcomingRow(r, today));
+    card.appendChild(list);
+    return sec;
+  }
+
+  // An .ics calendar of what's dated from today on (and overdue tasks on
+  // their day): tasks, releases and new episodes, recurring charges. Habits
+  // aren't events, and Google Calendar's own events are already in Google.
+  // Pure, for the export and the bridge's lifelog_calendar_ics. Times are
+  // floating (no zone), as the app keeps them.
+  function icsOf(data, today, { Backlog, Finance, Tasks, days = 365, now = new Date(), money = (r) => String(r.amount) } = {}) {
+    const rows = comingUp(data, today, { Backlog, Finance, Tasks, days }).filter((r) => r.kind !== "habit");
+    const esc = (t) => String(t || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+    const enc = new TextEncoder();
+    const fold = (line) => {
+      const out = [];
+      let cur = "", bytes = 0;
+      for (const ch of line) {
+        const n = enc.encode(ch).length;
+        if (bytes + n > (out.length ? 74 : 75)) { out.push(cur); cur = ""; bytes = 0; }
+        cur += ch; bytes += n;
+      }
+      out.push(cur);
+      return out.join("\r\n ");
+    };
+    const ymd = (d) => d.replace(/-/g, "");
+    const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LifeLog//LifeLog//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:LifeLog"];
+    for (const r of rows) {
+      const what = r.kind === "task" ? i18n.t("Task in {list}", { list: r.list || i18n.t("Tasks") })
+        : r.kind === "charge" ? [i18n.t("Recurring expense"), money(r), r.category].filter(Boolean).join(" · ")
+          : r.kind === "episode" ? [r.label || i18n.t("new episode"), r.category].filter(Boolean).join(" · ")
+            : [i18n.t("release"), r.category].filter(Boolean).join(" · ");
+      lines.push("BEGIN:VEVENT", "UID:" + r.kind + "-" + r.id + "-" + ymd(r.day) + "@lifelog", "DTSTAMP:" + stamp);
+      if (r.kind === "task" && /^\d{2}:\d{2}$/.test(r.time || "")) {
+        lines.push("DTSTART:" + ymd(r.day) + "T" + r.time.replace(":", "") + "00", "DURATION:PT30M");
+      } else {
+        lines.push("DTSTART;VALUE=DATE:" + ymd(r.day), "DTEND;VALUE=DATE:" + ymd(addDays(r.day, 1)), "TRANSP:TRANSPARENT");
+      }
+      lines.push(fold("SUMMARY:" + esc(r.title)), fold("DESCRIPTION:" + esc(what)));
+      if (r.category) lines.push(fold("CATEGORIES:" + esc(r.category)));
+      lines.push("END:VEVENT");
+    }
+    lines.push("END:VCALENDAR");
+    return lines.join("\r\n") + "\r\n";
+  }
+
   // One Home section on its own, for a board's live panel (Nov 2026).
   function buildPanel(id) {
     const make = BUILD[id];
@@ -1176,7 +1254,7 @@
     return sec;
   }
 
-  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection, calendar: calendarSection, pick: pickSection, year: yearSection };
+  const BUILD = { today: todaySection, progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection, calendar: calendarSection, pick: pickSection, year: yearSection };
 
   function renderHome(root) {
     if (drag) endDrag();
@@ -1527,7 +1605,7 @@
   const api = {
     init, renderHome, fillViewOptions, buildPanel, setCalCovers,
     // pure
-    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, yearSoFar, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance,
+    SECTIONS, SECTION_IDS, sectionOrder, inProgress, DEFAULT_FLOORS, hiddenOf, calendarMonth, yearSoFar, MIN_WIDTH, perFloor, legacyFloors, floorLayout, placeSection, placeOf, swapSections, comingUp, bucketOf, pinnedNotes, ledgerGlance, icsOf,
     taskRow,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;
