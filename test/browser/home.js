@@ -193,6 +193,22 @@ const SEED = {
   check("with nothing hidden, the menu says so", JSON.stringify(await ctxItems()) === JSON.stringify(["Every section is on Home"]), await ctxItems());
   await page.keyboard.press("Escape");
 
+  // ---- right-click a panel: its own options and Remove ----
+  const headAt = (id) => page.evaluate((id) => { const h = document.querySelector(`.home-sec[data-sec="${id}"] .home-sec-head`); h.scrollIntoView({ block: "center", behavior: "instant" }); const r = h.getBoundingClientRect(); return { x: r.left + 8, y: r.top + r.height / 2 }; }, id).then(async (p) => { await page.waitForTimeout(200); return p; });
+  let at = await headAt("ledger");
+  await page.mouse.click(at.x, at.y, { button: "right" }); await page.waitForTimeout(200);
+  check("right-clicking a panel offers Remove from Home (no arrows on a computer)", JSON.stringify(await ctxItems()) === JSON.stringify(["Ledger", "Remove from Home"]), await ctxItems());
+  const before = await floorsNow();
+  await page.click('.ctx-menu button:has-text("Remove from Home")'); await page.waitForTimeout(300);
+  check("Remove takes it off Home", !(await floorsNow()).flat().includes("ledger"), await floorsNow());
+  await page.click('#noticeStack button:has-text("Undo")'); await page.waitForTimeout(300);
+  check("and Undo puts it back where it was", JSON.stringify(await floorsNow()) === JSON.stringify(before), await floorsNow());
+  at = await headAt("calendar");
+  await page.mouse.click(at.x, at.y, { button: "right" }); await page.waitForTimeout(200);
+  check("the Calendar's menu keeps its covers switch beside Remove", JSON.stringify(await ctxItems()) === JSON.stringify(["Calendar", "Show big covers", "", "Remove from Home"]), await ctxItems());
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => window.scrollTo(0, 0));
+
   // ---- the Calendar ----
   const todayN = +day(0).slice(8);
   const cal = await page.evaluate(() => ({
@@ -286,6 +302,21 @@ const SEED = {
     return a.top >= p.bottom - 1 && s.top >= a.bottom - 1 && Math.abs(a.left - s.left) < 2 && Math.abs(a.left - p.left) < 2;
   }));
   check("and nothing is wider than the screen", await pp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  const press = (id) => pp.evaluate((id) => new Promise((done) => {
+    const h = document.querySelector(`.home-sec[data-sec="${id}"] .home-sec-head`), r = h.getBoundingClientRect();
+    const o = { bubbles: true, pointerType: "touch", button: 0, clientX: r.left + 8, clientY: r.top + 8 };
+    h.dispatchEvent(new PointerEvent("pointerdown", o));
+    setTimeout(() => { h.dispatchEvent(new PointerEvent("pointerup", o)); done(); }, 650);
+  }), id);
+  const phoneItems = () => pp.$$eval(".ctx-menu:not([hidden]) > *", (n) => n.map((x) => x.textContent.trim()));
+  await press("upcoming");
+  check("a long press on a panel opens its menu, with Move up and Move down", JSON.stringify(await phoneItems()) === JSON.stringify(["Coming up", "Move up", "Move down", "", "Remove from Home"]), await phoneItems());
+  await pp.click('.ctx-menu button:has-text("Move up")'); await pp.waitForTimeout(300);
+  check("Move up swaps it with the panel above", JSON.stringify(await pp.evaluate(() => [...document.querySelectorAll(".home-sec")].map((s) => s.dataset.sec))) === JSON.stringify(["upcoming", "progress", "scratchpad"]));
+  await press("upcoming");
+  check("the top panel has no Move up", !(await phoneItems()).includes("Move up"), await phoneItems());
+  await pp.click('.ctx-menu button:has-text("Remove from Home")'); await pp.waitForTimeout(300);
+  check("Remove works on a phone too", JSON.stringify(await pp.evaluate(() => [...document.querySelectorAll(".home-sec")].map((s) => s.dataset.sec))) === JSON.stringify(["progress", "scratchpad"]));
   await phone.close();
 
   check("no errors", errs.length === 0, errs);
