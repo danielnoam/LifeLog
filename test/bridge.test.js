@@ -108,7 +108,7 @@ test("every read tool answers, and none of them ever shows an API key", async ()
   // lifelog_compare_pins needs two pins' ids: the watchlist test runs it.
   for (const t of B.TOOLS.filter((x) => x.readOnly && x.name !== "lifelog_compare_pins")) {
     const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
-      : t.name === "lifelog_note_images" || t.name === "lifelog_note_links" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" } : {};
+      : t.name === "lifelog_note_images" || t.name === "lifelog_note_links" ? { note: "no1" } : t.name === "lifelog_board_images" || t.name === "lifelog_board_elements" ? { board: "bd1" } : {};
     const text = await ok(t.name, args);
     assert.ok(!/SECRET/.test(text), t.name + " leaked a secret");
   }
@@ -677,6 +677,66 @@ test("a bill is paused, resumed and has a pause removed", async () => {
   await ok("lifelog_pause_recurring", { bill: "Gym", remove: "2026-07-01" });
   assert.ok(!data().recurringExpenses.find((r) => r.id === "r2").pauses.some((x) => x.from === "2026-07-01"));
   await refused("lifelog_pause_recurring", { bill: "Gym", remove: "2020-01-01" }, /no pause starting 2020-01-01/);
+});
+
+test("an AI makes a board, draws a diagram on it, reads it back, changes and deletes parts, and undoes", async () => {
+  reset();
+  assert.match(await ok("lifelog_new_board", { name: "Flow", category: "ideas" }), /Made the board "Flow"/);
+  let b = boards().find((x) => x.name === "Flow");
+  assert.strictEqual(b.category, "Ideas");
+  assert.match(await ok("lifelog_new_board", {}), /"Board 4"/, "an unnamed one is named as the app names it");
+  await refused("lifelog_draw_on_board", { board: "Flow", items: [{ kind: "star" }] }, /kind must be/);
+  await refused("lifelog_draw_on_board", { board: "Flow", items: [{ kind: "arrow", from: "nope" }] }, /no element on "Flow"/);
+  await refused("lifelog_draw_on_board", { board: "Flow", items: [{ kind: "rect", color: "mauve" }] }, /isn't a board colour/);
+  await refused("lifelog_draw_on_board", { board: "Flow", items: [{ kind: "text" }] }, /needs text/);
+  assert.match(await ok("lifelog_draw_on_board", { board: "Flow", items: [
+    { kind: "rect", key: "a", label: "Idea", color: "blue", fill: true },
+    { kind: "ellipse", key: "b", label: "Plan", x: 600, y: 0, w: 200, h: 100 },
+    { kind: "arrow", from: "a", to: "b", dashed: true, heads: "both", width: "bold" },
+    { kind: "text", text: "Notes\\nhere", x: 0, y: 300, width: "large", color: "red" },
+    { kind: "line", x: 0, y: 400, x2: 300, y2: 400 },
+  ] }), /Drew 5 on "Flow"/);
+  b = boards().find((x) => x.name === "Flow");
+  const [rect, label, ell] = b.elements;
+  const arrow = b.elements.find((e) => e.t === "arrow"), text = b.elements.find((e) => e.t === "text" && e.c === "#e03131"), line = b.elements.find((e) => e.t === "line");
+  assert.strictEqual(b.elements.length, 7, "two labels came with the shapes");
+  assert.ok(rect.t === "rect" && rect.c === "#1971c2" && rect.f === true && rect.x === 0 && rect.w >= 160);
+  assert.ok(label.t === "text" && label.text === "Idea" && label.gp && label.gp === rect.gp, "a label is grouped with its shape");
+  assert.strictEqual(ell.t, "ellipse");
+  assert.deepStrictEqual([arrow.b1.id, arrow.b1.fx, arrow.b2.id, arrow.b2.fx], [rect.id, 1, ell.id, 0], "the arrow runs from the box's right side to the ellipse's left");
+  assert.ok(arrow.ah === "both" && arrow.ds === true && arrow.sw === 8);
+  assert.strictEqual(arrow.x, rect.x + rect.w, "its start sits on the box");
+  assert.ok(text.text === "Notes\nhere" && text.sw === 8);
+  assert.ok(line.x2 === 300 && !("ah" in line));
+
+  const listed = await ok("lifelog_board_elements", { board: "Flow" });
+  assert.match(listed, new RegExp(`- arrow \\(${arrow.id}\\) from .* start stuck to ${rect.id}, end stuck to ${ell.id}; ink, bold, heads both, dashed`));
+  assert.match(listed, new RegExp(`- rectangle \\(${rect.id}\\) at 0,0, .*; blue, medium, filled, group`));
+  assert.match(listed, /- text "Notes here" .*; red, large/);
+  assert.match(await ok("lifelog_board_elements", { board: "Flow", kind: "ellipse" }), /1 element of that kind/);
+
+  // Moving the box brings its label (its group) and the arrow's start follows.
+  assert.match(await ok("lifelog_edit_board_elements", { board: "Flow", elements: [rect.id], dy: 50, color: "green" }), /Changed 2 elements .*1 more with their group/);
+  b = boards().find((x) => x.name === "Flow");
+  const r2 = b.elements.find((e) => e.id === rect.id), l2 = b.elements.find((e) => e.id === label.id), a2 = b.elements.find((e) => e.id === arrow.id);
+  assert.ok(r2.y === 50 && l2.y === label.y + 50 && r2.c === "#2f9e44" && l2.c === "#2f9e44");
+  assert.strictEqual(a2.y, Math.round(50 + r2.h / 2), "the stuck arrow followed");
+  await ok("lifelog_edit_board_elements", { board: "Flow", elements: [arrow.id], heads: "end", dashed: false });
+  b = boards().find((x) => x.name === "Flow");
+  assert.ok(!("ah" in b.elements.find((e) => e.id === arrow.id)) && !("ds" in b.elements.find((e) => e.id === arrow.id)), "an arrow's own head and solid line aren't stored");
+  await ok("lifelog_edit_board_elements", { board: "Flow", elements: [text.id], text: "Changed", locked: true });
+  await refused("lifelog_edit_board_elements", { board: "Flow", elements: [text.id], dx: 10 }, /locked: unlock first/);
+  await refused("lifelog_delete_board_elements", { board: "Flow", elements: [text.id] }, /locked/);
+  await refused("lifelog_edit_board_elements", { board: "Flow", elements: [rect.id], text: "x" }, /text is for text elements/);
+  await refused("lifelog_edit_board_elements", { board: "Flow", elements: ["zz"] , dx: 1 }, /No element zz/);
+
+  // Deleting the ellipse takes its label and leaves the arrow, loose.
+  assert.match(await ok("lifelog_delete_board_elements", { board: "Flow", elements: [ell.id] }), /Deleted 2 elements/);
+  b = boards().find((x) => x.name === "Flow");
+  assert.ok(!b.elements.some((e) => e.id === ell.id) && !("b2" in b.elements.find((e) => e.id === arrow.id)));
+  await ok("lifelog_undo", {});
+  b = boards().find((x) => x.name === "Flow");
+  assert.ok(b.elements.some((e) => e.id === ell.id), "undo brings it back");
 });
 
 test("boards are listed with their text, renamed, filed, starred and deleted, and undone", async () => {

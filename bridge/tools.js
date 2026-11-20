@@ -394,6 +394,75 @@ function boardLive(b, notes) {
     return `- a card of the ${n.kind === "list" ? "tasks list" : n.kind === "quote" ? "quote" : "note"} "${cut(Notes.linkTitle(n) || n.text, 60)}" (${n.id})  (${e.id})`;
   });
 }
+// ---------- drawing on boards (Nov 2026) ----------
+// Colours, widths and sizes by the names the board's bar shows.
+const BOARD_COLORS = { ink: "ink", red: "#e03131", blue: "#1971c2", green: "#2f9e44", orange: "#f08c00", purple: "#9c36b5" };
+const BOARD_WIDTHS = { thin: 2, medium: 4, bold: 8 };
+const TEXT_SIZES = { small: 2, medium: 4, large: 8 };
+const colorName = (c) => Object.keys(BOARD_COLORS).find((k) => BOARD_COLORS[k] === (c || "ink")) || c;
+function boardColor(v) {
+  if (v == null) return undefined;
+  const k = lower(v);
+  if (BOARD_COLORS[k]) return BOARD_COLORS[k];
+  if (/^#[0-9a-f]{6}$/i.test(String(v))) return String(v).toLowerCase();
+  fail(`"${v}" isn't a board colour: ${Object.keys(BOARD_COLORS).join(", ")}, or a #rrggbb hex.`);
+}
+function boardWidth(v, text) {
+  if (v == null) return undefined;
+  const table = text ? TEXT_SIZES : BOARD_WIDTHS;
+  const n = table[lower(v)];
+  if (!n) fail(`"${v}" isn't a ${text ? "text size" : "width"}: ${Object.keys(table).join(", ")}.`);
+  return n;
+}
+const HEADS = ["none", "end", "both"];
+const headsOf = (e) => (HEADS.includes(e.ah) ? e.ah : e.t === "arrow" ? "end" : "none");
+const SHAPE_NAMES = { rect: "rectangle", ellipse: "ellipse", line: "line", arrow: "arrow", text: "text", pen: "pen stroke", img: "picture", card: "card", embed: "player", panel: "Home panel" };
+// One line per element, with everything an AI needs to place or change it.
+function describeElement(e, notes) {
+  const r = (n) => Math.round(n);
+  const box = Boards.bbox(e);
+  const style = [];
+  if (Boards.styleFor(e.t).color) style.push(colorName(e.c));
+  if (e.t === "text") style.push((Object.keys(TEXT_SIZES).find((k) => TEXT_SIZES[k] === e.sw) || "medium") + (e.fs ? ` (resized, ${r(e.fs)}px)` : ""));
+  else if (Boards.styleFor(e.t).width) style.push(Object.keys(BOARD_WIDTHS).find((k) => BOARD_WIDTHS[k] === e.sw) || `width ${e.sw}`);
+  if (e.f) style.push("filled");
+  if (e.t === "line" || e.t === "arrow") { style.push(`heads ${headsOf(e)}`); if (e.ds) style.push("dashed"); }
+  if (e.a) style.push(`turned ${r(e.a * 180 / Math.PI)}°`);
+  if (e.lk) style.push("locked");
+  if (e.gp) style.push(`group ${e.gp}`);
+  if (e.ln) style.push(`links to ${e.ln}`);
+  let where;
+  if (e.t === "line" || e.t === "arrow") {
+    where = `from ${r(e.x)},${r(e.y)} to ${r(e.x2)},${r(e.y2)}`;
+    if (e.b1) where += `, start stuck to ${e.b1.id}`;
+    if (e.b2) where += `, end stuck to ${e.b2.id}`;
+  } else where = `at ${r(box.x)},${r(box.y)}, ${r(box.w)}×${r(box.h)}`;
+  let what = SHAPE_NAMES[e.t] || e.t;
+  if (e.t === "text") what += ` "${cut(String(e.text).replace(/\s+/g, " "), 80)}"`;
+  if (e.t === "card") { const n = notes.find((x) => x.id === e.ref); what += n ? ` of "${cut(Notes.linkTitle(n) || n.text, 50)}" (${n.id})` : " of a note that's gone"; }
+  if (e.t === "embed") what += ` ${e.url}`;
+  if (e.t === "panel") what += ` ${e.kind}`;
+  return `- ${what} (${e.id}) ${where}${style.length ? "; " + style.join(", ") : ""}`;
+}
+// Where a stuck end sits on a shape: the middle of the side that faces the
+// other end.
+function facingSide(shape, toward) {
+  const b = Boards.bbox(shape), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  const dx = toward[0] - cx, dy = toward[1] - cy;
+  if (Math.abs(dx) * b.h >= Math.abs(dy) * b.w) return { id: shape.id, fx: dx >= 0 ? 1 : 0, fy: 0.5 };
+  return { id: shape.id, fx: 0.5, fy: dy >= 0 ? 1 : 0 };
+}
+const centreOf = (e) => { const b = Boards.bbox(e); return [b.x + b.w / 2, b.y + b.h / 2]; };
+const BOARD_TEXT_PX = { 2: 18, 4: 26, 8: 40 };
+// A board's elements to work on, by id; a group comes along whole, as a tap
+// on one of it picks all of it in the app.
+function boardElementsById(raw, ids, b) {
+  const els = raw.elements || [];
+  const want = new Set((ids || []).map(String));
+  const missing = [...want].filter((id) => !els.some((e) => e.id === id));
+  if (missing.length) fail(`No element ${missing.join(", ")} on "${b.name}" (lifelog_board_elements lists them).`);
+  return Boards.withGroups(els, want);
+}
 const boardPictures = (b) => (b.elements || []).filter((e) => e.t === "img");
 const picturesNote = (b) => { const n = boardPictures(b).length; return n ? `, ${n} picture${n === 1 ? "" : "s"}` : ""; };
 
@@ -1093,7 +1162,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_boards",
-    description: "The drawing boards (Notes → Boards): name, category, how many pictures, and the text written on each. Give board for one board's text in full. Drawings themselves aren't described; lifelog_board_images sends a board's pictures.",
+    description: "The drawing boards (Notes → Boards): name, category, how many pictures, and the text written on each. Give board for one board's text in full. lifelog_board_elements lists every shape, line and text on one board with its place and style; lifelog_board_images sends a board's pictures.",
     readOnly: true,
     input: { board: S.str("One board's id or name"), query: S.str("Text in a board's name or its written text"), category: S.str("A note category"), tag: S.str("Only boards with this tag"), limit: S.limit },
     async run(a) {
@@ -2763,6 +2832,250 @@ const TOOLS = [
         replaceItem(doc, "boards", Boards.sanitizeBoard({ ...raw, elements: [...(raw.elements || []), clean], updatedAt: nowIso() }));
         const what = n ? `a card of ${item ? `the task "${cut(item.text, 60)}"` : `"${cut(Notes.linkTitle(n) || n.text, 60)}"`}` : p ? `a ${p.site} player` : `Home's ${(Home.SECTIONS.find(([id]) => id === a.panel) || [])[1]} panel`;
         return { text: `Put ${what} on "${b.name}". id ${clean.id}`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_new_board",
+    description: "Make a new, empty drawing board in Notes → Boards. Draw on it with lifelog_draw_on_board.",
+    input: { name: S.str("Its name; left out, \"Board n\" as the app names one"), category: S.str("A note category"), tags: TAGS_ARG },
+    async run(a) {
+      const d = a.category ? await readData() : null;
+      const category = a.category ? nameIn(d, "noteCategories", a.category, "note category") : "";
+      return change(`new board "${a.name || ""}"`, (doc) => {
+        const listed = (doc.boards || []).filter((b) => !b.scratch);
+        const now = changeNow || nowIso();
+        const b = Boards.sanitizeBoard({ id: L.uid(), name: String(a.name || "").trim() || `Board ${listed.length + 1}`, createdAt: now, updatedAt: now, elements: [] });
+        if (category) b.category = category;
+        if (a.tags) Tags.setOn(b, tagsArg(a.tags));
+        replaceItem(doc, "boards", Boards.sanitizeBoard(b));
+        return { text: `Made the board "${b.name}" (${b.id}).`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_board_elements",
+    description: "Everything on one drawing board, an element a line: what it is (rectangle, ellipse, line, arrow, text, pen stroke, picture, card, player, Home panel), its id, where it is (x,y and size, or a line's two ends and what they're stuck to; y grows downward), its colour, width or text size, fill, arrowheads, dashes, and whether it's locked, grouped or linked. The ids are what lifelog_edit_board_elements and lifelog_delete_board_elements take. Pen strokes are only located, not described; lifelog_board_images sends the pictures.",
+    readOnly: true,
+    input: { board: S.str("The board's id or name"), kind: S.str("Only this kind", { enum: ["rect", "ellipse", "line", "arrow", "text", "pen", "img", "card", "embed", "panel"] }) },
+    required: ["board"],
+    async run(a) {
+      const b = findBoard(await readBoards(), a.board);
+      const notes = (await readData()).notes || [];
+      const els = (b.elements || []).filter((e) => !a.kind || e.t === a.kind);
+      const box = Boards.boundsOf(b.elements || []);
+      return [`"${b.name}" (${b.id}): ${els.length} element${els.length === 1 ? "" : "s"}${a.kind ? " of that kind" : ""}${box ? `; the drawing spans ${Math.round(box.x)},${Math.round(box.y)} to ${Math.round(box.x + box.w)},${Math.round(box.y + box.h)}` : ""}. Later ones are drawn on top.`,
+        ...els.map((e) => describeElement(e, notes))].join("\n");
+    },
+  },
+  {
+    name: "lifelog_draw_on_board",
+    description: "Draw rectangles, ellipses, lines, arrows and text on a drawing board, as its tools do, in the app's hand-drawn look. Coordinates are the board's own (y grows downward; lifelog_board_elements shows where things are); leave x/y out and each item goes to the right of what's drawn. An arrow or line can stick to shapes with from/to (an element id, or the key of an item drawn in the same call), so a diagram of boxes and arrows is one call: e.g. [{kind:\"rect\",key:\"a\",label:\"Idea\"},{kind:\"rect\",key:\"b\",label:\"Plan\"},{kind:\"arrow\",from:\"a\",to:\"b\"}]. A rectangle or ellipse with label gets its words written in its middle.",
+    input: {
+      board: S.str("The board's id or name"),
+      items: { type: "array", description: "What to draw, in order (later ones on top)", items: {
+          type: "object",
+          properties: {
+            kind: S.str("What to draw", { enum: ["rect", "ellipse", "line", "arrow", "text"] }),
+            key: S.str("A name for it within this call, so a later item's from/to can point at it"),
+            x: S.num("Left (or a line's start x); left out, it's placed to the right of what's drawn"), y: S.num("Top (or a line's start y)"),
+            w: S.num("Width, for rect/ellipse"), h: S.num("Height, for rect/ellipse"),
+            x2: S.num("A line's end x"), y2: S.num("A line's end y"),
+            from: S.str("line/arrow: start stuck to this element (an id, or a key from this call); it follows when that moves"),
+            to: S.str("line/arrow: end stuck to this element (an id or key)"),
+            text: S.str("text: the words (new lines with \\n)"),
+            label: S.str("rect/ellipse: words written in its middle (a text grouped with it)"),
+            color: S.str("ink (the default), red, blue, green, orange, purple, or #rrggbb"),
+            width: S.str("thin, medium (default) or bold; for text the size: small, medium or large"),
+            fill: S.bool("rect/ellipse: filled (hatched, as the Fill button draws)"),
+            heads: S.str("line/arrow: arrowheads", { enum: ["none", "end", "both"] }),
+            dashed: S.bool("line/arrow: a dashed line"),
+          },
+          required: ["kind"],
+        } },
+    },
+    required: ["board", "items"],
+    async run(a) {
+      const items = Array.isArray(a.items) ? a.items : [];
+      if (!items.length) fail("Give items to draw.");
+      if (items.length > 200) fail("At most 200 items in one call.");
+      return change(`draw on board "${a.board}"`, (doc) => {
+        const all = (doc.boards || []).map(Boards.sanitizeBoard);
+        const b = findBoard(all, a.board);
+        const raw = doc.boards.find((x) => x.id === b.id);
+        const els = (raw.elements || []).slice();
+        const box = Boards.boundsOf(els.filter((e) => e && e.t));
+        // Unplaced items go in a row to the right of the drawing.
+        let nextX = box ? Math.round(box.x + box.w + 60) : 0;
+        const rowY = box ? Math.round(box.y) : 0;
+        const keys = new Map();
+        const byRef = (ref) => {
+          const k = String(ref);
+          const e = keys.has(k) ? keys.get(k) : els.find((x) => x.id === k);
+          if (!e) fail(`from/to "${k}" is no element on "${b.name}" and no key drawn before it in this call.`);
+          if (e.t === "line" || e.t === "arrow" || e.t === "pen") fail(`A line can't stick to a ${SHAPE_NAMES[e.t]} (${k}); only to shapes, text, pictures, cards, players and panels.`);
+          return e;
+        };
+        const num = (v, name, i) => { if (v == null) return null; if (!Number.isFinite(+v)) fail(`items[${i}].${name} isn't a number.`); return Math.round(+v); };
+        const made = [];
+        items.forEach((it, i) => {
+          const kind = it && it.kind;
+          if (!["rect", "ellipse", "line", "arrow", "text"].includes(kind)) fail(`items[${i}].kind must be rect, ellipse, line, arrow or text.`);
+          const isLine = kind === "line" || kind === "arrow";
+          if (!isLine && (it.from || it.to || it.heads || it.dashed != null || it.x2 != null || it.y2 != null)) fail(`items[${i}]: from, to, heads, dashed, x2 and y2 are for lines and arrows.`);
+          if (kind !== "text" && it.text != null) fail(`items[${i}]: text is for kind text; a shape's words go in label.`);
+          if (kind === "text" && !String(it.text || "").trim()) fail(`items[${i}]: a text needs text.`);
+          if ((kind === "line" || kind === "text") && it.label) fail(`items[${i}]: label is for rect and ellipse.`);
+          if (it.fill && kind !== "rect" && kind !== "ellipse") fail(`items[${i}]: fill is for rect and ellipse.`);
+          if (it.heads != null && !HEADS.includes(it.heads)) fail(`items[${i}].heads must be none, end or both.`);
+          const e = { id: L.uid(), t: kind, c: boardColor(it.color) || "ink", sw: boardWidth(it.width, kind === "text") || 4 };
+          if (kind !== "text") e.seed = Math.floor(Math.random() * 2 ** 31);
+          let x = num(it.x, "x", i), y = num(it.y, "y", i);
+          if (kind === "rect" || kind === "ellipse") {
+            const w = num(it.w, "w", i), h = num(it.h, "h", i);
+            const lw = it.label ? Math.max(...String(it.label).split("\n").map((l) => l.length)) * 26 * 0.56 + 40 : 0;
+            e.w = Math.max(8, w != null ? w : Math.max(160, Math.round(lw))); e.h = Math.max(8, h != null ? h : 100);
+            if (x == null) { x = nextX; nextX += e.w + 60; }
+            e.x = x; e.y = y != null ? y : rowY;
+            if (it.fill) e.f = true;
+          } else if (kind === "text") {
+            e.text = String(it.text).replace(/\\n/g, "\n");
+            const size = BOARD_TEXT_PX[e.sw];
+            const lines = e.text.split("\n");
+            if (x == null) { x = nextX; nextX += Math.round(Math.max(...lines.map((l) => l.length)) * size * 0.56) + 60; }
+            e.x = x; e.y = y != null ? y : rowY + size;
+          } else {
+            const from = it.from != null ? byRef(it.from) : null, to = it.to != null ? byRef(it.to) : null;
+            let x2 = num(it.x2, "x2", i), y2 = num(it.y2, "y2", i);
+            const start = from ? centreOf(from) : x != null && y != null ? [x, y] : null;
+            const end = to ? centreOf(to) : x2 != null && y2 != null ? [x2, y2] : null;
+            const s0 = start || (end ? [end[0] - 160, end[1]] : [nextX, rowY + 50]);
+            const e0 = end || [s0[0] + 160, s0[1]];
+            if (!start && !end) nextX += 220;
+            if (from) e.b1 = facingSide(from, e0);
+            if (to) e.b2 = facingSide(to, s0);
+            const p1 = from ? Boards.bindPoint(from, e.b1) : s0, p2 = to ? Boards.bindPoint(to, e.b2) : e0;
+            [e.x, e.y, e.x2, e.y2] = [p1[0], p1[1], p2[0], p2[1]].map(Math.round);
+            const heads = it.heads || (kind === "arrow" ? "end" : "none");
+            if (heads !== (kind === "arrow" ? "end" : "none")) e.ah = heads;
+            if (it.dashed) e.ds = true;
+          }
+          els.push(e);
+          made.push(e);
+          if (it.label && (kind === "rect" || kind === "ellipse")) {
+            const lines = String(it.label).replace(/\\n/g, "\n").split("\n");
+            const sw = 4, size = BOARD_TEXT_PX[sw];
+            const tw = Math.max(...lines.map((l) => l.length)) * size * 0.56;
+            const t = { id: L.uid(), t: "text", c: e.c, sw, text: lines.join("\n"),
+              x: Math.round(e.x + e.w / 2 - tw / 2), y: Math.round(e.y + e.h / 2 - (lines.length * size * 1.25) / 2 + size * 0.85) };
+            e.gp = t.gp = L.uid();
+            els.push(t);
+          }
+          if (it.key != null) {
+            if (keys.has(String(it.key))) fail(`The key "${it.key}" is used twice.`);
+            keys.set(String(it.key), e);
+          }
+        });
+        const next = Boards.sanitizeBoard({ ...raw, elements: Boards.followBindings(els), updatedAt: nowIso() });
+        if (next.elements.length !== els.length) fail("Something drawn didn't come out right; nothing was drawn.");
+        replaceItem(doc, "boards", next);
+        const what = made.map((e) => `${SHAPE_NAMES[e.t]}${e.t === "text" ? ` "${cut(e.text, 30)}"` : ""} ${e.id}`).join(", ");
+        return { text: `Drew ${made.length} on "${b.name}": ${what}.`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_edit_board_elements",
+    description: "Change elements on a drawing board, by their ids (lifelog_board_elements lists them): move them (by dx/dy, or to x/y), resize a shape, rewrite a text, or change colour, width/text size, fill, arrowheads, dashes or lock. A grouped element brings its whole group along, as a tap on it does in the app. Locked ones can only be unlocked. Lines stuck to what moved follow it.",
+    input: {
+      board: S.str("The board's id or name"),
+      elements: { type: "array", items: { type: "string" }, description: "Element ids" },
+      dx: S.num("Move right by"), dy: S.num("Move down by"), x: S.num("Move so its left edge is here (one element or group)"), y: S.num("Move so its top is here"),
+      w: S.num("New width (one rect, ellipse, picture, card, player or panel)"), h: S.num("New height"),
+      text: S.str("A text's new words"),
+      color: S.str("ink, red, blue, green, orange, purple, or #rrggbb"), width: S.str("thin, medium or bold; for text: small, medium or large"),
+      fill: S.bool("rect/ellipse: filled"), heads: S.str("line/arrow: arrowheads", { enum: ["none", "end", "both"] }), dashed: S.bool("line/arrow: dashed"),
+      locked: S.bool("Lock (can't be moved, changed or deleted in the app) or unlock"),
+    },
+    required: ["board", "elements"],
+    async run(a) {
+      const styleKeys = ["color", "width", "fill", "heads", "dashed", "text"];
+      if (![...styleKeys, "dx", "dy", "x", "y", "w", "h", "locked"].some((k) => a[k] != null)) fail("Nothing to change.");
+      if ((a.x != null || a.y != null) && (a.dx != null || a.dy != null)) fail("Give dx/dy or x/y, not both.");
+      if (a.heads != null && !HEADS.includes(a.heads)) fail("heads must be none, end or both.");
+      return change(`edit board elements on "${a.board}"`, (doc) => {
+        const all = (doc.boards || []).map(Boards.sanitizeBoard);
+        const b = findBoard(all, a.board);
+        const raw = Boards.sanitizeBoard(doc.boards.find((x) => x.id === b.id));
+        const ids = boardElementsById(raw, a.elements, b);
+        const picked = raw.elements.filter((e) => ids.has(e.id));
+        const stillLocked = picked.filter((e) => e.lk && a.locked !== false);
+        if (stillLocked.length && (styleKeys.some((k) => a[k] != null) || ["dx", "dy", "x", "y", "w", "h"].some((k) => a[k] != null)))
+          fail(`${stillLocked.map((e) => e.id).join(", ")} ${stillLocked.length === 1 ? "is" : "are"} locked: unlock first (locked: false).`);
+        let dx = a.dx != null ? +a.dx : 0, dy = a.dy != null ? +a.dy : 0;
+        if (a.x != null || a.y != null) {
+          const box = Boards.boundsOf(picked);
+          if (a.x != null) dx = +a.x - box.x;
+          if (a.y != null) dy = +a.y - box.y;
+        }
+        if (![dx, dy].every(Number.isFinite)) fail("dx, dy, x and y are numbers.");
+        if ((a.w != null || a.h != null) && (picked.length !== 1 || !["rect", "ellipse", "img", "card", "embed", "panel"].includes(picked[0].t))) fail("w and h resize one rectangle, ellipse, picture, card, player or panel.");
+        if (a.text != null && !picked.every((e) => e.t === "text")) fail("text is for text elements only.");
+        if (a.text != null && !String(a.text).trim()) fail("A text needs words; delete it with lifelog_delete_board_elements.");
+        const c = boardColor(a.color);
+        const changes = [];
+        const els = raw.elements.map((e) => {
+          if (!ids.has(e.id)) return e;
+          let out = { ...e };
+          if (a.locked === true) out.lk = true; else if (a.locked === false) delete out.lk;
+          if (dx || dy) out = Boards.moved(out, dx, dy);
+          if (a.w != null) { out.w = Math.max(8, Math.round(+a.w)); }
+          if (a.h != null) { out.h = Math.max(8, Math.round(+a.h)); }
+          if (Boards.styleFor(e.t).color) {
+            if (c) out.c = c;
+            if (a.width != null) { out.sw = boardWidth(a.width, e.t === "text"); if (e.t === "text") delete out.fs; }
+          }
+          if (a.text != null) out.text = String(a.text).replace(/\\n/g, "\n");
+          if (a.fill != null && (e.t === "rect" || e.t === "ellipse")) { if (a.fill) out.f = true; else { delete out.f; delete out.fc; } }
+          if (e.t === "line" || e.t === "arrow") {
+            if (a.heads != null) { if (a.heads === (e.t === "arrow" ? "end" : "none")) delete out.ah; else out.ah = a.heads; }
+            if (a.dashed != null) { if (a.dashed) out.ds = true; else delete out.ds; }
+            // A stuck end of a line that moved on its own comes loose.
+            if ((dx || dy) && out.b1 && !ids.has(out.b1.id)) delete out.b1;
+            if ((dx || dy) && out.b2 && !ids.has(out.b2.id)) delete out.b2;
+          }
+          changes.push(e.id);
+          return out;
+        });
+        replaceItem(doc, "boards", Boards.sanitizeBoard({ ...raw, elements: Boards.followBindings(els), updatedAt: nowIso() }));
+        const extra = changes.length > (a.elements || []).length ? ` (${changes.length - a.elements.length} more with their group)` : "";
+        return { text: `Changed ${changes.length} element${changes.length === 1 ? "" : "s"} on "${b.name}"${extra}: ${changes.join(", ")}.`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_delete_board_elements",
+    description: "Delete elements from a drawing board by their ids (lifelog_board_elements lists them). A grouped element takes its group with it, as in the app; locked ones are refused. Lines stuck to what's deleted stay, loose. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { board: S.str("The board's id or name"), elements: { type: "array", items: { type: "string" }, description: "Element ids" } },
+    required: ["board", "elements"],
+    async run(a) {
+      return change(`delete board elements on "${a.board}"`, (doc) => {
+        const all = (doc.boards || []).map(Boards.sanitizeBoard);
+        const b = findBoard(all, a.board);
+        const raw = Boards.sanitizeBoard(doc.boards.find((x) => x.id === b.id));
+        const ids = boardElementsById(raw, a.elements, b);
+        const locked = raw.elements.filter((e) => ids.has(e.id) && e.lk);
+        if (locked.length) fail(`${locked.map((e) => e.id).join(", ")} ${locked.length === 1 ? "is" : "are"} locked: unlock with lifelog_edit_board_elements (locked: false) first.`);
+        const els = raw.elements.filter((e) => !ids.has(e.id)).map((e) => {
+          if (!e.b1 && !e.b2) return e;
+          const out = { ...e };
+          if (out.b1 && ids.has(out.b1.id)) delete out.b1;
+          if (out.b2 && ids.has(out.b2.id)) delete out.b2;
+          return out;
+        });
+        replaceItem(doc, "boards", Boards.sanitizeBoard({ ...raw, elements: els, updatedAt: nowIso() }));
+        return { text: `Deleted ${ids.size} element${ids.size === 1 ? "" : "s"} from "${b.name}": ${[...ids].join(", ")}.`, touched: [["boards", b.id]] };
       }, { file: "boards" });
     },
   },

@@ -470,7 +470,12 @@ id; picking one picks every element with it) and `ln` (`"note:<id>"` or
 `"board:<id>"`, a link the element's icon opens). A line or arrow can stick
 to shapes: `b1` (its start) and `b2` (its end) are `{ id, fx, fy }`, the
 element it sticks to and the point on that element's box by fractions, so
-the end follows when the shape moves. The text on a board is found by the
+the end follows when the shape moves. A line or arrow can also have `ah`,
+its arrowheads (`"none"`, `"end"` or `"both"`; left out, an arrow has one at
+the end and a line none) and `ds: true` (a dashed line; the heads stay
+solid). Colours are `"ink"` (the theme's text colour) or a hex; `sw` is the
+width (2 thin, 4 medium, 8 bold), and a text's size (small, medium, large)
+unless it has `fs`, its size in pixels after a resize. The text on a board is found by the
 app's search and the Notebook's search box. Live elements show HTML
 over the drawing: `{ t: "card", ref, item }` shows the note, quote or tasks
 list with id `ref` (or with `item`, one task in it) as it is now, ticked
@@ -479,14 +484,20 @@ SoundCloud player that loads nothing until tapped; `{ t: "panel", kind }`
 is one of Home's sections (`progress`, `upcoming`, `scratchpad`, `pinned`,
 `ledger`, `invest`, `calendar`, `pick`, `year`). Each has `x`, `y`, `w`,
 `h`, and `x2`, `y2` (its far corner, so an older build draws a line rather
-than failing); `lifelog_add_to_board` adds one. Only the
+than failing); `lifelog_add_to_board` adds one.
 
-text says anything an AI can use, and the pictures: `lifelog_boards` lists
-the boards with their text and picture count, `lifelog_board_images` sends
-a board's pictures;
-`lifelog_update_board` renames, files, stars or keeps one;
+`lifelog_boards` lists the boards with their text and picture count;
+`lifelog_board_elements` lists every element on one board with its id,
+place and style; `lifelog_board_images` sends a board's pictures.
+`lifelog_new_board` makes an empty board; `lifelog_draw_on_board` draws
+rectangles, ellipses, lines, arrows (stuck to shapes with `from`/`to`) and
+text, a shape's `label` being a text grouped with it;
+`lifelog_edit_board_elements` moves, resizes, rewrites, restyles, locks or
+unlocks elements; `lifelog_delete_board_elements` deletes them. Both take a
+whole group, as the app does. Pen strokes aren't drawn by the bridge.
+`lifelog_update_board` renames, files, stars or keeps a board;
 `lifelog_link_board_text` links a text to a note or board; `lifelog_delete_board`
-deletes one. Nothing draws.
+deletes one.
 
 ## Trips (`travel.json`): no longer read
 
