@@ -184,7 +184,7 @@ request land on `main`:
 
 - **A PR that bumps the version** is a release: when it merges, the Android
   workflow publishes `app-v<version>` with the APK, the desktop workflow
-  attaches the Windows installer, and every updater offers it. The IPA and
+  attaches the Windows app, and every updater offers it. The IPA and
   the Linux files come only when Daniel asks for them (below). Only Daniel decides when to release
   (2026-11-03): he cuts one himself or asks for it.
 - **A PR that doesn't** just lands. Its lines go in its own file,
@@ -261,8 +261,11 @@ force-push `main`.
   `tools/readme-shots.js` don't run them.
 - On `main`, when `APP_VERSION` has no release yet and the signing secrets
   are set, the Android workflow publishes the release `app-v<version>` with
-  `LifeLog.apk`, and the desktop workflow attaches `LifeLog-setup.exe`
-  (and `latest.json` for the desktop updater, when its key is set).
+  `LifeLog.apk`, and the desktop workflow attaches `LifeLog-windows.zip`
+  (the portable app people download), `LifeLog.exe` (what the portable
+  app's own updater downloads) and `LifeLog-setup.exe` (kept only as the
+  update that moves copies the old installer put on a PC to the portable
+  updater), and `latest.json` for the desktop updater when its key is set.
 - The app's built-in updater reads the repo's latest release (the repo is
   public for this reason) and offers any version **higher** than its own.
 - **Unreleased builds (2026-11-18).** Each build of `main` also leaves
@@ -274,8 +277,9 @@ force-push `main`.
   Windows, per device) offers them, on the same update bar. Hidden, not
   private: the repo is public and the address can be guessed. They keep
   the last release's version, so the APK installs over the release and
-  the next release installs over it; on Windows the installer downloads
-  in the browser, since Tauri's updater skips a same-version build.
+  the next release installs over it; on Windows the zip downloads in the
+  browser, to unzip over the app's folder, since the updater skips a
+  same-version build.
 
 **Test builds.** A pull request labelled `test` gets an APK and the
 Windows app, `test-android` or `test-desktop` just one (sooner);

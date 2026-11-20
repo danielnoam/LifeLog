@@ -1,7 +1,7 @@
 # Builds the Windows and Linux app (Tauri, src-tauri/) from the same files
 # GitHub Pages serves, and attaches it to the app-v<version> release the
 # Android workflow publishes. Same gate as android.yml: main builds every
-# merge (2026-11-18; the Windows installer is also the unreleased channel's,
+# merge (2026-11-18; the Windows zip is also the unreleased channel's,
 # served by the Pages deploy, never on the Releases page),
 # any other branch when its open pull request carries `test` or
 # `test-desktop`, or when run by hand (an artifact only, no pre-release). Windows only by default (2026-11-04: Daniel builds the
@@ -83,8 +83,10 @@ jobs:
       released: ${{ steps.attach.outputs.released }}
     strategy:
       fail-fast: false
-      # From the gate: Windows always, Linux when asked. No MSI for Windows:
-      # Windows Installer caps a version's middle number at 255, and
+      # From the gate: Windows always, Linux when asked. Windows is a
+      # portable zip (2026-11-20); the NSIS installer is still built, only as
+      # the one update that moves installed copies to the portable updater.
+      # No MSI: Windows Installer caps a version's middle number at 255, and
       # LifeLog's is past 300.
       matrix: ${{ fromJSON(needs.gate.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
@@ -136,10 +138,27 @@ jobs:
           npx tauri build --ci --bundles ${{ matrix.bundles }} --config "$CONF"
 
       # Fixed names, so the release page and the app's links stay the same
-      # from one version to the next.
+      # from one version to the next. Windows also gets the portable app:
+      # LifeLog.exe and LifeLog-windows.zip.
       - name: Collect
         shell: bash
         run: node tools/desktop-files.js ${{ matrix.name }} out
+
+      # The portable app updates itself with LifeLog.exe
+      # (src-tauri/src/portable.rs), checked against the same key as the
+      # installer's signature, so it's signed the same way. Without the key
+      # there's no latest.json and the app sends you to the release page.
+      - name: Sign the portable exe
+        if: matrix.name == 'windows'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ] || [ -z "$PUBKEY" ]; then echo "No updater key, so no signature"; exit 0; fi
+          npx tauri signer sign out/LifeLog.exe
+          ls out/LifeLog.exe.sig
 
       - uses: actions/upload-artifact@v4
         with:
@@ -152,8 +171,8 @@ jobs:
         # Its own folder, so the note never joins out/* on a release.
         run: |
           mkdir unreleased
-          cp out/LifeLog-setup.exe unreleased/
-          node tools/unreleased.js note windows unreleased/LifeLog-setup.exe > unreleased/unreleased-windows.json
+          cp out/LifeLog-windows.zip unreleased/
+          node tools/unreleased.js note windows unreleased/LifeLog-windows.zip > unreleased/unreleased-windows.json
 
       - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.name == 'windows'

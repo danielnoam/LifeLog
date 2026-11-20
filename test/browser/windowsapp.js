@@ -9,7 +9,7 @@ const DOC = {
   financeEntries: [], recurringExpenses: [], financeCategories: [], settings: {}, accomplishments: {}, notes: [],
 };
 const WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
-const SETUP = "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-setup.exe";
+const ZIP = "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-windows.zip";
 
 async function open(b, userAgent) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block", userAgent });
@@ -41,15 +41,15 @@ const aboutRow = async (page) => {
   check("a browser on Windows is the one offered it", await w.page.evaluate(() => LifeLogPlatform.windowsBrowser));
   await later(w.page);
   check("the bar offers the Windows app", await barUp(w.page) && await w.page.evaluate(() => document.getElementById("updateBarText").textContent === "LifeLog has a Windows app" && document.getElementById("updateReloadBtn").textContent === "Download"));
-  await Promise.all([w.page.waitForRequest(SETUP, { timeout: 3000 }).catch(() => {}), w.page.click("#updateReloadBtn")]);
-  check("Download fetches the installer", w.asked.includes(SETUP), w.asked);
+  await Promise.all([w.page.waitForRequest(ZIP, { timeout: 3000 }).catch(() => {}), w.page.click("#updateReloadBtn")]);
+  check("Download fetches the zip", w.asked.includes(ZIP), w.asked);
   check("and the bar goes", !(await barUp(w.page)));
   await w.page.reload({ waitUntil: "networkidle" });
   await later(w.page);
   check("it isn't offered again on the next launch", !(await barUp(w.page)));
   check("Settings → About still has the row", await aboutRow(w.page));
   const href = await w.page.evaluate(() => document.getElementById("windowsAppRow").getAttribute("href"));
-  check("the row points at the installer", href === SETUP, href);
+  check("the row points at the zip", href === ZIP, href);
   check("no page errors on Windows", w.errs.length === 0, w.errs);
   await w.ctx.close();
 

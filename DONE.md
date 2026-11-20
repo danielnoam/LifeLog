@@ -303,6 +303,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
 - Pin on top: the window small and always on top with Today, Coming up, Notes and Scratchpad tabs and a quick add (task, note, entry, expense); top-bar pin, tray item, Ctrl+Shift+P; kept across restarts (0.323.0)
 - The web app on a Windows PC offers the Windows app once in the bottom bar, and keeps "Get the Windows app" in Settings → About (next release)
+- Windows app is portable: LifeLog-windows.zip, unzip anywhere and run, data in `data` beside LifeLog.exe; updates itself by swapping in the new signed exe (read-only folder → release page); refuses to run from inside the zip; installed copies move over with one last installer update (next release)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (0.315.0)
 - Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (0.316.0)

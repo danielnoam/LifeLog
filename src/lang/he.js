@@ -1408,6 +1408,7 @@ Keel.i18n.strings("he", {
   "LifeLog": "LifeLog",
   "LifeLog {version} installs over this test build": "LifeLog {version} יותקן מעל גרסת הניסיון",
   "LifeLog has a Windows app": "ל‑LifeLog יש אפליקציה ל‑Windows",
+  "LifeLog's folder is read-only, so it can't update itself": "אין הרשאת כתיבה לתיקייה של LifeLog, ולכן הוא לא יכול לעדכן את עצמו",
   "LifeLog {version} is out": "LifeLog {version} יצא",
   "LifeLog {version} is ready to install": "LifeLog {version} מוכן להתקנה",
   "LifeLog has something for you": "יש ב‑LifeLog משהו בשבילך",

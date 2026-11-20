@@ -176,7 +176,7 @@ jobs:
             echo
             echo "**iPhone:** **LifeLog.ipa** is added here only when an iOS build is run. It's unsigned: install it with AltStore or SideStore, which sign it with your own Apple ID."
             echo
-            echo "**Windows:** **LifeLog-setup.exe** is added here a few minutes later (**LifeLog.AppImage** and LifeLog.deb only when a Linux build is run). Windows may warn that it doesn't know the publisher: choose More info, then Run anyway."
+            echo "**Windows:** **LifeLog-windows.zip** is added here a few minutes later (**LifeLog.AppImage** and LifeLog.deb only when a Linux build is run). Unzip it anywhere and open LifeLog.exe; nothing installs, and the data stays in the folder beside it. Windows may warn that it doesn't know the publisher: choose More info, then Run anyway. (LifeLog.exe and LifeLog-setup.exe are for the app's own updater.)"
           } >> notes.md
           gh release create "app-v$V" LifeLog.apk --target "$GITHUB_SHA" --title "LifeLog $V" --notes-file notes.md
 

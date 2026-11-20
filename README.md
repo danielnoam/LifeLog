@@ -563,12 +563,20 @@ release as `LifeLog.ipa`.
 ### The Windows and Linux app
 
 The same files in the system's own WebView, built by
-[Tauri](https://tauri.app) (`src-tauri/`): `LifeLog-setup.exe` for
-Windows on each release, and `LifeLog.AppImage` or `LifeLog.deb` for
+[Tauri](https://tauri.app) (`src-tauri/`): `LifeLog-windows.zip` for
+Windows on each release (a portable app, no installer), and `LifeLog.AppImage` or `LifeLog.deb` for
 Linux when `desktop.yml` is run by hand with **Linux too** ticked.
 The web app opened on a Windows PC offers it once, and keeps a
 **Get the Windows app** row in Settings → About.
 
+- **Portable** (Windows, 2026-11-20): unzip `LifeLog-windows.zip`
+  anywhere and open `LifeLog\LifeLog.exe`; its data goes in `data` beside
+  it, so moving the folder moves the data. There's no Start menu entry or
+  uninstaller: pin it yourself, and delete the folder to remove it. Opened
+  straight from inside the zip it refuses to start, since Windows runs it
+  from a temp folder it empties. Copies installed by the old
+  `LifeLog-setup.exe` get one last installer update, then update the
+  portable way in the same folder (`src-tauri/src/portable.rs`).
 - **Offline and fast**: the files are inside the app, so it opens with no
   connection and without waiting on one, and syncs when it can.
 - **No proxy needed**: Steam, SteamGridDB, IGDB, Hardcover, GG.deals, Augmented Steam and
@@ -597,22 +605,27 @@ The web app opened on a Windows PC offers it once, and keeps a
   window open, and whether closing hides it or quits.
 - **Its data folder** (Windows): everything it keeps on the computer
   lives in `LifeLog\data` beside `LifeLog.exe` (moved there from AppData
-  on the first start of this version, the old copy kept until you remove
-  it). Settings → Desktop → Data folder switches it to AppData or a folder
+  on the first start of 0.316, the old copy kept until you remove it). Settings → Desktop → Data folder switches it to AppData or a folder
   you pick, with a restart that copies it over
-  (`src-tauri/src/datafolder.rs`). Uninstalling with "Delete the
-  application data" ticked removes it there too, but in a folder you
-  picked only LifeLog's own `EBWebView` folders, never the rest.
+  (`src-tauri/src/datafolder.rs`). On a copy the old installer put
+  there, uninstalling with "Delete the application data" ticked removes it
+  there too, but in a folder you picked only LifeLog's own `EBWebView`
+  folders, never the rest.
 - **Right-click menus**: on any computer, Timeline, Backlog, Ledger,
   notes, boards and habits rows have a menu of their own actions, and
   Select starts selecting from there.
 - **Updates**: the update bar installs a new version and restarts when the
-  release carries signed update files (the repository secrets
+  release carries signed update files. On Windows the app downloads the
+  new `LifeLog.exe`, checks its signature, renames the running one aside,
+  puts the new one in its place and restarts; in a folder it can't write
+  to (Program Files) it says so and opens the release page instead. The
+  signed files need the repository secrets
   `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and
-  `TAURI_UPDATER_PUBKEY`, from `npx tauri signer generate`); without them,
+  `TAURI_UPDATER_PUBKEY`, from `npx tauri signer generate`. Without them,
   and for a `.deb`, it opens the release page.
-- **Windows warns on install**: the installer isn't code-signed, so
-  SmartScreen asks; choose More info, then Run anyway.
+- **Windows warns on first open**: `LifeLog.exe` isn't code-signed, so
+  SmartScreen asks; choose More info, then Run anyway. Updates the app
+  downloads itself don't ask again.
 - **How it's built**: `.github/workflows/desktop.yml`, on Windows and
   Ubuntu 22.04 runners on every push to `main`, from
   `node tools/build-www.js --desktop`; the files go on a release only from
