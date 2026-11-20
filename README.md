@@ -57,7 +57,8 @@ you hold, the gain since you bought and each ticker's month and day; and a
 Calendar, the Timeline's calendar in small: a month with a mark on each day
 for your Google Calendar events, what you finished, releases and open tasks,
 and the picked day's list under it (alone on a wide floor it shows the names
-in the days); Pick for tonight, one title from your backlog you could
+in the days, and right-click it for Show big covers, the days' covers in place of
+the names); Pick for tonight, one title from your backlog you could
 start today, with Start and Another and chips for what it picks from (it
 draws from Pick's own bag, so nothing repeats before everything has had a
 turn); and Year so far, what you've finished this year against last year by
@@ -129,6 +130,14 @@ drawn between (and follow them), and pen smoothing. A selection can be
 grouped (Ctrl+G) or locked (Ctrl+L), a picture cropped (double-tap it), and
 a text, shape or picture linked to a note or another board with Link to…;
 its link icon opens it. What's written on a board is found by search.
+
+Three more tools put live things on a board: Card places a note, quote,
+tasks list or task you can read and edit in place (tick a task, double-click
+the text to change it); Player places a YouTube, Spotify or SoundCloud link
+that plays on the board once you press play; Panel places a Home panel
+(Calendar, Coming up, Ledger…) that stays up to date. On a phone they sit
+behind the toolbar's +. A note whose line is only one of those links shows
+the player in Read view, again loading nothing until you press play.
 
 ### Images in notes
 

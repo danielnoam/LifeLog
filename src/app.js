@@ -1808,6 +1808,8 @@
       updateSearchMatchBadges();
       Search.refresh();
     }
+    // A board's cards and Home panels show the same data, live.
+    if (window.LifeLogBoards && window.LifeLogBoards.isEditing()) window.LifeLogBoards.refreshLive();
   }
 
   // While actively searching, badges the tabs you're NOT currently looking
@@ -6485,7 +6487,7 @@
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page),
     openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
-  Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr: () => Finance.localDateStr(new Date()) });
+  Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, coverEl, emptyCoverEl, todayStr: () => Finance.localDateStr(new Date()) });
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, toast, viewEnabled, modeEnabled });

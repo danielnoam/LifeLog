@@ -817,6 +817,15 @@
     // a way back for a tick that wasn't meant.
     if (r && r.next) toast(i18n.t("Next: {date}", { date: Tasks().shortDay(r.next, Tasks().today()) }), false, { label: i18n.t("Undo"), onClick: () => restoreItems(noteId, before, head) });
   }
+  // A note's or quote's words changed from outside the sheet (a board's card).
+  async function setNoteText(noteId, text) {
+    const n = findList(noteId);
+    if (!n || kindOf(n) === "list" || String(text) === (n.text || "")) return;
+    n.text = String(text);
+    n.editedAt = n.updatedAt = new Date().toISOString();
+    render();
+    await persist();
+  }
   async function restoreItems(noteId, items, head) {
     const n = findList(noteId);
     if (!n) return;
@@ -1479,6 +1488,14 @@
     } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
     if (!out.childNodes.length) out.appendChild(el("p", "muted", i18n.t("Nothing written under the title yet.")));
+    // A YouTube, Spotify or SoundCloud link on a line of its own is a
+    // player (Nov 2026), loaded only once tapped.
+    const B = window.LifeLogBoards;
+    if (B && B.embedWidget) out.querySelectorAll("p").forEach((p) => {
+      const a = p.childNodes.length === 1 && p.firstChild.nodeName === "A" ? p.firstChild : null;
+      const w = a && B.embedWidget(a.getAttribute("href"));
+      if (w) { w.classList.add("no-swipe"); p.replaceWith(w); }
+    });
     drawLinkedFrom(n);
     // Wide code and tables scroll sideways themselves, so no Read/Edit swipe starts on them.
     out.querySelectorAll("pre, table").forEach((x) => x.classList.add("no-swipe"));
@@ -2883,6 +2900,7 @@
     openNoteModal, closeNoteModal, leaveNoteModal, updateImagesSetting,
     pinnedCard, togglePinned, // the Home tab (home.js)
     tickItem, deleteItem, copyText, // the task sheet (tasks.js)
+    setNoteText, // a board's card
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens
     searchable: () => state.data.notes.concat(boardItems()),

@@ -37,6 +37,9 @@
     { id: "board:line", label: i18n.t("Line"), defaults: ["KeyL"] },
     { id: "board:text", label: i18n.t("Text"), defaults: ["KeyT"] },
     { id: "board:image", label: i18n.t("Add a picture"), defaults: ["KeyI"] },
+    { id: "board:card", label: i18n.t("Add a note, quote or task"), defaults: ["KeyC"] },
+    { id: "board:embed", label: i18n.t("Add a video or music link"), defaults: ["KeyY"] },
+    { id: "board:panel", label: i18n.t("Add a Home panel"), defaults: ["KeyK"] },
   ];
   // What a board does with these itself (handleKey in boards.js), ahead of
   // any tool; a tool can't take them.
