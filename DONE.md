@@ -21,7 +21,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Home floors: drag a section by its heading on a computer (outline on hover) into a floor, sharing its width at 380px or more each, or between floors for a new one; a full floor pushes its last section down; per device, Esc cancels, View → Reset layout with Undo, right-click an empty spot to add a hidden section there; phone stacks the floors (0.314.0)
 - Home Investments section: You hold with the gain since buying and today's move, up to five tickers with sparkline, close, day's move and At target, a tap opens the ticker, Add ticker; its own floor at the bottom (0.314.0)
 - Home Calendar section: the Timeline calendar's month with a mark per Google Calendar event, entry finished, release and open task, the picked day's list (events, tasks ticked there, releases, finished) under it, Timeline › to the Timeline's calendar on that day; alone on a wide floor, names in the days and the list beside; bridge lifelog_calendar (0.321.0)
-- Home panel menu: right-click a panel on a computer or long-press it on a phone for Remove from Home (with Undo) and the panel's own switches (Calendar: names or big covers); on a phone also Move up / Move down, as View's arrows (next release)
+- Home panel menu: right-click a panel on a computer or long-press it on a phone for Remove from Home (with Undo) and the panel's own switches (Calendar: names or big covers); on a phone also Move up / Move down, as View's arrows (0.324.0)
 - Home Pick for tonight section: one pickable backlog title held per device until Another or Start, drawn from Pick's own bag, Start / Another, category chips (per device), Pick › opens the sheet; bridge lifelog_pick (0.321.0)
 - Home Year so far section: finished this year against last year by the same date, a bar per category, tasks done, spent (recurring included), best habit run, Recap ›; in lifelog_home (0.321.0)
 - A new Home (and Reset layout) shows only In progress, Coming up and Scratchpad; sections added to the app later start hidden instead of joining the bottom (0.321.0)
@@ -175,7 +175,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Boards: copy, cut and paste a selection (Ctrl/Cmd + C, X, V and Copy / Paste buttons) through the system clipboard, across boards and apps; the drag box highlights what it covers live, and the box itself shows while you drag (mouse or touch)
 - Board options per device (grid, snap to grid, alignment guides, arrows that stick to shapes and follow them, pen smoothing); group and lock; crop pictures; Link to… a note or board from a text, shape or picture; board text in search; bridge lifelog_link_board_text (0.323.0)
 - Live board items: Card (a note, quote, tasks list or task, edited and ticked in place), Player (YouTube, Spotify, SoundCloud, loaded on tap; also in a note's Read view), Panel (any Home panel, kept current); a + for them on a phone; Home Calendar big covers from its right-click menu; bridge lifelog_add_to_board (0.323.0)
-- Board style bar follows the tool (none for the eraser, hand or an empty selection; fill only for shapes; text sizes), lights the selection's own style, each tool keeps its own style per device; arrowheads (none, end, both) and dashed lines on arrows and lines (next release)
+- Board style bar follows the tool (none for the eraser, hand or an empty selection; fill only for shapes; text sizes), lights the selection's own style, each tool keeps its own style per device; arrowheads (none, end, both) and dashed lines on arrows and lines (0.324.0)
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
@@ -304,8 +304,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Clicking a reminder or heads-up opens the habit, the Ledger, Upcoming or the Backlog, from the tray too (0.305.0)
 - Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
 - Pin on top: the window small and always on top with Today, Coming up, Notes and Scratchpad tabs and a quick add (task, note, entry, expense); top-bar pin, tray item, Ctrl+Shift+P; kept across restarts (0.323.0)
-- The web app on a Windows PC offers the Windows app once in the bottom bar, and keeps "Get the Windows app" in Settings → About (next release)
-- Windows app is portable: LifeLog-windows.zip, unzip anywhere and run, data in `data` beside LifeLog.exe; updates itself by swapping in the new signed exe (read-only folder → release page); refuses to run from inside the zip; installed copies move over with one last installer update (next release)
+- The web app on a Windows PC offers the Windows app once in the bottom bar, and keeps "Get the Windows app" in Settings → About (0.324.0)
+- Windows app is portable: LifeLog-windows.zip, unzip anywhere and run, data in `data` beside LifeLog.exe; updates itself by swapping in the new signed exe (read-only folder → release page); refuses to run from inside the zip; installed copies move over with one last installer update (0.324.0)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (0.315.0)
 - Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (0.316.0)
@@ -326,7 +326,7 @@ Every release that adds a feature adds its line here in the same commit.
 - The Ledger's watchlist: tickers with their targets, notes and pins, prices straight from Tiingo with the app's key, and tools to watch, edit and unwatch tickers and add, move and delete pins (0.310.0)
 - Tags: list, add, remove, rename and delete them, a category's tags for new notes, and a tag filter on notes and boards (0.317.0)
 - A tasks list's own task fields (description, priority, date, repeat, reminder, deadline) and its tick, `lifelog_list_task` (0.318.0)
-- Drawing boards: make one, list every shape, line and text with ids, places and styles, draw rectangles, ellipses, lines, arrows (stuck to shapes) and labelled shapes, and move, restyle, rewrite, lock or delete them; `lifelog_new_board`, `lifelog_board_elements`, `lifelog_draw_on_board`, `lifelog_edit_board_elements`, `lifelog_delete_board_elements` (next release)
+- Drawing boards: make one, list every shape, line and text with ids, places and styles, draw rectangles, ellipses, lines, arrows (stuck to shapes) and labelled shapes, and move, restyle, rewrite, lock or delete them; `lifelog_new_board`, `lifelog_board_elements`, `lifelog_draw_on_board`, `lifelog_edit_board_elements`, `lifelog_delete_board_elements` (0.324.0)
 
 ## Building and shipping
 
