@@ -172,7 +172,7 @@
   // first draw get.
   let measureCtx = null;
   function textWidth(line, size) {
-    if (typeof document !== "undefined") {
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
       measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
       if (measureCtx) {
         measureCtx.font = size + "px " + BOARD_FONT;

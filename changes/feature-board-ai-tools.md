@@ -1,0 +1,2 @@
+### Added
+- AI bridge: AIs can now make boards and draw on them. `lifelog_new_board` makes one, `lifelog_board_elements` lists every shape, line and text with its place and style, `lifelog_draw_on_board` draws rectangles, ellipses, lines, arrows (stuck to shapes) and text, `lifelog_edit_board_elements` moves, restyles, rewrites or locks them, and `lifelog_delete_board_elements` deletes them. Every change shows in Settings → History and can be undone.
