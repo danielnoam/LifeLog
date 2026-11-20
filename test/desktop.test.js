@@ -18,7 +18,7 @@ global.window.LifeLogPlatform = platform;
 require("../src/desktop.js");
 const { dueNow, keptSince, notifyId, tick, start, prefs, setPref } = global.window.LifeLogDesktop;
 const { build, desktopIndexHtml } = require("../tools/build-www.js");
-const { collect, manifest } = require("../tools/desktop-files.js");
+const { collect, portable, zip, manifest } = require("../tools/desktop-files.js");
 
 let passed = 0;
 function test(name, fn) {
@@ -234,6 +234,36 @@ test("tauri's outputs get fixed names, with their signatures", () => {
   assert.strictEqual(fs.readFileSync(path.join(tmp, "out", "LifeLog-setup.exe"), "utf8"), "exe");
 });
 
+test("the portable app is LifeLog.exe, and a zip with it in a LifeLog folder", () => {
+  const release = path.join(tmp, "release");
+  fs.mkdirSync(release, { recursive: true });
+  const exe = Buffer.from("MZ" + "lifelog".repeat(5000));
+  fs.writeFileSync(path.join(release, "lifelog.exe"), exe);
+  fs.writeFileSync(path.join(release, "lifelog.pdb"), "pdb");
+  const out = path.join(tmp, "out-portable");
+  assert.deepStrictEqual(portable(out, release), ["LifeLog.exe", "LifeLog-windows.zip"]);
+  assert.ok(fs.readFileSync(path.join(out, "LifeLog.exe")).equals(exe));
+  // Read the zip back by its central directory, as Windows does.
+  const z = fs.readFileSync(path.join(out, "LifeLog-windows.zip"));
+  const end = z.length - 22;
+  assert.strictEqual(z.readUInt32LE(end), 0x06054b50);
+  assert.strictEqual(z.readUInt16LE(end + 10), 1);
+  const dir = z.readUInt32LE(end + 16);
+  assert.strictEqual(z.readUInt32LE(dir), 0x02014b50);
+  const nameLen = z.readUInt16LE(dir + 28);
+  assert.strictEqual(z.toString("utf8", dir + 46, dir + 46 + nameLen), "LifeLog/LifeLog.exe");
+  const at = z.readUInt32LE(dir + 42);
+  const packed = z.readUInt32LE(dir + 20);
+  const data = z.subarray(at + 30 + z.readUInt16LE(at + 26) + z.readUInt16LE(at + 28), at + 30 + z.readUInt16LE(at + 26) + packed);
+  const back = require("zlib").inflateRawSync(data);
+  assert.ok(back.equals(exe));
+  assert.strictEqual(z.readUInt32LE(dir + 16), require("zlib").crc32(exe));
+});
+
+test("a build with no exe fails rather than shipping an empty zip", () => {
+  assert.throws(() => portable(path.join(tmp, "out3"), path.join(tmp, "nothing")), /expected one LifeLog\.exe/);
+});
+
 test("a missing installer fails the build", () => {
   assert.throws(() => collect("linux", path.join(tmp, "out2"), path.join(tmp, "nothing")), /expected one/);
 });
@@ -242,11 +272,16 @@ test("latest.json points each system at its signed file in this version's releas
   const sigs = path.join(tmp, "sigs");
   fs.mkdirSync(sigs);
   fs.writeFileSync(path.join(sigs, "LifeLog-setup.exe.sig"), "WIN\n");
+  fs.writeFileSync(path.join(sigs, "LifeLog.exe.sig"), "PORTABLE");
   fs.writeFileSync(path.join(sigs, "LifeLog.AppImage.sig"), "LIN");
   const m = manifest("0.304.0", sigs, { repo: "o/r", date: "2026-11-04T00:00:00.000Z" });
   assert.strictEqual(m.version, "0.304.0");
-  assert.deepStrictEqual(Object.keys(m.platforms).sort(), ["linux-x86_64", "linux-x86_64-appimage", "windows-x86_64", "windows-x86_64-nsis"]);
+  assert.deepStrictEqual(Object.keys(m.platforms).sort(), ["linux-x86_64", "linux-x86_64-appimage", "windows-x86_64", "windows-x86_64-nsis", "windows-x86_64-portable"]);
   assert.strictEqual(m.platforms["windows-x86_64"].signature, "WIN");
+  // The portable app asks for its own key (src-tauri/src/portable.rs);
+  // a copy the installer put there still gets the installer, once.
+  assert.strictEqual(m.platforms["windows-x86_64-portable"].url, "https://github.com/o/r/releases/download/app-v0.304.0/LifeLog.exe");
+  assert.strictEqual(m.platforms["windows-x86_64-nsis"].url, "https://github.com/o/r/releases/download/app-v0.304.0/LifeLog-setup.exe");
   assert.strictEqual(m.platforms["linux-x86_64"].url, "https://github.com/o/r/releases/download/app-v0.304.0/LifeLog.AppImage");
 });
 
@@ -254,6 +289,13 @@ console.log("\nthe shell");
 
 const conf = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "tauri.conf.json"), "utf8"));
 const caps = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "capabilities", "default.json"), "utf8"));
+
+test("the portable updater's key is the one latest.json writes", () => {
+  const rs = fs.readFileSync(path.join(ROOT, "src-tauri", "src", "portable.rs"), "utf8");
+  assert.match(rs, /pub const TARGET: &str = "windows-x86_64-portable";/);
+  const yml = fs.readFileSync(path.join(ROOT, ".github", "workflows", "desktop.yml"), "utf8");
+  assert.match(yml, /tauri signer sign out\/LifeLog\.exe/);
+});
 
 test("it makes no MSI, whose version can't pass 0.255", () => {
   assert.ok(!conf.bundle.targets.includes("msi"));

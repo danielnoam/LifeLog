@@ -6005,6 +6005,25 @@
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
+    if (Platform.windowsBrowser) setTimeout(offerWindowsApp, 4000);
+  }
+
+  // The web app on a Windows PC offers the Windows app once, in the update
+  // bar: Download or close, and either way it doesn't come back on this
+  // browser. Settings → About keeps a row for it after that.
+  const WINDOWS_OFFER_KEY = "lifelog-windows-offer-v1";
+  function offerWindowsApp() {
+    try { if (localStorage.getItem(WINDOWS_OFFER_KEY)) return; } catch (e) { return; }
+    if (!$("#updateBar").hidden || isAnyModalOpen()) return;
+    const done = () => { try { localStorage.setItem(WINDOWS_OFFER_KEY, "1"); } catch (e) { /* asks again next launch */ } };
+    $("#updateBarText").textContent = i18n.t("LifeLog has a Windows app");
+    const btn = $("#updateReloadBtn");
+    btn.textContent = i18n.t("Download");
+    btn.onclick = () => { done(); $("#updateBar").hidden = true; location.href = Platform.windowsAppUrl; };
+    const close = $("#updateCloseBtn");
+    close.hidden = false;
+    close.onclick = () => { done(); $("#updateBar").hidden = true; };
+    $("#updateBar").hidden = false;
   }
 
   // ---------- the background refresh (0.279.0) ----------
@@ -6152,12 +6171,12 @@
       }
       install();
     };
-    // On a computer, Tauri's updater installs it and restarts, when the
-    // release has its signed files; otherwise the release page has the
-    // installer (a .deb is always updated that way).
-    // An unreleased Windows build has the release's version, so Tauri's
-    // updater would skip it: its installer downloads in the browser and
-    // installs over the app, keeping the data.
+    // On a computer, the app updates itself and restarts, when the release
+    // has its signed files; otherwise the release page has the download (a
+    // .deb is always updated that way).
+    // An unreleased Windows build has the release's version, so the updater
+    // would skip it: its zip downloads in the browser, and its LifeLog.exe
+    // goes over the one in the app's folder, which keeps the data.
     if (Platform.desktop && unreleased) {
       btn.onclick = () => Platform.openOutside(unreleased.url);
       say(isOut(), i18n.t("Download"));
@@ -6183,8 +6202,15 @@
         }
         say(i18n.t("Downloading LifeLog {version}…", { version }), "0%", true);
         try {
-          await window.LifeLogDesktop.installUpdate((f) => { btn.textContent = Math.round(f * 100) + "%"; }, found);
+          const done = await window.LifeLogDesktop.installUpdate((f) => { btn.textContent = Math.round(f * 100) + "%"; }, found);
+          if (!done) { pageOnly = true; say(i18n.t("LifeLog {version} is out", { version }), i18n.t("Open page")); }
         } catch (e) {
+          // The portable app in a folder it can't write to (Program Files).
+          if (window.LifeLogDesktop.readOnly(e)) {
+            pageOnly = true;
+            say(i18n.t("LifeLog's folder is read-only, so it can't update itself"), i18n.t("Open page"));
+            return;
+          }
           say(i18n.t("The update didn't finish"), i18n.t("Retry"));
         }
       };
@@ -6405,6 +6431,11 @@
         if (incoming.state === "installed" && navigator.serviceWorker.controller) {
           // Closing it waits for the next build: this one is already active,
           // so the next launch picks it up anyway.
+          // The bar may have been offering the Windows app; it says this now.
+          $("#updateBarText").textContent = i18n.t("New version ready");
+          const btn = $("#updateReloadBtn");
+          btn.textContent = i18n.t("Reload");
+          btn.onclick = () => location.reload();
           const close = $("#updateCloseBtn");
           close.hidden = false;
           close.onclick = () => { $("#updateBar").hidden = true; };

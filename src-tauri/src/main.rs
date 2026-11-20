@@ -13,6 +13,7 @@ use tauri_plugin_notification::NotificationExt;
 
 mod datafolder;
 mod oauth;
+mod portable;
 mod toast;
 
 // Start at login (Settings → Notifications) launches with this, straight
@@ -174,6 +175,8 @@ fn toast_clicked(app: &AppHandle, action: &str) {
 }
 
 fn main() {
+    #[cfg(windows)]
+    portable::win::refuse_temp();
     tauri::Builder::default()
         // First, so a second launch (a click on the Start menu entry while it
         // sits in the tray) brings the running one back instead of opening a
@@ -210,11 +213,18 @@ fn main() {
             open_data_folder,
             remove_old_data_copy,
             oauth_listen,
-            oauth_wait
+            oauth_wait,
+            portable::portable_check,
+            portable::portable_update
         ])
         .setup(|app| {
             let local = app.path().app_local_data_dir()?;
             toast::init(&local);
+            #[cfg(windows)]
+            {
+                portable::win::register_app_id(&app.config().identifier, &local);
+                portable::win::manage(app);
+            }
 
             // The window is made here rather than from tauri.conf.json, so
             // its data folder can be chosen first.
@@ -228,7 +238,17 @@ fn main() {
             };
             #[cfg(not(windows))]
             app.manage(Folder(Mutex::new(None)));
-            window.build()?;
+            // WebView2 comes with Windows 10 and 11, but a stripped-down
+            // copy can lack it, and with no installer to fetch it this is
+            // the only place to say so.
+            if let Err(e) = window.build() {
+                #[cfg(windows)]
+                portable::win::alert(
+                    &format!("LifeLog couldn't open its window: {e}\n\nIt needs Microsoft Edge WebView2. Get it from https://go.microsoft.com/fwlink/p/?LinkId=2124703 and open LifeLog again."),
+                    &format!("LifeLog לא הצליח לפתוח את החלון שלו: {e}\n\nהוא צריך את Microsoft Edge WebView2. אפשר להוריד אותו מ-https://go.microsoft.com/fwlink/p/?LinkId=2124703 ולפתוח את LifeLog שוב."),
+                );
+                return Err(e.into());
+            }
 
             let args: Vec<String> = std::env::args().collect();
             let launch = toast::launch_action(&args);

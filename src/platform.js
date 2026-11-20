@@ -273,5 +273,11 @@
     webUrl() { return (K.build && K.build.webUrl) || null; },
     releasesUrl() { return K.build && K.build.repo ? "https://github.com/" + K.build.repo + "/releases/latest" : null; },
     apkUrl() { return K.build && K.build.repo ? "https://github.com/" + K.build.repo + "/releases/latest/download/LifeLog.apk" : null; },
+    // A browser on Windows, the one place offered the Windows app: there is
+    // no app-build.json in a browser, so the repo is named here. The zip
+    // (the portable app, 2026-11-20) keeps its name from one release to
+    // the next (desktop.yml).
+    windowsBrowser: !bundled && (/^windows$/i.test((navigator.userAgentData && navigator.userAgentData.platform) || "") || /Windows NT/i.test(navigator.userAgent)),
+    windowsAppUrl: "https://github.com/danielnoam/LifeLog/releases/latest/download/LifeLog-windows.zip",
   };
 })();
