@@ -6005,6 +6005,25 @@
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
+    if (Platform.windowsBrowser) setTimeout(offerWindowsApp, 4000);
+  }
+
+  // The web app on a Windows PC offers the Windows app once, in the update
+  // bar: Download or close, and either way it doesn't come back on this
+  // browser. Settings → About keeps a row for it after that.
+  const WINDOWS_OFFER_KEY = "lifelog-windows-offer-v1";
+  function offerWindowsApp() {
+    try { if (localStorage.getItem(WINDOWS_OFFER_KEY)) return; } catch (e) { return; }
+    if (!$("#updateBar").hidden || isAnyModalOpen()) return;
+    const done = () => { try { localStorage.setItem(WINDOWS_OFFER_KEY, "1"); } catch (e) { /* asks again next launch */ } };
+    $("#updateBarText").textContent = i18n.t("LifeLog has a Windows app");
+    const btn = $("#updateReloadBtn");
+    btn.textContent = i18n.t("Download");
+    btn.onclick = () => { done(); $("#updateBar").hidden = true; location.href = Platform.windowsSetupUrl; };
+    const close = $("#updateCloseBtn");
+    close.hidden = false;
+    close.onclick = () => { done(); $("#updateBar").hidden = true; };
+    $("#updateBar").hidden = false;
   }
 
   // ---------- the background refresh (0.279.0) ----------
@@ -6405,6 +6424,11 @@
         if (incoming.state === "installed" && navigator.serviceWorker.controller) {
           // Closing it waits for the next build: this one is already active,
           // so the next launch picks it up anyway.
+          // The bar may have been offering the Windows app; it says this now.
+          $("#updateBarText").textContent = i18n.t("New version ready");
+          const btn = $("#updateReloadBtn");
+          btn.textContent = i18n.t("Reload");
+          btn.onclick = () => location.reload();
           const close = $("#updateCloseBtn");
           close.hidden = false;
           close.onclick = () => { $("#updateBar").hidden = true; };
