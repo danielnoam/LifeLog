@@ -231,6 +231,34 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await fresh.ctx.close();
   }
 
+  // ---- each tool's own style; arrowheads and dashes (Nov 2026) ----
+  {
+    const { ctx, page } = await open();
+    await page.click("text=+ New board");
+    await page.click("#nBoardPad");
+    await page.waitForTimeout(200);
+    const tl = (t) => page.click(`#boardTools [data-tool="${t}"]`);
+    await tl("pen"); await page.click('#boardStyle [data-color="#e03131"]');
+    await tl("line"); await page.click('#boardStyle [data-color="#1971c2"]'); await page.click("#boardDash");
+    await page.click("#boardHeads"); await page.click("#boardHeads");
+    await tl("pen");
+    check("the pen keeps red after the line chose blue", await page.evaluate(() => document.querySelector('#boardStyle [data-color="#e03131"]').classList.contains("on")));
+    await tl("line");
+    await stroke(page, [[700, 200], [800, 220], [900, 240]]);
+    const ln = (await els(page)).slice(-1)[0];
+    check("a line drawn with both heads and dashes stores them", ln.t === "line" && ln.c === "#1971c2" && ln.ah === "both" && ln.ds === true, ln);
+    check("and draws a dashed body with two heads", await page.evaluate((id) => {
+      const g = document.querySelector(`.board-world [data-id="${id}"]`);
+      return !!g && !!g.querySelector("[stroke-dasharray]") && g.querySelectorAll("path, line").length >= 3;
+    }, ln.id));
+    await page.reload({ waitUntil: "networkidle" });
+    check("the tools' styles last past a reload", await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem("lifelog-board-styles-v1"));
+      return s.pen.c === "#e03131" && s.line.c === "#1971c2" && s.line.ah === "both";
+    }));
+    await ctx.close();
+  }
+
   // ---- round two (0.194.0): fill, resize, rotate, zoom, font, history ----
   {
     const { ctx, page } = await open();
@@ -238,8 +266,15 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await page.click("text=+ New board");
     await page.click("#nBoardPad");
     await page.waitForTimeout(200);
-    await page.click("#boardFill");
+    check("the pen offers no fill", await page.isHidden("#boardFill"));
+    await page.click('[data-tool="eraser"]');
+    await page.waitForTimeout(300);
+    check("the eraser offers no style at all", await page.evaluate(() => {
+      const bar = document.querySelector("#boardStyle");
+      return bar.classList.contains("is-off") && getComputedStyle(bar).opacity === "0" && [...bar.children].every((b) => b.hidden);
+    }));
     await page.click('[data-tool="rect"]');
+    await page.click("#boardFill");
     await stroke(page, [[400, 300], [450, 350], [600, 400]]);
     let r = (await els(page))[0];
     check("with fill on, a rectangle is drawn filled", r.f === true && r.w === 200 && r.h === 100, r);
@@ -247,7 +282,12 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
       [...document.querySelectorAll(".board-world g path")].some((p) => (p.getAttribute("d").match(/M/g) || []).length > 10)));
 
     await page.click('[data-tool="select"]');
+    check("the select tool with nothing picked hides the style bar", await page.evaluate(() => document.querySelector("#boardStyle").classList.contains("is-off")));
     await page.mouse.click(400, 350);
+    check("picking a rectangle brings back its colours, widths and fill", await page.evaluate(() =>
+      !document.querySelector("#boardStyle").classList.contains("is-off") && !document.querySelector("#boardFill").hidden && !document.querySelector("#boardStyle [data-color]").hidden));
+    check("the bar lights the picked rectangle's own width, not the last tool's", await page.evaluate(() =>
+      document.querySelector('#boardStyle [data-width].on') && +document.querySelector('#boardStyle [data-width].on').dataset.width === 4 && document.querySelector("#boardFill").classList.contains("on")));
     const handle = (name) => page.evaluate((n) => {
       const b = document.querySelector(`.board-overlay [data-handle="${n}"]`).getBoundingClientRect();
       return [b.x + b.width / 2, b.y + b.height / 2];
