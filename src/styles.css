@@ -5948,3 +5948,32 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
   .board-tool-add { display: none; }
   .board-add-more { display: grid; }
 }
+
+/* ---------- the pinned window (pin.js, computer app) ----------
+   The window itself goes small and on top; the page underneath is hidden,
+   not taken down, so a sheet opened from here (a task, a release) still
+   opens over it. */
+body.is-pinned > :is(.topbar, .fab-wrap, .filter-slot, .search-filter-note, .search-results, .content) { display: none; }
+.pin-view { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg); }
+.pin-view[hidden] { display: none; }
+.pin-head { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-10); border-bottom: 1px solid var(--border); }
+.pin-tabs { flex: 1; min-width: 0; }
+.pin-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-6); min-height: 36px; padding: 0 var(--space-8); }
+.pin-tab .ico { width: 16px; height: 16px; flex: none; }
+/* Names only once there's room for all four. */
+.pin-tab-label { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 460px) { .pin-tab-label { display: none; } }
+.pin-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-10); }
+.pin-body .home-pins { grid-template-columns: 1fr; }
+.pin-add { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-8) var(--space-10) var(--space-10); border-top: 1px solid var(--border); background: var(--bg-elev); }
+.pin-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.pin-kind { min-height: 32px; }
+.pin-list { margin-inline-start: auto; max-width: 50%; min-height: 32px; font-size: var(--fs-sm); }
+.pin-add-row { display: flex; gap: var(--space-8); }
+.pin-input {
+  flex: 1; min-width: 0; min-height: 40px; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 0 var(--space-12); border-radius: var(--r-md); font: inherit; font-size: var(--fs-sm);
+}
+.pin-input:focus { outline: none; border-color: var(--accent); }
+.pin-go { min-width: 40px; min-height: 40px; }
+.pin-tab.active { color: var(--accent); }

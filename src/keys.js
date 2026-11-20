@@ -25,6 +25,7 @@
     { id: "settings", label: i18n.t("Open or close Settings"), defaults: ["Tab"] },
     { id: "help", label: i18n.t("Show keyboard shortcuts"), defaults: ["Shift+Slash"] },
     { id: "noteMode", label: i18n.t("Switch a note between Read and Edit"), defaults: ["Ctrl+KeyE"], sub: i18n.t("While a note is open") },
+    { id: "pin", label: i18n.t("Pin the window on top"), defaults: ["Ctrl+Shift+KeyP"], sub: i18n.t("In the computer app") },
   ];
   const BOARD_ACTIONS = [
     { id: "board:select", label: i18n.t("Select"), defaults: ["KeyV"] },

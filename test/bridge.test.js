@@ -1108,6 +1108,10 @@ test("stats, habit insights and upcoming releases read the app's own numbers", a
   assert.match(may, /Finished in 2026-05, no day set \(1\):\n- Hades \[Games\]  \(e2\)/);
   assert.match(await ok("lifelog_calendar", { day: "2026-05-03" }), /Nothing on that day\./);
   await refused("lifelog_calendar", { month: "2026-13" }, /month must be YYYY-MM/);
+  const ics = await ok("lifelog_calendar_ics", {});
+  assert.match(ics, /^BEGIN:VCALENDAR\r\n/);
+  assert.match(ics, new RegExp(`DTSTART;VALUE=DATE:${big.replace(/-/g, "")}\r\n[^]*SUMMARY:Big Game\r\n`));
+  assert.match(ics, /END:VCALENDAR\r\n$/);
 });
 
 test("a batch is saved as one change, refused whole, and undone whole", async () => {

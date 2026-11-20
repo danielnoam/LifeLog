@@ -118,6 +118,7 @@
            of them when more than one. -->
       <button id="viewOptionsBtn" class="btn btn-icon" type="button" title="View options" aria-label="View options" hidden data-t-attr="title,aria-label"><span data-ico="sliders-horizontal"></span></button>
       <button id="activityBtn" class="btn btn-icon activity-btn" type="button" title="Activity" aria-label="Activity" data-t-attr="title,aria-label"><span class="activity-idle" data-ico="activity"></span><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="activity-track" cx="12" cy="12" r="8" /><circle class="activity-ring" cx="12" cy="12" r="8" pathLength="100" /></svg><span class="activity-count" id="activityCount"></span></button>
+      <button id="pinBtn" class="btn btn-icon" type="button" title="Pin on top" aria-label="Pin on top" hidden data-t-attr="title,aria-label"><span data-ico="pin"></span></button>
       <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings" data-t-attr="title,aria-label"><span data-ico="settings"></span></button>
       <span class="version-badge" id="appVersion"></span>
     </div>
@@ -1699,7 +1700,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download notes checklist tasks to-do habits timeline achievements backlog ledger finance projects markdown md pdf epub book document">
+      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv ics calendar outlook spreadsheet download notes checklist tasks to-do habits timeline achievements backlog ledger finance projects markdown md pdf epub book document">
       <h2 class="settings-page-title" data-t>Import & export</h2>
       <p class="hint page-lede" data-t>Importing adds to what you have, never replaces it, and lets you pick what comes in first. Anything you already have is skipped. JSON keeps everything; CSV is for spreadsheets and keeps what fits in a row, so an entry's cover, rating and notes stay behind. A tab's import takes its own part of any LifeLog file, a full backup included.</p>
       <section class="sgroup">
@@ -1712,6 +1713,10 @@
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title"><span data-t>Import</span></span></span>
             <span class="sitem-btns"><button class="btn btn-small" id="importJsonBtn" data-t>JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="all" data-t>CSV…</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Calendar</span></span><span class="sitem-sub"><span data-t>Dated tasks, releases and recurring charges for the next year, to open in Google Calendar or Outlook</span></span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="exportIcsBtn" data-t>.ics</button></span>
           </div>
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title"><span data-t>Restore settings</span></span><span class="sitem-sub"><span data-t>API keys, imports and sort orders from a full backup. You see what would change first</span></span></span>
@@ -3157,6 +3162,7 @@
   <script defer src="src/invest.js?v=0.322.0"></script>
   <script defer src="src/waypage.js?v=0.322.0"></script>
   <script defer src="src/home.js?v=0.322.0"></script>
+  <script defer src="src/pin.js?v=0.322.0"></script>
   <script defer src="src/recap.js?v=0.322.0"></script>
   <script defer src="src/reminders.js?v=0.322.0"></script>
   <script defer src="src/alerts.js?v=0.322.0"></script>

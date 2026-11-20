@@ -492,6 +492,10 @@ every target connected in **Settings → Sync**:
 With both, GitHub is the live source and the file a backup that mirrors
 every save. With neither, the log stays in the browser; Export JSON and CSV
 are there for manual backups.
+Settings → Import & export → Calendar saves an `.ics` of what's dated in the
+next year (tasks with a date, releases and new episodes known to the day,
+recurring charges) to open in Google Calendar, Outlook or any calendar app;
+it's a copy at that moment, not a feed that updates.
 
 ### Use it on your phone
 
@@ -580,6 +584,13 @@ Linux when `desktop.yml` is run by hand with **Linux too** ticked.
   key only that computer knows (`src-tauri/src/toast.rs`). A habit
   reminder has a Done button and leaves the Action Center once the habit is
   kept. Settings → Notifications has Send a test notification.
+- **Pin on top**: the pin button in the top bar, the tray's Pin on top or
+  Ctrl+Shift+P turns the window small and always on top, with Today
+  (overdue and today's tasks, today's habits, events and releases), Coming
+  up, Notes (pinned to Home, else the latest) and the Scratchpad, and a
+  line under them that adds a task, a note, an entry or an expense
+  ("12.50 coffee"). Unpin puts the window back where and how big it was;
+  it stays pinned across restarts. Computer app only.
 - **Settings → Desktop**: start at login, into the tray or with the
   window open, and whether closing hides it or quits.
 - **Its data folder** (Windows): everything it keeps on the computer

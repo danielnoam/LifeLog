@@ -8,7 +8,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, State, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 
 mod datafolder;
@@ -84,6 +84,61 @@ fn remove_old_data_copy(state: State<Folder>) -> Result<(), String> {
     f.as_mut().ok_or("Not on this computer")?.remove_old()
 }
 
+// The pinned window (src/pin.js): the same window, small and on top of
+// everything, then back to where and how big it was. The pinned size and
+// place are kept too, so pinning again lands where it was left.
+#[derive(Default)]
+struct PinState {
+    was: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, bool)>,
+    pinned: Option<(PhysicalPosition<i32>, PhysicalSize<u32>)>,
+}
+struct Pin(Mutex<PinState>);
+
+#[tauri::command]
+fn pin_window(on: bool, app: AppHandle, state: State<Pin>) -> Result<(), String> {
+    let w = app.get_webview_window("main").ok_or("No window")?;
+    let mut p = state.0.lock().map_err(|e| e.to_string())?;
+    let e = |e: tauri::Error| e.to_string();
+    if on {
+        if p.was.is_none() {
+            p.was = Some((w.outer_position().map_err(e)?, w.outer_size().map_err(e)?, w.is_maximized().map_err(e)?));
+        }
+        w.unmaximize().map_err(e)?;
+        w.set_min_size(Some(LogicalSize::new(320.0, 420.0))).map_err(e)?;
+        match p.pinned {
+            Some((pos, size)) => {
+                w.set_size(size).map_err(e)?;
+                w.set_position(pos).map_err(e)?;
+            }
+            None => {
+                w.set_size(LogicalSize::new(380.0, 620.0)).map_err(e)?;
+                // Top right of the screen it's on, clear of the edge.
+                if let Some(m) = w.current_monitor().map_err(e)? {
+                    let scale = m.scale_factor();
+                    let x = m.position().x + m.size().width as i32 - (404.0 * scale) as i32;
+                    let y = m.position().y + (24.0 * scale) as i32;
+                    w.set_position(PhysicalPosition::new(x, y)).map_err(e)?;
+                }
+            }
+        }
+        w.set_always_on_top(true).map_err(e)?;
+        let _ = w.show();
+        let _ = w.set_focus();
+    } else {
+        p.pinned = Some((w.outer_position().map_err(e)?, w.outer_size().map_err(e)?));
+        w.set_always_on_top(false).map_err(e)?;
+        w.set_min_size(Some(LogicalSize::new(360.0, 560.0))).map_err(e)?;
+        if let Some((pos, size, max)) = p.was.take() {
+            w.set_size(size).map_err(e)?;
+            w.set_position(pos).map_err(e)?;
+            if max {
+                w.maximize().map_err(e)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 // Google Drive's sign-in (src/oauth.rs): a port on 127.0.0.1 to come back
 // to, then the one answer that comes there.
 #[tauri::command]
@@ -139,12 +194,14 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(CloseToTray(AtomicBool::new(true)))
+        .manage(Pin(Mutex::new(PinState::default())))
         .manage(oauth::Loopback(Mutex::new(None)))
         .manage(LaunchedHidden(std::env::args().any(|a| a == HIDDEN_ARG)))
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
             launched_hidden,
             show_main,
+            pin_window,
             take_launch_action,
             toast::toast,
             toast::clear_toast,
@@ -202,9 +259,10 @@ fn main() {
             let open = MenuItem::with_id(app, "open", "Open LifeLog", true, None::<&str>)?;
             let entry = MenuItem::with_id(app, "add-entry", "Add entry", true, None::<&str>)?;
             let expense = MenuItem::with_id(app, "add-expense", "Add expense", true, None::<&str>)?;
+            let pin = MenuItem::with_id(app, "pin", "Pin on top", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &entry, &expense, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&open, &entry, &expense, &pin, &sep, &quit])?;
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("LifeLog")
                 .menu(&menu)

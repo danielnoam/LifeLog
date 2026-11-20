@@ -222,4 +222,27 @@ test("the year so far: finished against last year by the same date, tasks, spend
   assert.strictEqual(Home.yearSoFar(rep, "2026-11-17", {}).tasksDone, 3);
 });
 
+test("icsOf: tasks, releases and charges as calendar events, escaped and folded", () => {
+  const data = {
+    notes: [{ id: "n1", kind: "list", text: "Errands", items: [
+      { id: "t1", text: "Bins; recycling, too", date: at(1), time: "07:30" }, { id: "t2", text: "Late", date: at(-2) }, { id: "t3", text: "Done", date: at(1), done: true },
+    ] }],
+    backlog: [{ id: "b1", title: "Out", category: "Games", releaseDate: at(3), releasePrecision: "day", awaitingRelease: true }],
+    recurringExpenses: [], habits: [{ id: "h", name: "Read", marks: {} }],
+  };
+  const ics = Home.icsOf(data, today, { Backlog, Finance, Tasks, now: new Date("2026-11-19T10:00:00Z") });
+  const ymd = (d) => d.replace(/-/g, "");
+  assert.ok(ics.startsWith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"));
+  assert.ok(ics.endsWith("END:VCALENDAR\r\n"));
+  assert.ok(ics.includes("DTSTART:" + ymd(at(1)) + "T073000\r\nDURATION:PT30M"));
+  assert.ok(ics.includes("SUMMARY:Bins\\; recycling\\, too"));
+  assert.ok(ics.includes("UID:task-t2-" + ymd(at(-2)) + "@lifelog"));
+  assert.ok(ics.includes("DTSTART;VALUE=DATE:" + ymd(at(3)) + "\r\nDTEND;VALUE=DATE:" + ymd(at(4))));
+  assert.ok(!ics.includes("Done") && !ics.includes("Read"), "done tasks and habits stay out");
+  assert.ok(ics.includes("DTSTAMP:20261119T100000Z"));
+  const long = Home.icsOf({ notes: [{ id: "n", kind: "list", text: "L", items: [{ id: "x", text: "א".repeat(60), date: today }] }] }, today, { Tasks });
+  for (const line of long.split("\r\n")) assert.ok(Buffer.byteLength(line) <= 75, "folded at 75 bytes: " + line);
+  assert.ok(long.includes("\r\n "), "a long line goes on with a space");
+});
+
 console.log(`\n${passed} test(s) passed.`);

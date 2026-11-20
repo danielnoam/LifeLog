@@ -162,6 +162,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
+- Calendar export: an .ics of dated tasks, releases and new episodes, and recurring charges for the next year (Settings → Import & export); bridge lifelog_calendar_ics (next release)
 
 ## Notebook (Notes)
 
@@ -300,6 +301,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Updates itself when the release has signed update files, else opens the release page (0.304.0); with nothing to install the bar goes straight to the page ("Open page") instead of looping, and has a close button that holds for that version (0.314.1)
 - Clicking a reminder or heads-up opens the habit, the Ledger, Upcoming or the Backlog, from the tray too (0.305.0)
 - Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
+- Pin on top: the window small and always on top with Today, Coming up, Notes and Scratchpad tabs and a quick add (task, note, entry, expense); top-bar pin, tray item, Ctrl+Shift+P; kept across restarts (next release)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (next release)
 - Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (next release)
