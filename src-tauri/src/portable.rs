@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn knows_a_copy_run_from_the_temp_folder() {
-        assert!(in_temp(&std::env::temp_dir().join("Temp1_LifeLog-windows.zip").join("LifeLog").join("LifeLog.exe")));
+        assert!(in_temp(&std::env::temp_dir().join("Temp1_LifeLog-portable.zip").join("LifeLog").join("LifeLog.exe")));
         assert!(!in_temp(Path::new("/opt/LifeLog/LifeLog.exe")));
     }
 

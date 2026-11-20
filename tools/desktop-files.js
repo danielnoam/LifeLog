@@ -7,7 +7,7 @@
 //     download links read the same from one version to the next. Windows
 //     also gets the portable app (2026-11-20): LifeLog.exe, which the app's
 //     own updater downloads (src-tauri/src/portable.rs; the workflow signs
-//     it), and LifeLog-windows.zip, a LifeLog folder holding it, which is
+//     it), and LifeLog-portable.zip, a LifeLog folder holding it, which is
 //     what people download. The installer stays only as the update for
 //     copies it installed, which move to the portable updater with it.
 //
@@ -114,8 +114,8 @@ function portable(out, release = path.dirname(BUNDLE)) {
   const exe = fs.readFileSync(path.join(release, made[0]));
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, "LifeLog.exe"), exe);
-  fs.writeFileSync(path.join(out, "LifeLog-windows.zip"), zip([["LifeLog/LifeLog.exe", exe]]));
-  return ["LifeLog.exe", "LifeLog-windows.zip"];
+  fs.writeFileSync(path.join(out, "LifeLog-portable.zip"), zip([["LifeLog/LifeLog.exe", exe]]));
+  return ["LifeLog.exe", "LifeLog-portable.zip"];
 }
 
 function manifest(version, sigDir, { repo = REPO, notes = "", date = new Date().toISOString() } = {}) {

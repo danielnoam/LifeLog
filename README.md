@@ -563,13 +563,13 @@ release as `LifeLog.ipa`.
 ### The Windows and Linux app
 
 The same files in the system's own WebView, built by
-[Tauri](https://tauri.app) (`src-tauri/`): `LifeLog-windows.zip` for
+[Tauri](https://tauri.app) (`src-tauri/`): `LifeLog-portable.zip` for
 Windows on each release (a portable app, no installer), and `LifeLog.AppImage` or `LifeLog.deb` for
 Linux when `desktop.yml` is run by hand with **Linux too** ticked.
 The web app opened on a Windows PC offers it once, and keeps a
 **Get the Windows app** row in Settings → About.
 
-- **Portable** (Windows, 2026-11-20): unzip `LifeLog-windows.zip`
+- **Portable** (Windows, 2026-11-20): unzip `LifeLog-portable.zip`
   anywhere and open `LifeLog\LifeLog.exe`; its data goes in `data` beside
   it, so moving the folder moves the data. There's no Start menu entry or
   uninstaller: pin it yourself, and delete the folder to remove it. Opened
