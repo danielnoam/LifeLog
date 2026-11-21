@@ -804,6 +804,7 @@ Keel.i18n.strings("he", {
   "Couldn't sign in to Stremio — {why}": "לא ניתן היה להתחבר ל‑Stremio — {why}",
   "Add to my Stremio account": "הוספה לחשבון ה‑Stremio שלי",
   "Already on your Stremio account": "כבר נמצא בחשבון ה‑Stremio שלך",
+  "Stremio said: {said}": "Stremio ענה: {said}",
   "Remove from my Stremio account": "הסרה מחשבון ה‑Stremio שלי",
   "Shows up on every Stremio you're signed in to, your TV too": "מופיע בכל Stremio שמחובר לחשבון, גם בטלוויזיה",
   "Takes it off every Stremio you're signed in to": "מוריד אותו מכל Stremio שמחובר לחשבון",
