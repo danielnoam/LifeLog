@@ -22,6 +22,14 @@
 // files under <site>/unreleased/ with build.json (tools/unreleased.js),
 // not on the Releases page. Hidden, not private: the repo is public, and
 // anyone with the address can download them.
+//
+// The app's home, for a custom domain or a repo that moved: index.html
+// may say <meta name="keel-site" content="https://example.com/app/"> and
+// <meta name="keel-repo" content="owner/name">. The site is then where
+// the unreleased builds are looked for, and a web copy away from
+// github.io finds its repo there. Without them it's owner.github.io/repo/.
+// Installed copies keep the index.html they were built with, so change
+// these before the address changes, and ship a release with them.
 (function () {
   const API = "https://api.github.com/repos/";
 
@@ -59,11 +67,33 @@
     return { stable: stable ? stable.tag_name.replace(/^app-v/, "") : null, list };
   }
 
-  // The repo of a GitHub Pages copy (owner.github.io/repo/), or null.
+  // <meta name="keel-<n>">'s content, or null.
+  function meta(n) {
+    try {
+      const m = typeof document !== "undefined" && document.querySelector('meta[name="keel-' + n + '"]');
+      const v = m && String(m.getAttribute("content") || "").trim();
+      return v || null;
+    } catch (e) { return null; }
+  }
+
+  // A web copy, not the files inside a phone or desktop app (Capacitor
+  // and Tauri serve them from localhost).
+  const onWeb = () => /^https?:$/.test(location.protocol || "https:") && !/(^|\.)localhost$/i.test(location.hostname);
+
+  // The repo of a web copy: owner.github.io/repo/, or keel-repo on its own
+  // domain. null otherwise.
   function webRepo() {
     const host = /^([^.]+)\.github\.io$/i.exec(location.hostname);
     const name = location.pathname.split("/")[1];
-    return host && name ? host[1] + "/" + name : null;
+    if (host) return name ? host[1] + "/" + name : null;
+    const r = meta("repo");
+    return onWeb() && r && /^[\w.-]+\/[\w.-]+$/.test(r) ? r : null;
+  }
+
+  // keel-site, made to end in "/", or null.
+  function metaSite() {
+    const s = meta("site");
+    return s && /^https:\/\/[^\s"'<>]+$/.test(s) ? s.replace(/\/?$/, "/") : null;
   }
 
   // The GitHub Pages site of a repo: owner.github.io/repo/.
@@ -112,7 +142,7 @@
     const running = typeof caches === "undefined" ? Promise.resolve(null)
       : caches.open(CACHE).then((c) => c.match("./preview.json")).then((r) => (r ? r.json() : null)).catch(() => null);
 
-    const site = () => (o.site && o.site()) || siteOf(repo());
+    const site = () => (o.site && o.site()) || metaSite() || siteOf(repo());
     const CHANNEL_KEY = o.channelKey || NAME.toLowerCase() + ".channel";
 
     return {
@@ -184,5 +214,5 @@
   }
 
   window.Keel = window.Keel || {};
-  window.Keel.releases = { create, newer, notesOf, parse, webRepo, siteOf, pick };
+  window.Keel.releases = { create, newer, notesOf, parse, webRepo, siteOf, metaSite, pick };
 })();

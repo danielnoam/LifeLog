@@ -48,6 +48,12 @@ function appVersion(root = ROOT) {
 }
 
 // owner/repo: from Actions when building there, else from the git remote.
+// <meta name="keel-site"> in index.html, ending in "/", or null.
+function siteMeta(root = ROOT) {
+  const m = fs.readFileSync(path.join(root, "index.html"), "utf8").match(/<meta name="keel-site" content="(https:\/\/[^"]+)"/i);
+  return m ? m[1].trim().replace(/\/?$/, "/") : null;
+}
+
 function repoSlug() {
   if (process.env.GITHUB_REPOSITORY) return process.env.GITHUB_REPOSITORY;
   try {
@@ -111,8 +117,9 @@ function build(out = OUT, root = ROOT, desktop = DESKTOP) {
   const info = {
     version: appVersion(root),
     repo,
+    // index.html's keel-site when it has one (a custom domain), else
     // GitHub Pages: the host is the owner lowercased, the path the repo as named.
-    webUrl: repo ? "https://" + owner.toLowerCase() + ".github.io/" + name + "/" : null,
+    webUrl: siteMeta(root) || (repo ? "https://" + owner.toLowerCase() + ".github.io/" + name + "/" : null),
     builtAt: new Date().toISOString(),
     // Which branch and commit, so Settings → About → Test builds knows a
     // test build from the release (0.299.0).
@@ -128,4 +135,4 @@ if (require.main === module) {
   const r = build();
   console.log("www: " + r.files + " files → " + path.relative(ROOT, r.out) + " (" + r.info.version + ", " + (r.info.repo || "no repo") + ")");
 }
-module.exports = { build, assetList, referencedByIndex, appVersion, appIndexHtml, desktopIndexHtml };
+module.exports = { build, siteMeta, assetList, referencedByIndex, appVersion, appIndexHtml, desktopIndexHtml };

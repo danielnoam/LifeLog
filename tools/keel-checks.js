@@ -11,7 +11,9 @@
 //
 // csp: the page's Content-Security-Policy and what it needs of the code:
 // scripts from the app's own files, no inline script, handler or style
-// attribute, no eval.
+// attribute, no eval. A keel-site meta (releases.js) must be an https
+// address whose origin connect-src allows, since an installed copy fetches
+// its unreleased builds from there; a keel-repo meta must be owner/name.
 //
 //   csp.check(html, files) // → problems, [] when all pass
 //
@@ -144,6 +146,16 @@ function cspCheck(html, files = []) {
   for (const m of html.matchAll(/\s(on[a-z]+)="/g)) out.push("inline " + m[1] + "= handler in index.html");
   if (/\sstyle="/.test(html)) out.push("style= attribute in index.html");
   if (/href="javascript:/i.test(html)) out.push("javascript: link in index.html");
+  const metaOf = (n) => { const m = html.match(new RegExp('<meta name="keel-' + n + '" content="([^"]*)"', "i")); return m ? m[1].trim() : null; };
+  const site = metaOf("site"), repo = metaOf("repo");
+  if (site !== null) {
+    let origin = null;
+    try { const u = new URL(site); if (u.protocol === "https:") origin = u.origin; } catch (e) { /* reported below */ }
+    const connect = (/(?:^|;)\s*connect-src([^;]*)/.exec(policy) || [])[1] || "";
+    if (!origin) out.push("keel-site should be an https address: " + site);
+    else if (!connect.split(/\s+/).some((x) => x === origin || x === "https:" || x === "*")) out.push("connect-src doesn't allow keel-site's " + origin);
+  }
+  if (repo !== null && !/^[\w.-]+\/[\w.-]+$/.test(repo)) out.push("keel-repo should be owner/name: " + repo);
   for (const f of files) {
     const src = fs.readFileSync(f, "utf8").replace(/^\s*\/\/.*$/gm, ""); // comments may name eval
     const name = f.split(/[\\/]/).slice(-2).join("/");

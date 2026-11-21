@@ -48,6 +48,27 @@ ones marked **(checked)**.
 - One mechanism per behaviour (press feedback, sheet swipe, list moves).
   A second copy drifts from the first.
 
+## Looks that read as machine-made
+
+From Hallmark's list of the defaults a model falls into
+(github.com/nutlope/hallmark). An app's DESIGN.md can overrule one with
+its reason written down.
+
+- No labels in tracked capitals or small caps: section heads, captions,
+  table heads, tags and tabs are sentence case, untracked, a step
+  smaller and semibold if they need weight. No eyebrow (a small label
+  above a heading that repeats it).
+- Details are joined by commas or set as separate lines, not middle dots
+  ("Bar 3, 40% trouble", not "Bar 3 · 40% trouble"). No arrows glued to
+  link text.
+- No colour past the token block: shadows, backdrops and overlays are
+  tokens too, with their dark-mode values.
+- No card inside a card, no purple-to-blue gradient, no emoji as an icon,
+  no one coloured or italic word inside a heading.
+- A status dot only where it carries a state (connected, synced), never
+  as decoration.
+- No made-up numbers, quotes or logos in demo data or screenshots.
+
 ## Words
 
 - One thing, one name: its title, button, toast, home panel, widget and
