@@ -566,10 +566,11 @@
     const url = addonUrl(c);
     $("stremioUpNext").checked = !!c.on;
     $("stremioUpNextState").textContent = !c.on ? i18n.t("Off") : !workerUrl() ? i18n.t("Needs your proxy URL in Media lookups") : upNextLast || i18n.t("On");
-    // The account button needs the sign-in; opening the app works on its own.
+    // Both end on your account (the app saves what it installs there), so
+    // signed in it's the account button; signed out, the app on this device.
     const signedIn = !!cfgOf().authKey;
     $("stremioUpNextInstall").hidden = !(c.on && url && signedIn);
-    $("stremioUpNextAdd").hidden = !(c.on && url);
+    $("stremioUpNextAdd").hidden = !(c.on && url && !signedIn);
     if (url) $("stremioUpNextAdd").href = url.replace(/^https?:\/\//, "stremio://");
     $("stremioUpNextInstallLabel").textContent = onAccount === true ? i18n.t("Remove from my Stremio account") : i18n.t("Add to my Stremio account");
     $("stremioUpNextInstallSub").textContent = onAccount === true ? i18n.t("Takes it off every Stremio you're signed in to") : i18n.t("Shows up on every Stremio you're signed in to, your TV too");

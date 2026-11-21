@@ -446,8 +446,8 @@ list gets the window too, its map beside the list.
   movies and shows waiting in your Backlog, from an add-on your proxy
   worker serves (it needs a KV namespace; see proxy/README.md). **Add to my
   Stremio account** puts it in your account's add-ons, so a Stremio on a TV
-  gets it with nothing to type (and Remove takes it off); **Open in the
-  Stremio app** installs it on that device only.
+  gets it with nothing to type (and Remove takes it off). Signed out, **Open in the Stremio app**
+  installs it through the app on that device instead.
 - **Waypage reading log**: with Share reading activity on in
   [Waypage](https://github.com/danielnoam/waypage), what you read there
   comes in by itself, with a read-only token for its sync repo. A book in

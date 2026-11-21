@@ -129,7 +129,7 @@ const TMDB = {
   check("the add-on list goes back whole with the row added", sets.length === 1 && sent.authKey === "KEY123" && sent.addons.length === 2 && sent.addons[0].transportUrl === CINEMETA.transportUrl && sent.addons[0].flags.protected === true
     && /^https:\/\/w\.example\/upnext\/[a-f0-9]{24}\/manifest\.json$/.test(sent.addons[1].transportUrl) && sent.addons[1].manifest.id === "app.lifelog.upnext.x", sent);
   check("then it offers Remove", /Remove/.test(await page.textContent("#stremioUpNextInstall")));
-  check("no Copy the link any more; Open in the Stremio app stays", !(await page.$("#stremioUpNextCopy")) && await page.isVisible("#stremioUpNextAdd"));
+  check("no Copy the link any more; signed in, no Open in the Stremio app either", !(await page.$("#stremioUpNextCopy")) && !(await page.isVisible("#stremioUpNextAdd")));
   await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
   const sets2 = calls.filter((c) => c.method === "addonCollectionSet");
   check("Remove sends the list back without the row", sets2.length === 2 && JSON.stringify(sets2[1].body.addons) === JSON.stringify([CINEMETA]), sets2.map((c) => c.body));
