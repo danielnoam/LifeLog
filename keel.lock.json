@@ -1,5 +1,5 @@
 {
-  "version": "0.14.0",
+  "version": "0.15.0",
   "files": {
     "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
     "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
@@ -10,6 +10,7 @@
     "src/keel/motion.js": "350c76efa84b6fd561b3109187fb5f6fdecbd573eb1a18da08800cdd72bb5eed",
     "src/keel/i18n.js": "e8b8b9655942190a1d7700f26680e2a254199334e3c321b609d89b18a5390dc8",
     "src/keel/releases.js": "e81ba07d682e3124e84261f10cc10bacebe348d0e7b1a769920d5ca740a2213a",
+    "src/keel/update.js": "620184990b4961a5c56aec4256f6bf384023f787917232fa60a971f8e0ee8d8a",
     "src/keel/sw-preview.js": "3c55e81926300b26d8038c27e3b97f85e9e29d78f195bbd9e1a86823db871c4c",
     "tools/release.js": "cde945173156ec316d7fff3f117f063665bb1549aac5d4b01e2ba30007bb3414",
     "tools/android-version.js": "70f2cb0950e023cb33301f39012f5c9aaa96ad0695a01e0150751bc8a41c5ce1",

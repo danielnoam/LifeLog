@@ -64,7 +64,8 @@ src/keel/           from keel (danielnoam/keel): the setup link's QR codes,
                     github.js, the GitHub calls storage.js makes, errlog.js,
                     the errors this device hit, releases.js, the update check's
                     and Test builds' look at the releases (sw-preview.js is
-                    sw.js's half), and drive.js (not loaded yet)
+                    sw.js's half), update.js, the APK download and installer
+                    behind platform.js's downloadUpdate, and drive.js
 src/vendor/         rough.js and the Virgil font (boards)
 src/styles.css      every style and the four themes
 native/             Android and iOS widgets, reminders, share extension
@@ -91,7 +92,7 @@ keel.lock.json      (danielnoam/keel): see below
 
 The files listed in `keel.lock.json` (server.js, src/keel/qr.js,
 src/keel/github.js, src/keel/drive.js, src/keel/errlog.js, src/keel/platform.js, src/keel/motion.js, src/keel/i18n.js, src/keel/releases.js,
-src/keel/sw-preview.js,
+src/keel/update.js, src/keel/sw-preview.js,
 tools/release.js, tools/android-version.js, tools/keel-sync.js, tools/keel-checks.js (the contrast and CSP checks the tests use),
 test/keel.test.js, RULES.md, the github-pages skill) come from keel. Don't edit
 them here: `test/keel.test.js` fails. Change them in keel, tag a
