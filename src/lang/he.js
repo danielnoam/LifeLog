@@ -2850,6 +2850,8 @@ Keel.i18n.strings("he", {
   "Disconnect Google Calendar? Its events leave this device's calendar. To take LifeLog's access away at Google too, use your Google Account's Third-party connections page.": "לנתק את Google Calendar? האירועים יוסרו מלוח השנה במכשיר הזה. כדי לבטל גם את הגישה של LifeLog אצל Google, יש להיכנס לדף החיבורים לצד שלישי בחשבון Google.",
   "From Google Calendar": "מ-Google Calendar",
   "Google Calendar": "Google Calendar",
+  "Hide Google Calendar": "הסתרת Google Calendar",
+  "Show Google Calendar": "הצגת Google Calendar",
   "Google Calendar connected": "Google Calendar מחובר",
   "Google Calendar connected as {email}": "Google Calendar מחובר בתור {email}",
   "Google Calendar didn't answer. Try again.": "אין תשובה מ-Google Calendar. כדאי לנסות שוב.",

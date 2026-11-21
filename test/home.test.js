@@ -122,6 +122,20 @@ test("tasks with a date come up, overdue ones first, done and undated ones not",
   assert.strictEqual(Home.comingUp(data, today, deps).length, 0);
 });
 
+test("Google Calendar events come up on their first day, or today while under way, before the day's tasks", () => {
+  const data = { backlog: [], recurringExpenses: [], habits: [], notes: [{ id: "L", kind: "list", text: "Trip", items: [{ id: "a", text: "Pack", date: at(1) }] }] };
+  const ev = (id, start, end, extra = {}) => ({ id, cal: "c", title: id, start, end, time: "", allDay: true, ...extra });
+  const events = [
+    ev("Trip", at(-2), at(2)), ev("Dinner", at(1), at(1), { allDay: false, time: "19:30" }), ev("Over", at(-3), at(-1)),
+    ev("Far", at(30), at(30)), ev("Holiday", at(1), at(1)), ev("Trip", at(-2), at(2)),
+  ];
+  const rows = Home.comingUp(data, today, { ...deps, Tasks, events });
+  assert.deepStrictEqual(rows.map((r) => [r.kind, r.title, r.day]), [
+    ["event", "Trip", today], ["event", "Holiday", at(1)], ["event", "Dinner", at(1)], ["task", "Pack", at(1)]]);
+  assert.strictEqual(rows[2].time, "19:30");
+  assert.strictEqual(Home.comingUp(data, today, { ...deps, Tasks }).filter((r) => r.kind === "event").length, 0);
+});
+
 test("days fall under Today, Tomorrow, This week and Later", () => {
   assert.strictEqual(Home.bucketOf(today, today), "Today");
   assert.strictEqual(Home.bucketOf(at(1), today), "Tomorrow");

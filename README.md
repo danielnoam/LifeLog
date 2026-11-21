@@ -48,7 +48,8 @@ anything from anywhere.
 What's on now, on one page, and where the app opens (a reload stays where
 you were). What you're in the middle of as covers; Coming up for the next
 two weeks, with releases and new episodes known to the day, recurring
-charges and the habits still left; a scratchpad that syncs, with Save to Notebook
+charges, the habits still left and, once it's connected, Google Calendar's events (hidden from the
+panel's menu if you'd rather not); a scratchpad that syncs, with Save to Notebook
 to keep what's in it, or switched to Board to sketch on a board instead
 (Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu;
 a Ledger card with this month's spending so far against last month by the same
