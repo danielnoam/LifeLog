@@ -444,6 +444,7 @@
     "hardcover.category": i18n.t("Hardcover category"), "hardcover.autoSyncDays": i18n.t("Hardcover auto-sync"), "hardcover.connectedAt": i18n.t("Hardcover start time"), "hardcover.username": i18n.t("Hardcover username"),
     "stremio.showCategory": i18n.t("Stremio show category"), "stremio.autoSyncDays": i18n.t("Stremio auto-check"), "stremio.connectedAt": i18n.t("Stremio sign-in time"),
     "waypage.repo": i18n.t("Waypage sync repo"), "waypage.token": i18n.t("Waypage token"), "waypage.kinds": i18n.t("Waypage categories"), "waypage.habit": i18n.t("Waypage minutes habit"),
+    "trello.key": i18n.t("Trello API key"), "trello.token": i18n.t("Trello token"), "trello.lists": i18n.t("Trello lists"), "trello.tick": i18n.t("Trello tick action"), "trello.send": i18n.t("Trello send changes"), "trello.mine": i18n.t("Trello only my cards"), "trello.member": i18n.t("Trello account"), "trello.connectedAt": i18n.t("Trello sign-in time"),
     "releases.autoRefreshDays": i18n.t("release-date refresh"),
     "importSkips.steamWishlist": i18n.t("Steam wishlist skips"), "importSkips.steamOwned": i18n.t("Steam played-games skips"), "importSkips.anilist": i18n.t("AniList skips"), "importSkips.stremio": i18n.t("Stremio skips"), "importSkips.hardcover": i18n.t("Hardcover skips"), "importSkips.bills": i18n.t("Not a bill answers"),
     timelineSort: i18n.t("Timeline sort"), ledgerSort: i18n.t("Ledger sort"), backlogSort: i18n.t("Backlog sort"), currency: i18n.t("Home currency"),
@@ -1009,7 +1010,7 @@
     tabs: i18n.t("Show, hide and order tabs"),
     keyboard: i18n.t("Shortcuts"),
     media: i18n.t("Keys for covers and details"),
-    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage"),
+    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage, Trello"),
     releases: i18n.t("Upcoming release checks"),
   };
 
@@ -1611,6 +1612,7 @@
     if (window.LifeLogConnections) window.LifeLogConnections.renderAll();
     renderMediaCatRows();
     if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
+    if (window.LifeLogTrello) window.LifeLogTrello.renderSettings();
   }
 
   // Shown only while this device is behind the data — the storage line in

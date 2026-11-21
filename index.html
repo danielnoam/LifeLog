@@ -2051,7 +2051,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Connections" data-keywords="connections imports services apps accounts sync">
+      <div class="settings-page" hidden data-page="imports" data-title="Connections" data-keywords="connections imports services apps accounts sync trello">
       <h2 class="settings-page-title" data-t>Connections</h2>
       <p class="hint page-lede" data-t>Apps that keep LifeLog in step. Pick one to set it up and choose what comes in; nothing already here is added twice.</p>
       <section class="sgroup">
@@ -2061,6 +2061,7 @@
           <button type="button" class="srow" data-page="conn-anilist"><span class="srow-ic"><span data-ico="tv"></span></span><span class="srow-text"><span class="srow-title"><span data-t>AniList</span></span><span class="srow-status" data-conn-status="anilist"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Stremio</span></span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-trello"><span class="srow-ic"><span data-ico="square-kanban"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Trello</span></span><span class="srow-status" data-conn-status="trello"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
@@ -2289,6 +2290,57 @@
       </section>
       </div>
 
+      <div class="settings-page" hidden data-page="conn-trello" data-parent="imports" data-title="Trello" data-keywords="trello boards lists cards tasks checklist labels due two-way token api key power-up">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title" data-t>Trello</h2>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Trello account</span></span><span class="sitem-sub" id="trelloState"></span></span>
+          </div>
+          <label class="sitem sitem-stack" id="trelloKeyRow">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>API key</span></span><span class="sitem-sub" data-t>From a Power-Up of yours at trello.com/power-ups/admin, under API key</span></span>
+            <input id="trelloKey" type="text" autocomplete="off" spellcheck="false" placeholder="32 letters and numbers" data-t-attr="placeholder" />
+          </label>
+          <a id="trelloTokenLink" class="sitem sitem-go" href="https://trello.com/1/authorize" target="_blank" rel="noopener"><span data-ico="external-link"></span> <span data-t>Get a token from Trello</span></a>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Token</span></span></span>
+            <input id="trelloToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the token Trello shows you" data-t-attr="placeholder" />
+          </label>
+          <button id="trelloSyncBtn" type="button" class="sitem sitem-go" hidden><span data-ico="refresh-cw"></span> <span data-t>Sync Trello now</span></button>
+          <button id="trelloSignOutBtn" type="button" class="sitem sitem-go" hidden><span data-ico="log-out"></span> <span data-t>Sign out of Trello</span></button>
+        </div>
+        <p class="hint" data-t>Get a token opens Trello: approve LifeLog and paste the token it shows you here. The token can read and change every board you can and doesn't expire, so it syncs like your other keys but is left out of exports; Sign out forgets it here, and Trello → Settings → Applications revokes it.</p>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label" data-t>Lists to bring in</h3>
+        <div id="trelloLists"></div>
+        <p class="hint" data-t>Each list you turn on is a task list in the Notebook. Cards are tasks: the due date is the task's date, named labels are tags, checklist items are subtasks. Turning a list off stops syncing it and keeps its task list.</p>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label" data-t>What goes back to Trello</h3>
+        <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Send my changes to Trello</span></span><span class="sitem-sub" data-t>Ticks, new tasks, edits and deletes</span></span>
+            <input type="checkbox" class="switch" id="trelloSend" />
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>When you tick a task</span></span><span class="sitem-sub" data-t>What happens to its card</span></span>
+            <select id="trelloTick">
+              <option value="complete" data-t>Mark the card complete</option>
+              <option value="move" data-t>Move it to the board's Done list</option>
+              <option value="archive" data-t>Archive the card</option>
+            </select>
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Only cards I'm on</span></span><span class="sitem-sub" data-t>Leave the rest of a shared board out</span></span>
+            <input type="checkbox" class="switch" id="trelloMine" />
+          </label>
+        </div>
+        <p class="hint" data-t>Syncs when the app opens, every few minutes while it's open, and a few seconds after you change a synced list. When a task changed on both sides, the newer change wins. Deleting a task archives its card; nothing is ever deleted on Trello except a checklist item you delete here. A card done, archived, moved off the list or deleted in Trello is ticked or removed here. Move to Done looks for a list named Done on the board and marks the card complete when there isn't one. Priority, repeats, reminders and deadlines stay in LifeLog.</p>
+      </section>
+      </div>
+
       <div class="settings-page" hidden data-page="conn-steam" data-parent="imports" data-title="Steam" data-keywords="steam wishlist owned library played playtime backfill api key how long to beat hltb game times opencritic metacritic scores">
       <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
       <h2 class="settings-page-title" data-t>Steam</h2>
@@ -2481,6 +2533,7 @@
           <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>The New York Times Books API</span></span><span class="sitem-sub"><span data-t>Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></span></a>
           <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Tiingo</span></span><span class="sitem-sub"><span data-t>Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></span></a>
           <a class="sitem sitem-go" href="https://www.iexexchange.io" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>IEX</span></span><span class="sitem-sub"><span data-t>Today's stock prices while the US market is open, through Tiingo. Data provided by IEX</span></span></span></a>
+          <a class="sitem sitem-go" href="https://developer.atlassian.com/cloud/trello/rest/" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Trello</span></span><span class="sitem-sub"><span data-t>Your Trello lists as task lists, both ways, when you sign in</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/calendar" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Calendar</span></span><span class="sitem-sub"><span data-t>Your events on the Timeline's calendar, read only, when you connect it</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/drive" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Drive</span></span><span class="sitem-sub"><span data-t>Where backups go, when you connect it in Sync</span></span></span></a>
         </div>
@@ -3167,6 +3220,7 @@
   <script defer src="src/boards.js?v=0.324.0"></script>
   <script defer src="src/invest.js?v=0.324.0"></script>
   <script defer src="src/waypage.js?v=0.324.0"></script>
+  <script defer src="src/trello.js?v=0.324.0"></script>
   <script defer src="src/home.js?v=0.324.0"></script>
   <script defer src="src/pin.js?v=0.324.0"></script>
   <script defer src="src/recap.js?v=0.324.0"></script>

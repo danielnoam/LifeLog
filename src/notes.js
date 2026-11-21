@@ -598,6 +598,14 @@
     if (n.category) { const dot = el("span", "dot"); dot.style.background = catColor(n.category); left.appendChild(dot); }
     left.appendChild(el("span", "note-list-title", reordering ? i18n.t("Drag to reorder") : (n.text || i18n.t("Untitled list"))));
     if (n.tags && !reordering) left.appendChild(tagPills(n.tags));
+    if (!reordering && window.LifeLogTrello && window.LifeLogTrello.linked(n)) {
+      const b = el("span", "note-trello");
+      b.title = i18n.t("Syncs with Trello");
+      b.setAttribute("role", "img");
+      b.setAttribute("aria-label", i18n.t("Syncs with Trello"));
+      b.append(ico("square-kanban"), el("span", "note-trello-name", i18n.t("Trello")));
+      left.appendChild(b);
+    }
     h.appendChild(left);
     const right = el("span", "mc-right");
     if (!reordering) right.appendChild(favButton(n));
