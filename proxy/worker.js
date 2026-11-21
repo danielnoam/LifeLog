@@ -76,9 +76,11 @@
 //     comes along as the Authorization header, passed through as
 //     SteamGridDB's is.
 //
-//   POST /stremio/<login|logout|datastoreGet>
+//   POST /stremio/<login|logout|datastoreGet|addonCollectionGet|addonCollectionSet>
 //     -> POST https://api.strem.io/api/<method>, the body passed on as it is
-//     The Stremio sync. The browser tries Stremio directly first and comes
+//     The Stremio sync, and adding "LifeLog: Up next" to your account's
+//     add-ons (the list is read, then sent back with the row added). The
+//     browser tries Stremio directly first and comes
 //     here only when that's refused, so your sign-in (email and password,
 //     once) and the auth key Stremio answers with pass through only then.
 //
@@ -186,7 +188,7 @@ export default {
 
     // Stremio's calls are POSTs of JSON from the start, so this one takes a
     // POST and passes its body on as it is.
-    const stremioMatch = url.pathname.match(/^\/stremio\/(login|logout|datastoreGet)$/);
+    const stremioMatch = url.pathname.match(/^\/stremio\/(login|logout|datastoreGet|addonCollectionGet|addonCollectionSet)$/);
     if (stremioMatch && request.method === "POST") {
       const body = (await request.text()).slice(0, 4000);
       return proxyJson(`https://api.strem.io/api/${stremioMatch[1]}`, { "Content-Type": "application/json", Accept: "application/json" }, "POST", body);
