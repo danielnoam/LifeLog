@@ -459,33 +459,72 @@
   // you're signed in to (a TV too) picks it up with nothing to type. The
   // list goes back whole, as Stremio sent it; an older copy of the row (same
   // manifest id, an old worker address) is replaced. Null when it's already
-  // there. Pure.
-  function withUpNext(addons, transportUrl, manifest) {
+  // there. withoutUpNext takes it out again, null when it isn't there. An
+  // empty list is never sent back. Pure.
+  const upNextManifestId = (c) => "app.lifelog.upnext." + String(c.id || "").slice(0, 8);
+  const isUpNext = (a, transportUrl, manifestId) => !!a && (a.transportUrl === transportUrl || (a.manifest && a.manifest.id === manifestId));
+  function checkAddons(addons) {
     if (!Array.isArray(addons) || !addons.length) throw new Error(i18n.t("Stremio sent something unexpected"));
+  }
+  function withUpNext(addons, transportUrl, manifest) {
+    checkAddons(addons);
     if (addons.some((a) => a && a.transportUrl === transportUrl)) return null;
     const keep = addons.filter((a) => !(a && a.manifest && a.manifest.id === manifest.id));
     return [...keep, { transportUrl, transportName: "", manifest, flags: { official: false, protected: false } }];
   }
-  async function installUpNext() {
-    const url = addonUrl(upNextCfg());
-    const authKey = cfgOf().authKey;
+  function withoutUpNext(addons, transportUrl, manifestId) {
+    checkAddons(addons);
+    const keep = addons.filter((a) => !isUpNext(a, transportUrl, manifestId));
+    if (keep.length === addons.length) return null;
+    checkAddons(keep);
+    return keep;
+  }
+  // Whether the row is on the account: null until asked (each time the
+  // page is painted for a new key or address), then true or false.
+  let onAccount = null, askedFor = "";
+  async function accountAddons() {
+    const got = await call("addonCollectionGet", { type: "AddonCollectionGet", authKey: cfgOf().authKey, update: true });
+    return got && got.addons;
+  }
+  async function askOnAccount() {
+    const c = upNextCfg(), url = addonUrl(c), key = cfgOf().authKey;
+    const want = key && c.on && url ? key + " " + url : "";
+    if (!want || want === askedFor) return;
+    askedFor = want;
+    onAccount = null;
+    try {
+      const addons = await accountAddons();
+      if (askedFor === want) onAccount = Array.isArray(addons) && addons.some((a) => isUpNext(a, url, upNextManifestId(c)));
+    } catch (e) { /* the button offers Add; adding finds it there */ }
+    paintUpNext();
+  }
+  async function toggleOnAccount() {
+    const c = upNextCfg(), url = addonUrl(c), authKey = cfgOf().authKey;
     if (!url || !authKey) return;
     const btn = $("stremioUpNextInstall");
     btn.disabled = true;
+    const removing = onAccount === true;
     try {
-      let manifest = null;
-      try { const res = await fetch(url); if (res.ok) manifest = await res.json(); } catch (e) { /* said below */ }
-      if (!manifest || !manifest.id) throw new Error(i18n.t("Couldn't reach your worker"));
-      const got = await call("addonCollectionGet", { type: "AddonCollectionGet", authKey, update: true });
-      const addons = withUpNext(got && got.addons, url, manifest);
-      if (!addons) { ctx.toast(i18n.t("Already on your Stremio account")); return; }
-      await call("addonCollectionSet", { type: "AddonCollectionSet", authKey, addons });
-      ctx.toast(i18n.t("Added to your Stremio account. Open Stremio on your TV and the row shows up"));
+      if (removing) {
+        const addons = withoutUpNext(await accountAddons(), url, upNextManifestId(c));
+        if (addons) await call("addonCollectionSet", { type: "AddonCollectionSet", authKey, addons });
+        onAccount = false;
+        ctx.toast(i18n.t("Removed from your Stremio account"));
+      } else {
+        let manifest = null;
+        try { const res = await fetch(url); if (res.ok) manifest = await res.json(); } catch (e) { /* said below */ }
+        if (!manifest || !manifest.id) throw new Error(i18n.t("Couldn't reach your worker"));
+        const addons = withUpNext(await accountAddons(), url, manifest);
+        if (addons) await call("addonCollectionSet", { type: "AddonCollectionSet", authKey, addons });
+        onAccount = true;
+        ctx.toast(addons ? i18n.t("Added to your Stremio account. Open Stremio on your TV and the row shows up") : i18n.t("Already on your Stremio account"));
+      }
     } catch (e) {
       if (e.signedOut) { await setSetting("authKey", ""); renderSettings(); }
-      ctx.toast(i18n.t("Couldn't add it to Stremio — {why}", { why: e.message }), true);
+      ctx.toast((removing ? i18n.t("Couldn't remove it from Stremio — {why}", { why: e.message }) : i18n.t("Couldn't add it to Stremio — {why}", { why: e.message })), true);
     } finally {
       btn.disabled = false;
+      paintUpNext();
     }
   }
 
@@ -527,9 +566,14 @@
     const url = addonUrl(c);
     $("stremioUpNext").checked = !!c.on;
     $("stremioUpNextState").textContent = !c.on ? i18n.t("Off") : !workerUrl() ? i18n.t("Needs your proxy URL in Media lookups") : upNextLast || i18n.t("On");
-    $("stremioUpNextAdd").hidden = $("stremioUpNextCopy").hidden = !(c.on && url);
-    $("stremioUpNextInstall").hidden = !(c.on && url && cfgOf().authKey);
+    // The account button needs the sign-in; opening the app works on its own.
+    const signedIn = !!cfgOf().authKey;
+    $("stremioUpNextInstall").hidden = !(c.on && url && signedIn);
+    $("stremioUpNextAdd").hidden = !(c.on && url);
     if (url) $("stremioUpNextAdd").href = url.replace(/^https?:\/\//, "stremio://");
+    $("stremioUpNextInstallLabel").textContent = onAccount === true ? i18n.t("Remove from my Stremio account") : i18n.t("Add to my Stremio account");
+    $("stremioUpNextInstallSub").textContent = onAccount === true ? i18n.t("Takes it off every Stremio you're signed in to") : i18n.t("Shows up on every Stremio you're signed in to, your TV too");
+    if (c.on && url && signedIn) askOnAccount();
   }
 
   // ---------- Settings → Connections → Stremio ----------
@@ -610,11 +654,7 @@
       paintUpNext();
       if (on) pushUpNext({ manual: true });
     };
-    $("stremioUpNextCopy").onclick = async () => {
-      try { await navigator.clipboard.writeText(addonUrl(upNextCfg())); ctx.toast(i18n.t("Add-on link copied. In Stremio: Add-ons → paste it in the search box")); }
-      catch (e) { ctx.toast(i18n.t("Couldn't copy the link"), true); }
-    };
-    $("stremioUpNextInstall").onclick = installUpNext;
+    $("stremioUpNextInstall").onclick = toggleOnAccount;
     if (window.LifeLogJobs && window.LifeLogJobs.onAgain) window.LifeLogJobs.onAgain("stremioSyncBtn", () => sync({ manual: true }));
   }
 
@@ -626,7 +666,7 @@
     setTimeout(async () => { if (ctx.whenSynced) await ctx.whenSynced(); pushUpNext(); }, 4000);
   }
 
-  const api = { readLibrary, episodesWatched, planStremio, buildRows, due, dayOf, start, sync, maybeAutoCheck, renderSettings, upNextItems, upNextRow, withUpNext, upNextChanged, pushUpNext };
+  const api = { readLibrary, episodesWatched, planStremio, buildRows, due, dayOf, start, sync, maybeAutoCheck, renderSettings, upNextItems, upNextRow, withUpNext, withoutUpNext, upNextChanged, pushUpNext };
   if (typeof window !== "undefined") window.LifeLogStremio = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

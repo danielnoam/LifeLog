@@ -167,6 +167,11 @@ test("Up next on the account: the list goes back whole with the row added, an ol
   assert.strictEqual(S.withUpNext(next, url, manifest), null);
   assert.throws(() => S.withUpNext([], url, manifest), "an empty list is never sent back");
   assert.throws(() => S.withUpNext(undefined, url, manifest));
+  const back = S.withoutUpNext(next, url, manifest.id);
+  assert.deepStrictEqual(back, [cinemeta], "Remove takes only the row off");
+  assert.strictEqual(S.withoutUpNext([cinemeta, old], url, manifest.id).length, 1, "an old copy goes too");
+  assert.strictEqual(S.withoutUpNext([cinemeta], url, manifest.id), null);
+  assert.throws(() => S.withoutUpNext([old], url, manifest.id), "never leaves the account with no add-ons");
 });
 
 console.log(`\n${passed} passed`);
