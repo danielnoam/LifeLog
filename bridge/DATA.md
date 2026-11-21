@@ -408,6 +408,26 @@ books' status, or their %, alone). `never` values are the book's title
 when known (true otherwise); `lifelog_waypage_unlink` puts a book there,
 `lifelog_waypage_allow` takes it off.
 
+`trello` (Nov 2026) is the Trello connection (`src/trello.js`): `key` (a
+Trello API key typed in, "" uses the app's own), `token` (reads and writes
+every board the user can; blanked in exports like the others), `member`
+(`{ id, username, fullName }`), `connectedAt`, `lists` (the Trello lists
+that come in, each `{ id, name, board, boardName }`), `tick` ("complete",
+"move" to the board's Done list, or "archive": what ticking a task does to
+its card), `send` (false reads only) and `mine` (true keeps only cards the
+user is a member of). `lifelog_trello` shows it without the token.
+Each list is a task list note with `trello: { list, board, cards }`
+(`cards`: the card ids it had at the last sync, so a task deleted here
+archives its card) and id `trello-<list id>`. A task from a card has id
+`trello-<card id>` and `trello: { card, board, base, checks, gone? }`:
+`base` is what Trello had at the last sync (`name`, `desc`, `due`, `done`,
+`labels`), which is how the app tells a change here from one there;
+`checks` the checklist item ids its subtasks came from; `gone` true once
+the card is archived or off the list. A subtask from a checklist item has
+`trello: { check, checklist, base: { name, done } }`. Leave `trello` as it
+is when changing a task: the app sends the change at its next sync. A new
+task on such a list becomes a card; one deleted archives its card.
+
 Hardcover, AniList, Stremio and Steam's settings may also hold the
 Connections screen's What comes in: `newMode` ("ask", "add" or "none"),
 `take` ({ status: false } for a list status left out) and, for Hardcover

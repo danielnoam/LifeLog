@@ -24,6 +24,7 @@
   const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
   const Stremio = window.LifeLogStremio || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
   const Hardcover = window.LifeLogHardcover || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
+  const Trello = window.LifeLogTrello || { init() {}, wire() {}, start() {}, changed() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -1518,6 +1519,7 @@
     Storage._cache(state.data);
     lastPersistedSnapshot = structuredClone(state.data);
     Widgets.changed();
+    Trello.changed();
     saveDirty = true;
     if (!saveJob && Storage.githubConnected && window.LifeLogJobs) {
       saveJob = window.LifeLogJobs.begin({ label: i18n.t("Saving to GitHub"), listed: false, stoppable: false });
@@ -4533,7 +4535,7 @@
     // stale source of truth for the same question.
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
-    "mediaKeys", "steam", "anilist", "waypage", "healthConnect", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
+    "mediaKeys", "steam", "anilist", "waypage", "trello", "healthConnect", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
     "weekStart", "dateFormat", "scratchpad", "keys", "tagNames",
   ]);
@@ -4632,6 +4634,8 @@
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
       // What Health Connect put into each linked habit, per day (health.js).
       healthConnect: window.LifeLogHealth ? window.LifeLogHealth.cleanConfig(incomingSettings.healthConnect) : { filled: {}, ...(incomingSettings.healthConnect || {}) },
+      // Trello lists as task lists (Nov 2026, trello.js).
+      ...(incomingSettings.trello && window.LifeLogTrello ? { trello: window.LifeLogTrello.cleanConfig(incomingSettings.trello) } : {}),
       // Per import source, the "source:id" keys you left unticked (0.257.0).
       importSkips: Object.fromEntries(Object.entries(incomingSettings.importSkips && typeof incomingSettings.importSkips === "object" ? incomingSettings.importSkips : {})
         .filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.filter((x) => typeof x === "string")])),
@@ -5080,6 +5084,7 @@
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
     Waypage.wire(); // its group on Settings → Connections
     Health.wire(); // Settings → Connections → Health Connect, and its link sheet
+    Trello.wire(); // its page on Settings → Connections
 
     $("#exportJsonBtn").onclick = IO.exportJson;
     $("#exportIcsBtn").onclick = IO.exportIcs;
@@ -5968,6 +5973,7 @@
     Hardcover.maybeAutoCheck(); // same — the Hardcover library, both ways
     Waypage.start(); // same — the reading log from Waypage, every few minutes while open (0.313.0)
     Health.start(); // same — Health Connect's steps, workouts and sleep into linked habits (Android)
+    Trello.start(); // same — Trello lists as task lists, both ways, every few minutes while open
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
     Invest.checkTargets(); // same — the watched tickers with a target
@@ -6540,6 +6546,8 @@
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Health.init({ state, $, el, toast, persist, afterDataChange, render, Platform,
+    whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
+  Trello.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, toast, viewEnabled, modeEnabled });
   Stremio.start({
