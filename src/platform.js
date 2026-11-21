@@ -213,7 +213,8 @@
       req = { url: target.url + "?client_id=" + id + "&client_secret=" + secret + "&grant_type=client_credentials", method: "POST", headers: {} };
     } else if (target.bodyFromInit) {
       let body = {};
-      try { body = JSON.parse(String((init && init.body) || "{}").slice(0, 4000)); } catch (e) { /* sent as nothing */ }
+      // Whole: a Stremio add-on list runs to tens of KB (see proxy/worker.js).
+      try { body = JSON.parse(String((init && init.body) || "{}").slice(0, 1000000)); } catch (e) { /* sent as nothing */ }
       req = { url: target.url, method: "POST", data: body, headers: { "Content-Type": "application/json", Accept: "application/json" } };
     } else if (typeof target === "object") {
       // A JSON body goes as an object: CapacitorHttp serializes it itself.

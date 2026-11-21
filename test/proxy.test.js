@@ -82,6 +82,15 @@ test("/stremio/<method> passes a POST's body on to Stremio", async () => {
   assert.strictEqual(sent[0].init.body, body);
 });
 
+test("/stremio passes a big add-on list on whole", async () => {
+  sent.length = 0;
+  const addons = Array.from({ length: 40 }, (_, i) => ({ transportUrl: "https://a" + i + ".example/manifest.json", manifest: { id: "a" + i, description: "x".repeat(1500) } }));
+  const body = JSON.stringify({ type: "AddonCollectionSet", authKey: "K", addons });
+  assert.ok(body.length > 50000);
+  await call("/stremio/addonCollectionSet", { method: "POST", body, headers: { "Content-Type": "application/json" } });
+  assert.strictEqual(sent[0].init.body, body);
+});
+
 test("/stremio only takes the methods LifeLog uses", async () => {
   assert.strictEqual((await call("/stremio/datastorePut", { method: "POST", body: "{}" })).status, 404);
   assert.strictEqual((await call("/stremio/addonCollectionSet", { method: "POST", body: "{}" })).status, 200);
