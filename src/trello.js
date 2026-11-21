@@ -40,7 +40,7 @@
   // LifeLog's own Trello API key (a Power-Up's). It names the app, it isn't
   // a secret: Trello's own docs put it in browser code. A key typed in
   // Settings wins, for anyone running their own copy.
-  const APP_KEY = "";
+  const APP_KEY = "9bc8661da2c9db5df30acc2b08ee8e6d";
   const API = "https://api.trello.com/1";
   const TICKS = ["complete", "move", "archive"];
   // tick: what ticking a task does to its card. send: false reads only.
