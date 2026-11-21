@@ -136,6 +136,14 @@ everything else follows from it:
   `:root[dir="rtl"]` block at the end of styles.css, and so do the switch
   knob and the mode slide.
 
+## The app's home
+
+index.html's `keel-site` and `keel-repo` metas name where the web copy
+lives and its repo: installed copies look for unreleased builds there and
+link to it. Before moving the repo to an organization or a custom domain,
+change both and ship a release; GitHub redirects the repo, not its Pages
+address (keel README, "Moving an app").
+
 ## Tests
 
 ```bash
