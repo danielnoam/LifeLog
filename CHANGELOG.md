@@ -3,6 +3,20 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.326.0] - 2026-11-21
+
+### Added
+- Settings → Connections → Stremio → Up next: **Add to my Stremio account** (it turns into Remove once added) puts the LifeLog: Up next add-on in your Stremio account's add-ons, so Stremio on a TV (or anywhere you're signed in) gets it with no link to type. Needs you signed in to Stremio in LifeLog; your other add-ons are kept as they are. The web proxy passes Stremio's add-on list calls on (redeploys itself from main).
+- Notebook → View → Trello lists: Separate (the default), a group of their own after Favourites, or In their months like other notes. Per device; the row shows once a Trello list syncs.
+
+### Changed
+- Up next's other button is now **Open in the Stremio app** (installs it on that phone or computer only), shown only when you're not signed in to Stremio, since the account button does the same. Copy the add-on link is gone.
+- A Trello list's badge sits beside its star.
+- Settings → Connections is grouped by direction: Both ways (Hardcover, AniList, Trello), Read only (Stremio, Waypage, Steam, Google Calendar, Health Connect, Google Wallet) and From a file (Letterboxd). Google Wallet was wrongly under one-time imports. Rows now say "read only" only when a two-way app is set to read only.
+
+### Fixed
+- In the Windows app, a middle click on a link (a store page, a review score, a link in a note) opens it in your browser, like a normal click.
+
 ## [0.325.0] - 2026-11-21
 
 ### Added
