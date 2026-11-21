@@ -13,6 +13,7 @@
   let open = null;   // { sel, root, list, items, active, sheet }
   let touch = null;  // the touch that started on a select, to tell a tap from a scroll
   let typed = "", typedAt = 0;
+  let shutByLabel = null; // the select a press on its own label just closed
 
   const ours = (t) => t instanceof HTMLSelectElement && !t.multiple && t.size <= 1 && !t.disabled;
   const html = () => document.documentElement.classList;
@@ -267,7 +268,11 @@
 
   // ----- catching the press that would open the browser's list -----
   document.addEventListener("mousedown", (e) => {
-    if (open && !open.root.contains(e.target) && e.target !== open.sel) close(false);
+    shutByLabel = null;
+    if (open && !open.root.contains(e.target) && e.target !== open.sel) {
+      if (labelledSelect(e.target) === open.sel) shutByLabel = open.sel;
+      close(false);
+    }
     if (e.button !== 0 || !ours(e.target)) return;
     e.preventDefault();
     e.target.focus({ preventScroll: true });
@@ -302,8 +307,25 @@
     }
   }, true);
 
-  // A press on a <label> wrapping a select only focuses it; the browser
-  // wouldn't open its list there either, so neither does this.
+  // A press on the <label> of a select (the whole Settings row) is passed on
+  // to the select by the browser, and Windows' WebView2 and Android's WebView
+  // open their own list for it. Take that click and open ours instead; a
+  // press on the label while ours is open just closes it.
+  function labelledSelect(t) {
+    const lab = t instanceof Element && t.closest("label");
+    if (!lab || t.closest("a, button, input, select, textarea")) return null;
+    const sel = lab.control;
+    return ours(sel) ? sel : null;
+  }
+  document.addEventListener("click", (e) => {
+    const sel = labelledSelect(e.target);
+    if (!sel) return;
+    e.preventDefault();
+    if (shutByLabel === sel) { shutByLabel = null; return; }
+    sel.focus({ preventScroll: true });
+    openFor(sel);
+  }, true);
+
   const shut = () => close(false);
   addEventListener("resize", shut);
   addEventListener("blur", shut);
