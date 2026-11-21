@@ -155,4 +155,18 @@ test("Up next: waiting movies and shows, starred first, then oldest; started, dr
   assert.deepStrictEqual(S.upNextItems(data, {}).map((x) => x.b.id), ["c", "b", "d", "a", "f"].filter((id) => id !== "d"), "no categories picked: any TMDB title");
 });
 
+test("Up next on the account: the list goes back whole with the row added, an old copy replaced, nothing when it's there", () => {
+  const cinemeta = { transportUrl: "https://v3-cinemeta.strem.io/manifest.json", manifest: { id: "com.linvo.cinemeta" }, flags: { official: true, protected: true } };
+  const old = { transportUrl: "https://old.example/upnext/aa/manifest.json", manifest: { id: "app.lifelog.upnext.abcd1234" } };
+  const url = "https://w.example/upnext/aa/manifest.json";
+  const manifest = { id: "app.lifelog.upnext.abcd1234", name: "LifeLog: Up next" };
+  const next = S.withUpNext([cinemeta, old], url, manifest);
+  assert.deepStrictEqual(next.map((a) => a.transportUrl), [cinemeta.transportUrl, url]);
+  assert.strictEqual(next[0], cinemeta, "the others go back as Stremio sent them");
+  assert.deepStrictEqual(next[1].flags, { official: false, protected: false });
+  assert.strictEqual(S.withUpNext(next, url, manifest), null);
+  assert.throws(() => S.withUpNext([], url, manifest), "an empty list is never sent back");
+  assert.throws(() => S.withUpNext(undefined, url, manifest));
+});
+
 console.log(`\n${passed} passed`);

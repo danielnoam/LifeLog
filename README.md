@@ -440,11 +440,13 @@ list gets the window too, its map beside the list.
   you're partway through to In progress with the episode you're on, and
   watched movies to the Timeline on the day you last played them, all
   through the review. Stremio keeps only the last play, so earlier watches
-  aren't there. Nothing is written to Stremio. It uses the API Stremio's
+  aren't there. The sync never writes to Stremio. It uses the API Stremio's
   own apps use, which isn't public.
   Turn on **LifeLog: Up next** and Stremio's home screen gets a row of the
   movies and shows waiting in your Backlog, from an add-on your proxy
-  worker serves (it needs a KV namespace; see proxy/README.md).
+  worker serves (it needs a KV namespace; see proxy/README.md). **Add to my
+  Stremio account** puts it in your account's add-ons, so a Stremio on a TV
+  gets it with nothing to type.
 - **Waypage reading log**: with Share reading activity on in
   [Waypage](https://github.com/danielnoam/waypage), what you read there
   comes in by itself, with a read-only token for its sync repo. A book in
@@ -674,7 +676,7 @@ you add it in **Settings → Media lookups**.
 | Hardcover | yes (your API token, expires) + CORS proxy in a browser | books: series, next in the series, trending in Discover |
 | Tiingo | yes (free, personal use); CORS proxy in a browser | the Ledger's watchlist: daily stock and ETF prices |
 | Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime and manga, music |
-| Stremio | your sign-in (only its key is kept) | your movie and show library and what you've watched, read only |
+| Stremio | your sign-in (only its key is kept) | your movie and show library and what you've watched, read only; adds the Up next add-on to your account when you ask |
 
 Steam's endpoints and SteamGridDB send no CORS headers, so on the web the
 wishlist import, Steam dates, prices and game times need a proxy you host:
