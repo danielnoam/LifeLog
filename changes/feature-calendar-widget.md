@@ -1,2 +1,0 @@
-### Added
-- Calendar widget on Android: your Google Calendar events, or this phone's own calendars, together with tasks due, backlog releases and next episodes and what you finished, as an agenda of today and the days ahead or as a month with marks under each day. Pick the layout and where the events come from in the widget's settings; the phone's calendars ask for calendar permission, are read on the phone and never leave it. A tap opens that day on the Timeline calendar. Android only: Windows and the web have no home screen widgets, and the iPhone widgets didn't get it.
