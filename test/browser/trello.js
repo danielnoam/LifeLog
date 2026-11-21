@@ -62,13 +62,13 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   const where = () => page.evaluate((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year; }, L);
   const group = (v) => page.evaluate((v) => { const s = document.querySelector("#noteTrelloGroup"); s.value = v; s.dispatchEvent(new Event("change")); }, v);
   const inMonth = () => page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && /^\d{4}$/.test(c.closest(".year-block").dataset.year); }, L, { timeout: 5000 }).catch(() => {});
-  await page.waitForSelector('.year-block[data-year="trello"]', { timeout: 3000 }).catch(() => {});
+  await page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year === "trello"; }, L, { timeout: 5000 }).catch(() => {});
   const order = await page.$$eval(".year-block", (xs) => [...new Set(xs.map((x) => x.dataset.year))]);
   check("by default the lists are Separate: a Trello block after Favourites, before the years", await where() === "trello" && order[0] === "favourites" && order[1] === "trello", { at: await where(), order });
   await group("off"); await inMonth();
   check("View → Trello lists → In their months puts it in its month", /^\d{4}$/.test(await where()), await where());
   await group("on");
-  await page.waitForSelector('.year-block[data-year="trello"]', { timeout: 3000 }).catch(() => {});
+  await page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year === "trello"; }, L, { timeout: 5000 }).catch(() => {});
   check("and Separate again, back in the Trello block", await where() === "trello", await where());
   await card.locator(".todo-row", { hasText: "Order the sink" }).locator(".todo-check").first().click();
   await until(() => sent.length);
