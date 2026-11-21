@@ -217,8 +217,12 @@
     try { data = await res.json(); } catch (e) { /* said below */ }
     if (data && data.error) {
       const msg = String(data.error.message || data.error || "").slice(0, 160);
-      const err = new Error(/session|auth/i.test(msg) ? i18n.t("Stremio signed you out. Sign in again") : msg || i18n.t("Stremio said no"));
-      err.signedOut = /session|auth/i.test(msg);
+      // Only Stremio's "Session does not exist" means the key is dead; other
+      // answers that mention auth (a refused add-on list) keep it.
+      const signedOut = /session/i.test(msg);
+      const err = new Error(signedOut ? i18n.t("Stremio signed you out. Sign in again") : msg || i18n.t("Stremio said no"));
+      err.signedOut = signedOut;
+      err.said = msg;
       throw err;
     }
     if (!res.ok || !data) throw new Error(i18n.t("Stremio answered {status}", { status: res.status }));
@@ -520,8 +524,10 @@
         ctx.toast(addons ? i18n.t("Added to your Stremio account. Open Stremio on your TV and the row shows up") : i18n.t("Already on your Stremio account"));
       }
     } catch (e) {
-      if (e.signedOut) { await setSetting("authKey", ""); renderSettings(); }
-      ctx.toast((removing ? i18n.t("Couldn't remove it from Stremio — {why}", { why: e.message }) : i18n.t("Couldn't add it to Stremio — {why}", { why: e.message })), true);
+      // The key stays: Sync is what finds out it's dead. Stremio's own words
+      // are shown, so a refusal can be told from a sign-out.
+      const why = e.said ? i18n.t("Stremio said: {said}", { said: e.said }) : e.message;
+      ctx.toast((removing ? i18n.t("Couldn't remove it from Stremio — {why}", { why }) : i18n.t("Couldn't add it to Stremio — {why}", { why })), true);
     } finally {
       btn.disabled = false;
       paintUpNext();

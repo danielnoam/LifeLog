@@ -43,6 +43,7 @@ const TMDB = {
   const calls = [];
   const CINEMETA = { transportUrl: "https://v3-cinemeta.strem.io/manifest.json", manifest: { id: "com.linvo.cinemeta", name: "Cinemeta" }, flags: { official: true, protected: true } };
   let account = [CINEMETA];
+  let refuseOnce = true;
   await page.route("https://w.example/**", (r) => {
     const u = new URL(r.request().url());
     const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, X-LifeLog-Key" };
@@ -60,7 +61,10 @@ const TMDB = {
     if (method === "datastoreGet") return body.authKey === "KEY123" ? json({ result: LIBRARY }) : json({ error: { message: "Session does not exist", code: 1 } });
     if (method === "logout") return json({ result: { success: true } });
     if (method === "addonCollectionGet") return json({ result: { addons: account } });
-    if (method === "addonCollectionSet") { account = body.addons; return json({ result: { success: true } }); }
+    if (method === "addonCollectionSet") {
+      if (refuseOnce) { refuseOnce = false; return json({ error: { message: "Not authorized to change official add-ons", code: 9 } }); }
+      account = body.addons; return json({ result: { success: true } });
+    }
     return r.fulfill({ status: 404, body: "{}" });
   });
   await page.route("https://api.themoviedb.org/**", (r) => {
@@ -124,14 +128,17 @@ const TMDB = {
   await page.click("#stremioUpNext"); await page.waitForTimeout(600);
   check("Up next on and signed in: Add to my Stremio account shows", await page.isVisible("#stremioUpNextInstall"));
   await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
-  const sets = calls.filter((c) => c.method === "addonCollectionSet");
+  const toastText = await page.evaluate(() => [...document.querySelectorAll(".toast")].map((t) => t.textContent).join(" | "));
+  check("a refusal that mentions auth keeps the key and shows Stremio's words", ((await data()).settings.stremio || {}).authKey === "KEY123" && /Not authorized to change/.test(toastText) && await page.isVisible("#stremioUpNextInstall"), toastText);
+  await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
+  const sets = calls.filter((c) => c.method === "addonCollectionSet").slice(1);
   const sent = sets.length ? sets[0].body : {};
   check("the add-on list goes back whole with the row added", sets.length === 1 && sent.authKey === "KEY123" && sent.addons.length === 2 && sent.addons[0].transportUrl === CINEMETA.transportUrl && sent.addons[0].flags.protected === true
     && /^https:\/\/w\.example\/upnext\/[a-f0-9]{24}\/manifest\.json$/.test(sent.addons[1].transportUrl) && sent.addons[1].manifest.id === "app.lifelog.upnext.x", sent);
   check("then it offers Remove", /Remove/.test(await page.textContent("#stremioUpNextInstall")));
   check("no Copy the link any more; signed in, no Open in the Stremio app either", !(await page.$("#stremioUpNextCopy")) && !(await page.isVisible("#stremioUpNextAdd")));
   await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
-  const sets2 = calls.filter((c) => c.method === "addonCollectionSet");
+  const sets2 = calls.filter((c) => c.method === "addonCollectionSet").slice(1);
   check("Remove sends the list back without the row", sets2.length === 2 && JSON.stringify(sets2[1].body.addons) === JSON.stringify([CINEMETA]), sets2.map((c) => c.body));
   check("and offers Add again", /Add to my/.test(await page.textContent("#stremioUpNextInstall")));
 
