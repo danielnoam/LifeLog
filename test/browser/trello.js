@@ -95,6 +95,14 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   const status = await page.evaluate(() => window.LifeLogConnections.status("trello").text);
   check("the Connections row says what it's doing", /@reader · 1 list$/.test(status), status);
 
+  await page.locator("#trelloLists .sitem", { hasText: "To do" }).locator("input").click({ force: true });
+  await page.waitForTimeout(300);
+  d = await data();
+  check("turning a list off takes its task list out of the Notebook", !d.notes.some((x) => x.trello && x.trello.list === L) && !d.settings.trello.lists.length, d.notes.map((x) => x.id));
+  await page.click(".toast-action");
+  await page.waitForFunction((L) => (window.LifeLogStorage.cachedCopy().notes || []).some((x) => x.id === "trello-" + L), L, { timeout: 3000 }).catch(() => {});
+  d = await data();
+  check("and Undo puts the list and its tasks back", d.notes.some((x) => x.id === "trello-" + L && x.items.length === 3) && d.settings.trello.lists.length === 1, d.settings.trello.lists);
   await page.click("#trelloSignOutBtn"); await page.waitForTimeout(500);
   d = await data();
   check("Sign out forgets the token and keeps the task list", !d.settings.trello.token && d.notes.some((x) => x.id === "trello-" + L));

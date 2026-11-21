@@ -627,14 +627,29 @@
         sw.checked = on.has(l.id);
         sw.onchange = async () => {
           const cur = cfgNow();
+          const was = cur.lists.find((x) => x.id === l.id);
           cur.lists = sw.checked
             ? [...cur.lists.filter((x) => x.id !== l.id), { id: l.id, name: l.name, board: l.board || g.id, boardName: l.boardName || g.name }]
             : cur.lists.filter((x) => x.id !== l.id);
+          // Off takes its task list out of the Notebook too (Daniel,
+          // 2026-11-21: a kept copy read as a duplicate); Undo puts both back.
+          const gone = sw.checked ? [] : (state.data.notes || []).filter((x) => x.trello && x.trello.list === l.id);
+          if (gone.length) state.data.notes = state.data.notes.filter((x) => !gone.includes(x));
           await save(cur);
           paintStatus();
           if (sw.checked) await check({ manual: true });
           paintLists();
-          if (!sw.checked) toast(i18n.t("Stopped syncing {name}. Its task list stays", { name: l.name }));
+          if (gone.length) render();
+          if (!sw.checked) toast(i18n.t("Stopped syncing {name}", { name: l.name }), false, { label: i18n.t("Undo"), onClick: async () => {
+            const c2 = cfgNow();
+            if (was && !c2.lists.some((x) => x.id === l.id)) c2.lists = [...c2.lists, was];
+            const ids = new Set((state.data.notes || []).map((x) => x.id));
+            state.data.notes = [...gone.filter((x) => !ids.has(x.id)), ...(state.data.notes || [])];
+            await save(c2);
+            paintStatus();
+            paintLists();
+            render();
+          } });
         };
         r.append(t, sw);
         card.appendChild(r);
