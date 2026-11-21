@@ -252,6 +252,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Settings → Sync shows how much room the GitHub repo has left of its 5 GB, with a bar that turns yellow past 90%, and Space on GitHub breaks it down (each part of your data, pictures with Clean up, history as a rough figure); bridge tool lifelog_sync_space (0.316.0)
 - Google Drive backups in Settings → Sync: Back up now or automatic (daily to monthly), last three kept plus one a week old, restore as a new save, delete; drive.file scope only; browser, Android and Windows app (0.316.0)
 - Privacy and Terms pages on the web app (privacy.html, terms.html), linked from Google's sign-in screen (0.317.0)
+- Settings → Sync → Erase this device, synced or not: the data, its past saves, pictures, connections and keys go from this device only, the look and language stay, and it reopens empty; with no other copy it says so and asks for the word erase; web, Windows and Android (next release)
 
 ## Privacy and security
 
@@ -262,6 +263,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Exports and the phone backup leave out API keys (0.260.0)
 - The apps stay out of the phone's cloud backup (0.261.0)
 - Content Security Policy (0.263.0)
+- The app lock's Forgot PIN reset also clears History's past saves on the device, which could hand the data back (next release)
 
 ## Settings
 
