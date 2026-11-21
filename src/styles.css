@@ -427,6 +427,12 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 .jump-nav { display: none; }
 
 .views { display: flex; gap: 4px; order: 2; }
+/* The phone's sliding indicator (see the mobile blocks). Out of the flow on
+   every layout: on a computer it draws nothing, but app.js still sizes it to
+   the active tab, and in the row it widened the tab bar by that tab's width,
+   so the search box, and whether the tabs dropped to icons, changed with
+   the tab you were on. */
+.tab-underline { position: absolute; }
 .tab {
   position: relative; display: inline-flex; align-items: center; gap: 7px;
   background: transparent; border: none; color: var(--text-dim);
@@ -434,6 +440,10 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
      pill; every tab gets it so the row stays one height. */
   padding: 8px 14px 12px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-md);
   font-weight: 550; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  /* A two-word name ("ציר זמן") broke onto a second line before the row
+     counted as full, making the bar taller instead of dropping the tabs to
+     icons (.is-tight). */
+  white-space: nowrap;
 }
 /* Search-match count on a tab other than the one you're looking at — lets
    a search typed on one view surface that it also matches things in
