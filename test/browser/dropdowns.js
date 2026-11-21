@@ -76,6 +76,17 @@ async function seed(page) {
   check("and picking there runs the field's own handler (theme changes)", await page.evaluate(() => document.documentElement.classList.contains("theme-nord")));
   check("the sheet stays open", !(await page.isHidden("#settingsModal")));
 
+  // A press on the row's label, not the field, opened the system's own list
+  // in the Windows app; it must open ours too, and a second press closes it.
+  const themeTitle = page.locator("label.sitem:has(#themeSelect) .sitem-title");
+  await themeTitle.click(); await page.waitForTimeout(150);
+  check("a click on a select's label opens the app's list", await page.isVisible(".dd-pop"));
+  check("for that select", (await page.textContent('.dd-pop .dd-opt[aria-selected="true"]')) === "Nord");
+  await page.evaluate(() => { window.__labelClick = null; document.addEventListener("click", (e) => { if (e.target.closest("label.sitem")) window.__labelClick = e.defaultPrevented; }); });
+  await themeTitle.click(); await page.waitForTimeout(250);
+  check("a second click on the label closes it", (await page.$(".dd-pop")) === null);
+  check("and the browser's own handling of the label is stopped", (await page.evaluate(() => window.__labelClick)) === true);
+
   const phone = await b.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   phone.on("pageerror", (e) => errs.push("phone pageerror: " + e.message));
   await seed(phone);
@@ -90,6 +101,11 @@ async function seed(page) {
   await phone.locator(".sort-select:visible").first().tap(); await phone.waitForTimeout(300);
   await phone.mouse.click(195, 60); await phone.waitForTimeout(300);
   check("a tap on the dimmed page closes it", (await phone.$(".dd-sheet")) === null);
+
+  await phone.locator("#settingsBtn").tap(); await phone.waitForTimeout(400);
+  await phone.locator('.srow[data-page="appearance"]').tap(); await phone.waitForTimeout(400);
+  await phone.locator("label.sitem:has(#themeSelect) .sitem-title").tap(); await phone.waitForTimeout(300);
+  check("on a phone a tap on a select's label opens the sheet", await phone.isVisible(".dd-sheet"));
 
   check("no console errors", errs.length === 0, errs);
   await b.close();
