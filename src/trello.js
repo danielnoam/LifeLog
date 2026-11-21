@@ -371,16 +371,21 @@
         }
       }
     }
-    // Tasks whose card isn't on its list any more.
+    // Tasks whose card isn't on its list any more leave it, as in Trello
+    // (Daniel, 2026-11-21: archived and moved cards stayed as ticked tasks).
+    // Only one unticked here after it left stays, and its card comes back.
     for (const [listId, n] of noteOf) {
       if (!remote.lists[listId]) continue;
       for (const it of [...n.items]) {
         const id = it.trello && it.trello.card;
         if (!id || onLists.has(id) || it.parent) continue;
-        if (!(id in remote.cards)) continue; // not asked about (done, and already off the list)
+        if (it.done && it.trello.gone) { drop(n, it); continue; }
+        if (!(id in remote.cards)) continue;
         const card = remote.cards[id];
         if (card === null) { drop(n, it); continue; }
         if (card.idList === listId && !card.closed && !mineOk(card)) { drop(n, it); continue; }
+        const reopened = !it.done && it.trello.base && it.trello.base.done;
+        if ((card.closed || card.idList !== listId) && !(reopened && cfg.send)) { drop(n, it); continue; }
         if (whereCard.get(id).n === n) oneCard(n, it, card, listId);
       }
     }
@@ -428,7 +433,7 @@
       for (const it of n.items || []) {
         const id = it.trello && it.trello.card;
         if (!id || on.has(id) || it.parent) continue;
-        if (it.done && it.trello.gone) continue;
+        if (it.done && it.trello.gone) continue; // leaves without asking
         out.push(id);
       }
     }
@@ -704,6 +709,16 @@
   }
 
   // Whether a note is a list that's syncing with Trello now (its badge).
+  // A list has no page of its own on Trello, so its board's.
+  function open(n) {
+    const board = n && n.trello && n.trello.board;
+    if (!/^[0-9a-f]{24}$/i.test(String(board || ""))) return false;
+    const url = "https://trello.com/b/" + board;
+    const P = window.LifeLogPlatform;
+    if (P && P.openOutside) return P.openOutside(url);
+    window.open(url, "_blank", "noopener");
+    return true;
+  }
   function linked(n) {
     if (!n || !n.trello || !state) return false;
     const c = cfgNow();
@@ -713,7 +728,7 @@
   const api = {
     init, wire, start, check, changed, renderSettings, status, linked,
     // pure, for tests and the bridge
-    APP_KEY, DEFAULTS, cleanConfig, authorizeUrl, dueOf, fromDue, reconcile, missingCards, client, syncData, connected,
+    APP_KEY, DEFAULTS, cleanConfig, authorizeUrl, dueOf, fromDue, reconcile, missingCards, client, syncData, connected, open,
   };
   if (typeof window !== "undefined") window.LifeLogTrello = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

@@ -3098,7 +3098,7 @@ Keel.i18n.strings("he", {
   "Sync Trello now": "סנכרון Trello עכשיו",
   "Synced {time}": "סונכרן ב-{time}",
   "Syncs when the app opens, every few minutes while it's open, and a few seconds after you change a synced list. When a task changed on both sides, the newer change wins. Deleting a task archives its card; nothing is ever deleted on Trello except a checklist item you delete here. A card done, archived, moved off the list or deleted in Trello is ticked or removed here. Move to Done looks for a list named Done on the board and marks the card complete when there isn't one. Priority, repeats, reminders and deadlines stay in LifeLog.": "הסנכרון קורה בפתיחת האפליקציה, כל כמה דקות כשהיא פתוחה, וכמה שניות אחרי שינוי ברשימה מסונכרנת. כשמשימה השתנתה בשני הצדדים, השינוי החדש יותר קובע. מחיקת משימה מעבירה את הכרטיס שלה לארכיון; שום דבר לא נמחק ב-Trello מלבד פריט צ'קליסט שנמחק כאן. כרטיס שהושלם, הועבר לארכיון, הוצא מהרשימה או נמחק ב-Trello מסומן או מוסר כאן. העברה ל-Done מחפשת בלוח רשימה בשם Done, ואם אין כזו מסמנת את הכרטיס כהושלם. עדיפות, חזרות, תזכורות ומועדי סיום נשארים ב-LifeLog.",
-  "Syncs with Trello": "מסתנכרן עם Trello",
+  "Open in Trello": "פתיחה ב-Trello",
   "Ticks, new tasks, edits and deletes": "סימונים, משימות חדשות, עריכות ומחיקות",
   "Token": "אסימון",
   "Trello": "Trello",

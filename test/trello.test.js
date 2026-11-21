@@ -104,15 +104,18 @@ test("tick moves the card to the board's Done list, or archives it, as picked; u
     await sync(data, c, tr);
     assert.deepStrictEqual(sends(tr)[0].body, want, tick);
     assert.strictEqual(task(data, id(1)).trello.gone, true);
-    tr.calls.length = 0;
-    await sync(data, c, tr);
-    assert.ok(!tr.calls.some((x) => x.path === "/cards/" + id(1)), "a done card off its list isn't asked about again");
     const it = task(data, id(1));
     delete it.done; delete it.doneAt; it.updatedAt = "2026-11-21T11:00:00.000Z";
     await sync(data, c, tr);
     const back = tr.db.get(id(1));
-    assert.ok(back.idList === L1 && !back.closed && !back.dueComplete, tick + ": back on the list");
+    assert.ok(back.idList === L1 && !back.closed && !back.dueComplete, tick + ": unticked before it left, back on the list");
     assert.ok(!task(data, id(1)).done);
+    Object.assign(task(data, id(1)), { done: true, doneAt: "2026-11-21T12:00:00.000Z", updatedAt: "2026-11-21T12:00:00.000Z" });
+    await sync(data, c, tr);
+    tr.calls.length = 0;
+    await sync(data, c, tr);
+    assert.ok(!task(data, id(1)), tick + ": once off its list, it leaves this one too");
+    assert.ok(!tr.calls.some((x) => x.path === "/cards/" + id(1)), "and isn't asked about");
   }
 });
 
@@ -162,19 +165,31 @@ test("deleting a task here archives its card, never deletes it", async () => {
   assert.ok(!task(data, id(1)));
 });
 
-test("archived there ticks the task; deleted there removes it; moved to another linked list moves it", async () => {
-  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L1, name: "B" }, { id: id(3), idList: L1, name: "C" }]);
+test("archived or moved off there, or deleted there, leaves the list; moved to another linked list moves it", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L1, name: "B" }, { id: id(3), idList: L1, name: "C" }, { id: id(4), idList: L1, name: "D" }]);
   const data = { notes: [] };
   const c = cfg({ lists: [{ id: L1, name: "To do", board: B, boardName: "Home" }, { id: L2, name: "Doing", board: B, boardName: "Home" }] });
   await sync(data, c, tr);
   tr.db.get(id(1)).closed = true;
   tr.db.delete(id(2));
   tr.db.get(id(3)).idList = L2;
+  tr.db.get(id(4)).idList = DONE;
   await sync(data, c, tr);
-  assert.strictEqual(task(data, id(1)).done, true);
-  assert.strictEqual(task(data, id(1)).trello.gone, true);
+  assert.ok(!task(data, id(1)), "archived there, gone here");
+  assert.ok(!task(data, id(4)), "moved to a list not picked, gone here");
   assert.ok(!task(data, id(2)), "deleted there, gone here");
   assert.ok(note(data, L2).items.some((x) => x.trello.card === id(3)) && !note(data, L1).items.some((x) => x.trello && x.trello.card === id(3)));
+  assert.deepStrictEqual(sends(tr), []);
+});
+
+test("ticked tasks an earlier sync left behind, their cards long gone, leave", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }]);
+  const data = { notes: [] };
+  await sync(data, cfg(), tr);
+  note(data).items.push({ id: "trello-" + id(9), text: "Old", done: true, trello: { card: id(9), base: { name: "Old", desc: "", due: null, done: true, labels: [] }, checks: [], gone: true } });
+  note(data).trello.cards.push(id(9));
+  await sync(data, cfg(), tr);
+  assert.deepStrictEqual(note(data).items.map((x) => x.text), ["A"]);
   assert.deepStrictEqual(sends(tr), []);
 });
 

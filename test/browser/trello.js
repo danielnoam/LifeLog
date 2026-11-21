@@ -59,6 +59,10 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   await page.evaluate(() => document.querySelector('.tab[data-view="notes"]').click()); await page.waitForTimeout(500);
   const card = page.locator(`.note-card[data-id="trello-${L}"]`);
   check("the list shows the Trello badge", await card.locator(".note-trello").count() === 1);
+  await page.evaluate(() => { window.__opened = []; window.LifeLogPlatform.openOutside = (u) => { window.__opened.push(u); return true; }; });
+  await card.locator(".note-trello").click();
+  const opened = await page.evaluate(() => window.__opened);
+  check("the badge opens the board on Trello", opened.length === 1 && opened[0] === "https://trello.com/b/" + B && await page.locator("#noteSheet.open, .note-sheet.open").count() === 0, opened);
   const where = () => page.evaluate((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year; }, L);
   const group = (v) => page.evaluate((v) => { const s = document.querySelector("#noteTrelloGroup"); s.value = v; s.dispatchEvent(new Event("change")); }, v);
   const inMonth = () => page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && /^\d{4}$/.test(c.closest(".year-block").dataset.year); }, L, { timeout: 5000 }).catch(() => {});
