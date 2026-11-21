@@ -443,6 +443,15 @@ list gets the window too, its map beside the list.
   your Backlog starts and shows how far you are, finishing it puts it on
   the Timeline, one you don't have is added, and a re-read waits for you to
   say so. Reading minutes fill the minutes habit you pick.
+- **Trello, both ways**: sign in once in Settings → Connections → Trello
+  (a token you paste back) and switch on the Trello lists you want. Each
+  is a task list in the Notebook, marked Trello: cards are tasks, due
+  dates their date, named labels tags, checklist items subtasks. Ticking a
+  task marks its card complete, moves it to the board's Done list or
+  archives it (your pick); new tasks become cards and edits go back;
+  deleting a task archives its card. It syncs when the app opens, every
+  few minutes while open and a few seconds after a change; the newer
+  change wins. "Only cards I'm on" leaves the rest of a shared board out.
 - **Activity**: anything that takes a while runs in one list, keeps going
   with the app put away on Android, and is offered again if the app was
   closed on it.

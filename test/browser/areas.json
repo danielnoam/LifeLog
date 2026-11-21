@@ -60,8 +60,8 @@
       "suites": ["homeinvest", "pinview", "tasks"]
     },
     "imports": {
-      "files": ["src/io.js", "src/sync.js", "src/letterboxd.js", "src/stremio.js", "src/connections.js", "src/hardcover.js", "src/waypage.js"],
-      "suites": ["anilist", "connections", "excalidraw", "gametimes", "gametimesfail", "hardcover", "igdbtimes", "importedit", "importkinds", "importmodes", "importreview", "importundo", "letterboxd", "mdimport", "nextseries", "pricealert", "steamowned", "stremio", "tabio", "v151", "waypage"]
+      "files": ["src/io.js", "src/sync.js", "src/letterboxd.js", "src/stremio.js", "src/connections.js", "src/hardcover.js", "src/waypage.js", "src/trello.js"],
+      "suites": ["anilist", "connections", "excalidraw", "gametimes", "gametimesfail", "hardcover", "igdbtimes", "importedit", "importkinds", "importmodes", "importreview", "importundo", "letterboxd", "mdimport", "nextseries", "pricealert", "steamowned", "stremio", "tabio", "trello", "v151", "waypage"]
     },
     "settings": {
       "files": ["src/settings.js", "src/drive.js", "src/keel/drive.js", "src/keys.js", "src/testbuilds.js", "src/keel/releases.js", "src/keel/qr.js"],

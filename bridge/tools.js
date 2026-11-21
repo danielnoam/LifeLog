@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks, Tags } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Trello, Tasks, Tags } = L;
 const shortSaleFail = (symbol, buys, events) => {
   const s = Invest.shortSale(buys, events);
   if (s) fail(`That leaves the sale of ${Invest.unitsText(s.sale.units)} of ${symbol} on ${s.sale.date} with only ${Invest.unitsText(s.held)} held before it. Check the dates and shares.`);
@@ -1734,6 +1734,26 @@ const TOOLS = [
       out.push("", `To review (${rows.length}):`, ...(rows.length ? rows.map(([id, r]) => `- ${r.title}${r.author ? " by " + r.author : ""} (${r.kind}${r.finishedAt ? ", finished " + r.finishedAt : ""}): ${r.reason === "logged" ? "already on the Timeline, a re-read?" : r.reason === "new" ? "new from Waypage" : "a backlog title by another author"}  (review id ${id}, matches ${r.match})`) : ["- nothing"]));
       const kept = Object.entries(c.never);
       out.push("", `Kept out (${kept.length}):`, ...(kept.length ? kept.map(([id, v]) => `- ${typeof v === "string" ? v : "(no title kept)"}  (waypage id ${id})`) : ["- nothing"]));
+      return out.join("\n");
+    },
+  },
+  {
+    name: "lifelog_trello",
+    description: "The Trello connection (Settings → Connections → Trello): whether it's signed in, which Trello lists come in as task lists and the note id of each, what ticking a task does to its card, and whether changes go back. The tasks themselves are ordinary list items: read and change them with lifelog_tasks, lifelog_add_task and lifelog_update_task, and the app sends those changes to Trello at its next sync (the bridge never calls Trello). Never shows the token.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      const c = Trello.cleanConfig((d.settings || {}).trello);
+      const out = [c.token ? `Trello: signed in${c.member && c.member.username ? " as @" + c.member.username : ""}.` : "Trello isn't connected (Settings → Connections → Trello)."];
+      out.push(`Changes here go to Trello: ${c.send ? "yes" : "no, read only"}. Ticking a task ${{ complete: "marks its card complete", move: "moves its card to the board's Done list", archive: "archives its card" }[c.tick]}. Only cards the user is on: ${c.mine ? "yes" : "no"}.`);
+      out.push("", `Lists (${c.lists.length}):`);
+      for (const l of c.lists) {
+        const n = (d.notes || []).find((x) => x.trello && x.trello.list === l.id);
+        const open = n ? (n.items || []).filter((x) => !x.done && !x.parent).length : 0;
+        out.push(`- ${[l.boardName, l.name].filter(Boolean).join(" › ")}: ${n ? `task list "${n.text}" (${n.id}), ${open} open` : "comes in at the app's next sync"}`);
+      }
+      if (!c.lists.length) out.push("- none picked");
       return out.join("\n");
     },
   },

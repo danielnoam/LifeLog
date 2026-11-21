@@ -25,6 +25,7 @@ src/media.js        cover art and metadata from the media sources
 src/sync.js         Steam import, the two-way AniList sync, GG.deals prices, release re-checks
 src/letterboxd.js   the Letterboxd import
 src/stremio.js      the Stremio sync, read only
+src/trello.js       Trello lists as task lists, both ways
 src/io.js           JSON/CSV import and export, and the shared review screen
 src/docimport.js    PDF and EPUB read as text, for notes
 src/markdown.js     Markdown for notes in a collection

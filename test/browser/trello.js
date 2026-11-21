@@ -1,0 +1,89 @@
+// Trello lists as task lists (Nov 2026): with a key, a token and a list
+// picked, the app reads the list's cards from Trello's API (stood in for
+// here) into a task list in the Notebook with the Trello badge, a tick there
+// marks the card complete a few seconds later, a task added there becomes a
+// card, and Settings → Connections → Trello lists the boards with the
+// picked list switched on. In Hebrew the page has no English left but names.
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
+const { check, done } = tally();
+
+const T = "2026-01-01T00:00:00.000Z";
+const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repeat(24), C2 = "2".repeat(24);
+
+(async () => {
+  const b = await chromium.launch();
+  const errs = [];
+  const page = await b.newPage({ viewport: { width: 390, height: 844 } });
+  page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
+  const cards = new Map([
+    [C1, { id: C1, idList: L, idBoard: B, name: "Order the sink", desc: "", due: null, dueComplete: false, closed: false, idLabels: ["l1"], idMembers: [ME], checklists: [], dateLastActivity: T }],
+    [C2, { id: C2, idList: L, idBoard: B, name: "Pick tiles", desc: "", due: null, dueComplete: false, closed: false, idLabels: [], idMembers: [ME], checklists: [], dateLastActivity: T }],
+  ]);
+  const sent = [];
+  const until = async (ok, ms = 10000) => { for (const end = Date.now() + ms; Date.now() < end && !ok();) await new Promise((r) => setTimeout(r, 100)); };
+  const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
+  await page.route("https://api.trello.com/**", (r) => {
+    const req = r.request();
+    const p = new URL(req.url()).pathname.replace(/^\/1/, "");
+    if (req.method() === "OPTIONS") return r.fulfill({ status: 200, headers: { ...cors, "access-control-allow-headers": "authorization, content-type, accept", "access-control-allow-methods": "GET, PUT, POST, DELETE" }, body: "" });
+    const auth = req.headers().authorization || "";
+    if (!auth.includes('oauth_token="tok"')) return r.fulfill({ status: 401, headers: cors, body: "invalid token" });
+    const body = req.postData() ? JSON.parse(req.postData()) : null;
+    if (req.method() !== "GET") sent.push({ method: req.method(), path: p, body });
+    let out = null;
+    if (p === "/members/me") out = { id: ME, username: "reader", fullName: "R" };
+    else if (p === "/members/me/boards") out = [{ id: B, name: "Home", lists: [{ id: L, name: "To do" }, { id: "d".repeat(24), name: "Later" }] }];
+    else if (p === `/lists/${L}/cards`) out = [...cards.values()].filter((c) => c.idList === L && !c.closed);
+    else if (p === `/boards/${B}/labels`) out = [{ id: "l1", name: "urgent" }];
+    else if (req.method() === "PUT" && p.startsWith("/cards/")) { const c = cards.get(p.split("/")[2]); Object.assign(c, body); out = c; }
+    else if (req.method() === "POST" && p === "/cards") { out = { id: "9".repeat(24), idBoard: B, closed: false, dueComplete: false, idLabels: [], checklists: [], ...body }; cards.set(out.id, out); }
+    if (!out) return r.fulfill({ status: 404, headers: cors, body: "not found" });
+    r.fulfill({ status: 200, headers: cors, body: JSON.stringify(out) });
+  });
+  await page.route(/^https:\/\/(?!api\.trello\.com\/)/, (r) => r.abort());
+  await page.goto(BASE + "/", { waitUntil: "load" });
+  await forgetCopy(page);
+  await page.evaluate(({ T, L, B, ME }) => { localStorage.clear(); localStorage.setItem("lifelog-cache-v1", JSON.stringify({
+    categories: [], entries: [], backlog: [], habits: [], notes: [],
+    settings: { trello: { key: "k".repeat(32), token: "tok", member: { id: ME, username: "reader" }, connectedAt: T, lists: [{ id: L, name: "To do", board: B, boardName: "Home" }] } } })); }, { T, L, B, ME });
+  await page.reload({ waitUntil: "load" });
+  await page.waitForFunction((L) => (window.LifeLogStorage.cachedCopy().notes || []).some((x) => x.id === "trello-" + L && x.items.length), L, { timeout: 10000 }).catch(() => {});
+  const data = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
+
+  let d = await data();
+  const n = (d.notes || []).find((x) => x.id === "trello-" + L);
+  check("the list comes in as a task list", n && n.kind === "list" && n.text === "Home · To do", n);
+  check("its cards are tasks, a named label a tag", n && n.items.length === 2 && n.items[0].text === "Order the sink" && (n.items[0].tags || []).join() === "urgent", n && n.items);
+  check("nothing was sent on the first read", sent.length === 0, sent);
+
+  await page.evaluate(() => document.querySelector('.tab[data-view="notes"]').click()); await page.waitForTimeout(500);
+  const card = page.locator(`.note-card[data-id="trello-${L}"]`);
+  check("the list shows the Trello badge", await card.locator(".note-trello").count() === 1);
+  await card.locator(".todo-row", { hasText: "Order the sink" }).locator(".todo-check").first().click();
+  await until(() => sent.length);
+  check("a tick marks the card complete a few seconds later", sent.some((s) => s.method === "PUT" && s.path === "/cards/" + C1 && s.body.dueComplete === true), sent);
+
+  await card.locator(".note-list-compose input").fill("Call the plumber");
+  await card.locator(".note-list-compose input").press("Enter");
+  await until(() => sent.some((x) => x.method === "POST"));
+  await page.waitForFunction(() => JSON.stringify(window.LifeLogStorage.cachedCopy().notes).includes("9".repeat(24)), null, { timeout: 5000 }).catch(() => {});
+  check("a task added there becomes a card on the list", sent.some((s) => s.method === "POST" && s.path === "/cards" && s.body.name === "Call the plumber" && s.body.idList === L), sent);
+  d = await data();
+  const added = d.notes.find((x) => x.id === "trello-" + L).items.find((x) => x.text === "Call the plumber");
+  check("and is linked to it", added && added.trello && added.trello.card === "9".repeat(24), added);
+
+  await page.evaluate(() => window.LifeLogSettings.openSettings("conn-trello"));
+  await page.waitForSelector("#trelloLists .sitem", { timeout: 5000 }).catch(() => {});
+  check("the account line names who's signed in", /@reader/.test(await page.textContent("#trelloState")));
+  const rows = await page.$$eval("#trelloLists .sitem", (xs) => xs.map((x) => x.querySelector(".sitem-title").textContent + ":" + x.querySelector("input").checked));
+  check("Settings lists the board's lists, the picked one on", rows.join() === "To do:true,Later:false", rows);
+  const status = await page.evaluate(() => window.LifeLogConnections.status("trello").text);
+  check("the Connections row says what it's doing", /@reader · 1 list · both ways/.test(status), status);
+
+  await page.click("#trelloSignOutBtn"); await page.waitForTimeout(500);
+  d = await data();
+  check("Sign out forgets the token and keeps the task list", !d.settings.trello.token && d.notes.some((x) => x.id === "trello-" + L));
+
+  await b.close();
+  done(errs);
+})();

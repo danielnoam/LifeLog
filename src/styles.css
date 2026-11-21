@@ -5708,6 +5708,14 @@ button.tag-pill:hover { border-color: var(--border-strong); color: var(--text); 
 .tag-pill.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .todo-meta .tag-pills { margin-inline-start: 0; }
 .note-list-head .tag-pills { margin-inline-start: var(--space-4); flex-wrap: nowrap; overflow: hidden; font-weight: 500; }
+/* A list that syncs with Trello (Nov 2026, trello.js). */
+.note-trello {
+  display: inline-flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; padding: 2px var(--space-8); border: 1px solid var(--border);
+  border-radius: var(--r-pill); color: var(--text-dim); font-size: var(--fs-2xs); font-weight: 500; line-height: 1.3; white-space: nowrap;
+}
+.note-trello svg { width: 12px; height: 12px; }
+/* On a phone the title needs the room: the icon alone says it. */
+@media (max-width: 720px) { .note-trello { padding-inline: var(--space-4); } .note-trello-name { display: none; } }
 /* The star sits at the card's top right since tags (Daniel, 2026-11-15);
    floated, so the first line runs beside it. In a list's header it's a
    button in the row. */
