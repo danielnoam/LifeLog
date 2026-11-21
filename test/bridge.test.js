@@ -1378,6 +1378,23 @@ test("Hardcover: the sync is shown by state without its token", async () => {
   assert.match(shown, /Want to read \(1\):\n- Emma/);
 });
 
+test("Trello (Nov 2026): the connection is shown without its token, with each list's task list", async () => {
+  reset();
+  const d0 = data();
+  const L = "a".repeat(24), B = "b".repeat(24);
+  d0.settings.trello = { token: "TRELLO_SECRET", member: { id: "c".repeat(24), username: "reader" }, tick: "archive", lists: [{ id: L, name: "To do", board: B, boardName: "Home" }, { id: "d".repeat(24), name: "Later", board: B, boardName: "Home" }] };
+  d0.notes.push({ id: "trello-" + L, kind: "list", text: "Home · To do", createdAt: T, updatedAt: T, trello: { list: L, board: B, cards: ["e".repeat(24)] },
+    items: [{ id: "trello-" + "e".repeat(24), text: "Paint", trello: { card: "e".repeat(24), base: { name: "Paint", desc: "", due: null, done: false, labels: [] } } }, { id: "x", text: "Old", done: true, doneAt: T }] });
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const shown = await ok("lifelog_trello", {});
+  assert.doesNotMatch(shown, /SECRET/);
+  assert.match(shown, /signed in as @reader/);
+  assert.match(shown, /archives its card/);
+  assert.match(shown, /Home › To do: task list "Home · To do" \(trello-a+\), 1 open/);
+  assert.match(shown, /Home › Later: comes in at the app's next sync/);
+  assert.ok(data().notes.find((n) => n.id === "trello-" + L).items[0].trello.base, "reading keeps the link");
+});
+
 test("Waypage (0.313.0): the reading log is shown without its token, and a review row is answered", async () => {
   reset();
   const d0 = data();

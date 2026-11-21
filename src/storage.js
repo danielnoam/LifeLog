@@ -375,6 +375,7 @@
     if (st.anilist && typeof st.anilist === "object") out.settings.anilist = { ...st.anilist, token: "" };
     if (st.stremio && typeof st.stremio === "object") out.settings.stremio = { ...st.stremio, authKey: "", ...(st.stremio.upNext ? { upNext: { ...st.stremio.upNext, key: "" } } : {}) };
     if (st.waypage && typeof st.waypage === "object") out.settings.waypage = { ...st.waypage, token: "" };
+    if (st.trello && typeof st.trello === "object") out.settings.trello = { ...st.trello, token: "" };
     return out;
   }
 
@@ -397,6 +398,7 @@
       if (st.stremio.upNext && o.stremio.upNext) o.stremio.upNext = { ...o.stremio.upNext, key: fill(o.stremio.upNext.key, st.stremio.upNext.key) };
     }
     if (st.waypage) o.waypage = { ...(o.waypage || {}), token: fill(o.waypage && o.waypage.token, st.waypage.token) };
+    if (st.trello) o.trello = { ...(o.trello || {}), token: fill(o.trello && o.trello.token, st.trello.token) };
     return out;
   }
 

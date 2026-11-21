@@ -23,6 +23,7 @@
   const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
   const Stremio = window.LifeLogStremio || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
   const Hardcover = window.LifeLogHardcover || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
+  const Trello = window.LifeLogTrello || { init() {}, wire() {}, start() {}, changed() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -1517,6 +1518,7 @@
     Storage._cache(state.data);
     lastPersistedSnapshot = structuredClone(state.data);
     Widgets.changed();
+    Trello.changed();
     saveDirty = true;
     if (!saveJob && Storage.githubConnected && window.LifeLogJobs) {
       saveJob = window.LifeLogJobs.begin({ label: i18n.t("Saving to GitHub"), listed: false, stoppable: false });
@@ -4532,7 +4534,7 @@
     // stale source of truth for the same question.
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
-    "mediaKeys", "steam", "anilist", "waypage", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
+    "mediaKeys", "steam", "anilist", "waypage", "trello", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
     "weekStart", "dateFormat", "scratchpad", "keys", "tagNames",
   ]);
@@ -4629,6 +4631,8 @@
       // The reading log from Waypage (0.313.0, waypage.js).
       waypage: window.LifeLogWaypage ? window.LifeLogWaypage.cleanConfig(incomingSettings.waypage) : { ...DEFAULT_SETTINGS.waypage, ...(incomingSettings.waypage || {}) },
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
+      // Trello lists as task lists (Nov 2026, trello.js).
+      ...(incomingSettings.trello && window.LifeLogTrello ? { trello: window.LifeLogTrello.cleanConfig(incomingSettings.trello) } : {}),
       // Per import source, the "source:id" keys you left unticked (0.257.0).
       importSkips: Object.fromEntries(Object.entries(incomingSettings.importSkips && typeof incomingSettings.importSkips === "object" ? incomingSettings.importSkips : {})
         .filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.filter((x) => typeof x === "string")])),
@@ -5076,6 +5080,7 @@
     Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
     Waypage.wire(); // its group on Settings → Connections
+    Trello.wire(); // its page on Settings → Connections
 
     $("#exportJsonBtn").onclick = IO.exportJson;
     $("#exportIcsBtn").onclick = IO.exportIcs;
@@ -5962,6 +5967,7 @@
     Stremio.maybeAutoCheck(); // same — the Stremio library, read only
     Hardcover.maybeAutoCheck(); // same — the Hardcover library, both ways
     Waypage.start(); // same — the reading log from Waypage, every few minutes while open (0.313.0)
+    Trello.start(); // same — Trello lists as task lists, both ways, every few minutes while open
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
     Invest.checkTargets(); // same — the watched tickers with a target
@@ -6531,6 +6537,8 @@
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, coverEl, emptyCoverEl, todayStr: () => Finance.localDateStr(new Date()) });
   if (window.LifeLogPin) window.LifeLogPin.init({ state, el, ico, toast, uid, persist, afterDataChange, render, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
+    whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
+  Trello.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, toast, viewEnabled, modeEnabled });
   Stremio.start({
