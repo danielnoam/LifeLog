@@ -84,52 +84,26 @@
   }
 
   // ---- updating the app in place (0.179.0) ----
-  // Downloads the release's APK into the app's cache, reporting progress, and
-  // hands it to Android's installer — no browser tab, no Downloads folder.
-  // The installer is Android's own screen: it asks once whether LifeLog may
-  // install apps, and then to install. Because the APK is signed with the
-  // same key it installs over the top and keeps everything. Resolves to the
-  // file's uri, so a cancelled installer can be reopened without downloading
-  // again; null when the plugins aren't there (an app older than this).
-  const APK_MIME = "application/vnd.android.package-archive";
+  // keel's update.js (0.15.0) downloads the APK into the app's cache,
+  // reporting progress, and hands it to Android's installer: no browser
+  // tab, no Downloads folder. Android asks once whether LifeLog may install
+  // apps, then to install; signed with the same key, it installs over the
+  // top and keeps everything. Resolves to the file's uri, so a cancelled
+  // installer can be reopened without downloading again; null when the
+  // plugins aren't there (an app older than 0.179.0).
   // A test build (0.299.0) comes from its pre-release `tag` instead, and
   // `version` is then the file's name part (test-<branch>-<sha>).
   // An unreleased build (2026-11-18) passes its own `url` (the site's
   // unreleased/LifeLog.apk), and `version` is unreleased-<sha>.
-  async function downloadUpdate(version, onProgress, tag, url) {
-    tag = tag || "app-v" + version;
-    if (os !== "android") return null;
-    const FS = native && cap.Plugins && cap.Plugins.Filesystem;
-    if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !K.build || !K.build.repo) return null;
-    url = url || "https://github.com/" + K.build.repo + "/releases/download/" + tag + "/LifeLog.apk";
-    const path = "LifeLog-" + version + ".apk";
-    const listener = await FS.addListener("progress", (p) => {
-      if (onProgress && p && p.contentLength > 0) onProgress(Math.min(1, p.bytes / p.contentLength));
-    });
-    try {
-      await FS.downloadFile({ url, path, directory: "CACHE", progress: true });
-    } finally {
-      if (listener && listener.remove) listener.remove();
-    }
-    return (await FS.getUri({ path, directory: "CACHE" })).uri;
+  let updater = null;
+  const U = () => updater || (updater = window.Keel.update.create({ name: "LifeLog", platform: K }));
+  function downloadUpdate(version, onProgress, tag, url) {
+    return U().download({ version, key: version, tag: tag || undefined, url: url || undefined }, onProgress);
   }
-  function openInstaller(uri) {
-    return cap.Plugins.FileOpener.openFile({ path: uri, mimeType: APK_MIME });
-  }
+  const openInstaller = (uri) => U().install(uri);
   // APKs for versions already installed have done their job, and so has any
-  // test build's: it's asked for again from Test builds if wanted.
-  async function clearOldUpdates(currentVersion, isNewer) {
-    const FS = native && cap.Plugins && cap.Plugins.Filesystem;
-    if (!FS) return;
-    try {
-      const { files } = await FS.readdir({ path: "", directory: "CACHE" });
-      for (const f of files || []) {
-        const name = typeof f === "string" ? f : f.name;
-        const m = /^LifeLog-(\d+\.\d+\.\d+)\.apk$/.exec(name || "");
-        if ((m && !isNewer(m[1], currentVersion)) || /^LifeLog-(test|unreleased)-.+\.apk$/.test(name || "")) await FS.deleteFile({ path: name, directory: "CACHE" });
-      }
-    } catch (e) { /* nothing to tidy */ }
-  }
+  // test or unreleased build's: it's asked for again if wanted.
+  const clearOldUpdates = (currentVersion) => U().clearOld({ version: currentVersion });
 
   // ---- Steam and friends without the proxy (0.215.0) ----
   // Steam's store API, SteamGridDB and GG.deals send no CORS headers, so a
