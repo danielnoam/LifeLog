@@ -5529,6 +5529,18 @@
       if (action.startsWith("open-invest:")) Invest.select(action.slice("open-invest:".length));
       goTo("finance", "invest");
     }
+    // The Calendar widget (Nov 2026): a day tapped there, on the Timeline's
+    // calendar, as the Home calendar's "Timeline ›" opens it.
+    else if (action.startsWith("open-calendar:") && viewEnabled("timeline") && modeEnabled("timeline", "entries")) {
+      const [y, m, d] = action.slice("open-calendar:".length).split("-").map(Number);
+      if (y && m >= 1 && m <= 12) {
+        Journal.openCalendarAt(y, m, d >= 1 && d <= 31 ? d : null);
+        state.visual.timelineLayout = "calendar";
+        saveVisualSettings(state.visual);
+        state.timelineMode = "entries";
+        goTo("timeline", "entries");
+      }
+    }
     // A price alert (0.276.0): the list, where the row says the price.
     else if (action === "open-backlog" && viewEnabled("backlog")) goTo("backlog", "entries");
     // The In progress widget (0.277.0): the Timeline, where its card is.

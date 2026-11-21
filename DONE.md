@@ -20,6 +20,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Home is the first tab on a computer and stays in the middle of the phone's bottom bar (0.307.0)
 - Home floors: drag a section by its heading on a computer (outline on hover) into a floor, sharing its width at 380px or more each, or between floors for a new one; a full floor pushes its last section down; per device, Esc cancels, View → Reset layout with Undo, right-click an empty spot to add a hidden section there; phone stacks the floors (0.314.0)
 - Home Investments section: You hold with the gain since buying and today's move, up to five tickers with sparkline, close, day's move and At target, a tap opens the ticker, Add ticker; its own floor at the bottom (0.314.0)
+- Home's Coming up lists Google Calendar events too (an event already under way shows under Today), in its calendar's colour, opening the event sheet; Hide / Show Google Calendar in the panel's right-click or long-press menu, per device; the bridge doesn't see them, as with every Google event (next release)
 - Home Calendar section: the Timeline calendar's month with a mark per Google Calendar event, entry finished, release and open task, the picked day's list (events, tasks ticked there, releases, finished) under it, Timeline › to the Timeline's calendar on that day; alone on a wide floor, names in the days and the list beside; bridge lifelog_calendar (0.321.0)
 - Home panel menu: right-click a panel on a computer or long-press it on a phone for Remove from Home (with Undo) and the panel's own switches (Calendar: names or big covers); on a phone also Move up / Move down, as View's arrows (0.324.0)
 - Home Pick for tonight section: one pickable backlog title held per device until Another or Start, drawn from Pick's own bag, Start / Another, category chips (per device), Pick › opens the sheet; bridge lifelog_pick (0.321.0)
@@ -253,6 +254,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Settings → Sync shows how much room the GitHub repo has left of its 5 GB, with a bar that turns yellow past 90%, and Space on GitHub breaks it down (each part of your data, pictures with Clean up, history as a rough figure); bridge tool lifelog_sync_space (0.316.0)
 - Google Drive backups in Settings → Sync: Back up now or automatic (daily to monthly), last three kept plus one a week old, restore as a new save, delete; drive.file scope only; browser, Android and Windows app (0.316.0)
 - Privacy and Terms pages on the web app (privacy.html, terms.html), linked from Google's sign-in screen (0.317.0)
+- Settings → Sync → Erase this device, synced or not: the data, its past saves, pictures, connections and keys go from this device only, the look and language stay, and it reopens empty; with no other copy it says so and asks for the word erase; web, Windows and Android (next release)
 
 ## Privacy and security
 
@@ -263,6 +265,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Exports and the phone backup leave out API keys (0.260.0)
 - The apps stay out of the phone's cloud backup (0.261.0)
 - Content Security Policy (0.263.0)
+- The app lock's Forgot PIN reset also clears History's past saves on the device, which could hand the data back (next release)
 
 ## Settings
 
@@ -291,6 +294,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Background refresh: the app run with no screen on a schedule, so widgets and alerts catch up with the app closed (0.279.0)
 - Quick-add window: the quick add widget's buttons and the checklist widget's + open a small window over the home screen (entry, expense, backlog item, note, list item) instead of the app; saved on the phone and added when LifeLog next opens (0.311.0)
 - Investments widget (Android): what you hold and the day's move, then each ticker with its close, day's change, a month's sparkline and an "At target" tag; a row opens that ticker; shrinks to the total; amounts hidden with the lock's "hide in widgets" (0.313.0)
+- Calendar widget (Android only; Windows and the web have no home screen widgets, and iPhone didn't get it): Google Calendar events or the phone's own calendars (every account, read on the phone, calendar permission asked in the widget's settings), with tasks due, backlog releases and next episodes and finished entries, as an agenda (today and the days ahead, "N more") or a month with marks and arrows; a tap opens that day on the Timeline calendar; in the app's language, right to left in Hebrew (next release)
 
 ## iOS app
 

@@ -104,6 +104,58 @@
       .slice(0, BACKLOG_ROWS);
   }
 
+  // The Calendar widget (Nov 2026): every day from the start of last month
+  // to the end of the month after next, each as the Home calendar has it
+  // (Home.calendarMonth: tasks due, backlog releases and next episodes,
+  // entries finished) plus Google Calendar's events, which live on this
+  // device only. `monthOf(y, m)` is calendarMonth bound to the app's
+  // modules; `eventsOf(y, m)` gcal.js's eventsFor and `calColor` its
+  // colorOf. A day sends its first CAL_PER_DAY; the widget says "N more".
+  // Each item: k ("event" | "task" | "release" | "done"), t, time, c (a
+  // colour), and on an event `all` for all day.
+  const CAL_PER_DAY = 8;
+  function calendarDays(data, today, { monthOf, eventsOf = () => new Map(), calColor = () => "" } = {}) {
+    const cats = data.categories || [];
+    const colorOf = (name) => (cats.find((c) => c.name === name) || {}).color || "";
+    const [ty, tm] = today.split("-").map(Number);
+    const days = {};
+    for (let i = -1; i <= 2; i++) {
+      const d0 = new Date(ty, tm - 1 + i, 1);
+      const y = d0.getFullYear(), m = d0.getMonth() + 1;
+      const mo = monthOf ? monthOf(y, m) : null;
+      const evs = eventsOf(y, m) || new Map();
+      const last = new Date(y, m, 0).getDate();
+      for (let d = 1; d <= last; d++) {
+        const out = [];
+        for (const ev of evs.get(d) || []) {
+          const x = { k: "event", t: String(ev.title || ""), c: calColor(ev.cal) || "" };
+          if (ev.allDay) x.all = true;
+          else if (ev.time) x.time = ev.start === `${y}-${pad(m)}-${pad(d)}` ? ev.time : "";
+          out.push(x);
+        }
+        if (mo) {
+          for (const r of mo.tasksByDay.get(d) || []) {
+            const x = { k: "task", t: String(r.item.text || "") };
+            if (r.item.time) x.time = r.item.time;
+            if (r.item.priority) x.p = r.item.priority;
+            out.push(x);
+          }
+          for (const r of mo.rel.byDay.get(d) || []) {
+            const b = r.b;
+            out.push({ k: "release", t: String(b.title || "") + (r.kind === "episode" && b.nextLabel ? " · " + b.nextLabel : ""), c: colorOf(b.category) });
+          }
+          for (const e of mo.byDay.get(d) || []) out.push({ k: "done", t: String(e.title || ""), c: colorOf(e.category) });
+        }
+        if (!out.length) continue;
+        // All day first, then by the clock; untimed after, in the order above.
+        const rank = (x) => (x.all ? "0" : x.time ? "1" + x.time : "2");
+        const order = out.map((x, i) => [x, i]).sort((a, b) => rank(a[0]).localeCompare(rank(b[0])) || a[1] - b[1]).map((p) => p[0]);
+        days[`${y}-${pad(m)}-${pad(d)}`] = { n: order.length, items: order.slice(0, CAL_PER_DAY) };
+      }
+    }
+    return days;
+  }
+
   function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "", currencySymbol = "" } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
@@ -468,10 +520,40 @@
     }
     // Charge and release-day heads-ups (0.272.0), rung beside the habit
     // reminders. An APK or IPA older than that ignores the key.
+    try { snap.calendar = calendarSnapshot(snap.today, hidden); } catch (e) { snap.calendar = null; }
     if (window.LifeLogAlerts) {
       try { snap.alerts = window.LifeLogAlerts.current(ctx.state.data, snap.today, hidden); } catch (e) { snap.alerts = []; }
     }
     return Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
+  }
+
+  // The Calendar widget's share: the days, the words it shows in the app's
+  // language (the widget can't translate), and the week's first day. Locked
+  // and hidden, it gets the words and no days. Google's events for this
+  // month and next are fetched quietly when they're old, as the Home
+  // calendar does for the month it shows; that fetch pushes again.
+  function calendarSnapshot(today, hidden) {
+    const G = window.LifeLogGcal, Home = window.LifeLogHome, D = Dates();
+    const [y, m] = today.split("-").map(Number);
+    if (G && G.on && !hidden) { G.ensure(y, m); G.ensure(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1); }
+    const words = {
+      title: i18n.t("Calendar"), today: i18n.t("Today"), tomorrow: i18n.t("Tomorrow"), allDay: i18n.t("All day"),
+      more: i18n.t("{n} more", { n: "{n}" }), nothing: i18n.t("Nothing today"), empty: i18n.t("Nothing on the calendar in the next two weeks"),
+      settings: i18n.t("Calendar widget"), layout: i18n.t("Layout"), agenda: i18n.t("Agenda: today and the days ahead"), month: i18n.t("Month: the whole month, with marks"),
+      source: i18n.t("Calendars"), sourceApp: i18n.t("LifeLog's Google Calendar connection"), sourcePhone: i18n.t("This phone's calendars"),
+      sourceHint: i18n.t("This phone's calendars are read on the phone and never leave it. They're always up to date and include every account on the phone. LifeLog's connection is only as fresh as the last time the app ran."),
+      allow: i18n.t("Allow LifeLog to read your calendars in the widget's settings"), locked: i18n.t("Hidden while LifeLog is locked"),
+    };
+    const cal = { lang: i18n.lang, rtl: i18n.dir === "rtl", weekStart: D.weekStart ? D.weekStart() : 0, words };
+    if (hidden) { cal.hidden = true; return cal; }
+    const data = ctx.state.data;
+    const B = window.LifeLogBacklog, T = window.LifeLogTasks;
+    cal.days = calendarDays(data, today, {
+      monthOf: Home ? (yy, mm) => Home.calendarMonth(data, yy, mm, { Backlog: B, Tasks: T, releases: (ctx.state.visual || {}).calendarReleases !== "hide" }) : null,
+      eventsOf: G && G.on ? (yy, mm) => G.eventsFor(yy, mm) : undefined,
+      calColor: G ? G.colorOf : undefined,
+    });
+    return cal;
   }
 
   // The background refresh's one send (0.279.0): the snapshot as the headless
@@ -607,6 +689,16 @@
     if (m) tellBackground(m);
   }
 
+  // Erasing this device (Settings → Sync): the background runs stop, and
+  // ticks a widget queued are dropped, not applied to the empty log. The
+  // widgets themselves empty on the next push, as the app starts again.
+  async function forget() {
+    const W = plugin();
+    if (!W) return;
+    await tellBackground(0);
+    try { await W.takeQueue(); } catch (e) { /* nothing queued */ }
+  }
+
   // ctx: { state, Platform, persist, afterDataChange, toast, runAction, quickActions, hidden }
   function start(c) {
     ctx = c;
@@ -615,6 +707,9 @@
     if (ctx.Platform.ios) listenForLinks();
     W.addListener("queued", () => drain());
     W.addListener("action", () => takeAction());
+    // Google Calendar's events are the device's, not data: a fetch tells
+    // the Calendar widget itself.
+    if (window.LifeLogGcal) window.LifeLogGcal.onChange(() => changed());
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") { drain(); takeAction(); }
       else push(); // leaving: the widget should show what was just done
@@ -623,5 +718,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, categoryFor, filingFor, actionOfUrl, start, changed, pushNow, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, calendarDays, CAL_PER_DAY, categoryFor, filingFor, actionOfUrl, start, changed, pushNow, forget, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

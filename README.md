@@ -48,7 +48,8 @@ anything from anywhere.
 What's on now, on one page, and where the app opens (a reload stays where
 you were). What you're in the middle of as covers; Coming up for the next
 two weeks, with releases and new episodes known to the day, recurring
-charges and the habits still left; a scratchpad that syncs, with Save to Notebook
+charges, the habits still left and, once it's connected, Google Calendar's events (hidden from the
+panel's menu if you'd rather not); a scratchpad that syncs, with Save to Notebook
 to keep what's in it, or switched to Board to sketch on a board instead
 (Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu;
 a Ledger card with this month's spending so far against last month by the same
@@ -471,7 +472,9 @@ list gets the window too, its map beside the list.
   and how much room the GitHub repo has left, with what takes it.
 - **App lock**: a PIN, with fingerprint or face where the device has it.
 - **Widgets**: on Android, tasks, habits, quick add, spending, note,
-  random note, upcoming (releases and dated tasks), in progress and investments, with an optional background
+  random note, upcoming (releases and dated tasks), in progress, investments and
+  calendar (Google or the phone's calendars with tasks and releases, as an
+  agenda or a month), with an optional background
   refresh. Quick add and the Tasks widget's + open a small window over the
   home screen, so an entry, expense, backlog item, note or list item goes
   in without opening the app and syncs when it next opens; on iPhone, habits, tasks, quick add, this month and a note.
@@ -508,6 +511,9 @@ every target connected in **Settings → Sync**:
 With both, GitHub is the live source and the file a backup that mirrors
 every save. With neither, the log stays in the browser; Export JSON and CSV
 are there for manual backups.
+**Settings → Sync → Erase this device** clears everything LifeLog keeps on
+that device (data, past saves, pictures, connections, keys) and leaves the
+look and language; GitHub, the backup file and Drive aren't touched.
 Settings → Import & export → Calendar saves an `.ics` of what's dated in the
 next year (tasks with a date, releases and new episodes known to the day,
 recurring charges) to open in Google Calendar, Outlook or any calendar app;

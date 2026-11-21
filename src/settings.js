@@ -64,6 +64,7 @@
     $(".gh-how").hidden = on;
     $("#ghClassicWarn").hidden = !(on && gi.tokenKind === "classic");
     updateGithubSpace();
+    renderErase();
     if (on) {
       info.textContent = i18n.t("Connected: {repo} ({path} on {branch}), auto-syncing.", { repo: gi.owner + "/" + gi.repo, path: gi.path, branch: gi.branch });
       conn.textContent = i18n.t("Update connection");
@@ -533,7 +534,50 @@
       backupOf: "lifelog", backedUpAt: new Date().toISOString() });
   }
 
+  // Settings → Sync → This device (2026-11). Where the data has another
+  // copy, erasing only clears this device; where it hasn't, the warning says
+  // the erase is for good.
+  function copiesElsewhere() {
+    const D = Drive();
+    return [
+      Storage.githubConnected && i18n.t("GitHub"),
+      Storage.fileName && i18n.t("the backup file"),
+      D && D.on && i18n.t("Google Drive"),
+      Storage.phoneBackup.on && i18n.t("this phone's Documents/LifeLog folder"),
+    ].filter(Boolean);
+  }
+  function renderErase() {
+    const where = copiesElsewhere();
+    $("#eraseHint").textContent = where.length
+      ? i18n.t("Removes LifeLog's data, connections and keys from this device only. What's in {where} stays, so connecting again brings it back. The theme, layout and language stay.", { where: i18n.join(where) })
+      : i18n.t("This device doesn't sync, so what's here is the only copy and erasing deletes it for good. Export it first from Import & export → Everything. The theme, layout and language stay.");
+  }
+  async function eraseDevice() {
+    const synced = copiesElsewhere().length > 0;
+    const msg = synced
+      ? i18n.t("Erase this device? LifeLog's data, its past saves, pictures, connections and keys are removed from this device, and it starts empty. Your synced copy isn't touched.")
+      : i18n.t("Erase this device? It doesn't sync, so this deletes all your LifeLog data for good, with no way to get it back.");
+    if (!confirm(msg)) return;
+    if (!synced) {
+      const word = i18n.t("erase");
+      const typed = (prompt(i18n.t("Type \"{word}\" to erase everything on this device.", { word })) || "").trim().toLowerCase();
+      if (typed !== word.toLowerCase() && typed !== "erase") { toast(i18n.t("Nothing was erased")); return; }
+    }
+    try {
+      if (window.LifeLogWidgets && window.LifeLogWidgets.forget) await window.LifeLogWidgets.forget().catch(() => {});
+      const D = Drive(), G = Gcal();
+      if (D && D.on) await D.disconnect().catch(() => {});
+      if (G && G.on) { try { G.disconnect(); } catch (e) { /* its keys go below */ } }
+      await Storage.eraseDevice();
+    } catch (e) {
+      toast(i18n.t("Couldn't erase this device: {error}", { error: (e && e.message) || e }), true);
+      return;
+    }
+    location.reload();
+  }
+
   function renderDrive() {
+    renderErase();
     const D = Drive();
     const sec = $("#driveSection");
     if (!D || !D.available) { sec.hidden = true; return; }
@@ -2031,6 +2075,7 @@
     $("#ghScanBtn").hidden = !scanner();
     $("#ghScanBtn").onclick = scanSetupQr;
     $("#ghDisconnectBtn").onclick = disconnectGithub;
+    $("#eraseDeviceBtn").onclick = eraseDevice;
     $("#historyRefreshBtn").onclick = updateHistoryPanel;
     $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghSetupLink").onclick = (e) => e.target.select();

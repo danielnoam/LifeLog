@@ -1533,7 +1533,7 @@
            per setting with its label on the left and its control on the
            right. .sitem is a row; .sitem-stack puts a text field under its
            label; .sitem-go is an action, drawn as a row with a chevron. -->
-      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval google drive restore">
+      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval google drive restore erase reset wipe clear delete everything this device start over">
       <h2 class="settings-page-title" data-t>Sync</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -1682,11 +1682,19 @@
         </div>
         <p class="hint" data-t>Your data stays on this device and on GitHub.</p>
       </section>
+
+      <section class="sgroup" id="eraseSection">
+        <h3 class="sgroup-label" data-t>This device</h3>
+        <div class="sgroup-card">
+          <button type="button" class="sitem sitem-go sitem-danger" id="eraseDeviceBtn" data-t>Erase this device</button>
+        </div>
+        <p class="hint" id="eraseHint"></p>
+      </section>
       </div>
 
       <!-- What the GitHub repo's room goes on (2026-11). -->
       <div class="settings-page" hidden data-page="sync-space" data-parent="sync" data-title="Space on GitHub" data-keywords="space storage size room repo github pictures images history notes breakdown">
-      <button type="button" class="settings-crumb" data-go="sync"><span class="settings-back-chev" aria-hidden="true">‹</span>Sync</button>
+      <button type="button" class="settings-crumb" data-go="sync"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Sync</span></button>
       <h2 class="settings-page-title" data-t>Space on GitHub</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -2077,7 +2085,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-hardcover" data-parent="imports" data-title="Hardcover" data-keywords="hardcover books want to read currently reading did not finish paused two-way token">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Hardcover</h2>
       <section class="sgroup" id="hardcoverGroup">
         <div class="sgroup-card">
@@ -2107,7 +2115,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-anilist" data-parent="imports" data-title="AniList" data-keywords="anilist anime manga planning watching completed paused dropped episodes client id sign in token two-way">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>AniList</h2>
       <section class="sgroup">
         <h3 class="sgroup-label" data-t>Your lists</h3>
@@ -2158,7 +2166,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-stremio" data-parent="imports" data-title="Stremio" data-keywords="stremio movies shows library watching watched episodes sign in">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Stremio</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -2214,7 +2222,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-waypage" data-parent="imports" data-title="Waypage" data-keywords="waypage reading books audiobooks comics serials articles minutes habit token repo review unlink never">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Waypage</h2>
       <section class="sgroup" id="waypageGroup">
         <div class="sgroup-card">
@@ -2292,7 +2300,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-trello" data-parent="imports" data-title="Trello" data-keywords="trello boards lists cards tasks checklist labels due two-way token api key power-up">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Trello</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -2343,7 +2351,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-steam" data-parent="imports" data-title="Steam" data-keywords="steam wishlist owned library played playtime backfill api key how long to beat hltb game times opencritic metacritic scores">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Steam</h2>
       <section class="sgroup">
         <h3 class="sgroup-label" data-t>Steam wishlist</h3>
@@ -2435,7 +2443,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-letterboxd" data-parent="imports" data-title="Letterboxd" data-keywords="letterboxd films diary watchlist zip csv export">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Letterboxd</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -2450,7 +2458,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-gcal" data-parent="imports" data-title="Google Calendar" data-keywords="google calendar events agenda appointments read only timeline calendar">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Google Calendar</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -2474,7 +2482,7 @@
       </div>
 
       <div class="settings-page" hidden data-page="conn-payments" data-parent="imports" data-title="Google Wallet" data-keywords="google wallet pay payment notification expense ledger">
-      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span><span data-t>Connections</span></button>
       <h2 class="settings-page-title" data-t>Google Wallet</h2>
       <section class="sgroup" id="paymentsGroup" hidden>
         <div class="sgroup-card">

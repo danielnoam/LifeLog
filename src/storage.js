@@ -23,7 +23,10 @@
   const IDB_TRAVEL_HISTORY = "travelHistory";
   const IDB_INVEST_HISTORY = "investHistory"; // investments.json's
   const BOARDS_HISTORY_CAP = 30;
-  const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
+  const HISTORY_CAP = 40;
+  // What erasing this device leaves (eraseDevice): the look, not the data.
+  // The language is kept too; its key is lifelog.lang, outside the sweep.
+  const ERASE_KEEPS = ["lifelog-visual-settings-v1", "lifelog-desktop-prefs-v1"]; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
 
   const fsSupported = "showSaveFilePicker" in window;
 
@@ -65,7 +68,12 @@
       r.onerror = () => reject(r.error);
     });
   }
+  // Set once this device is erased (eraseDevice): from then until the reload
+  // nothing is written back, so a save already on its way, or the one the
+  // page makes as it goes, can't put the data back.
+  let sealed = false;
   async function idbSet(key, val) {
+    if (sealed) return;
     const db = await idb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(IDB_STORE, "readwrite");
@@ -84,10 +92,24 @@
     });
   }
   async function idbAddHistory(entry, store = IDB_HISTORY_STORE) {
+    if (sealed) return;
     const db = await idb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(store, "readwrite");
       tx.objectStore(store).put(entry);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  // Every store emptied: the copies, the sync bases, the file handles and
+  // every past save this device kept (History restores from those).
+  async function idbClearAll() {
+    const db = await idb();
+    const names = [...db.objectStoreNames];
+    if (!names.length) return;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(names, "readwrite");
+      for (const n of names) tx.objectStore(n).clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -177,6 +199,7 @@
   const writing = {}, dirtyCopy = {};
   // null forgets it.
   function keepCopy(k, raw) {
+    if (sealed) return;
     copies[k] = raw;
     keptSince[k] = true;
     if (copiesIn === "localStorage") { lsKeep(k); return; }
@@ -1088,6 +1111,7 @@
     // 'github' | 'file' | 'cache' — and whether GitHub had moved on and got
     // a merge instead (see ghSave), which means there's something to fetch.
     async save(data) {
+      if (sealed) return { where: "cache", merged: false };
       this._cache(data);
       let toGithub = false, toFile = false, merged = false;
 
@@ -1218,6 +1242,29 @@
       keepCopy(CACHE_COPY, null); keepCopy(BASE_COPY, null);
       await Storage.copiesWritten();
       try { localStorage.removeItem("lifelog-travel-ui"); localStorage.removeItem("lifelog-travel-history-mark"); localStorage.removeItem("lifelog-invest-ui"); } catch (e) {}
+      // Past saves too: each holds the whole log, and History would hand
+      // it straight back (2026-11).
+      await idbClearAll().catch(() => {});
+    },
+
+    // Settings → Sync → Erase this device (2026-11): everything LifeLog keeps
+    // here goes, whether or not it syncs: the data, its past saves, the
+    // pictures, the connections, the keys and tokens, the reminders' marks.
+    // Only how it looks stays (theme, layout, language, the desktop window's
+    // choices), so it reopens the way you'd set it up. GitHub, the backup
+    // file, Drive and the phone's Documents/LifeLog copy are left as they
+    // are. The page reloads afterwards: modules hold the data in memory.
+    async eraseDevice() {
+      await Storage.forgetDevice();
+      sealed = true;
+      const keep = new Set(ERASE_KEEPS);
+      for (const store of [localStorage, sessionStorage]) {
+        try {
+          const keys = [];
+          for (let i = 0; i < store.length; i++) keys.push(store.key(i));
+          for (const k of keys) if (k && k.startsWith("lifelog-") && !keep.has(k)) store.removeItem(k);
+        } catch (e) { /* not available here */ }
+      }
     },
 
     // Lightweight poll for changes made elsewhere (e.g. another device).

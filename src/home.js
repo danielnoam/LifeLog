@@ -146,12 +146,21 @@
   // Everything dated from today to `days` ahead, soonest first. Only what is
   // known to the day: a release "sometime in November" is the Upcoming
   // page's to list, and here it would read as due today.
-  //   { kind: "release" | "episode" | "charge" | "habit" | "task", day, title, ... }
+  //   { kind: "release" | "episode" | "charge" | "habit" | "task" | "event", day, title, ... }
   // Open tasks with a date come too, the overdue ones before today
-  // (bucketOf files them under Overdue).
-  function comingUp(data, today, { Backlog, Finance, Habits, Tasks, days = DAYS_AHEAD } = {}) {
+  // (bucketOf files them under Overdue). `events` are Google Calendar's
+  // (gcal.js readEvents), on their first day, or today if already under way.
+  function comingUp(data, today, { Backlog, Finance, Habits, Tasks, events, days = DAYS_AHEAD } = {}) {
     const until = addDays(today, days);
     const rows = [];
+    const seen = new Set();
+    for (const ev of events || []) {
+      if (!ev || ev.end < today || ev.start > until) continue;
+      const key = ev.cal + "|" + ev.id + "|" + ev.start;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ kind: "event", day: ev.start < today ? today : ev.start, title: ev.title, time: ev.allDay ? "" : ev.time, allDay: !!ev.allDay, cal: ev.cal, id: ev.id, ev });
+    }
     if (Tasks) {
       for (const r of Tasks.dueTasks(data, until)) {
         rows.push({ kind: "task", day: r.day, title: r.item.text, category: r.category, list: r.note.text || "", noteId: r.note.id, id: r.item.id,
@@ -194,8 +203,9 @@
         }
       }
     }
-    const order = { task: 0, habit: 1, release: 2, episode: 3, charge: 4 };
+    const order = { event: 0, task: 1, habit: 2, release: 3, episode: 4, charge: 5 };
     return rows.sort((a, b) => a.day.localeCompare(b.day) || order[a.kind] - order[b.kind]
+      || (a.kind === "event" ? (b.allDay - a.allDay) || (a.time || "").localeCompare(b.time || "") : 0)
       || (a.kind === "task" ? (a.time || "99").localeCompare(b.time || "99") || (a.priority || 4) - (b.priority || 4) : 0)
       || String(a.title).localeCompare(String(b.title)));
   }
@@ -314,7 +324,7 @@
     ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr, coverEl, emptyCoverEl } = ctx);
     // Google Calendar's events arrive after the Home calendar is drawn.
     const G = window.LifeLogGcal;
-    if (G) G.onChange(() => { if (state.view === "home" && floors().some((f) => f.includes("calendar"))) render(); });
+    if (G) G.onChange(() => { if (state.view === "home" && floors().some((f) => f.includes("calendar") || (f.includes("upcoming") && state.visual.homeUpcomingEvents !== false))) render(); });
   }
 
   const floors = () => floorLayout(state.visual.homeFloors, { order: state.visual.homeSections, hidden: state.visual.homeHidden });
@@ -392,6 +402,47 @@
     return sec;
   }
 
+  // Google Calendar's events in Coming up: on unless switched off in the
+  // panel's menu (per device, as the events are).
+  const upcomingEvents = () => state.visual.homeUpcomingEvents !== false && !!(window.LifeLogGcal && window.LifeLogGcal.on);
+  function setUpcomingEvents(on) {
+    if (on) delete state.visual.homeUpcomingEvents; else state.visual.homeUpcomingEvents = false;
+    saveVisualSettings(state.visual);
+    render();
+    const B = window.LifeLogBoards;
+    if (B && B.isEditing()) B.refreshLive();
+  }
+  // The events from today to `days` ahead, a month's copy at a time.
+  function gcalEvents(today, days = DAYS_AHEAD) {
+    if (!upcomingEvents()) return [];
+    const G = window.LifeLogGcal, out = [];
+    const until = addDays(today, days);
+    let [y, m] = today.split("-").map(Number);
+    while (`${y}-${String(m).padStart(2, "0")}` <= until.slice(0, 7)) {
+      G.ensure(y, m);
+      for (const list of G.eventsFor(y, m).values()) out.push(...list);
+      if (++m > 12) { m = 1; y++; }
+    }
+    return out;
+  }
+  function eventRow(r, today) {
+    const G = window.LifeLogGcal, D = Dates();
+    const row = el("button", "home-row home-up-ev");
+    row.type = "button";
+    const c = G.colorOf(r.cal);
+    if (c) row.style.setProperty("--ev", c);
+    row.appendChild(el("span", "home-row-ico")).appendChild(ico("calendar"));
+    const text = row.appendChild(el("span", "home-row-text"));
+    text.appendChild(el("span", "home-row-title", r.title));
+    text.appendChild(el("span", "home-row-sub", ["Google Calendar", G.calName(r.cal)].filter(Boolean).join(" · ")));
+    const when = r.allDay ? i18n.t("All day") : r.time;
+    const day = r.day === today ? "" : bucketOf(r.day, today) === i18n.t("This week") || r.day === addDays(today, 1)
+      ? D.WEEKDAYS[D.parts(r.day).wd] + " " + D.parts(r.day).d : D.day(r.day, { year: "auto" });
+    row.appendChild(el("span", "home-row-end", r.day === today ? when : r.allDay ? day : day + " " + when));
+    row.onclick = () => window.LifeLogJournal.openEventSheet(r.ev);
+    return row;
+  }
+
   const KIND_ICON = { release: "star", episode: "tv", charge: "repeat", habit: "square-check-big" };
   // A task's row: its tick where the others have an icon, ticking it right
   // here; the rest of the row opens it.
@@ -427,6 +478,7 @@
   }
   function upcomingRow(r, today) {
     if (r.kind === "task") return taskRow(r, today);
+    if (r.kind === "event") return eventRow(r, today);
     const row = el("button", "home-row");
     row.type = "button";
     const ki = el("span", "home-row-ico");
@@ -469,7 +521,7 @@
 
   function upcomingSection() {
     const today = todayStr();
-    const rows = comingUp(state.data, today, { Backlog: window.LifeLogBacklog, Finance: window.LifeLogFinance, Habits: window.LifeLogHabits, Tasks: window.LifeLogTasks });
+    const rows = comingUp(state.data, today, { Backlog: window.LifeLogBacklog, Finance: window.LifeLogFinance, Habits: window.LifeLogHabits, Tasks: window.LifeLogTasks, events: gcalEvents(today) });
     const run = goTo("backlog", "upcoming");
     const sec = el("section", "home-sec home-upcoming");
     sec.appendChild(sectionHead("upcoming", run ? { label: i18n.t("Upcoming"), run } : null));
@@ -1526,6 +1578,9 @@
     calendar: () => [state.visual.homeCalCovers === true
       ? { icon: "list", label: i18n.t("Show names"), run: () => setCalCovers(false) }
       : { icon: "image", label: i18n.t("Show big covers"), run: () => setCalCovers(true) }],
+    upcoming: () => (window.LifeLogGcal && window.LifeLogGcal.on ? [state.visual.homeUpcomingEvents === false
+      ? { icon: "calendar", label: i18n.t("Show Google Calendar"), run: () => setUpcomingEvents(true) }
+      : { icon: "calendar-off", label: i18n.t("Hide Google Calendar"), run: () => setUpcomingEvents(false) }] : []),
   };
   const OWN_MENU = "input, textarea, select, a[href], [contenteditable='true']";
 

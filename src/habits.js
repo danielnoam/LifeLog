@@ -242,7 +242,7 @@
     const h = Math.floor(n / 60), m = n % 60;
     return m ? h + "h" + String(m).padStart(2, "0") : h + "h";
   }
-  const amountLabel = (habit, n) => (isMinutes(habit) ? minutesLabel(n) : n === 1 ? i18n.t("once") : n === 2 ? i18n.t("twice") : i18n.t("{n} times", { n }));
+  const amountLabel = (habit, n) => (isMinutes(habit) ? minutesLabel(n) : n === 1 ? i18n.t("once") : n === 2 ? i18n.t("twice") : i18n.tn(n, "{n} time", "{n} times"));
 
   // "3 times a week", "1 hour a day", "Weekdays · 30 min".
   function goalLabel(habit) {
@@ -1133,7 +1133,7 @@
             // A day of a weekly goal isn't missed for having nothing in it,
             // so a blank one stays blank; a day with something is filled.
             if (n) { cell.classList.add("is-done"); cell.style.background = h.color; }
-            cell.title = date + (n ? " — " + (isMinutes(h) ? minutesLabel(n) : n === 1 ? i18n.t("done") : i18n.t("{n} times", { n })) : "");
+            cell.title = date + (n ? " — " + (isMinutes(h) ? minutesLabel(n) : n === 1 ? i18n.t("done") : i18n.tn(n, "{n} time", "{n} times")) : "");
           } else if (isMinutes(h)) {
             if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
             else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
@@ -1411,7 +1411,7 @@
     const period = periodFromForm();
     const n = targetFromForm();
     const unit = $("#habitUnit").value;
-    const amount = unit === "times" ? (n === 1 ? i18n.t("once") : n === 2 ? i18n.t("twice") : i18n.t("{n} times", { n })) : minutesLabel(n);
+    const amount = unit === "times" ? (n === 1 ? i18n.t("once") : n === 2 ? i18n.t("twice") : i18n.tn(n, "{n} time", "{n} times")) : minutesLabel(n);
     const h = editingId ? (state.data.habits || []).find((x) => x.id === editingId) : null;
     const unitChanged = h && !avoid && Object.keys(h.marks || {}).length && isMinutes(h) !== (unit !== "times");
     const bits = [];
