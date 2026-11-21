@@ -598,16 +598,17 @@
     if (n.category) { const dot = el("span", "dot"); dot.style.background = catColor(n.category); left.appendChild(dot); }
     left.appendChild(el("span", "note-list-title", reordering ? i18n.t("Drag to reorder") : (n.text || i18n.t("Untitled list"))));
     if (n.tags && !reordering) left.appendChild(tagPills(n.tags));
+    h.appendChild(left);
+    const right = el("span", "mc-right");
+    // Next to the star (Daniel, 2026-11-21).
     if (!reordering && window.LifeLogTrello && window.LifeLogTrello.linked(n)) {
       const b = el("span", "note-trello");
       b.title = i18n.t("Syncs with Trello");
       b.setAttribute("role", "img");
       b.setAttribute("aria-label", i18n.t("Syncs with Trello"));
       b.append(ico("square-kanban"), el("span", "note-trello-name", i18n.t("Trello")));
-      left.appendChild(b);
+      right.appendChild(b);
     }
-    h.appendChild(left);
-    const right = el("span", "mc-right");
     if (!reordering) right.appendChild(favButton(n));
     if (reordering) {
       const btn = el("button", "btn btn-sm btn-primary", i18n.t("Done"));
@@ -1240,9 +1241,19 @@
     // not in their month as well: one place for each note. The filters still
     // apply to them, and they run in the same order as everything else.
     const favs = notes.filter((n) => n.fav).sort(bySort);
-    const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
+    // Trello's lists (Nov 2026), when View → Trello lists asks for it: a
+    // block of their own after Favourites, out of their months. A favourite
+    // stays in Favourites.
+    const T = window.LifeLogTrello;
+    const ownTrello = state.visual.noteTrelloGroup === "on" && T;
+    const trello = ownTrello ? notes.filter((n) => !n.fav && T.linked(n)).sort(bySort) : [];
+    const inTrello = new Set(trello);
+    const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav && !inTrello.has(n)), (n) => sortDate(n).getFullYear());
     if (favs.length && !sections.length) {
       sections.push(flatBlock("favourites", i18n.t("Favourites"), i18n.tn(favs.length, "{n} note", "{n} notes"), favs));
+    }
+    if (trello.length) {
+      sections.push(flatBlock("trello", i18n.t("Trello"), i18n.tn(trello.length, "{n} list", "{n} lists"), trello));
     }
     for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");

@@ -3147,4 +3147,6 @@ Keel.i18n.strings("he", {
   "Type \"{word}\" to erase everything on this device.": "לאישור יש להקליד \"{word}\" כדי למחוק הכול מהמכשיר הזה.",
   "Nothing was erased": "שום דבר לא נמחק",
   "Couldn't erase this device: {error}": "לא ניתן היה למחוק את הנתונים מהמכשיר הזה: {error}",
+  "In their months": "בחודש שלהן",
+  "Separate": "בנפרד",
 });

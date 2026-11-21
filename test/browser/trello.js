@@ -44,7 +44,7 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   await page.goto(BASE + "/", { waitUntil: "load" });
   await forgetCopy(page);
   await page.evaluate(({ T, L, B, ME }) => { localStorage.clear(); localStorage.setItem("lifelog-cache-v1", JSON.stringify({
-    categories: [], entries: [], backlog: [], habits: [], notes: [],
+    categories: [], entries: [], backlog: [], habits: [], notes: [{ id: "fav1", text: "A favourite", fav: true, createdAt: T, updatedAt: T }],
     settings: { trello: { key: "k".repeat(32), token: "tok", member: { id: ME, username: "reader" }, connectedAt: T, lists: [{ id: L, name: "To do", board: B, boardName: "Home" }] } } })); }, { T, L, B, ME });
   await page.reload({ waitUntil: "load" });
   await page.waitForFunction((L) => (window.LifeLogStorage.cachedCopy().notes || []).some((x) => x.id === "trello-" + L && x.items.length), L, { timeout: 10000 }).catch(() => {});
@@ -59,6 +59,17 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   await page.evaluate(() => document.querySelector('.tab[data-view="notes"]').click()); await page.waitForTimeout(500);
   const card = page.locator(`.note-card[data-id="trello-${L}"]`);
   check("the list shows the Trello badge", await card.locator(".note-trello").count() === 1);
+  const where = () => page.evaluate((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year; }, L);
+  const group = (v) => page.evaluate((v) => { const s = document.querySelector("#noteTrelloGroup"); s.value = v; s.dispatchEvent(new Event("change")); }, v);
+  const inMonth = () => page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && /^\d{4}$/.test(c.closest(".year-block").dataset.year); }, L, { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year === "trello"; }, L, { timeout: 5000 }).catch(() => {});
+  const order = await page.$$eval(".year-block", (xs) => [...new Set(xs.map((x) => x.dataset.year))]);
+  check("by default the lists are Separate: a Trello block after Favourites, before the years", await where() === "trello" && order[0] === "favourites" && order[1] === "trello", { at: await where(), order });
+  await group("off"); await inMonth();
+  check("View → Trello lists → In their months puts it in its month", /^\d{4}$/.test(await where()), await where());
+  await group("on");
+  await page.waitForFunction((L) => { const c = document.querySelector(`.note-card[data-id="trello-${L}"]`); return c && c.closest(".year-block").dataset.year === "trello"; }, L, { timeout: 5000 }).catch(() => {});
+  check("and Separate again, back in the Trello block", await where() === "trello", await where());
   await card.locator(".todo-row", { hasText: "Order the sink" }).locator(".todo-check").first().click();
   await until(() => sent.length);
   check("a tick marks the card complete a few seconds later", sent.some((s) => s.method === "PUT" && s.path === "/cards/" + C1 && s.body.dueComplete === true), sent);
