@@ -20,7 +20,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Home is the first tab on a computer and stays in the middle of the phone's bottom bar (0.307.0)
 - Home floors: drag a section by its heading on a computer (outline on hover) into a floor, sharing its width at 380px or more each, or between floors for a new one; a full floor pushes its last section down; per device, Esc cancels, View → Reset layout with Undo, right-click an empty spot to add a hidden section there; phone stacks the floors (0.314.0)
 - Home Investments section: You hold with the gain since buying and today's move, up to five tickers with sparkline, close, day's move and At target, a tap opens the ticker, Add ticker; its own floor at the bottom (0.314.0)
-- Home's Coming up lists Google Calendar events too (an event already under way shows under Today), in its calendar's colour, opening the event sheet; Hide / Show Google Calendar in the panel's right-click or long-press menu, per device; the bridge doesn't see them, as with every Google event (next release)
+- Home's Coming up lists Google Calendar events too (an event already under way shows under Today), in its calendar's colour, opening the event sheet; Hide / Show Google Calendar in the panel's right-click or long-press menu, per device; the bridge doesn't see them, as with every Google event (0.325.0)
 - Home Calendar section: the Timeline calendar's month with a mark per Google Calendar event, entry finished, release and open task, the picked day's list (events, tasks ticked there, releases, finished) under it, Timeline › to the Timeline's calendar on that day; alone on a wide floor, names in the days and the list beside; bridge lifelog_calendar (0.321.0)
 - Home panel menu: right-click a panel on a computer or long-press it on a phone for Remove from Home (with Undo) and the panel's own switches (Calendar: names or big covers); on a phone also Move up / Move down, as View's arrows (0.324.0)
 - Home Pick for tonight section: one pickable backlog title held per device until Another or Start, drawn from Pick's own bag, Start / Another, category chips (per device), Pick › opens the sheet; bridge lifelog_pick (0.321.0)
@@ -164,7 +164,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
-- Trello both ways: picked Trello lists as Notebook task lists (cards as tasks, due as date, named labels as tags, checklists as subtasks), tick marks complete / moves to Done / archives, new tasks become cards, edits sent, a deleted task archives its card, newer change wins, only-my-cards switch; Trello badge on the list; bridge lifelog_trello (next release)
+- Trello both ways: picked Trello lists as Notebook task lists (cards as tasks, due as date, named labels as tags, checklists as subtasks), tick marks complete / moves to Done / archives, new tasks become cards, edits sent, a deleted task archives its card, newer change wins, only-my-cards switch; Trello badge on the list; bridge lifelog_trello (0.325.0)
 - Calendar export: an .ics of dated tasks, releases and new episodes, and recurring charges for the next year (Settings → Import & export); bridge lifelog_calendar_ics (0.323.0)
 
 ## Notebook (Notes)
@@ -208,7 +208,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Habits view option: hide the Left to do panel (View button, this device only) (0.302.0)
 - Habit cards: buttons under a full-width grid, best and rate on the Insights line (0.303.0)
 - Habit grids: smaller cells, lines between days, today ringed, no week-met bar (0.304.0)
-- Habits tick themselves from Health Connect (Android only): steps, each workout of a kind, or hours of sleep, linked in Settings → Connections → Health Connect, read on open and in the background; hand ticks still count, unlinking takes out only its part, the card shows today's steps; the Android app now needs Android 8 (next release)
+- Habits tick themselves from Health Connect (Android only): steps, each workout of a kind, or hours of sleep, linked in Settings → Connections → Health Connect, read on open and in the background; hand ticks still count, unlinking takes out only its part, the card shows today's steps; the Android app now needs Android 8 (0.325.0)
 
 ## Ledger
 
@@ -254,7 +254,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Settings → Sync shows how much room the GitHub repo has left of its 5 GB, with a bar that turns yellow past 90%, and Space on GitHub breaks it down (each part of your data, pictures with Clean up, history as a rough figure); bridge tool lifelog_sync_space (0.316.0)
 - Google Drive backups in Settings → Sync: Back up now or automatic (daily to monthly), last three kept plus one a week old, restore as a new save, delete; drive.file scope only; browser, Android and Windows app (0.316.0)
 - Privacy and Terms pages on the web app (privacy.html, terms.html), linked from Google's sign-in screen (0.317.0)
-- Settings → Sync → Erase this device, synced or not: the data, its past saves, pictures, connections and keys go from this device only, the look and language stay, and it reopens empty; with no other copy it says so and asks for the word erase; web, Windows and Android (next release)
+- Settings → Sync → Erase this device, synced or not: the data, its past saves, pictures, connections and keys go from this device only, the look and language stay, and it reopens empty; with no other copy it says so and asks for the word erase; web, Windows and Android (0.325.0)
 
 ## Privacy and security
 
@@ -265,7 +265,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Exports and the phone backup leave out API keys (0.260.0)
 - The apps stay out of the phone's cloud backup (0.261.0)
 - Content Security Policy (0.263.0)
-- The app lock's Forgot PIN reset also clears History's past saves on the device, which could hand the data back (next release)
+- The app lock's Forgot PIN reset also clears History's past saves on the device, which could hand the data back (0.325.0)
 
 ## Settings
 
@@ -294,7 +294,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Background refresh: the app run with no screen on a schedule, so widgets and alerts catch up with the app closed (0.279.0)
 - Quick-add window: the quick add widget's buttons and the checklist widget's + open a small window over the home screen (entry, expense, backlog item, note, list item) instead of the app; saved on the phone and added when LifeLog next opens (0.311.0)
 - Investments widget (Android): what you hold and the day's move, then each ticker with its close, day's change, a month's sparkline and an "At target" tag; a row opens that ticker; shrinks to the total; amounts hidden with the lock's "hide in widgets" (0.313.0)
-- Calendar widget (Android only; Windows and the web have no home screen widgets, and iPhone didn't get it): Google Calendar events or the phone's own calendars (every account, read on the phone, calendar permission asked in the widget's settings), with tasks due, backlog releases and next episodes and finished entries, as an agenda (today and the days ahead, "N more") or a month with marks and arrows; a tap opens that day on the Timeline calendar; in the app's language, right to left in Hebrew (next release)
+- Calendar widget (Android only; Windows and the web have no home screen widgets, and iPhone didn't get it): Google Calendar events or the phone's own calendars (every account, read on the phone, calendar permission asked in the widget's settings), with tasks due, backlog releases and next episodes and finished entries, as an agenda (today and the days ahead, "N more") or a month with marks and arrows; a tap opens that day on the Timeline calendar; in the app's language, right to left in Hebrew (0.325.0)
 
 ## iOS app
 
@@ -312,7 +312,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Pin on top: the window small and always on top with Today, Coming up, Notes and Scratchpad tabs and a quick add (task, note, entry, expense); top-bar pin, tray item, Ctrl+Shift+P; kept across restarts (0.323.0)
 - The web app on a Windows PC offers the Windows app once in the bottom bar, and keeps "Get the Windows app" in Settings → About (0.324.0)
 - Windows app is portable: LifeLog-portable.zip, unzip anywhere and run, data in `data` beside LifeLog.exe; updates itself by swapping in the new signed exe (read-only folder → release page); refuses to run from inside the zip; installed copies move over with one last installer update (0.324.0)
-- Windows app: links, Connect buttons and sign-ins (Google Drive, Google Calendar, AniList, token links, release pages) open in the browser; before, the app was only allowed to ask, never to open an address (next release)
+- Windows app: links, Connect buttons and sign-ins (Google Drive, Google Calendar, AniList, token links, release pages) open in the browser; before, the app was only allowed to ask, never to open an address (0.325.0)
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (0.315.0)
 - Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (0.316.0)

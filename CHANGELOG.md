@@ -3,6 +3,27 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.325.0] - 2026-11-21
+
+### Added
+- Calendar widget on Android: your Google Calendar events, or this phone's own calendars, together with tasks due, backlog releases and next episodes and what you finished, as an agenda of today and the days ahead or as a month with marks under each day. Pick the layout and where the events come from in the widget's settings; the phone's calendars ask for calendar permission, are read on the phone and never leave it. A tap opens that day on the Timeline calendar. Android only: Windows and the web have no home screen widgets, and the iPhone widgets didn't get it.
+- Android only: habits tick themselves from Health Connect. Link a habit in Settings → Connections → Health Connect to a step count ("Walk" at 8,000 steps), a kind of workout ("Gym" for each strength session) or hours of sleep; the phone reads the last week when the app opens and, with "Read in the background" on, about every hour while it's closed. Ticks you make by hand still count, a session you ticked yourself isn't counted twice, and unlinking takes out only what Health Connect added. The habit's card shows today's reading beside the flame. The web and Windows apps show the ticks and let you make or change links, but never read health data. Only the ticks sync; the health data stays on the phone.
+- Home's Coming up lists your Google Calendar events for the next two weeks too, in each calendar's colour; tap one for its event sheet. Right-click the panel (long press on a phone) for Hide Google Calendar / Show Google Calendar, kept per device. Events stay on the device as before, so the bridge doesn't see them.
+- Trello, both ways (Settings → Connections → Trello): sign in with a token from Trello and switch on the Trello lists you want. Each becomes a task list in the Notebook with a Trello mark: cards are tasks, due dates their date and time, named labels tags, checklist items subtasks. Ticking a task marks its card complete, moves it to the board's Done list or archives it (you pick); new tasks become cards; edits go back; deleting a task archives its card. Syncs when the app opens, every few minutes while it's open and a few seconds after you change a synced list; when both sides changed, the newer change wins. "Only cards I'm on" leaves the rest of a shared board out. Works in the web app, Windows and Android, in English and Hebrew; the Android widgets show these lists like any other, and a tick there goes to Trello the next time the app opens.
+- The AI bridge: `lifelog_trello` shows the connection and which task list each Trello list is; the tasks themselves use the task tools, and the app sends their changes at its next sync.
+- Settings → Sync → Erase this device: clears LifeLog's data, its past saves, pictures, connections and keys from this device, whether it syncs or not, and reopens empty. The theme, layout and language stay; GitHub, the backup file and Google Drive aren't touched. With no other copy it says the erase is for good and asks you to type the word. Web, Windows and Android.
+
+### Changed
+- The Android app now needs Android 8 or later (Health Connect's library doesn't run on Android 7).
+- Settings → About: Unreleased builds, Test builds, What's new and Errors on this device now sit together in the first group. Source code, Report a problem and Downloads come after it under an "On GitHub" heading, and the line under Data from is gone.
+
+### Fixed
+- In Hebrew, a habit's goal read "3 times בשבוע" (and a grid day's hint "{n} times" stayed English); it now reads "3 פעמים בשבוע". The "Connections" and "Sync" back links at the top of their Settings pages are in Hebrew too.
+- Pressing a dropdown's row or name (Settings → Desktop → At login, the color scheme, the language and every other labelled dropdown) opened the system's own list in the Windows and Android apps. It now opens LifeLog's list, the same as pressing the dropdown itself.
+- The app lock's Forgot PIN reset left this device's past saves in History, which could put the data straight back. They're cleared now too.
+- On a computer the top bar changed with the tab you were on: the search box grew or shrank, and in a mid-width window the tab names hid on some tabs only. It now stays the same on every tab. In Hebrew, "ציר זמן" no longer breaks onto a second line and makes the bar taller; the tabs drop to icons instead, as in English.
+- In the Windows app, links and Connect buttons did nothing: Google Drive and Google Calendar Connect, AniList sign-in, "Make a token" links, release pages and every other link out. They now open in your browser.
+
 ## [0.324.0] - 2026-11-20
 
 ### Added
