@@ -1240,9 +1240,19 @@
     // not in their month as well: one place for each note. The filters still
     // apply to them, and they run in the same order as everything else.
     const favs = notes.filter((n) => n.fav).sort(bySort);
-    const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
+    // Trello's lists (Nov 2026), when View → Trello lists asks for it: a
+    // block of their own after Favourites, out of their months. A favourite
+    // stays in Favourites.
+    const T = window.LifeLogTrello;
+    const ownTrello = state.visual.noteTrelloGroup === "on" && T;
+    const trello = ownTrello ? notes.filter((n) => !n.fav && T.linked(n)).sort(bySort) : [];
+    const inTrello = new Set(trello);
+    const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav && !inTrello.has(n)), (n) => sortDate(n).getFullYear());
     if (favs.length && !sections.length) {
       sections.push(flatBlock("favourites", i18n.t("Favourites"), i18n.tn(favs.length, "{n} note", "{n} notes"), favs));
+    }
+    if (trello.length) {
+      sections.push(flatBlock("trello", i18n.t("Trello"), i18n.tn(trello.length, "{n} list", "{n} lists"), trello));
     }
     for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");
