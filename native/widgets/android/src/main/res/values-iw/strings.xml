@@ -18,6 +18,8 @@
     <string name="widget_upcoming_description">מה מהתור יוצא בקרוב, בספירה לאחור, והמשימות עם תאריך</string>
     <string name="widget_inprogress_label">בתהליך של LifeLog</string>
     <string name="widget_inprogress_description">מה בתהליך בתור, וממתי</string>
+    <string name="widget_calendar_label">לוח שנה של LifeLog</string>
+    <string name="widget_calendar_description">לוחות השנה של Google או של הטלפון, עם המשימות, היציאות והרשומות שהסתיימו, כסדר יום או כחודש</string>
     <string name="widget_next_note">פתק אחר</string>
     <string name="widget_add">הוספה</string>
     <string name="widget_tick_list">סימון כל הרשימה</string>

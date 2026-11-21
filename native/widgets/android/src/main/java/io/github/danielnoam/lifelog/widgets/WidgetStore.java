@@ -957,6 +957,7 @@ final class WidgetStore {
         RandomNoteWidget.refresh(c);
         UpcomingWidget.refresh(c);
         InProgressWidget.refresh(c);
+        CalendarWidget.refresh(c);
     }
 
     static String pendingNote(Context c) {

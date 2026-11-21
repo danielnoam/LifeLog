@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A day's heading in the Calendar widget's agenda. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cal_day"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="6dp"
+    android:paddingBottom="1dp"
+    android:maxLines="1"
+    android:textAlignment="viewStart"
+    android:textColor="@color/widget_muted"
+    android:textSize="12sp"
+    android:textStyle="bold" />

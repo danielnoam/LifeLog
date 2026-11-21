@@ -777,4 +777,86 @@ public class WidgetLogicTest {
         assertEquals("Deadline 9 Oct", WidgetStore.deadlineWords("2026-10-09", "9 Oct", D));
         assertEquals("", WidgetStore.deadlineWords("", "", D));
     }
+
+    // ---- the Calendar widget (Nov 2026) ----
+
+    private static JSONObject calendar() throws Exception {
+        return json("{\"days\":{"
+            + "\"2026-09-24\":{\"n\":3,\"items\":[{\"k\":\"event\",\"t\":\"Gym\",\"time\":\"07:30\",\"c\":\"#0b8043\"},{\"k\":\"task\",\"t\":\"Pack\",\"time\":\"18:00\"},{\"k\":\"done\",\"t\":\"Dune\"}]},"
+            + "\"2026-09-25\":{\"n\":1,\"items\":[{\"k\":\"release\",\"t\":\"Game\"}]},"
+            + "\"2026-09-28\":{\"n\":2,\"items\":[{\"k\":\"event\",\"t\":\"Standup\",\"all\":true},{\"k\":\"task\",\"t\":\"Bills\"}]},"
+            + "\"2026-10-20\":{\"n\":1,\"items\":[{\"k\":\"task\",\"t\":\"Far\"}]}}}");
+    }
+
+    private static String lines(List<CalendarDays.Line> lines) {
+        StringBuilder s = new StringBuilder();
+        for (CalendarDays.Line l : lines) {
+            if (s.length() > 0) s.append(" | ");
+            s.append(l.type == CalendarDays.HEAD ? "#" + l.date.substring(8) : l.type == CalendarDays.ITEM ? l.item.title : l.type == CalendarDays.MORE ? "+" + l.count : "nothing");
+        }
+        return s.toString();
+    }
+
+    @Test
+    public void calendarAgendaShowsTheDaysThatHaveSomethingWithinAFortnight() throws Exception {
+        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), true);
+        assertEquals("#24 | Gym | Pack | Dune | #25 | Game | #28 | Standup | Bills", lines(CalendarDays.agenda(days, D, 20)));
+    }
+
+    @Test
+    public void calendarAgendaFoldsWhatDoesntFitIntoOneMoreLine() throws Exception {
+        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), true);
+        assertEquals("#24 | Gym | Pack | Dune | +3", lines(CalendarDays.agenda(days, D, 5)));
+        // A later day's heading never shows without a row of its own.
+        assertEquals("#24 | Gym | Pack | Dune | +3", lines(CalendarDays.agenda(days, D, 6)));
+        assertEquals("#24 | Gym | Pack | Dune | #25 | Game | +2", lines(CalendarDays.agenda(days, D, 7)));
+        assertEquals("#24 | Gym | +5", lines(CalendarDays.agenda(days, D, 3)));
+    }
+
+    @Test
+    public void calendarAgendaSaysNothingTodayAndStillShowsWhatsAhead() throws Exception {
+        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), true);
+        assertEquals("#23 | nothing | #24 | Gym | Pack | +4", lines(CalendarDays.agenda(days, "2026-09-23", 6)));
+    }
+
+    @Test
+    public void calendarFromThePhoneDropsTheAppsEventsAndJoinsItsOwnInTimeOrder() throws Exception {
+        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), false);
+        assertEquals(2, days.get(D).total);
+        assertNull(days.get("2026-09-28").items.stream().filter((i) -> i.kind.equals("event")).findFirst().orElse(null));
+        java.util.Map<String, List<CalendarDays.Item>> phone = new java.util.HashMap<>();
+        List<CalendarDays.Item> mine = new ArrayList<>();
+        mine.add(new CalendarDays.Item("event", "Dentist", "09:00", "#ff0000", false, 0));
+        mine.add(new CalendarDays.Item("event", "Holiday", "", "#00ff00", true, 0));
+        mine.add(new CalendarDays.Item("event", "Party", "20:00", "#0000ff", false, 0));
+        phone.put(D, mine);
+        phone.put("2026-09-26", new ArrayList<>(mine.subList(0, 1)));
+        CalendarDays.addEvents(days, phone);
+        assertEquals("#24 | Holiday | Dentist | Pack | Party | Dune | #25 | Game | #26 | Dentist | #28 | Bills", lines(CalendarDays.agenda(days, D, 20)));
+        assertEquals(5, days.get(D).total);
+    }
+
+    @Test
+    public void calendarMonthIsWholeWeeksFromTheChosenFirstDay() {
+        List<String> sunday = CalendarDays.monthCells(2026, 11, 0);
+        assertEquals(35, sunday.size());
+        assertEquals("2026-11-01", sunday.get(0));
+        List<String> monday = CalendarDays.monthCells(2026, 11, 1);
+        assertEquals("2026-10-26", monday.get(0));
+        assertEquals(42, monday.size());
+        assertEquals("2026-12-06", monday.get(41));
+        List<String> saturday = CalendarDays.monthCells(2026, 2, 6);
+        assertEquals("2026-01-31", saturday.get(0));
+    }
+
+    @Test
+    public void calendarArrowsStayInsideTheMonthsTheAppSent() {
+        assertArrayEquals(new int[] { 2026, 12 }, CalendarDays.shifted("2026-11-21", 1));
+        assertArrayEquals(new int[] { 2027, 1 }, CalendarDays.shifted("2026-11-21", 2));
+        assertArrayEquals(new int[] { 2025, 12 }, CalendarDays.shifted("2026-01-05", -1));
+        assertEquals(-1, CalendarDays.clampShift(-3));
+        assertEquals(2, CalendarDays.clampShift(5));
+        assertEquals("עוד 3", CalendarDays.more("עוד {n}", 3));
+        assertEquals("3 more", CalendarDays.more("", 3));
+    }
 }
