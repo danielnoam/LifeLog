@@ -26,6 +26,19 @@
   const K = window.Keel.platform;
   const { cap, native, os, tauri, desktop, desktopOs, bundled, ready, openOutside } = K;
 
+  // keel sends a link's click to the browser, but a middle click fires
+  // auxclick, not click, and the computer's WebView would open the page in
+  // a bare window of its own. It goes to the browser too.
+  if (bundled && typeof document === "object") {
+    document.addEventListener("auxclick", (e) => {
+      if (e.button !== 1) return;
+      const a = e.target && e.target.closest && e.target.closest("a[href]");
+      if (!a || a.hasAttribute("download") || !K.isOutside(a.href)) return;
+      e.preventDefault();
+      openOutside(a.href);
+    }, true);
+  }
+
   // ---- files out of the app (0.179.0) ----
   // A browser saves a file when a page clicks a download link; the app's
   // WebView ignores such links, so every export in the app did nothing. In

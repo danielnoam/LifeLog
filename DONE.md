@@ -316,6 +316,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (0.315.0)
 - Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (0.316.0)
+- Windows app: a middle click on a link opens it in the browser too, not in a bare window of the app's own (next release)
 
 ## The AI bridge
 
