@@ -129,16 +129,16 @@
       const c = st.hardcover || {};
       if (!String(keys.hardcover || "").trim()) return { text: i18n.t("Needs a token in Media lookups") };
       if (!c.category) return { text: i18n.t("Not set up") };
-      return { text: c.category + ", " + (sends(k) ? i18n.t("both ways") : i18n.t("read only")) + (c.username ? " · @" + c.username : "") };
+      return { text: c.category + (sends(k) ? "" : ", " + i18n.t("read only")) + (c.username ? " · @" + c.username : "") };
     }
     if (k === "anilist") {
       const c = st.anilist || {};
       if (!String(c.userName || "").trim()) return { text: i18n.t("Not set up") };
-      return { text: c.userName + " · " + (c.token && sends(k) ? i18n.t("both ways") : i18n.t("read only")) };
+      return { text: c.userName + (c.token && sends(k) ? "" : " · " + i18n.t("read only")) };
     }
     if (k === "stremio") {
       const c = st.stremio || {};
-      return { text: c.authKey ? (c.email ? i18n.t("Signed in as {email}", { email: c.email }) : i18n.t("Signed in")) + " · " + i18n.t("read only") : i18n.t("Not signed in") };
+      return { text: c.authKey ? (c.email ? i18n.t("Signed in as {email}", { email: c.email }) : i18n.t("Signed in")) : i18n.t("Not signed in") };
     }
     if (k === "waypage") {
       const W = window.LifeLogWaypage;
@@ -154,7 +154,7 @@
     }
     if (k === "gcal") {
       const G = typeof window === "object" && window.LifeLogGcal;
-      return { text: G && G.on ? (G.email ? G.email + " · " : "") + i18n.t("read only") : i18n.t("Not connected") };
+      return { text: G && G.on ? (G.email || i18n.t("Connected")) : i18n.t("Not connected") };
     }
     if (k === "health") return window.LifeLogHealth ? window.LifeLogHealth.rowStatus() : { text: "" };
     if (k === "trello") return window.LifeLogTrello ? window.LifeLogTrello.status() : { text: "" };

@@ -1,0 +1,3 @@
+### Changed
+
+- Settings → Connections is grouped by direction: Both ways (Hardcover, AniList, Trello), Read only (Stremio, Waypage, Steam, Google Calendar, Health Connect, Google Wallet) and From a file (Letterboxd). Google Wallet was wrongly under one-time imports. Rows now say "read only" only when a two-way app is set to read only.
