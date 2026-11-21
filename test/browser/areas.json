@@ -65,7 +65,7 @@
     },
     "settings": {
       "files": ["src/settings.js", "src/drive.js", "src/keel/drive.js", "src/keys.js", "src/testbuilds.js", "src/keel/releases.js", "src/keel/qr.js"],
-      "suites": ["bridgehistory", "datafolder", "datesettings", "drivebackup", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu", "windowsapp"]
+      "suites": ["bridgehistory", "datafolder", "datesettings", "drivebackup", "erasedevice", "desktopkeys", "keyboardsettings", "keystatus", "settingspanel", "settingsrestore", "syncspace", "tabio", "tabmenu", "windowsapp"]
     },
     "search": {
       "files": ["src/search.js"],

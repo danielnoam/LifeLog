@@ -689,6 +689,16 @@
     if (m) tellBackground(m);
   }
 
+  // Erasing this device (Settings → Sync): the background runs stop, and
+  // ticks a widget queued are dropped, not applied to the empty log. The
+  // widgets themselves empty on the next push, as the app starts again.
+  async function forget() {
+    const W = plugin();
+    if (!W) return;
+    await tellBackground(0);
+    try { await W.takeQueue(); } catch (e) { /* nothing queued */ }
+  }
+
   // ctx: { state, Platform, persist, afterDataChange, toast, runAction, quickActions, hidden }
   function start(c) {
     ctx = c;
@@ -708,5 +718,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, calendarDays, CAL_PER_DAY, categoryFor, filingFor, actionOfUrl, start, changed, pushNow, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, calendarDays, CAL_PER_DAY, categoryFor, filingFor, actionOfUrl, start, changed, pushNow, forget, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

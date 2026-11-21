@@ -1533,7 +1533,7 @@
            per setting with its label on the left and its control on the
            right. .sitem is a row; .sitem-stack puts a text field under its
            label; .sitem-go is an action, drawn as a row with a chevron. -->
-      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval google drive restore">
+      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval google drive restore erase reset wipe clear delete everything this device start over">
       <h2 class="settings-page-title" data-t>Sync</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -1681,6 +1681,14 @@
           <button type="button" class="sitem sitem-go sitem-danger" id="ghDisconnectBtn" hidden data-t>Disconnect GitHub</button>
         </div>
         <p class="hint" data-t>Your data stays on this device and on GitHub.</p>
+      </section>
+
+      <section class="sgroup" id="eraseSection">
+        <h3 class="sgroup-label" data-t>This device</h3>
+        <div class="sgroup-card">
+          <button type="button" class="sitem sitem-go sitem-danger" id="eraseDeviceBtn" data-t>Erase this device</button>
+        </div>
+        <p class="hint" id="eraseHint"></p>
       </section>
       </div>
 

@@ -503,6 +503,9 @@ every target connected in **Settings → Sync**:
 With both, GitHub is the live source and the file a backup that mirrors
 every save. With neither, the log stays in the browser; Export JSON and CSV
 are there for manual backups.
+**Settings → Sync → Erase this device** clears everything LifeLog keeps on
+that device (data, past saves, pictures, connections, keys) and leaves the
+look and language; GitHub, the backup file and Drive aren't touched.
 Settings → Import & export → Calendar saves an `.ics` of what's dated in the
 next year (tasks with a date, releases and new episodes known to the day,
 recurring charges) to open in Google Calendar, Outlook or any calendar app;
