@@ -190,7 +190,10 @@ export default {
     // POST and passes its body on as it is.
     const stremioMatch = url.pathname.match(/^\/stremio\/(login|logout|datastoreGet|addonCollectionGet|addonCollectionSet)$/);
     if (stremioMatch && request.method === "POST") {
-      const body = (await request.text()).slice(0, 4000);
+      // An add-on list carries every add-on's whole manifest, often tens of
+      // KB; cut short it isn't JSON and Stremio answers "Session does not
+      // exist" (it never sees the key).
+      const body = (await request.text()).slice(0, 1000000);
       return proxyJson(`https://api.strem.io/api/${stremioMatch[1]}`, { "Content-Type": "application/json", Accept: "application/json" }, "POST", body);
     }
 
