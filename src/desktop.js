@@ -258,30 +258,23 @@
   // swaps in the new LifeLog.exe itself, and fails with "readonly" when its
   // folder can't be written to, before downloading anything. Linux's
   // AppImage keeps Tauri's own updater.
-  async function findUpdate() {
-    const t = T();
-    if (!t) return null;
-    if (P.windows) {
-      try { const v = await invoke("portable_check"); return v ? { version: v, portable: true } : null; } catch (e) { return null; }
-    }
-    if (!t.updater) return null;
-    try { return (await t.updater.check()) || null; } catch (e) { return null; }
-  }
-  async function installUpdate(onProgress, found) {
-    const update = found || await findUpdate();
-    if (!update) return false;
-    if (update.portable) {
+  // keel's update.js (0.15.0) does Tauri's updater; LifeLog hands it the
+  // portable swap as its own find and install on Windows.
+  const portable = {
+    async find() { const v = await invoke("portable_check"); return v ? { version: v, portable: true } : null; },
+    async install(update, onProgress) {
       const ch = new (T().core.Channel)();
       ch.onmessage = (f) => { if (onProgress && typeof f === "number") onProgress(f); };
       return !!(await invoke("portable_update", { progress: ch }));
-    }
-    let total = 0, got = 0;
-    await update.downloadAndInstall((e) => {
-      if (e.event === "Started") total = (e.data && e.data.contentLength) || 0;
-      else if (e.event === "Progress") { got += (e.data && e.data.chunkLength) || 0; if (total && onProgress) onProgress(Math.min(1, got / total)); }
-    });
-    if (T().process) await T().process.relaunch();
-    return true;
+    },
+  };
+  let updater = null;
+  const U = () => updater || (updater = window.Keel.update.create({ name: "LifeLog", platform: window.Keel.platform, desktop: P.windows ? portable : null }));
+  function findUpdate() {
+    return T() ? U().findDesktop() : Promise.resolve(null);
+  }
+  function installUpdate(onProgress, found) {
+    return U().installDesktop(found, onProgress);
   }
   const readOnly = (e) => String((e && e.message) || e) === "readonly";
 
