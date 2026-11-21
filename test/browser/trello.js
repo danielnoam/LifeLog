@@ -78,7 +78,7 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   const rows = await page.$$eval("#trelloLists .sitem", (xs) => xs.map((x) => x.querySelector(".sitem-title").textContent + ":" + x.querySelector("input").checked));
   check("Settings lists the board's lists, the picked one on", rows.join() === "To do:true,Later:false", rows);
   const status = await page.evaluate(() => window.LifeLogConnections.status("trello").text);
-  check("the Connections row says what it's doing", /@reader · 1 list · both ways/.test(status), status);
+  check("the Connections row says what it's doing", /@reader · 1 list$/.test(status), status);
 
   await page.click("#trelloSignOutBtn"); await page.waitForTimeout(500);
   d = await data();

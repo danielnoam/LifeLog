@@ -2063,23 +2063,28 @@
       <h2 class="settings-page-title" data-t>Connections</h2>
       <p class="hint page-lede" data-t>Apps that keep LifeLog in step. Pick one to set it up and choose what comes in; nothing already here is added twice.</p>
       <section class="sgroup">
-        <h3 class="sgroup-label" data-t>Syncing</h3>
-        <div class="sgroup-card" id="connList">
+        <h3 class="sgroup-label" data-t>Both ways</h3>
+        <div class="sgroup-card">
           <button type="button" class="srow" data-page="conn-hardcover"><span class="srow-ic"><span data-ico="notebook-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Hardcover</span></span><span class="srow-status" data-conn-status="hardcover"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-anilist"><span class="srow-ic"><span data-ico="tv"></span></span><span class="srow-text"><span class="srow-title"><span data-t>AniList</span></span><span class="srow-status" data-conn-status="anilist"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Stremio</span></span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-trello"><span class="srow-ic"><span data-ico="square-kanban"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Trello</span></span><span class="srow-status" data-conn-status="trello"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-health"><span class="srow-ic"><span data-ico="heart-pulse"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Health Connect</span></span><span class="srow-status" data-conn-status="health"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
       </section>
       <section class="sgroup">
-        <h3 class="sgroup-label" data-t>One-time imports</h3>
+        <h3 class="sgroup-label" data-t>Read only</h3>
+        <div class="sgroup-card">
+          <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Stremio</span></span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-health"><span class="srow-ic"><span data-ico="heart-pulse"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Health Connect</span></span><span class="srow-status" data-conn-status="health"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-payments" id="paymentsRow" hidden><span class="srow-ic"><span data-ico="receipt"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Wallet</span></span><span class="srow-status" data-conn-status="payments"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+        </div>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label" data-t>From a file</h3>
         <div class="sgroup-card">
           <button type="button" class="srow" data-page="conn-letterboxd"><span class="srow-ic"><span data-ico="film"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Letterboxd</span></span><span class="srow-status" data-conn-status="letterboxd"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-payments" id="paymentsRow" hidden><span class="srow-ic"><span data-ico="receipt"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Wallet</span></span><span class="srow-status" data-conn-status="payments"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
       </section>
       </div>

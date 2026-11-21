@@ -569,7 +569,7 @@
     if (!connected(c)) return { text: i18n.t("Not connected") };
     const who = c.member && c.member.username ? "@" + c.member.username : i18n.t("Signed in");
     const n = c.lists.length;
-    return { text: who + " · " + (n ? i18n.tn(n, "{n} list", "{n} lists") : i18n.t("No lists picked")) + " · " + (c.send ? i18n.t("both ways") : i18n.t("read only")) };
+    return { text: who + " · " + (n ? i18n.tn(n, "{n} list", "{n} lists") : i18n.t("No lists picked")) + (c.send ? "" : " · " + i18n.t("read only")) };
   }
 
   function paintStatus() {
