@@ -3139,7 +3139,6 @@ Keel.i18n.strings("he", {
   "Type \"{word}\" to erase everything on this device.": "לאישור יש להקליד \"{word}\" כדי למחוק הכול מהמכשיר הזה.",
   "Nothing was erased": "שום דבר לא נמחק",
   "Couldn't erase this device: {error}": "לא ניתן היה למחוק את הנתונים מהמכשיר הזה: {error}",
-  "Where the lists from Trello show": "איפה מוצגות הרשימות מ-Trello",
-  "In their months, like other notes": "בחודש שלהן, כמו שאר הפתקים",
-  "In a group of their own, after Favourites": "בקבוצה נפרדת, אחרי המועדפים",
+  "In their months": "בחודש שלהן",
+  "Separate": "בנפרד",
 });

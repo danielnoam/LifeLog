@@ -165,7 +165,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
 - Trello both ways: picked Trello lists as Notebook task lists (cards as tasks, due as date, named labels as tags, checklists as subtasks), tick marks complete / moves to Done / archives, new tasks become cards, edits sent, a deleted task archives its card, newer change wins, only-my-cards switch; Trello badge on the list; bridge lifelog_trello (0.325.0)
-- Notebook View → Trello lists: in their months like other notes (as before), or in a group of their own after Favourites; per device, the row shows once a Trello list syncs (next release)
+- Notebook View → Trello lists: In their months (as before) or Separate, a group of their own after Favourites; per device, the row shows once a Trello list syncs; the Trello badge sits beside the star (next release)
 - Calendar export: an .ics of dated tasks, releases and new episodes, and recurring charges for the next year (Settings → Import & export); bridge lifelog_calendar_ics (0.323.0)
 
 ## Notebook (Notes)
