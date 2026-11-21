@@ -151,8 +151,9 @@ Every release that adds a feature adds its line here in the same commit.
 - Waypage reading log: reading.json from your Waypage sync repo (read-only token, every few minutes, ETag); Backlog books started with their %, new ones added, finished ones moved to the Timeline, a category per kind, re-reads and author clashes reviewed, minutes into a minutes habit; bridge tools (0.313.0)
 - Hardcover both ways: one category in step with your Hardcover library (Want to Read, Reading, Read, Did Not Finish), matched by title and author, new books through the review, starts/finishes/drops sent back (Waypage's too), newer change wins (0.315.0)
 - Connections as a list with one screen per app; What comes in on Hardcover, AniList, Stremio and Steam: new titles ask/add/skip, a switch per status, send changes on/off (0.315.0)
+- Connections grouped by direction: Both ways (Hardcover, AniList, Trello), Read only (Stremio, Waypage, Steam, Google Calendar, Health Connect, Google Wallet), From a file (Letterboxd); "read only" shows only on a two-way app set to read only (0.326.0)
 - Waypage controls: on/off, Disconnect, check timing, new books ask/add/skip, start-and-finish and progress switches, From Waypage list with Unlink, Kept out with Allow again (0.315.0)
-- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (0.315.0); Add to my Stremio account installs it on every Stremio you're signed in to, a TV too (next release)
+- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (0.315.0); Add to my Stremio account installs it on every Stremio you're signed in to, a TV too (0.326.0)
 - Letterboxd import (0.252.0)
 - Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (0.313.0)
 - Stremio in a browser: straight to Stremio, through your proxy when it turns the browser away; a test runs the proxy and checks it has every route the apps have
@@ -165,7 +166,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
 - Trello both ways: picked Trello lists as Notebook task lists (cards as tasks, due as date, named labels as tags, checklists as subtasks), tick marks complete / moves to Done / archives, new tasks become cards, edits sent, a deleted task archives its card, newer change wins, only-my-cards switch; Trello badge on the list; bridge lifelog_trello (0.325.0)
-- Notebook View → Trello lists: Separate (the default), a group of their own after Favourites, or In their months like other notes; per device, the row shows once a Trello list syncs; the Trello badge sits beside the star (next release)
+- Notebook View → Trello lists: Separate (the default), a group of their own after Favourites, or In their months like other notes; per device, the row shows once a Trello list syncs; the Trello badge sits beside the star (0.326.0)
 - Calendar export: an .ics of dated tasks, releases and new episodes, and recurring charges for the next year (Settings → Import & export); bridge lifelog_calendar_ics (0.323.0)
 
 ## Notebook (Notes)
@@ -317,7 +318,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 - Windows toasts open the right place from the Action Center and after LifeLog was quit; habit reminders have Done and clear once kept; Send a test notification in Settings → Notifications (0.315.0)
 - Windows data folder: beside the app by default (moved from AppData once, old copy kept), or AppData or a folder you pick in Settings → Desktop; uninstalling with "Delete the application data" removes it wherever it is (0.316.0)
-- Windows app: a middle click on a link opens it in the browser too, not in a bare window of the app's own (next release)
+- Windows app: a middle click on a link opens it in the browser too, not in a bare window of the app's own (0.326.0)
 
 ## The AI bridge
 
