@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Tasks, Tags } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Invest, Merge, Widgets, Recap, Home, Waypage, Health, Tasks, Tags } = L;
 const shortSaleFail = (symbol, buys, events) => {
   const s = Invest.shortSale(buys, events);
   if (s) fail(`That leaves the sale of ${Invest.unitsText(s.sale.units)} of ${symbol} on ${s.sale.date} with only ${Invest.unitsText(s.held)} held before it. Check the dates and shares.`);
@@ -1735,6 +1735,52 @@ const TOOLS = [
       const kept = Object.entries(c.never);
       out.push("", `Kept out (${kept.length}):`, ...(kept.length ? kept.map(([id, v]) => `- ${typeof v === "string" ? v : "(no title kept)"}  (waypage id ${id})`) : ["- nothing"]));
       return out.join("\n");
+    },
+  },
+  {
+    name: "lifelog_health",
+    description: "Health Connect (Android's health store: steps, workouts and sleep from Samsung Health, Google Fit, Strava and others): which habits tick themselves from it and how, and how many days it has filled in for each lately. The health readings themselves never leave the phone, so they aren't here; only the ticks they made. Link or change one with lifelog_health_link.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      const c = Health.cleanConfig((d.settings || {}).healthConnect);
+      const linked = (d.habits || []).filter((h) => h.health && !h.avoid && !h.archivedAt);
+      if (!linked.length) return "No habit is linked to Health Connect. lifelog_health_link links one; the Android app reads it once Settings → Connections → Health Connect is turned on there.";
+      const t = today(), from = Finance.addDaysStr(t, -29);
+      return [`${linked.length} habit${linked.length === 1 ? "" : "s"} tick${linked.length === 1 ? "s" : ""} themselves from Health Connect (read on the Android phone):`,
+        ...linked.map((h) => {
+          const f = c.filled[h.id] || {};
+          const days = Object.entries(f).filter(([day, v]) => day >= from && v[0] > 0);
+          return `- ${h.name}: ${Health.linkLabel(h.health)}. Filled ${days.length} of the last 30 days${days.length ? ` (latest ${days.map(([day]) => day).sort().pop()})` : ""}.  (${h.id})`;
+        })].join("\n");
+    },
+  },
+  {
+    name: "lifelog_health_link",
+    description: "Link a habit to Health Connect so it ticks itself on the Android phone, change the link, or remove it. from: steps (a tick on a day with at least `min` steps), workout (each session of `kind` counts one, or its minutes on a timed habit) or sleep (a tick on a night of at least `hours`, counted on the morning; minutes on a timed habit), or none to unlink. Changing or removing a link takes out only what Health Connect added; ticks made by hand stay. Not for habits you avoid.",
+    input: {
+      habit: S.str("Its id or name"),
+      from: S.str("steps, workout, sleep or none", { enum: ["steps", "workout", "sleep", "none"] }),
+      min: S.int("steps: how many a day, default 8000"),
+      kind: S.str("workout: which kind, default any", { enum: ["any", "strength", "running", "walking", "cycling", "swimming", "yoga", "hiit"] }),
+      hours: S.num("sleep: hours a night, default 7"),
+    },
+    required: ["habit", "from"],
+    async run(a) {
+      if (!["steps", "workout", "sleep", "none"].includes(a.from)) fail("from is steps, workout, sleep or none.");
+      return change(`health link "${a.habit}"`, (d) => {
+        const h = findItem(d, "habits", a.habit);
+        if (h.avoid && a.from !== "none") fail(`"${h.name}" is a habit you avoid; Health Connect can't count slips.`);
+        if (h.unit === "min" && a.from === "steps") fail(`"${h.name}" counts minutes; steps only make a tick. Use workout or sleep.`);
+        d.settings = d.settings || {};
+        const c = Health.cleanConfig(d.settings.healthConnect);
+        const link = a.from === "none" ? null : { from: a.from, min: a.min || 8000, kind: a.kind || "any", hours: a.hours || 7 };
+        const did = Health.setLink(d, c, h.id, link);
+        d.settings.healthConnect = c;
+        if (!did) return { text: `"${h.name}" already ${link ? "had that link" : "had no link"}.`, touched: [] };
+        return { text: link ? `"${h.name}" now ticks itself from Health Connect: ${Health.linkLabel(h.health)}. The phone fills the last 30 days at its next read.` : `"${h.name}" no longer ticks from Health Connect; what it had added is taken out.`, touched: [["habits", h.id], ["settings", "healthConnect"]] };
+      });
     },
   },
   {

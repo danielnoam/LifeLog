@@ -40,6 +40,9 @@ src/settings.js     the Settings sheet
 src/alerts.js       charge and release-day notifications
 src/reminders.js    habit reminder times, kept on the phone
 src/payments.js     Google Wallet payments offered to the Ledger (Android)
+src/health.js       Health Connect ticking linked habits (Android only; the
+                    links and the page show everywhere, reading is the phone's).
+                    Native side: HealthPlugin, HealthReader, HealthRationaleActivity
 src/widgets.js      the home-screen widgets, from the app's side
 src/headless.js     Android's background refresh
 src/platform.js     browser, phone or computer app, and native HTTP

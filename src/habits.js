@@ -88,7 +88,7 @@
   const KNOWN_HABIT_KEYS = new Set([
     "id", "name", "color", "cadence", "target", "order",
     "startedAt", "archivedAt", "createdAt", "updatedAt", "marks", "avoid", "limit",
-    "period", "unit",
+    "period", "unit", "health",
   ]);
   // Goals (0.300.0): a target can be counted over a week, a month or a year
   // rather than a day ("the gym, three times a week, any days"), and in
@@ -96,6 +96,18 @@
   // habit as it always was: times a day.
   const PERIODS = ["week", "month", "year"];
   const MAX_TARGET = 100000;
+
+  // Health Connect (Android) ticks it (health.js): one source, with its bar.
+  // Kept on the habit so it syncs and can be set from any device; only the
+  // phone reads. Anything that isn't one of these shapes is dropped.
+  const HEALTH_KINDS = ["any", "strength", "running", "walking", "cycling", "swimming", "yoga", "hiit"];
+  function cleanHealthLink(x) {
+    if (!x || typeof x !== "object") return null;
+    if (x.from === "steps") return { from: "steps", min: Math.min(200000, Math.max(1, Math.round(+x.min) || 8000)) };
+    if (x.from === "workout") return { from: "workout", kind: HEALTH_KINDS.includes(x.kind) ? x.kind : "any" };
+    if (x.from === "sleep") return { from: "sleep", hours: Math.min(16, Math.max(0.5, Math.round((+x.hours || 7) * 4) / 4)) };
+    return null;
+  }
 
   function sanitizeHabit(h) {
     const out = {
@@ -141,6 +153,9 @@
       if (isDateStr(date) && n > 0) marks[date] = n;
     }
     if (Object.keys(marks).length) out.marks = marks;
+    // Not on a habit you avoid: a slip isn't something a phone can count.
+    const health = out.avoid ? null : cleanHealthLink(h.health);
+    if (health) out.health = health;
     return keepUnknown(h, out, KNOWN_HABIT_KEYS);
   }
 
@@ -794,6 +809,9 @@
     name.title = i18n.t("Edit this habit");
     name.onclick = () => openHabitModal(h);
     head.appendChild(name);
+    // Health Connect's reading, before the flame so the flame stays last.
+    const hc = window.LifeLogHealth && window.LifeLogHealth.chip(h, today);
+    if (hc) head.appendChild(hc);
     const run = streakOf(h, today);
     if (run) {
       const s = el("span", "habit-streak");
@@ -1649,7 +1667,7 @@
 
   window.LifeLogHabits = {
     init, wire, renderHabits, openHabitModal, closeHabitModal, closeAmountModal, isHabitsMode, finishToday,
-    sanitizeHabit,
+    sanitizeHabit, cleanHealthLink, HEALTH_KINDS,
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js
     isDue, cadenceLabel, markOf, isDone, nextMark, capOf, limitOf, convertMarks,

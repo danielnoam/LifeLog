@@ -164,6 +164,13 @@ the grid pages back for backfilling. Streaks, a best run, and Insights (kept
 rate, longest run, best and weakest weekday, six months as bars). Reminders
 on Android and iPhone.
 
+On Android, a habit can tick itself from Health Connect: link it in
+Settings → Connections → Health Connect to a step count, a kind of workout
+or hours of sleep, and the phone reads them when the app opens (and, if you
+like, hourly in the background). Hand ticks still count, and the card shows
+today's steps beside the flame. Only the ticks sync; the web and Windows
+apps show them and the links, but never read health data.
+
 <table><tr>
 <td><img src="docs/screenshots/habits-desktop.webp" alt="Habits on a computer" width="620"></td>
 <td><img src="docs/screenshots/habits-phone.webp" alt="Habits on a phone" width="200"></td>
@@ -521,7 +528,7 @@ the home screen and works offline.
 
 The same files, built into an APK by [Capacitor](https://capacitorjs.com).
 
-- **Getting it**: download `LifeLog.apk` from the repo's Releases page on
+- **Getting it**: Android 8 or later. Download `LifeLog.apk` from the repo's Releases page on
   the phone and allow the install. Connect sync with a setup link.
 - **Updates**: the app checks for a newer release when it opens and installs
   it over the top, keeping your data.

@@ -198,6 +198,37 @@ public class HeadlessRefresh extends Worker {
             }, "lifelog-headless-fetch").start();
         }
 
+        /**
+         * Health Connect (health.js), answered like fetch through
+         * window.LifeLogHeadlessFetched(id, json). Reading with the app put
+         * away needs Health Connect's background permission; without it the
+         * read fails and the page leaves the habits as they were.
+         */
+        @JavascriptInterface
+        public void healthRead(String id, String optsJson) {
+            new Thread(() -> {
+                String answer;
+                try {
+                    answer = HealthReader.read(c, new JSONObject(optsJson == null ? "{}" : optsJson)).toString();
+                } catch (Throwable e) {
+                    JSONObject err = new JSONObject();
+                    try { err.put("error", String.valueOf(e.getMessage() == null ? e : e.getMessage())); } catch (Exception x) { /* can't happen */ }
+                    answer = err.toString();
+                }
+                String out = answer;
+                main.post(() -> {
+                    try {
+                        view.evaluateJavascript("window.LifeLogHeadlessFetched(" + JSONObject.quote(id) + "," + JSONObject.quote(out) + ")", null);
+                    } catch (Exception e) { /* the run is over */ }
+                });
+            }, "lifelog-headless-health").start();
+        }
+
+        @JavascriptInterface
+        public String healthStatus() {
+            return HealthReader.status(c).toString();
+        }
+
         @JavascriptInterface
         public void done(boolean didChange, String note) {
             changed[0] = didChange;

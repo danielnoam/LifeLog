@@ -93,11 +93,25 @@ function patch(xml) {
   return out;
 }
 
+// Not the manifest, but the same moment: Health Connect's library
+// (androidx.health.connect:connect-client) needs Android 8 (API 26), and the
+// manifest merger refuses an app whose minSdk is under a library's.
+// Capacitor's template says 24. Raised, never lowered; fails if the line moved.
+const MIN_SDK = 26;
+function minSdk(vars, min = MIN_SDK) {
+  const m = /minSdkVersion\s*=\s*(\d+)/.exec(vars);
+  if (!m) throw new Error("couldn't find minSdkVersion in variables.gradle");
+  return vars.replace(m[0], "minSdkVersion = " + Math.max(Number(m[1]), min));
+}
+
 if (require.main === module) {
   const file = path.resolve(__dirname, "..", "android", "app", "src", "main", "AndroidManifest.xml");
   const before = fs.readFileSync(file, "utf8");
   fs.writeFileSync(file, patch(before));
     const n = ENTRIES.length + ACTIVITY.length + ATTRS.length;
   console.log("android: manifest " + (before === patch(before) ? "already has" : "gained") + " " + n + " LifeLog entr" + (n === 1 ? "y" : "ies"));
+  const vars = path.resolve(__dirname, "..", "android", "variables.gradle");
+  fs.writeFileSync(vars, minSdk(fs.readFileSync(vars, "utf8")));
+  console.log("android: minSdkVersion " + /minSdkVersion\s*=\s*(\d+)/.exec(fs.readFileSync(vars, "utf8"))[1]);
 }
-module.exports = { patch, ENTRIES, ACTIVITY, ATTRS };
+module.exports = { patch, minSdk, MIN_SDK, ENTRIES, ACTIVITY, ATTRS };

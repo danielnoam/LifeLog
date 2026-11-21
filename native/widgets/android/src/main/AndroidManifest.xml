@@ -10,6 +10,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Health Connect (HealthPlugin): asked for when it's turned on in
+         Settings → Connections, read only, for habits linked to them. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+
+    <!-- Android 11+ hides other apps unless asked for by name. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <application>
         <receiver
@@ -221,6 +232,31 @@
             android:name="io.github.danielnoam.lifelog.widgets.BackgroundWork"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Health Connect's "why does LifeLog want this" link: opens the
+             privacy page's health section (HealthRationaleActivity). Up to
+             Android 13 Health Connect asks for the rationale action; 14 and
+             later ask for VIEW_PERMISSION_USAGE, hence the alias. -->
+        <activity
+            android:name="io.github.danielnoam.lifelog.widgets.HealthRationaleActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name="io.github.danielnoam.lifelog.widgets.ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity="io.github.danielnoam.lifelog.widgets.HealthRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <service
             android:name="io.github.danielnoam.lifelog.widgets.ListService"

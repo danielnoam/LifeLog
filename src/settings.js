@@ -1009,7 +1009,7 @@
     tabs: i18n.t("Show, hide and order tabs"),
     keyboard: i18n.t("Shortcuts"),
     media: i18n.t("Keys for covers and details"),
-    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage"),
+    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage, Health Connect"),
     releases: i18n.t("Upcoming release checks"),
   };
 
@@ -1611,6 +1611,7 @@
     if (window.LifeLogConnections) window.LifeLogConnections.renderAll();
     renderMediaCatRows();
     if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
+    if (window.LifeLogHealth) window.LifeLogHealth.renderSettings();
   }
 
   // Shown only while this device is behind the data — the storage line in

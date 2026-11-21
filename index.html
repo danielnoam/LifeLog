@@ -2063,6 +2063,7 @@
           <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-health"><span class="srow-ic"><span data-ico="heart-pulse"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Health Connect</span></span><span class="srow-status" data-conn-status="health"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
       </section>
       <section class="sgroup">
@@ -2347,6 +2348,40 @@
       </section>
       </div>
 
+      <div class="settings-page" hidden data-page="conn-health" data-parent="imports" data-title="Health Connect" data-keywords="health connect android steps workouts exercise gym sleep habits tick samsung health google fit strava fitness background">
+      <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
+      <h2 class="settings-page-title" data-t>Health Connect</h2>
+      <p class="hint" id="healthWebHint" data-t>Health Connect lives on Android phones. Link a habit here or on the phone; it ticks itself when LifeLog reads on the phone, and the ticks show here after it syncs.</p>
+      <section class="sgroup" id="healthGroup" hidden>
+        <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Read from Health Connect</span></span><span class="sitem-sub" id="healthStatus"></span></span>
+            <input type="checkbox" class="switch" id="healthOn" />
+          </label>
+          <label class="sitem toggle-label" id="healthBackgroundRow">
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Read in the background</span></span><span class="sitem-sub"><span data-t>About every hour, with the app closed</span></span></span>
+            <input type="checkbox" class="switch" id="healthBackground" />
+          </label>
+          <button id="healthReadBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> <span data-t>Read now</span></button>
+        </div>
+      </section>
+      <section class="sgroup" id="healthPermsGroup" hidden>
+        <h3 class="sgroup-label" data-t>What LifeLog can read</h3>
+        <div class="sgroup-card">
+          <div id="healthPerms"></div>
+          <button id="healthChangeBtn" type="button" class="sitem sitem-go"><span data-ico="external-link"></span> <span data-t>Change what it can read</span></button>
+        </div>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label" data-t>Habits it ticks</h3>
+        <div class="sgroup-card" id="healthLinked"></div>
+      </section>
+      <div id="healthHints" hidden>
+        <p class="hint" data-t>LifeLog reads the last week when it opens on this phone and, with Read in the background on, about every hour while it's closed. Only the ticks sync: your other devices see them but never the health data itself, and nothing goes to a server.</p>
+        <p class="hint" data-t>Samsung Health, Google Fit, Strava and others write into Health Connect once it's turned on in their settings. Reading in the background uses the background refresh in Settings → Notifications, and sets it to every hour if it was off or slower.</p>
+      </div>
+      </div>
+
       <div class="settings-page" hidden data-page="conn-letterboxd" data-parent="imports" data-title="Letterboxd" data-keywords="letterboxd films diary watchlist zip csv export">
       <button type="button" class="settings-crumb" data-go="imports"><span class="settings-back-chev" aria-hidden="true">‹</span>Connections</button>
       <h2 class="settings-page-title" data-t>Letterboxd</h2>
@@ -2482,6 +2517,7 @@
           <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Tiingo</span></span><span class="sitem-sub"><span data-t>Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></span></a>
           <a class="sitem sitem-go" href="https://www.iexexchange.io" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>IEX</span></span><span class="sitem-sub"><span data-t>Today's stock prices while the US market is open, through Tiingo. Data provided by IEX</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/calendar" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Calendar</span></span><span class="sitem-sub"><span data-t>Your events on the Timeline's calendar, read only, when you connect it</span></span></span></a>
+          <a class="sitem sitem-go" href="https://developer.android.com/health-and-fitness/guides/health-connect" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Health Connect</span></span><span class="sitem-sub"><span data-t>Steps, workouts and sleep that tick linked habits, read on your Android phone</span></span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/drive" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title"><span data-t>Google Drive</span></span><span class="sitem-sub"><span data-t>Where backups go, when you connect it in Sync</span></span></span></a>
         </div>
       </section>
@@ -3030,6 +3066,52 @@
     </div>
   </div>
 
+  <!-- Health Connect: which habit ticks itself from what (health.js). -->
+  <div class="modal-overlay" id="healthLinkModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="healthLinkTitle">
+      <div class="modal-head">
+        <h2 id="healthLinkTitle" data-t>Link a habit</h2>
+      </div>
+      <form id="healthLinkForm">
+        <label><span data-t>Habit</span>
+          <select id="healthLinkHabit"></select>
+        </label>
+        <label><span data-t>Ticks itself from</span>
+          <select id="healthLinkFrom">
+            <option value="steps" data-t>Steps</option>
+            <option value="workout" data-t>Workouts</option>
+            <option value="sleep" data-t>Sleep</option>
+          </select>
+        </label>
+        <label id="healthLinkStepsLabel"><span data-t>Steps a day, at least</span>
+          <input id="healthLinkSteps" type="number" min="1" max="200000" step="1" inputmode="numeric" />
+        </label>
+        <label id="healthLinkKindLabel" hidden><span data-t>Kind</span>
+          <select id="healthLinkKind">
+            <option value="any" data-t>Any workout</option>
+            <option value="strength" data-t>Strength training</option>
+            <option value="running" data-t>Running</option>
+            <option value="walking" data-t>Walking</option>
+            <option value="cycling" data-t>Cycling</option>
+            <option value="swimming" data-t>Swimming</option>
+            <option value="yoga" data-t>Yoga and stretching</option>
+            <option value="hiit" data-t>HIIT</option>
+          </select>
+        </label>
+        <label id="healthLinkHoursLabel" hidden><span data-t>Hours of sleep, at least</span>
+          <input id="healthLinkHours" type="number" min="0.5" max="16" step="0.25" inputmode="decimal" />
+        </label>
+        <p class="hint" id="healthLinkHint"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="healthUnlinkBtn" hidden data-t>Unlink</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="healthLinkCancel" data-t>Cancel</button>
+          <button type="submit" class="btn btn-primary" data-t>Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Every small notice in one column at the bottom (0.267.1), so they
        stack instead of covering each other: toasts on top (newest lowest),
        then the update notice, then the phone's activity pill. All three
@@ -3167,6 +3249,7 @@
   <script defer src="src/boards.js?v=0.324.0"></script>
   <script defer src="src/invest.js?v=0.324.0"></script>
   <script defer src="src/waypage.js?v=0.324.0"></script>
+  <script defer src="src/health.js?v=0.324.0"></script>
   <script defer src="src/home.js?v=0.324.0"></script>
   <script defer src="src/pin.js?v=0.324.0"></script>
   <script defer src="src/recap.js?v=0.324.0"></script>

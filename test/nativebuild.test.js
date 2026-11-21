@@ -125,7 +125,13 @@ test("a template whose version lines moved fails instead of shipping versionCode
 });
 
 console.log("\nthe manifest");
-const { patch } = require("../tools/android-manifest.js");
+const { patch, minSdk } = require("../tools/android-manifest.js");
+
+test("minSdk goes up to 26 for Health Connect, never down, and fails if the line moved", () => {
+  assert.strictEqual(minSdk("ext {\n    minSdkVersion = 24\n    compileSdkVersion = 36\n}\n"), "ext {\n    minSdkVersion = 26\n    compileSdkVersion = 36\n}\n");
+  assert.ok(minSdk("ext {\n    minSdkVersion = 28\n}\n").includes("minSdkVersion = 28"));
+  assert.throws(() => minSdk("ext {\n    minSdk 24\n}\n"));
+});
 const TEMPLATE = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:allowBackup="true"
@@ -208,7 +214,7 @@ const javaSrc = fs.readdirSync(JAVA).filter((f) => f.endsWith(".java")).map((f) 
 const layouts = fs.readdirSync(path.join(WIDGETS, "res", "layout"));
 
 // The views RemoteViews can inflate on every Android the app supports
-// (minSdk 24). Anything else — a plain <View> divider, a CheckBox before 12 —
+// (minSdk 26). Anything else — a plain <View> divider, a CheckBox before 12 —
 // is the "Can't load widget" box.
 const REMOTABLE = new Set(["FrameLayout", "LinearLayout", "RelativeLayout", "GridLayout",
   "TextView", "ImageView", "Button", "ImageButton", "ProgressBar", "ListView", "GridView",
@@ -325,9 +331,10 @@ test("the page asks the plugin only for what the plugin has", () => {
 
 test("the app loads the plugin by the name the page calls it", () => {
   const names = [...javaSrc.matchAll(/@CapacitorPlugin\(\s*name = "(\w+)"/g)].map((m) => m[1]).sort();
-  assert.deepStrictEqual(names, ["Drive", "Widgets"]);
+  assert.deepStrictEqual(names, ["Drive", "Health", "Widgets"]);
   assert.ok(/plugin\("Widgets"\)/.test(fs.readFileSync(path.join(__dirname, "..", "src", "widgets.js"), "utf8")));
   assert.ok(/Plugins\.Drive\b/.test(fs.readFileSync(path.join(__dirname, "..", "src", "drive.js"), "utf8")));
+  assert.ok(/plugin\("Health"\)/.test(fs.readFileSync(path.join(__dirname, "..", "src", "health.js"), "utf8")));
   const pkg = require("../package.json");
   assert.strictEqual(pkg.devDependencies["lifelog-widgets"], "file:native/widgets");
 });

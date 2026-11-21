@@ -1378,6 +1378,25 @@ test("Hardcover: the sync is shown by state without its token", async () => {
   assert.match(shown, /Want to read \(1\):\n- Emma/);
 });
 
+test("Health Connect: a habit is linked, shown, and unlinked with only its own ticks taken out", async () => {
+  reset();
+  const d0 = data();
+  d0.habits.push({ id: "hw", name: "Walk", color: "#5b8cff", cadence: "daily", target: 1, order: 9, startedAt: daysAgo(20), marks: { [daysAgo(1)]: 1, [daysAgo(2)]: 1 }, createdAt: T, updatedAt: T });
+  d0.settings.healthConnect = { filled: { hw: { [daysAgo(1)]: [1, 1] } } };
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  assert.match(await ok("lifelog_health", {}), /No habit is linked/);
+  await refused("lifelog_health_link", { habit: "Walk", from: "heart" }, /steps, workout, sleep or none/);
+  assert.match(await ok("lifelog_health_link", { habit: "Walk", from: "steps", min: 9000 }), /9,000 steps a day/);
+  let after = data();
+  const w = after.habits.find((h) => h.id === "hw");
+  assert.deepStrictEqual(w.health, { from: "steps", min: 9000 });
+  assert.deepStrictEqual(w.marks, { [daysAgo(2)]: 1 }, "the old link's tick came out; the hand tick stayed");
+  assert.match(await ok("lifelog_health", {}), /Walk: 9,000 steps a day/);
+  assert.match(await ok("lifelog_health_link", { habit: "Walk", from: "none" }), /no longer ticks/);
+  after = data();
+  assert.ok(!("health" in after.habits.find((h) => h.id === "hw")));
+});
+
 test("Waypage (0.313.0): the reading log is shown without its token, and a review row is answered", async () => {
   reset();
   const d0 = data();

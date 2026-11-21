@@ -26,7 +26,7 @@ android {
     namespace = "io.github.danielnoam.lifelog.widgets"
     compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
     defaultConfig {
-        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 26
         targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
         versionCode 1
         versionName "1.0"
@@ -63,6 +63,11 @@ dependencies {
     implementation "androidx.work:work-runtime:2.10.1"
     // Google Drive backups' sign-in (DrivePlugin), as in Waypage.
     implementation "com.google.android.gms:play-services-auth:21.3.0"
+    // Health Connect: steps, workouts and sleep for linked habits
+    // (HealthPlugin, HealthReader). Needs minSdk 26 (tools/android-manifest.js).
+    implementation "androidx.health.connect:connect-client:1.1.0"
+    // HealthReader calls the client's suspend functions with runBlocking.
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
     testImplementation "junit:junit:$junitVersion"
     // android.jar's org.json is stubs under a unit test; this is the real thing.
     testImplementation "org.json:json:20240303"

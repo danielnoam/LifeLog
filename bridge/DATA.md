@@ -326,6 +326,15 @@ Groups of expenses, like a trip: `id`, `name`, `color`, `createdAt`,
   count slips, and a day is kept while they stay at or under `limit`. A day
   with no mark is a kept day.
 - `limit`: for an avoided habit, how many slips a day still keeps.
+- `health`: Health Connect (Android) ticks it, read on the phone
+  (`src/health.js`): `{ from: "steps", min }` (a tick on a day with at least
+  `min` steps), `{ from: "workout", kind }` (`any`, `strength`, `running`,
+  `walking`, `cycling`, `swimming`, `yoga` or `hiit`: each session counts
+  one, or its minutes on a timed habit) or `{ from: "sleep", hours }` (a tick
+  on a night of at least that many hours, counted on the morning it ends;
+  minutes on a timed habit). Never on an avoided habit. What it added to each
+  day is in `settings.healthConnect`. `lifelog_health` shows the links and
+  `lifelog_health_link` sets one.
 - `startedAt`: the first day it counts. `archivedAt`: the day it stopped.
   Marks before `startedAt` are kept but don't count, so the bridge's
   `lifelog_mark_habit` and `lifelog_fill_habit` move the start back to the
@@ -371,6 +380,13 @@ exports, and it can change anything on the Stremio account),
 `connectedAt`. The sync never writes to Stremio. What it brings in is
 ordinary backlog items and timeline entries, matched to TMDB
 (`tmdb-movie`/`tmdb-tv`) by IMDb id when there's a TMDB key.
+
+`healthConnect` holds `filled`: per habit id, per day, `[added, read]`:
+what Health Connect added to that day's mark and the count it read there.
+A day's mark is what was ticked by hand plus what it added; the first time a
+day is read, hand ticks up to its count are taken as the same sessions, so
+nothing counts twice. Unlinking a habit takes its `added` back out. The
+health readings themselves stay on the phone and never sync.
 
 `waypage` (0.313.0) is the reading log from Waypage (`src/waypage.js`):
 `repo` ("owner/waypage-data"), `token` (a fine-grained GitHub token with
