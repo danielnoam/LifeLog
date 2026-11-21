@@ -166,7 +166,7 @@
     }
     // Stremio's API (the Stremio sync) is all POSTs of JSON, so the body is
     // the caller's own, passed on as it is (see viaNative).
-    m = /^\/stremio\/(login|logout|datastoreGet)$/.exec(u.pathname);
+    m = /^\/stremio\/(login|logout|datastoreGet|addonCollectionGet|addonCollectionSet)$/.exec(u.pathname);
     if (m) return { url: "https://api.strem.io/api/" + m[1], method: "POST", bodyFromInit: true, contentType: "application/json" };
     m = /^\/augsteam-app\/(\d+)$/.exec(u.pathname);
     if (m) return "https://api.augmentedsteam.com/app/" + m[1] + "/v2";

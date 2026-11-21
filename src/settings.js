@@ -1226,6 +1226,9 @@
     $("#noteLineNumbers").value = state.visual.noteLineNumbers || "off";
     $("#noteTextSize").value = state.visual.noteTextSize || "medium";
     $("#noteOpenIn").value = state.visual.noteOpenIn || "read";
+    $("#noteTrelloGroup").value = state.visual.noteTrelloGroup === "on" ? "on" : "off";
+    // Only offered once a Trello list syncs.
+    $("#noteTrelloGroupRow").hidden = !(state.data.notes || []).some((n) => window.LifeLogTrello && window.LifeLogTrello.linked(n));
     if (window.LifeLogHome) window.LifeLogHome.fillViewOptions();
     const A = window.LifeLogAlerts;
     const alertsHere = !!(A && A.available());
@@ -2132,6 +2135,11 @@
         if (window.LifeLogNotes) window.LifeLogNotes.applyNoteView();
       };
     }
+    $("#noteTrelloGroup").onchange = () => {
+      state.visual.noteTrelloGroup = $("#noteTrelloGroup").value;
+      saveVisualSettings(state.visual);
+      render();
+    };
     $("#habitsLeftPanel").onchange = () => {
       state.visual.habitsLeftPanel = $("#habitsLeftPanel").value;
       saveVisualSettings(state.visual);

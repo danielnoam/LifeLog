@@ -82,8 +82,9 @@ test("/stremio/<method> passes a POST's body on to Stremio", async () => {
   assert.strictEqual(sent[0].init.body, body);
 });
 
-test("/stremio only takes the methods the sync uses", async () => {
-  assert.strictEqual((await call("/stremio/addonCollectionSet", { method: "POST", body: "{}" })).status, 404);
+test("/stremio only takes the methods LifeLog uses", async () => {
+  assert.strictEqual((await call("/stremio/datastorePut", { method: "POST", body: "{}" })).status, 404);
+  assert.strictEqual((await call("/stremio/addonCollectionSet", { method: "POST", body: "{}" })).status, 200);
 });
 
 test("a browser's preflight may send a POST", async () => {

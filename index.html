@@ -8,9 +8,9 @@
   <meta name="keel-repo" content="danielnoam/LifeLog">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.325.0" />
-  <script src="src/keel/i18n.js?v=0.325.0"></script>
-  <script src="src/language.js?v=0.325.0"></script>
+  <link rel="stylesheet" href="src/styles.css?v=0.326.0" />
+  <script src="src/keel/i18n.js?v=0.326.0"></script>
+  <script src="src/language.js?v=0.326.0"></script>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -2063,23 +2063,28 @@
       <h2 class="settings-page-title" data-t>Connections</h2>
       <p class="hint page-lede" data-t>Apps that keep LifeLog in step. Pick one to set it up and choose what comes in; nothing already here is added twice.</p>
       <section class="sgroup">
-        <h3 class="sgroup-label" data-t>Syncing</h3>
-        <div class="sgroup-card" id="connList">
+        <h3 class="sgroup-label" data-t>Both ways</h3>
+        <div class="sgroup-card">
           <button type="button" class="srow" data-page="conn-hardcover"><span class="srow-ic"><span data-ico="notebook-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Hardcover</span></span><span class="srow-status" data-conn-status="hardcover"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-anilist"><span class="srow-ic"><span data-ico="tv"></span></span><span class="srow-text"><span class="srow-title"><span data-t>AniList</span></span><span class="srow-status" data-conn-status="anilist"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Stremio</span></span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
           <button type="button" class="srow" data-page="conn-trello"><span class="srow-ic"><span data-ico="square-kanban"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Trello</span></span><span class="srow-status" data-conn-status="trello"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-health"><span class="srow-ic"><span data-ico="heart-pulse"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Health Connect</span></span><span class="srow-status" data-conn-status="health"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
       </section>
       <section class="sgroup">
-        <h3 class="sgroup-label" data-t>One-time imports</h3>
+        <h3 class="sgroup-label" data-t>Read only</h3>
+        <div class="sgroup-card">
+          <button type="button" class="srow" data-page="conn-stremio"><span class="srow-ic"><span data-ico="play"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Stremio</span></span><span class="srow-status" data-conn-status="stremio"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-waypage"><span class="srow-ic"><span data-ico="scroll-text"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Waypage</span></span><span class="srow-status" data-conn-status="waypage"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-steam"><span class="srow-ic"><span data-ico="gamepad-2"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Steam</span></span><span class="srow-status" data-conn-status="steam"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-gcal"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Calendar</span></span><span class="srow-status" data-conn-status="gcal"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-health"><span class="srow-ic"><span data-ico="heart-pulse"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Health Connect</span></span><span class="srow-status" data-conn-status="health"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+          <button type="button" class="srow" data-page="conn-payments" id="paymentsRow" hidden><span class="srow-ic"><span data-ico="receipt"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Wallet</span></span><span class="srow-status" data-conn-status="payments"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+        </div>
+      </section>
+      <section class="sgroup">
+        <h3 class="sgroup-label" data-t>From a file</h3>
         <div class="sgroup-card">
           <button type="button" class="srow" data-page="conn-letterboxd"><span class="srow-ic"><span data-ico="film"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Letterboxd</span></span><span class="srow-status" data-conn-status="letterboxd"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-          <button type="button" class="srow" data-page="conn-payments" id="paymentsRow" hidden><span class="srow-ic"><span data-ico="receipt"></span></span><span class="srow-text"><span class="srow-title"><span data-t>Google Wallet</span></span><span class="srow-status" data-conn-status="payments"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
         </div>
       </section>
       </div>
@@ -2214,10 +2219,10 @@
             <span class="sitem-text"><span class="sitem-title"><span data-t>LifeLog: Up next</span></span><span class="sitem-sub" id="stremioUpNextState"></span></span>
             <input type="checkbox" class="switch" id="stremioUpNext" />
           </label>
-          <a id="stremioUpNextAdd" class="sitem sitem-go" href="#" hidden><span data-ico="plus"></span> <span data-t>Add to Stremio</span></a>
-          <button id="stremioUpNextCopy" type="button" class="sitem sitem-go" hidden><span data-ico="copy"></span> <span data-t>Copy the add-on link</span></button>
+          <button id="stremioUpNextInstall" type="button" class="sitem sitem-go" hidden><span class="sitem-text"><span class="sitem-title" id="stremioUpNextInstallLabel">Add to my Stremio account</span><span class="sitem-sub" id="stremioUpNextInstallSub"></span></span></button>
+          <a id="stremioUpNextAdd" class="sitem sitem-go" href="#" hidden><span class="sitem-text"><span class="sitem-title"><span data-t>Open in the Stremio app</span></span><span class="sitem-sub"><span data-t>Installs it in Stremio on this phone or computer only</span></span></span></a>
         </div>
-        <p class="hint" data-t>A row on Stremio's home screen with the movies and shows waiting in your Backlog, starred first. Tap one and it opens in Stremio as usual. It's an add-on your proxy worker serves at a secret address: LifeLog sends it only each title's IMDb id, name and poster, and anyone with the add-on link could see that list. Add to Stremio opens the Stremio app; on the web, copy the link and paste it into Stremio's add-on search. Shows from TMDB need your TMDB key to find their IMDb id.</p>
+        <p class="hint" data-t>A row on Stremio's home screen with the movies and shows waiting in your Backlog, starred first. Tap one and it opens in Stremio as usual. It's an add-on your proxy worker serves at a secret address: LifeLog sends it only each title's IMDb id, name and poster, and anyone with the add-on link could see that list. Shows from TMDB need your TMDB key to find their IMDb id.</p>
       </section>
       </div>
 
@@ -2892,6 +2897,13 @@
               <option value="edit" data-t>Edit view</option>
             </select>
           </label>
+          <label class="sitem" id="noteTrelloGroupRow" hidden>
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Trello lists</span></span></span>
+            <select id="noteTrelloGroup">
+              <option value="off" data-t>In their months</option>
+              <option value="on" data-t>Separate</option>
+            </select>
+          </label>
         </div>
         <p class="hint" data-t>This device only. Tasks always open ready to edit.</p>
       </section>
@@ -3267,64 +3279,64 @@
     </div>
   </div>
 
-  <script defer src="src/keel/errlog.js?v=0.325.0" data-key="lifelog-errors-v1" data-keep="50"></script>
-  <script defer src="src/headless.js?v=0.325.0"></script>
-  <script defer src="src/keel/platform.js?v=0.325.0"></script>
-  <script defer src="src/platform.js?v=0.325.0"></script>
-  <script defer src="src/keel/motion.js?v=0.325.0"></script>
-  <script defer src="src/motion.js?v=0.325.0"></script>
-  <script defer src="src/desktop.js?v=0.325.0"></script>
-  <script defer src="src/dates.js?v=0.325.0"></script>
-  <script defer src="src/datefield.js?v=0.325.0"></script>
-  <script defer src="src/keys.js?v=0.325.0"></script>
-  <script defer src="src/keel/releases.js?v=0.325.0"></script>
-  <script defer src="src/keel/update.js?v=0.325.0"></script>
-  <script defer src="src/testbuilds.js?v=0.325.0"></script>
-  <script defer src="src/icons.js?v=0.325.0"></script>
-  <script defer src="src/select.js?v=0.325.0"></script>
-  <script defer src="src/jobs.js?v=0.325.0"></script>
-  <script defer src="src/reconcile.js?v=0.325.0"></script>
-  <script defer src="src/keel/qr.js?v=0.325.0"></script>
-  <script defer src="src/media.js?v=0.325.0"></script>
-  <script defer src="src/merge.js?v=0.325.0"></script>
-  <script defer src="src/keel/github.js?v=0.325.0"></script>
-  <script defer src="src/storage.js?v=0.325.0"></script>
-  <script defer src="src/finance.js?v=0.325.0"></script>
-  <script defer src="src/settings.js?v=0.325.0"></script>
-  <script defer src="src/wheel.js?v=0.325.0"></script>
-  <script defer src="src/backlog.js?v=0.325.0"></script>
-  <script defer src="src/journal.js?v=0.325.0"></script>
-  <script defer src="src/markdown.js?v=0.325.0"></script>
-  <script defer src="src/images.js?v=0.325.0"></script>
-  <script defer src="src/tags.js?v=0.325.0"></script>
-  <script defer src="src/tasks.js?v=0.325.0"></script>
-  <script defer src="src/notes.js?v=0.325.0"></script>
-  <script defer src="src/docimport.js?v=0.325.0"></script>
-  <script defer src="src/io.js?v=0.325.0"></script>
-  <script defer src="src/sync.js?v=0.325.0"></script>
-  <script defer src="src/habits.js?v=0.325.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.325.0"></script>
-  <script defer src="src/boards.js?v=0.325.0"></script>
-  <script defer src="src/invest.js?v=0.325.0"></script>
-  <script defer src="src/waypage.js?v=0.325.0"></script>
-  <script defer src="src/health.js?v=0.325.0"></script>
-  <script defer src="src/trello.js?v=0.325.0"></script>
-  <script defer src="src/home.js?v=0.325.0"></script>
-  <script defer src="src/pin.js?v=0.325.0"></script>
-  <script defer src="src/recap.js?v=0.325.0"></script>
-  <script defer src="src/reminders.js?v=0.325.0"></script>
-  <script defer src="src/alerts.js?v=0.325.0"></script>
-  <script defer src="src/widgets.js?v=0.325.0"></script>
-  <script defer src="src/share.js?v=0.325.0"></script>
-  <script defer src="src/search.js?v=0.325.0"></script>
-  <script defer src="src/letterboxd.js?v=0.325.0"></script>
-  <script defer src="src/stremio.js?v=0.325.0"></script>
-  <script defer src="src/keel/drive.js?v=0.325.0"></script>
-  <script defer src="src/drive.js?v=0.325.0"></script>
-  <script defer src="src/gcal.js?v=0.325.0"></script>
-  <script defer src="src/connections.js?v=0.325.0"></script>
-  <script defer src="src/hardcover.js?v=0.325.0"></script>
-  <script defer src="src/payments.js?v=0.325.0"></script>
-  <script defer src="src/app.js?v=0.325.0"></script>
+  <script defer src="src/keel/errlog.js?v=0.326.0" data-key="lifelog-errors-v1" data-keep="50"></script>
+  <script defer src="src/headless.js?v=0.326.0"></script>
+  <script defer src="src/keel/platform.js?v=0.326.0"></script>
+  <script defer src="src/platform.js?v=0.326.0"></script>
+  <script defer src="src/keel/motion.js?v=0.326.0"></script>
+  <script defer src="src/motion.js?v=0.326.0"></script>
+  <script defer src="src/desktop.js?v=0.326.0"></script>
+  <script defer src="src/dates.js?v=0.326.0"></script>
+  <script defer src="src/datefield.js?v=0.326.0"></script>
+  <script defer src="src/keys.js?v=0.326.0"></script>
+  <script defer src="src/keel/releases.js?v=0.326.0"></script>
+  <script defer src="src/keel/update.js?v=0.326.0"></script>
+  <script defer src="src/testbuilds.js?v=0.326.0"></script>
+  <script defer src="src/icons.js?v=0.326.0"></script>
+  <script defer src="src/select.js?v=0.326.0"></script>
+  <script defer src="src/jobs.js?v=0.326.0"></script>
+  <script defer src="src/reconcile.js?v=0.326.0"></script>
+  <script defer src="src/keel/qr.js?v=0.326.0"></script>
+  <script defer src="src/media.js?v=0.326.0"></script>
+  <script defer src="src/merge.js?v=0.326.0"></script>
+  <script defer src="src/keel/github.js?v=0.326.0"></script>
+  <script defer src="src/storage.js?v=0.326.0"></script>
+  <script defer src="src/finance.js?v=0.326.0"></script>
+  <script defer src="src/settings.js?v=0.326.0"></script>
+  <script defer src="src/wheel.js?v=0.326.0"></script>
+  <script defer src="src/backlog.js?v=0.326.0"></script>
+  <script defer src="src/journal.js?v=0.326.0"></script>
+  <script defer src="src/markdown.js?v=0.326.0"></script>
+  <script defer src="src/images.js?v=0.326.0"></script>
+  <script defer src="src/tags.js?v=0.326.0"></script>
+  <script defer src="src/tasks.js?v=0.326.0"></script>
+  <script defer src="src/notes.js?v=0.326.0"></script>
+  <script defer src="src/docimport.js?v=0.326.0"></script>
+  <script defer src="src/io.js?v=0.326.0"></script>
+  <script defer src="src/sync.js?v=0.326.0"></script>
+  <script defer src="src/habits.js?v=0.326.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.326.0"></script>
+  <script defer src="src/boards.js?v=0.326.0"></script>
+  <script defer src="src/invest.js?v=0.326.0"></script>
+  <script defer src="src/waypage.js?v=0.326.0"></script>
+  <script defer src="src/health.js?v=0.326.0"></script>
+  <script defer src="src/trello.js?v=0.326.0"></script>
+  <script defer src="src/home.js?v=0.326.0"></script>
+  <script defer src="src/pin.js?v=0.326.0"></script>
+  <script defer src="src/recap.js?v=0.326.0"></script>
+  <script defer src="src/reminders.js?v=0.326.0"></script>
+  <script defer src="src/alerts.js?v=0.326.0"></script>
+  <script defer src="src/widgets.js?v=0.326.0"></script>
+  <script defer src="src/share.js?v=0.326.0"></script>
+  <script defer src="src/search.js?v=0.326.0"></script>
+  <script defer src="src/letterboxd.js?v=0.326.0"></script>
+  <script defer src="src/stremio.js?v=0.326.0"></script>
+  <script defer src="src/keel/drive.js?v=0.326.0"></script>
+  <script defer src="src/drive.js?v=0.326.0"></script>
+  <script defer src="src/gcal.js?v=0.326.0"></script>
+  <script defer src="src/connections.js?v=0.326.0"></script>
+  <script defer src="src/hardcover.js?v=0.326.0"></script>
+  <script defer src="src/payments.js?v=0.326.0"></script>
+  <script defer src="src/app.js?v=0.326.0"></script>
 </body>
 </html>
