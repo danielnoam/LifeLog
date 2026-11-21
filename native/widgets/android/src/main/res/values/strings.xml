@@ -18,6 +18,8 @@
     <string name="widget_upcoming_description">What in your Backlog is out next, counted down, and your dated tasks</string>
     <string name="widget_inprogress_label">LifeLog in progress</string>
     <string name="widget_inprogress_description">What you have going in your Backlog, and since when</string>
+    <string name="widget_calendar_label">LifeLog calendar</string>
+    <string name="widget_calendar_description">Your Google or phone calendars with your tasks, releases and finished entries, as an agenda or a month</string>
     <string name="widget_next_note">Another note</string>
     <string name="widget_add">Add</string>
     <string name="widget_tick_list">Tick the whole list</string>

@@ -457,5 +457,39 @@ test("Upcoming takes open dated tasks up to a fortnight ahead, overdue first, am
   assert.deepStrictEqual(s.upcoming[1], { id: "soon", kind: "task", title: "Soon", list: "Trip", day: "2026-09-26", dayText: "26 Sep", time: "09:00", priority: 2 });
 });
 
+test("Calendar widget: Google events, tasks, releases and finished entries per day, timed in order, from last month to the month after next", () => {
+  const Home = require("../src/home.js");
+  const d = { categories: [{ name: "Games", color: "#ff0000" }, { name: "Books", color: "#00ff00" }],
+    entries: [{ id: "e", title: "Dune", category: "Books", year: 2026, month: 9, day: 24 }],
+    backlog: [{ id: "b", title: "Game", category: "Games" }],
+    notes: [{ id: "L", kind: "list", text: "Trip", items: [{ id: "t", text: "Pack", date: "2026-09-24", time: "18:00", priority: 1 }, { id: "n", text: "Done", date: "2026-09-24", done: true }] }] };
+  const Tasks = { dueTasks: (data) => data.notes[0].items.filter((i) => !i.done).map((i) => ({ note: data.notes[0], item: i, day: i.date })) };
+  const Backlog = { calendarReleases: (items, y, m) => ({ byDay: new Map(m === 9 ? [[24, [{ b: items[0], kind: "release" }]]] : []), rough: [] }) };
+  const ev = (title, extra) => ({ title, cal: "c1", start: "2026-09-24", end: "2026-09-24", time: "", allDay: false, ...extra });
+  const months = [];
+  const days = W.calendarDays(d, TODAY, {
+    monthOf: (y, m) => { months.push(y + "-" + m); return Home.calendarMonth(d, y, m, { Backlog, Tasks }); },
+    eventsOf: (y, m) => new Map(m === 9 ? [[24, [ev("Trip", { allDay: true }), ev("Gym", { time: "07:30" }), ev("Late night", { time: "23:00", start: "2026-09-23" })]]] : []),
+    calColor: () => "#0000ff",
+  });
+  assert.deepStrictEqual(months, ["2026-8", "2026-9", "2026-10", "2026-11"]);
+  assert.deepStrictEqual(Object.keys(days), ["2026-09-24"]);
+  assert.deepStrictEqual(days["2026-09-24"].items, [
+    { k: "event", t: "Trip", c: "#0000ff", all: true },
+    { k: "event", t: "Gym", c: "#0000ff", time: "07:30" },
+    { k: "task", t: "Pack", time: "18:00", p: 1 },
+    { k: "event", t: "Late night", c: "#0000ff", time: "" },
+    { k: "release", t: "Game", c: "#ff0000" },
+    { k: "done", t: "Dune", c: "#00ff00" },
+  ]);
+  assert.strictEqual(days["2026-09-24"].n, 6);
+});
+test("Calendar widget: a busy day sends its first few and says how many it has", () => {
+  const many = Array.from({ length: W.CAL_PER_DAY + 3 }, (_, i) => ({ title: "E" + i, cal: "", start: TODAY, end: TODAY, time: "", allDay: false }));
+  const days = W.calendarDays({}, TODAY, { eventsOf: (y, m) => new Map(m === 9 ? [[24, many]] : []) });
+  assert.strictEqual(days[TODAY].items.length, W.CAL_PER_DAY);
+  assert.strictEqual(days[TODAY].n, W.CAL_PER_DAY + 3);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

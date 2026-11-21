@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Every 30 minutes on its own (Android's shortest), so a new day and the
+     phone's calendars show without the app running. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="io.github.danielnoam.lifelog.widgets.CalendarSettingsActivity"
+    android:description="@string/widget_calendar_description"
+    android:previewLayout="@layout/widget_calendar_preview"
+    android:initialLayout="@layout/widget_calendar"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="90dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />
