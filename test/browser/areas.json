@@ -45,7 +45,7 @@
     },
     "timeline": {
       "files": ["src/journal.js", "src/recap.js", "src/gcal.js"],
-      "suites": ["backlogcount", "entrydate", "gcal", "inprogress", "recap", "showstate", "sorting", "timelinecal"]
+      "suites": ["backlogcount", "entrydate", "gcal", "homegcal", "inprogress", "recap", "showstate", "sorting", "timelinecal"]
     },
     "ledger": {
       "files": ["src/finance.js", "src/payments.js"],
@@ -57,7 +57,7 @@
     },
     "home": {
       "files": ["src/home.js", "src/pin.js"],
-      "suites": ["homeinvest", "pinview", "tasks"]
+      "suites": ["homegcal", "homeinvest", "pinview", "tasks"]
     },
     "imports": {
       "files": ["src/io.js", "src/sync.js", "src/letterboxd.js", "src/stremio.js", "src/connections.js", "src/hardcover.js", "src/waypage.js", "src/trello.js"],
