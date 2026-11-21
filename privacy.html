@@ -22,7 +22,7 @@
 <body>
 <main>
 <h1>Privacy</h1>
-<p class="dim">LifeLog · last updated 15 November 2026</p>
+<p class="dim">LifeLog · last updated 21 November 2026</p>
 
 <p>LifeLog is a personal log app made by one person. It has no accounts, no servers that hold your log, no ads and no analytics. Your log lives on your device and in places you choose and own.</p>
 
@@ -43,6 +43,17 @@
   <li>You can disconnect in Settings → Sync at any time, and remove LifeLog's access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Your backups stay in your Drive until you delete them.</li>
 </ul>
 <p>LifeLog's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Data from Google is used only to provide the backups described above. It is not sold, not used for advertising, not shared with anyone, and not read by people.</p>
+
+<h2 id="health-connect">Health Connect (Android app)</h2>
+<p>On Android you can let LifeLog read from Health Connect, so a habit like "Walk" or "Gym" ticks itself. It's off until you turn it on in Settings → Connections → Health Connect, and Android asks you which of these LifeLog may read:</p>
+<ul>
+  <li><strong>Steps</strong>: the day's total, to tick a habit linked to a step count.</li>
+  <li><strong>Exercise</strong>: each workout's start, end and type (strength, running and so on), to tick a habit linked to workouts.</li>
+  <li><strong>Sleep</strong>: when each sleep started and ended, to tick a habit linked to hours of sleep.</li>
+  <li><strong>Reading in the background</strong>, only if you turn on "Read in the background": the same data, about once an hour while the app is closed.</li>
+</ul>
+<p>LifeLog only reads; it never writes to Health Connect. It reads only what a linked habit needs, for the last week or so. The health data itself stays on your phone: only the resulting ticks are saved to your log, and from there to your sync or backup like any other tick. Today's step count, shown on the habit's card, is kept on the phone only. Health data is never sent to LifeLog, to the Cloudflare relay or to anyone else, never used for advertising, and never read by people.</p>
+<p>You can change what LifeLog may read, or take it all back, in Health Connect's own settings (Settings → Connections → Health Connect → Change what it can read). Unlinking a habit removes the ticks Health Connect added to it and keeps the ones you made yourself.</p>
 
 <h2>Other services</h2>
 <p>Some features look things up in outside services, such as game, film, book and price databases (the full list is in Settings → About). They receive only what the lookup needs, such as a title you search for, and the key you entered for that service, if it needs one. A few of these requests pass through a small relay LifeLog runs on Cloudflare, because those services don't accept requests from a browser directly. The relay passes each request on and stores nothing. The one exception is the Stremio "Up next" add-on, if you turn it on: it keeps that row of titles and posters so Stremio can show it.</p>

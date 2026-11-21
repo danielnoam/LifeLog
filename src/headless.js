@@ -40,6 +40,15 @@
     } catch (e) { pending.delete(id); reject(e); }
   });
 
+  // Health Connect (health.js), when this APK's run has it: the same
+  // callback as fetch answers it.
+  const healthRead = (opts) => new Promise((resolve, reject) => {
+    const id = "h" + String(++n);
+    pending.set(id, { resolve, reject });
+    try { H.healthRead(id, JSON.stringify(opts || {})); } catch (e) { pending.delete(id); reject(e); }
+  });
+  const healthStatus = () => { try { return Promise.resolve(JSON.parse(H.healthStatus())); } catch (e) { return Promise.resolve({ sdk: "unavailable", granted: [] }); } };
+
   const state = () => { try { return { state: String(H.notificationState() || "unavailable") }; } catch (e) { return { state: "unavailable" }; } };
   const nothing = () => Promise.resolve({ remove() {} });
 
@@ -59,6 +68,7 @@
         releaseBackground: () => Promise.resolve(),
         addListener: nothing,
       },
+      ...(typeof H.healthRead === "function" ? { Health: { read: healthRead, status: healthStatus } } : {}),
     },
   };
 

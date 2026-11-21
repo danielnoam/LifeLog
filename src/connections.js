@@ -156,6 +156,7 @@
       const G = typeof window === "object" && window.LifeLogGcal;
       return { text: G && G.on ? (G.email ? G.email + " · " : "") + i18n.t("read only") : i18n.t("Not connected") };
     }
+    if (k === "health") return window.LifeLogHealth ? window.LifeLogHealth.rowStatus() : { text: "" };
     if (k === "trello") return window.LifeLogTrello ? window.LifeLogTrello.status() : { text: "" };
     if (k === "letterboxd") return { text: i18n.t("Diary and watchlist from an export") };
     if (k === "payments") {

@@ -1054,7 +1054,7 @@
     tabs: i18n.t("Show, hide and order tabs"),
     keyboard: i18n.t("Shortcuts"),
     media: i18n.t("Keys for covers and details"),
-    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage, Trello"),
+    imports: i18n.t("Steam, AniList, Hardcover, Stremio, Waypage, Trello, Health Connect"),
     releases: i18n.t("Upcoming release checks"),
   };
 
@@ -1656,6 +1656,7 @@
     if (window.LifeLogConnections) window.LifeLogConnections.renderAll();
     renderMediaCatRows();
     if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
+    if (window.LifeLogHealth) window.LifeLogHealth.renderSettings();
     if (window.LifeLogTrello) window.LifeLogTrello.renderSettings();
   }
 

@@ -63,7 +63,7 @@ const ROWS = [
     await page.evaluate(() => LifeLogSettings.openSettings("imports"));
     await page.waitForTimeout(300);
     const rows = await page.$$eval('.settings-page[data-page="imports"] .srow:not([hidden]) .srow-title', (n) => n.map((x) => x.textContent));
-    check("Connections lists each app" + at, JSON.stringify(rows) === JSON.stringify(["Hardcover", "AniList", "Stremio", "Waypage", "Trello", "Google Calendar", "Steam", "Letterboxd"]), rows);
+    check("Connections lists each app" + at, JSON.stringify(rows) === JSON.stringify(["Hardcover", "AniList", "Stremio", "Waypage", "Trello", "Google Calendar", "Steam", "Health Connect", "Letterboxd"]), rows);
     const hcStatus = await page.textContent('[data-conn-status="hardcover"]');
     check("a row says where it stands" + at, /Books, both ways/.test(hcStatus), hcStatus);
 

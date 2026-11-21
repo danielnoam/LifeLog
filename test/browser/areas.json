@@ -37,7 +37,11 @@
     },
     "habits": {
       "files": ["src/habits.js"],
-      "suites": ["datesettings", "habits"]
+      "suites": ["datesettings", "habits", "health"]
+    },
+    "health": {
+      "files": ["src/health.js"],
+      "suites": ["health"]
     },
     "backlog": {
       "files": ["src/backlog.js", "src/media.js", "src/wheel.js"],

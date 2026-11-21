@@ -39,6 +39,7 @@ function load() {
   src("boards.js");
   src("invest.js");
   src("waypage.js");
+  src("health.js");
   src("trello.js");
   src("widgets.js");
   src("home.js");
@@ -65,6 +66,7 @@ function load() {
     Boards: window.LifeLogBoards,
     Invest: window.LifeLogInvest,
     Waypage: window.LifeLogWaypage,
+    Health: window.LifeLogHealth,
     Trello: window.LifeLogTrello,
     Recap: window.LifeLogRecap,
     Home: window.LifeLogHome,

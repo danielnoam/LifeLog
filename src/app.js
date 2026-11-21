@@ -15,6 +15,7 @@
   const Boards = window.LifeLogBoards;
   const Invest = window.LifeLogInvest;
   const Waypage = window.LifeLogWaypage || { init() {}, wire() {}, start() {}, check() {}, progressLabel: () => "" };
+  const Health = window.LifeLogHealth || { init() {}, wire() {}, start() {}, backgroundRead: async () => {}, handleEscape: () => false };
   const Recap = window.LifeLogRecap;
   const Home = window.LifeLogHome || { init() {}, renderHome() {}, fillViewOptions() {} };
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {}, assertBackground() {} };
@@ -4534,7 +4535,7 @@
     // stale source of truth for the same question.
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
-    "mediaKeys", "steam", "anilist", "waypage", "trello", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
+    "mediaKeys", "steam", "anilist", "waypage", "trello", "healthConnect", "stremio", "hardcover", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
     "weekStart", "dateFormat", "scratchpad", "keys", "tagNames",
   ]);
@@ -4631,6 +4632,8 @@
       // The reading log from Waypage (0.313.0, waypage.js).
       waypage: window.LifeLogWaypage ? window.LifeLogWaypage.cleanConfig(incomingSettings.waypage) : { ...DEFAULT_SETTINGS.waypage, ...(incomingSettings.waypage || {}) },
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
+      // What Health Connect put into each linked habit, per day (health.js).
+      healthConnect: window.LifeLogHealth ? window.LifeLogHealth.cleanConfig(incomingSettings.healthConnect) : { filled: {}, ...(incomingSettings.healthConnect || {}) },
       // Trello lists as task lists (Nov 2026, trello.js).
       ...(incomingSettings.trello && window.LifeLogTrello ? { trello: window.LifeLogTrello.cleanConfig(incomingSettings.trello) } : {}),
       // Per import source, the "source:id" keys you left unticked (0.257.0).
@@ -5080,6 +5083,7 @@
     Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
     Waypage.wire(); // its group on Settings → Connections
+    Health.wire(); // Settings → Connections → Health Connect, and its link sheet
     Trello.wire(); // its page on Settings → Connections
 
     $("#exportJsonBtn").onclick = IO.exportJson;
@@ -5238,6 +5242,7 @@
         // subtask back to its task, then out.
         if (window.LifeLogTags.closeSheet()) return;
         if (Tasks.handleEscape()) return;
+        if (Health.handleEscape()) return;
         if (Notes.handleTagsEscape()) return;
         // Stops the search: clears it and lets go of the box, so the next
         // F or number key is a shortcut again rather than a letter typed.
@@ -5979,6 +5984,7 @@
     Stremio.maybeAutoCheck(); // same — the Stremio library, read only
     Hardcover.maybeAutoCheck(); // same — the Hardcover library, both ways
     Waypage.start(); // same — the reading log from Waypage, every few minutes while open (0.313.0)
+    Health.start(); // same — Health Connect's steps, workouts and sleep into linked habits (Android)
     Trello.start(); // same — Trello lists as task lists, both ways, every few minutes while open
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
@@ -6082,6 +6088,7 @@
       await Sync.maybeAutoRefreshReleases();
       await Sync.maybeCheckPriceAlerts();
       await Invest.checkTargets();
+      await Health.backgroundRead();
       if (savePending()) await flushSave();
       await Widgets.pushNow(ctx);
       const changed = before !== JSON.stringify(state.data)
@@ -6549,6 +6556,8 @@
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, coverEl, emptyCoverEl, todayStr: () => Finance.localDateStr(new Date()) });
   if (window.LifeLogPin) window.LifeLogPin.init({ state, el, ico, toast, uid, persist, afterDataChange, render, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
+    whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
+  Health.init({ state, $, el, toast, persist, afterDataChange, render, Platform,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Trello.init({ state, $, el, toast, persist, afterDataChange, render,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });

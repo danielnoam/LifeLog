@@ -4429,6 +4429,20 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* Habit reminders, in the Habits view (0.184.0). On a card, a chip with
    the time; a time input lies invisibly over it so a tap opens the phone's
    own time picker. Above the cards, one line for all of them. */
+/* Health Connect's reading on a habit (health.js), before the flame. */
+.habit-health {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  padding: 2px 8px; border-radius: var(--r-pill); border: 1px solid var(--border);
+  color: var(--text-dim); font-size: var(--fs-xs); line-height: 1.6; font-variant-numeric: tabular-nums;
+}
+.habit-health .ico { width: 14px; height: 14px; color: var(--accent); }
+.habit-health.is-met .ico { color: var(--success); }
+.health-perm-ic { display: inline-flex; flex: 0 0 auto; color: var(--text-dim); }
+.health-perm-ic .ico { width: 18px; height: 18px; }
+.health-perm { flex: 0 0 auto; font-size: var(--fs-xs); color: var(--warning); }
+.health-perm.is-ok { color: var(--success); }
+.health-dot { display: block; width: 12px; height: 12px; border-radius: 50%; }
+#healthLinked .srow-status .ico { width: 14px; height: 14px; }
 .habit-remind { display: inline-flex; align-items: center; gap: 2px; margin-inline-start: auto; flex: 0 0 auto; }
 .habit-remind-face {
   position: relative; display: inline-flex; align-items: center;
