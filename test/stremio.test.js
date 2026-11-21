@@ -155,6 +155,24 @@ test("Up next: waiting movies and shows, starred first, then oldest; started, dr
   assert.deepStrictEqual(S.upNextItems(data, {}).map((x) => x.b.id), ["c", "b", "d", "a", "f"].filter((id) => id !== "d"), "no categories picked: any TMDB title");
 });
 
+test("Lists: unreleased left out of the Backlog, a star rides along, In progress is what's started and not dropped", () => {
+  const data = { backlog: [
+    { id: "a", title: "Out", category: "Movies", mediaSource: "tmdb-movie", mediaId: "1", createdAt: "2026-01-01", priority: 1 },
+    { id: "b", title: "Soon", category: "Movies", mediaSource: "tmdb-movie", mediaId: "2", createdAt: "2026-01-02", releaseDate: "2027-05-01" },
+    { id: "c", title: "Started", category: "Shows", mediaSource: "tmdb-tv", mediaId: "3", startedAt: "2026-10-01" },
+    { id: "d", title: "Later start", category: "Movies", mediaSource: "tmdb-movie", mediaId: "4", startedAt: "2026-11-01" },
+    { id: "e", title: "Started, dropped", category: "Shows", mediaSource: "tmdb-tv", mediaId: "5", startedAt: "2026-09-01", dropped: true },
+  ] };
+  const cats = { movie: "Movies", series: "Shows" };
+  const waiting = S.upNextItems(data, cats, (b) => b.releaseDate > "2026-11-21");
+  assert.deepStrictEqual(waiting.map((x) => x.b.id), ["a"]);
+  assert.deepStrictEqual(S.upNextItems(data, cats).map((x) => x.b.id), ["a", "b"], "no test given: nothing is held back");
+  const started = S.inProgressItems(data, cats);
+  assert.deepStrictEqual(started.map((x) => x.b.id + ":" + x.type), ["d:movie", "c:series"], "latest start first");
+  const row = S.upNextRow(waiting, (b) => "tt000000" + b.mediaId);
+  assert.deepStrictEqual(row.movie, [{ id: "tt0000001", name: "Out", star: true }]);
+});
+
 test("Up next on the account: the list goes back whole with the row added, an old copy replaced, nothing when it's there", () => {
   const cinemeta = { transportUrl: "https://v3-cinemeta.strem.io/manifest.json", manifest: { id: "com.linvo.cinemeta" }, flags: { official: true, protected: true } };
   const old = { transportUrl: "https://old.example/upnext/aa/manifest.json", manifest: { id: "app.lifelog.upnext.abcd1234" } };
@@ -167,6 +185,8 @@ test("Up next on the account: the list goes back whole with the row added, an ol
   assert.strictEqual(S.withUpNext(next, url, manifest), null);
   assert.throws(() => S.withUpNext([], url, manifest), "an empty list is never sent back");
   assert.throws(() => S.withUpNext(undefined, url, manifest));
+  const renamed = S.withUpNext(next, url, { ...manifest, name: "LifeLog: Backlog", version: "1.1.0" });
+  assert.deepStrictEqual(renamed.map((a) => a.manifest.name), [undefined, "LifeLog: Backlog"], "same address, newer manifest: swapped, not doubled");
   const back = S.withoutUpNext(next, url, manifest.id);
   assert.deepStrictEqual(back, [cinemeta], "Remove takes only the row off");
   assert.strictEqual(S.withoutUpNext([cinemeta, old], url, manifest.id).length, 1, "an old copy goes too");

@@ -312,6 +312,8 @@
     render();
     await persist();
     if (flag === "dropped" && window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
+    // A star changes Stremio's favourites list (stremio.js).
+    if (flag === "priority" && window.LifeLogStremio && window.LifeLogStremio.upNextChanged) window.LifeLogStremio.upNextChanged();
     toast(flag === "priority" ? (on ? i18n.t("Starred") : i18n.t("Unstarred")) : (on ? i18n.t("Moved to Dropped") : i18n.t("Back in your backlog")));
   }
 

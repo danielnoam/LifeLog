@@ -3,10 +3,10 @@
 // progress with its episode, a watched movie on the timeline finishing its
 // backlog item), matched on TMDB by IMDb id; nothing is ever sent to
 // Stremio but the sign-in, the read and the sign-out; Sign out forgets the
-// key; an export leaves the key out; and "Add to my Stremio account" sends
-// the account's add-on list back whole with the Up next row added, then the
-// button turns to Remove, which takes only the row off; signed in, the app
-// link and Copy give way to it.
+// key; an export leaves the key out; the lists sent to the worker (waiting,
+// starred, in progress); and each list's Add sends the account's add-on
+// list back whole with that add-on added, then turns to Remove, which takes
+// only it off; signed out, each list opens in the Stremio app instead.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
@@ -44,11 +44,14 @@ const TMDB = {
   const CINEMETA = { transportUrl: "https://v3-cinemeta.strem.io/manifest.json", manifest: { id: "com.linvo.cinemeta", name: "Cinemeta" }, flags: { official: true, protected: true } };
   let account = [CINEMETA];
   let refuseOnce = true;
+  const pushes = [];
   await page.route("https://w.example/**", (r) => {
     const u = new URL(r.request().url());
     const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, X-LifeLog-Key" };
     if (r.request().method() === "OPTIONS") return r.fulfill({ status: 204, headers });
-    if (/\/manifest\.json$/.test(u.pathname)) return r.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify({ id: "app.lifelog.upnext.x", name: "LifeLog: Up next", resources: ["catalog"], types: ["movie", "series"], catalogs: [] }) });
+    const list = /\/(starred|progress)\/manifest\.json$/.exec(u.pathname);
+    if (/\/manifest\.json$/.test(u.pathname)) return r.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify({ id: "app.lifelog." + (list ? list[1] : "upnext") + ".x", version: "1.1.0", name: "LifeLog", resources: ["catalog"], types: ["movie", "series"], catalogs: [] }) });
+    if (r.request().method() === "POST") pushes.push(JSON.parse(r.request().postData() || "{}"));
     return r.fulfill({ status: 200, contentType: "application/json", headers, body: "{}" });
   });
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
@@ -124,29 +127,33 @@ const TMDB = {
   const exported = await page.evaluate(() => window.LifeLogStorage.withoutSecrets ? JSON.stringify(window.LifeLogStorage.withoutSecrets(window.LifeLogStorage.cachedCopy())) : null);
   if (exported !== null) check("an export leaves the key out", !exported.includes("KEY123"));
 
-  check("Up next off: no account button", !(await page.isVisible("#stremioUpNextInstall")));
-  await page.click("#stremioUpNext"); await page.waitForTimeout(600);
-  check("Up next on and signed in: Add to my Stremio account shows", await page.isVisible("#stremioUpNextInstall"));
-  await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
+  const ROW = (list) => `[data-stremio-list="${list}"]`;
+  check("lists off: no add-on rows", !(await page.isVisible(ROW(""))));
+  await page.click("#stremioUpNext");
+  for (let i = 0; i < 50 && !pushes.length; i++) await page.waitForTimeout(100);
+  await page.waitForSelector(ROW("") + " button:not([hidden])");
+  check("lists on and signed in: three add-ons, each with Add", (await page.$$eval("[data-stremio-list]:not([hidden]) button:not([hidden])", (bs) => bs.map((b) => b.textContent))).join() === "Add,Add,Add");
+  const pushed = pushes[pushes.length - 1] || {};
+  check("the worker gets what waits and what's in progress", (pushed.movie || []).some((m) => m.id === "tt0113277") && ((pushed.progress || {}).series || []).some((m) => m.id === "tt0903747") && !(pushed.series || []).some((m) => m.id === "tt0903747"), pushed);
+  await page.click(ROW("") + " button"); await page.waitForTimeout(600);
   const toastText = await page.evaluate(() => [...document.querySelectorAll(".toast")].map((t) => t.textContent).join(" | "));
-  check("a refusal that mentions auth keeps the key and shows Stremio's words", ((await data()).settings.stremio || {}).authKey === "KEY123" && /Not authorized to change/.test(toastText) && await page.isVisible("#stremioUpNextInstall"), toastText);
-  await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
+  check("a refusal that mentions auth keeps the key and shows Stremio's words", ((await data()).settings.stremio || {}).authKey === "KEY123" && /Not authorized to change/.test(toastText), toastText);
+  await page.click(ROW("starred") + " button"); await page.waitForTimeout(600);
   const sets = calls.filter((c) => c.method === "addonCollectionSet").slice(1);
   const sent = sets.length ? sets[0].body : {};
-  check("the add-on list goes back whole with the row added", sets.length === 1 && sent.authKey === "KEY123" && sent.addons.length === 2 && sent.addons[0].transportUrl === CINEMETA.transportUrl && sent.addons[0].flags.protected === true
-    && /^https:\/\/w\.example\/upnext\/[a-f0-9]{24}\/manifest\.json$/.test(sent.addons[1].transportUrl) && sent.addons[1].manifest.id === "app.lifelog.upnext.x", sent);
-  check("then it offers Remove", /Remove/.test(await page.textContent("#stremioUpNextInstall")));
-  check("no Copy the link any more; signed in, no Open in the Stremio app either", !(await page.$("#stremioUpNextCopy")) && !(await page.isVisible("#stremioUpNextAdd")));
-  await page.click("#stremioUpNextInstall"); await page.waitForTimeout(600);
+  check("the add-on list goes back whole with the favourites added", sets.length === 1 && sent.authKey === "KEY123" && sent.addons.length === 2 && sent.addons[0].transportUrl === CINEMETA.transportUrl && sent.addons[0].flags.protected === true
+    && /^https:\/\/w\.example\/upnext\/[a-f0-9]{24}\/starred\/manifest\.json$/.test(sent.addons[1].transportUrl) && sent.addons[1].manifest.id === "app.lifelog.starred.x", sent);
+  check("then that one offers Remove, the others Add", (await page.textContent(ROW("starred") + " button")) === "Remove" && (await page.textContent(ROW("progress") + " button")) === "Add");
+  await page.click(ROW("starred") + " button"); await page.waitForTimeout(600);
   const sets2 = calls.filter((c) => c.method === "addonCollectionSet").slice(1);
-  check("Remove sends the list back without the row", sets2.length === 2 && JSON.stringify(sets2[1].body.addons) === JSON.stringify([CINEMETA]), sets2.map((c) => c.body));
-  check("and offers Add again", /Add to my/.test(await page.textContent("#stremioUpNextInstall")));
+  check("Remove sends the list back without it", sets2.length === 2 && JSON.stringify(sets2[1].body.addons) === JSON.stringify([CINEMETA]), sets2.map((c) => c.body));
+  check("and offers Add again", (await page.textContent(ROW("starred") + " button")) === "Add");
 
   await page.click("#stremioSignOutBtn"); await page.waitForTimeout(400);
   st = (await data()).settings.stremio || {};
   check("Sign out forgets the key and ends the session", !st.authKey && calls.some((c) => c.method === "logout" && c.body.authKey === "KEY123"), st);
   check("signed out, the form is back", await page.isVisible("#stremioSignInBtn"));
-  check("signed out, no account button; Open in the Stremio app still there", !(await page.isVisible("#stremioUpNextInstall")) && await page.isVisible("#stremioUpNextAdd"));
+  check("signed out, each list opens in the Stremio app instead", !(await page.isVisible(ROW("") + " button")) && /^stremio:\/\/w\.example\/upnext\/[a-f0-9]{24}\/progress\/manifest\.json$/.test(await page.getAttribute(ROW("progress") + " a", "href")));
   check("no errors", errs.length === 0, errs);
   await ctx.close();
   await b.close();

@@ -87,12 +87,13 @@
 //   (Waypage reading needs no route: GitHub's API answers browsers itself.)
 //
 //   POST /upnext/<id>            (header X-LifeLog-Key: <key>)
-//   GET  /upnext/<id>/manifest.json
-//   GET  /upnext/<id>/catalog/<movie|series>/lifelog-upnext.json
-//     The one route that keeps something: "LifeLog: Up next", a Stremio
-//     add-on with a row of your Backlog's movies and shows. LifeLog posts
-//     the row (IMDb ids, titles and poster addresses only) and Stremio
-//     reads it. Kept in a KV namespace bound as UPNEXT; without one these
+//   GET  /upnext/<id>[/starred|/progress]/manifest.json
+//   GET  /upnext/<id>[/starred|/progress]/catalog/<movie|series>/lifelog-<upnext|starred|progress>.json
+//     The one route that keeps something: three Stremio add-ons, "LifeLog:
+//     Backlog" (once "Up next"), "LifeLog: Backlog favourites" and
+//     "LifeLog: In progress", rows of your movies and shows. LifeLog posts
+//     them (IMDb ids, titles, poster addresses and a star only) and Stremio
+//     reads them. Kept in a KV namespace bound as UPNEXT; without one these
 //     answer 501. <id> is random and secret: whoever has the add-on link
 //     can read the row, and only the key LifeLog first wrote with can
 //     change it.
@@ -117,8 +118,12 @@ export default {
 
     const url = new URL(request.url);
 
-    const upNext = url.pathname.match(/^\/upnext\/([a-f0-9]{24})(\/manifest\.json|\/catalog\/(movie|series)\/lifelog-upnext\.json)?$/);
-    if (upNext) return upNextRoute(request, env, upNext[1], upNext[2] || "", upNext[3] || "");
+    // /upnext/<id> takes the row; /upnext/<id>[/starred|/progress]/… are the
+    // three add-ons Stremio reads (no list part = the whole Backlog).
+    const upNext = url.pathname.match(/^\/upnext\/([a-f0-9]{24})(?:\/(starred|progress))?(\/manifest\.json|\/catalog\/(movie|series)\/lifelog-(upnext|starred|progress)\.json)?$/);
+    if (upNext && (upNext[3] || !upNext[2]) && (!upNext[5] || upNext[5] === (upNext[2] || "upnext"))) {
+      return upNextRoute(request, env, upNext[1], upNext[3] || "", upNext[4] || "", upNext[2] || "");
+    }
 
     const wishlistMatch = url.pathname.match(/^\/steam-wishlist\/(\d{17})$/);
     if (wishlistMatch) {
@@ -219,9 +224,22 @@ const jsonOut = (body, status, extra) => new Response(JSON.stringify(body), {
 function cleanMetas(list, type) {
   return (Array.isArray(list) ? list : []).slice(0, UPNEXT_MAX)
     .filter((m) => m && /^tt\d{5,10}$/.test(m.id))
-    .map((m) => ({ id: m.id, type, name: String(m.name || "").slice(0, 200), ...(/^https:\/\/[^\s"<>]{1,500}$/.test(m.poster || "") ? { poster: m.poster } : {}) }));
+    .map((m) => ({ id: m.id, type, name: String(m.name || "").slice(0, 200), ...(/^https:\/\/[^\s"<>]{1,500}$/.test(m.poster || "") ? { poster: m.poster } : {}), ...(m.star === true ? { star: true } : {}) }));
 }
-async function upNextRoute(request, env, id, rest, type) {
+// The three add-ons. Each is its own install in Stremio, so each can be on
+// or off there; "" keeps the first one's address and id (LifeLog: Up next).
+const UPNEXT_LISTS = {
+  "": { id: "upnext", name: "LifeLog: Backlog", description: "The movies and shows waiting in your LifeLog Backlog, out already, in your order." },
+  starred: { id: "starred", name: "LifeLog: Backlog favourites", description: "The starred movies and shows waiting in your LifeLog Backlog." },
+  progress: { id: "progress", name: "LifeLog: In progress", description: "The movies and shows you've started in LifeLog." },
+};
+function upNextMetas(row, list, type) {
+  if (!row) return [];
+  if (list === "progress") return (row.progress && row.progress[type]) || [];
+  const all = row[type] || [];
+  return list === "starred" ? all.filter((m) => m.star) : all;
+}
+async function upNextRoute(request, env, id, rest, type, list) {
   const kv = env && env.UPNEXT;
   if (!kv) return jsonOut({ error: "This worker has no KV namespace bound as UPNEXT yet" }, 501);
   if (!rest) {
@@ -231,25 +249,29 @@ async function upNextRoute(request, env, id, rest, type) {
     const was = await kv.get(id, "json");
     if (was && was.key !== key) return jsonOut({ error: "That key doesn't match this row" }, 403);
     let body = null;
-    try { body = JSON.parse((await request.text()).slice(0, 200000)); } catch (e) { /* said below */ }
+    try { body = JSON.parse((await request.text()).slice(0, 400000)); } catch (e) { /* said below */ }
     if (!body) return jsonOut({ error: "Send the row as JSON" }, 400);
-    const row = { key, movie: cleanMetas(body.movie, "movie"), series: cleanMetas(body.series, "series"), at: new Date().toISOString() };
+    const progress = body.progress || {};
+    const row = { key, movie: cleanMetas(body.movie, "movie"), series: cleanMetas(body.series, "series"),
+      progress: { movie: cleanMetas(progress.movie, "movie"), series: cleanMetas(progress.series, "series") }, at: new Date().toISOString() };
     await kv.put(id, JSON.stringify(row));
-    return jsonOut({ ok: true, movie: row.movie.length, series: row.series.length });
+    return jsonOut({ ok: true, movie: row.movie.length, series: row.series.length, progress: row.progress.movie.length + row.progress.series.length });
   }
   // Stremio reads these; it caches them for a few minutes.
   const cache = { "Cache-Control": "max-age=300" };
+  const L = UPNEXT_LISTS[list];
   if (rest === "/manifest.json") {
+    const catalogId = "lifelog-" + L.id;
     return jsonOut({
-      id: "app.lifelog.upnext." + id.slice(0, 8), version: "1.0.0", name: "LifeLog: Up next",
-      description: "The movies and shows waiting in your LifeLog Backlog, in your order.",
+      id: "app.lifelog." + L.id + "." + id.slice(0, 8), version: "1.1.0", name: L.name,
+      description: L.description,
       resources: ["catalog"], types: ["movie", "series"], idPrefixes: ["tt"],
-      catalogs: [{ type: "movie", id: "lifelog-upnext", name: "LifeLog: Up next" }, { type: "series", id: "lifelog-upnext", name: "LifeLog: Up next" }],
+      catalogs: [{ type: "movie", id: catalogId, name: L.name }, { type: "series", id: catalogId, name: L.name }],
       behaviorHints: { configurable: false },
     }, 200, cache);
   }
   const row = await kv.get(id, "json");
-  return jsonOut({ metas: row ? row[type] || [] : [] }, 200, cache);
+  return jsonOut({ metas: upNextMetas(row, list, type).map(({ star, ...m }) => m) }, 200, cache);
 }
 
 async function proxyJson(target, extraHeaders, method, body) {
