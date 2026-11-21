@@ -344,6 +344,49 @@ test("the updater reads latest.json from the latest release", () => {
   assert.deepStrictEqual(conf.plugins.updater.endpoints, ["https://github.com/danielnoam/LifeLog/releases/latest/download/latest.json"]);
 });
 
+// Every way out of the app reaches the opener: a click, a middle click and
+// window.open, with the scripts loaded as the desktop app loads them.
+function desktopWindow() {
+  const vm = require("vm");
+  const opened = [], popups = [], listeners = {};
+  const link = (href, extra = {}) => ({ href, hasAttribute: (n) => !!extra[n], closest: function (sel) { return sel === "a[href]" ? this : null; } });
+  const document = {
+    documentElement: { classList: { add() {} } },
+    addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); },
+  };
+  const win = {
+    __TAURI__: { core: {}, opener: { openUrl: async (u) => { opened.push(u); } } },
+    open: (u) => { popups.push(u); return null; },
+    fetch: async () => ({ ok: false }),
+    i18n: require("../src/language.js"),
+  };
+  const ctx = vm.createContext({ window: win, document, navigator: { userAgent: "Windows NT 10.0" }, location: { href: "http://tauri.localhost/", origin: "http://tauri.localhost" }, URL, Promise, setTimeout, clearTimeout, console, require, fetch: win.fetch });
+  for (const f of ["src/keel/platform.js", "src/platform.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
+  const fire = (type, target, button = 0) => {
+    let stopped = false;
+    for (const fn of listeners[type] || []) fn({ type, target, button, preventDefault: () => { stopped = true; } });
+    return stopped;
+  };
+  return { win, opened, popups, link, fire };
+}
+
+test("links leave for the browser: a click, a middle click and window.open all reach the opener", () => {
+  const d = desktopWindow();
+  assert.ok(d.fire("click", d.link("https://store.steampowered.com/app/620/")));
+  assert.ok(d.fire("auxclick", d.link("https://www.metacritic.com/game/portal-2/"), 1));
+  d.win.open("https://howlongtobeat.com/game/7231", "_blank", "noopener");
+  assert.deepStrictEqual(d.opened, ["https://store.steampowered.com/app/620/", "https://www.metacritic.com/game/portal-2/", "https://howlongtobeat.com/game/7231"]);
+  assert.deepStrictEqual(d.popups, []);
+});
+
+test("links leave for the browser: the app's own pages, downloads and right clicks stay put", () => {
+  const d = desktopWindow();
+  assert.ok(!d.fire("click", d.link("http://tauri.localhost/privacy.html")));
+  assert.ok(!d.fire("click", d.link("https://example.com/backup.json", { download: true })));
+  assert.ok(!d.fire("auxclick", d.link("https://example.com/"), 2));
+  assert.deepStrictEqual(d.opened, []);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 asyncTests().catch((e) => { console.error("  FAIL - a reminder checks GitHub before it rings"); console.error("    " + e.message); process.exitCode = 1; })
   .then(() => console.log(`\n${passed} passed`));
