@@ -68,6 +68,10 @@ dependencies {
     implementation "androidx.health.connect:connect-client:1.1.0"
     // HealthReader calls the client's suspend functions with runBlocking.
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+    // connect-client swaps Guava's ListenableFuture for the empty
+    // "9999.0-empty-to-avoid-conflict-with-guava" jar, which takes it away
+    // from WorkManager's Worker (HeadlessRefresh); full Guava puts it back.
+    implementation "com.google.guava:guava:33.3.1-android"
     testImplementation "junit:junit:$junitVersion"
     // android.jar's org.json is stubs under a unit test; this is the real thing.
     testImplementation "org.json:json:20240303"
