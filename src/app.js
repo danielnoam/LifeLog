@@ -63,7 +63,7 @@
   // maxWidth 0 = stretch.
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", motion: "on", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", calendarReleases: "show", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
     // The Home tab's sections, in order, and the ones turned off (home.js).
-    homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], homeScratchMode: "note", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read", noteTrelloGroup: "off",
+    homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], homeScratchMode: "note", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read", noteTrelloGroup: "on",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other
