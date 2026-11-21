@@ -371,16 +371,21 @@
         }
       }
     }
-    // Tasks whose card isn't on its list any more.
+    // Tasks whose card isn't on its list any more leave it, as in Trello
+    // (Daniel, 2026-11-21: archived and moved cards stayed as ticked tasks).
+    // Only one unticked here after it left stays, and its card comes back.
     for (const [listId, n] of noteOf) {
       if (!remote.lists[listId]) continue;
       for (const it of [...n.items]) {
         const id = it.trello && it.trello.card;
         if (!id || onLists.has(id) || it.parent) continue;
-        if (!(id in remote.cards)) continue; // not asked about (done, and already off the list)
+        if (it.done && it.trello.gone) { drop(n, it); continue; }
+        if (!(id in remote.cards)) continue;
         const card = remote.cards[id];
         if (card === null) { drop(n, it); continue; }
         if (card.idList === listId && !card.closed && !mineOk(card)) { drop(n, it); continue; }
+        const reopened = !it.done && it.trello.base && it.trello.base.done;
+        if ((card.closed || card.idList !== listId) && !(reopened && cfg.send)) { drop(n, it); continue; }
         if (whereCard.get(id).n === n) oneCard(n, it, card, listId);
       }
     }
@@ -428,7 +433,7 @@
       for (const it of n.items || []) {
         const id = it.trello && it.trello.card;
         if (!id || on.has(id) || it.parent) continue;
-        if (it.done && it.trello.gone) continue;
+        if (it.done && it.trello.gone) continue; // leaves without asking
         out.push(id);
       }
     }
@@ -622,14 +627,29 @@
         sw.checked = on.has(l.id);
         sw.onchange = async () => {
           const cur = cfgNow();
+          const was = cur.lists.find((x) => x.id === l.id);
           cur.lists = sw.checked
             ? [...cur.lists.filter((x) => x.id !== l.id), { id: l.id, name: l.name, board: l.board || g.id, boardName: l.boardName || g.name }]
             : cur.lists.filter((x) => x.id !== l.id);
+          // Off takes its task list out of the Notebook too (Daniel,
+          // 2026-11-21: a kept copy read as a duplicate); Undo puts both back.
+          const gone = sw.checked ? [] : (state.data.notes || []).filter((x) => x.trello && x.trello.list === l.id);
+          if (gone.length) state.data.notes = state.data.notes.filter((x) => !gone.includes(x));
           await save(cur);
           paintStatus();
           if (sw.checked) await check({ manual: true });
           paintLists();
-          if (!sw.checked) toast(i18n.t("Stopped syncing {name}. Its task list stays", { name: l.name }));
+          if (gone.length) render();
+          if (!sw.checked) toast(i18n.t("Stopped syncing {name}", { name: l.name }), false, { label: i18n.t("Undo"), onClick: async () => {
+            const c2 = cfgNow();
+            if (was && !c2.lists.some((x) => x.id === l.id)) c2.lists = [...c2.lists, was];
+            const ids = new Set((state.data.notes || []).map((x) => x.id));
+            state.data.notes = [...gone.filter((x) => !ids.has(x.id)), ...(state.data.notes || [])];
+            await save(c2);
+            paintStatus();
+            paintLists();
+            render();
+          } });
         };
         r.append(t, sw);
         card.appendChild(r);
@@ -704,6 +724,16 @@
   }
 
   // Whether a note is a list that's syncing with Trello now (its badge).
+  // A list has no page of its own on Trello, so its board's.
+  function open(n) {
+    const board = n && n.trello && n.trello.board;
+    if (!/^[0-9a-f]{24}$/i.test(String(board || ""))) return false;
+    const url = "https://trello.com/b/" + board;
+    const P = window.LifeLogPlatform;
+    if (P && P.openOutside) return P.openOutside(url);
+    window.open(url, "_blank", "noopener");
+    return true;
+  }
   function linked(n) {
     if (!n || !n.trello || !state) return false;
     const c = cfgNow();
@@ -713,7 +743,7 @@
   const api = {
     init, wire, start, check, changed, renderSettings, status, linked,
     // pure, for tests and the bridge
-    APP_KEY, DEFAULTS, cleanConfig, authorizeUrl, dueOf, fromDue, reconcile, missingCards, client, syncData, connected,
+    APP_KEY, DEFAULTS, cleanConfig, authorizeUrl, dueOf, fromDue, reconcile, missingCards, client, syncData, connected, open,
   };
   if (typeof window !== "undefined") window.LifeLogTrello = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

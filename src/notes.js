@@ -601,12 +601,14 @@
     h.appendChild(left);
     const right = el("span", "mc-right");
     // Next to the star (Daniel, 2026-11-21).
+    // It opens the board: the Trello app takes the link where it's installed.
     if (!reordering && window.LifeLogTrello && window.LifeLogTrello.linked(n)) {
-      const b = el("span", "note-trello");
-      b.title = i18n.t("Syncs with Trello");
-      b.setAttribute("role", "img");
-      b.setAttribute("aria-label", i18n.t("Syncs with Trello"));
+      const b = own(el("button", "note-trello"));
+      b.type = "button";
+      b.title = i18n.t("Open in Trello");
+      b.setAttribute("aria-label", i18n.t("Open in Trello"));
       b.append(ico("square-kanban"), el("span", "note-trello-name", i18n.t("Trello")));
+      b.onclick = (ev) => { ev.stopPropagation(); window.LifeLogTrello.open(n); };
       right.appendChild(b);
     }
     if (!reordering) right.appendChild(favButton(n));

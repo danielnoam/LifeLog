@@ -423,7 +423,8 @@ archives its card) and id `trello-<list id>`. A task from a card has id
 `base` is what Trello had at the last sync (`name`, `desc`, `due`, `done`,
 `labels`), which is how the app tells a change here from one there;
 `checks` the checklist item ids its subtasks came from; `gone` true once
-the card is archived or off the list. A subtask from a checklist item has
+the card is archived or off the list (the task leaves the list at the next
+sync, unless it was unticked here, which brings the card back). A subtask from a checklist item has
 `trello: { check, checklist, base: { name, done } }`. Leave `trello` as it
 is when changing a task: the app sends the change at its next sync. A new
 task on such a list becomes a card; one deleted archives its card.
