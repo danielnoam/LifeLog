@@ -2422,12 +2422,6 @@
       </section>
       <section class="sgroup">
         <div class="sgroup-card">
-          <details class="gh-advanced" id="errLog">
-            <summary class="sitem sitem-go"><span class="sitem-text"><span class="sitem-title"><span data-t>Errors on this device</span></span><span class="sitem-sub" id="errLogHint"></span></span></summary>
-            <div id="errLogList"></div>
-            <button type="button" class="sitem" id="errLogCopyBtn" data-t>Copy all</button>
-            <button type="button" class="sitem" id="errLogClearBtn" data-t>Clear</button>
-          </details>
           <label class="sitem toggle-label" id="unreleasedRow" hidden>
             <span class="sitem-text"><span class="sitem-title"><span data-t>Unreleased builds</span></span><span class="sitem-sub"><span data-t>Every change once it's merged, before it's a release. This device only</span></span></span>
             <input type="checkbox" class="switch" id="unreleasedSwitch" />
@@ -2436,16 +2430,22 @@
             <summary class="sitem sitem-go"><span class="sitem-text"><span class="sitem-title"><span data-t>Test builds</span></span><span class="sitem-sub" id="testBuildsHint"></span></span></summary>
             <div id="testBuildsList"></div>
           </details>
-        </div>
-      </section>
-      <section class="sgroup">
-        <div class="sgroup-card">
           <details class="gh-advanced" id="changelogFold">
             <summary class="sitem sitem-go"><span class="sitem-text"><span class="sitem-title"><span data-t>What's new</span></span><span class="sitem-sub"><span data-t>The changes in each version</span></span></span></summary>
             <div class="changelog-box">
               <div class="md changelog" id="changelogBody"></div>
               <button type="button" class="btn" id="changelogMoreBtn" hidden data-t>Show older versions</button>
             </div>
+          </details>
+        </div>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <details class="gh-advanced" id="errLog">
+            <summary class="sitem sitem-go"><span class="sitem-text"><span class="sitem-title"><span data-t>Errors on this device</span></span><span class="sitem-sub" id="errLogHint"></span></span></summary>
+            <div id="errLogList"></div>
+            <button type="button" class="sitem" id="errLogCopyBtn" data-t>Copy all</button>
+            <button type="button" class="sitem" id="errLogClearBtn" data-t>Clear</button>
           </details>
         </div>
       </section>
