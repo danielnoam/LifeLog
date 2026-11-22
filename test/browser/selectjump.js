@@ -60,16 +60,12 @@ async function trial(page, { name, ui, lang, y }) {
   const bulk = await page.evaluate(() => !!document.querySelector(".bulk-bar"));
   check(`${name}: holding a row starts selecting`, bulk);
   check(`${name}: the held row stays put (worst ${Math.round(worst)}px)`, worst <= 2, worst);
-  // Cancel: the first row under the top bar is the one kept.
-  const keep = await page.evaluate(() => {
-    const line = document.querySelector(".topbar").getBoundingClientRect().bottom;
-    const e = [...document.querySelectorAll("#viewBody [data-id]")].find((x) => x.getBoundingClientRect().top >= line);
-    return { id: e.dataset.id, top: e.getBoundingClientRect().top };
-  });
+  // Cancel: the row last ticked (the held one) is the one kept.
+  const keep = await page.evaluate((id) => ({ id, top: document.querySelector(`#viewBody [data-id="${id}"]`).getBoundingClientRect().top }), t.id);
   await page.evaluate(() => [...document.querySelectorAll(".bulk-bar .btn")].pop().click());
   await page.waitForTimeout(300);
   const after = await page.evaluate((id) => document.querySelector(`#viewBody [data-id="${id}"]`).getBoundingClientRect().top, keep.id);
-  check(`${name}: Cancel keeps the top row put`, Math.abs(after - keep.top) <= 2, { before: keep.top, after });
+  check(`${name}: Cancel keeps the held row put`, Math.abs(after - keep.top) <= 2, { before: keep.top, after });
 }
 
 (async () => {
