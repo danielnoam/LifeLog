@@ -442,12 +442,13 @@ list gets the window too, its map beside the list.
   through the review. Stremio keeps only the last play, so earlier watches
   aren't there. The sync never writes to Stremio. It uses the API Stremio's
   own apps use, which isn't public.
-  Turn on **LifeLog: Up next** and Stremio's home screen gets a row of the
-  movies and shows waiting in your Backlog, from an add-on your proxy
-  worker serves (it needs a KV namespace; see proxy/README.md). **Add to my
-  Stremio account** puts it in your account's add-ons, so a Stremio on a TV
-  gets it with nothing to type (and Remove takes it off). Signed out, **Open in the Stremio app**
-  installs it through the app on that device instead.
+  Turn on **Lists in Stremio** and Stremio's home screen gets up to three
+  rows, each its own add-on: **LifeLog: Backlog** (what's waiting and out
+  already), **LifeLog: Backlog favourites** (the starred ones) and
+  **LifeLog: In progress**, from your proxy worker (it needs a KV
+  namespace; see proxy/README.md). Unreleased and dropped titles are left
+  out. Signed in, **Add** puts each on your Stremio account, so a TV gets
+  it with nothing to type, and **Remove** takes it off.
 - **Waypage reading log**: with Share reading activity on in
   [Waypage](https://github.com/danielnoam/waypage), what you read there
   comes in by itself, with a read-only token for its sync repo. A book in

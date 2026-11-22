@@ -128,6 +128,24 @@ test("/upnext keeps the row LifeLog posts and Stremio reads it back", async () =
   assert.strictEqual((await callEnv("/upnext/short/manifest.json", {}, env)).status, 404);
 });
 
+test("/upnext serves three add-ons: the Backlog, its starred ones, and what's in progress", async () => {
+  const env = { UPNEXT: KV };
+  const row = { movie: [{ id: "tt0113277", name: "Heat", star: true }, { id: "tt0083190", name: "Thief" }], series: [],
+    progress: { movie: [], series: [{ id: "tt0903747", name: "Breaking Bad" }] } };
+  assert.strictEqual((await callEnv(UP, { method: "POST", body: JSON.stringify(row), headers: { "X-LifeLog-Key": KEY } }, env)).status, 200);
+  const get = async (p) => (await callEnv(UP + p, {}, env)).json();
+  const [all, fav, prog] = await Promise.all([get("/manifest.json"), get("/starred/manifest.json"), get("/progress/manifest.json")]);
+  assert.deepStrictEqual([all.name, fav.name, prog.name], ["LifeLog: Backlog", "LifeLog: Backlog favourites", "LifeLog: In progress"]);
+  assert.strictEqual(all.id, "app.lifelog.upnext.a1a1a1a1", "the first add-on keeps its id, so an install of Up next carries on");
+  assert.strictEqual(new Set([all.id, fav.id, prog.id]).size, 3);
+  assert.deepStrictEqual((await get("/catalog/movie/lifelog-upnext.json")).metas.map((m) => m.id), ["tt0113277", "tt0083190"]);
+  const starred = (await get("/starred/catalog/movie/lifelog-starred.json")).metas;
+  assert.deepStrictEqual(starred, [{ id: "tt0113277", type: "movie", name: "Heat" }], "starred only, without the star");
+  assert.deepStrictEqual((await get("/progress/catalog/series/lifelog-progress.json")).metas.map((m) => m.id), ["tt0903747"]);
+  assert.strictEqual((await callEnv(UP + "/starred/catalog/movie/lifelog-progress.json", {}, env)).status, 404, "a list's catalog only under its own address");
+  assert.strictEqual((await callEnv(UP + "/starred", { method: "POST", body: "{}", headers: { "X-LifeLog-Key": KEY } }, env)).status, 404, "the row is posted in one place");
+});
+
 test("anything else is not found", async () => {
   assert.strictEqual((await call("/https://example.com/")).status, 404);
 });

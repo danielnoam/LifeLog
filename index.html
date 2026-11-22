@@ -2213,16 +2213,27 @@
       </section>
       <section class="sgroup comes-in" id="stremioComesIn"></section>
       <section class="sgroup">
-        <h3 class="sgroup-label" data-t>Up next row in Stremio</h3>
+        <h3 class="sgroup-label" data-t>Lists in Stremio</h3>
         <div class="sgroup-card">
           <label class="sitem toggle-label">
-            <span class="sitem-text"><span class="sitem-title"><span data-t>LifeLog: Up next</span></span><span class="sitem-sub" id="stremioUpNextState"></span></span>
+            <span class="sitem-text"><span class="sitem-title"><span data-t>Send lists to Stremio</span></span><span class="sitem-sub" id="stremioUpNextState"></span></span>
             <input type="checkbox" class="switch" id="stremioUpNext" />
           </label>
-          <button id="stremioUpNextInstall" type="button" class="sitem sitem-go" hidden><span class="sitem-text"><span class="sitem-title" id="stremioUpNextInstallLabel">Add to my Stremio account</span><span class="sitem-sub" id="stremioUpNextInstallSub"></span></span></button>
-          <a id="stremioUpNextAdd" class="sitem sitem-go" href="#" hidden><span class="sitem-text"><span class="sitem-title"><span data-t>Open in the Stremio app</span></span><span class="sitem-sub"><span data-t>Installs it in Stremio on this phone or computer only</span></span></span></a>
+          <div class="sitem" data-stremio-list="" hidden>
+            <span class="sitem-text"><span class="sitem-title"><span data-t>LifeLog: Backlog</span></span><span class="sitem-sub"><span data-t>Everything waiting that's out</span></span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small"></button><a class="btn btn-small" href="#" hidden data-t>Open</a></span>
+          </div>
+          <div class="sitem" data-stremio-list="starred" hidden>
+            <span class="sitem-text"><span class="sitem-title"><span data-t>LifeLog: Backlog favourites</span></span><span class="sitem-sub"><span data-t>Only the starred ones</span></span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small"></button><a class="btn btn-small" href="#" hidden data-t>Open</a></span>
+          </div>
+          <div class="sitem" data-stremio-list="progress" hidden>
+            <span class="sitem-text"><span class="sitem-title"><span data-t>LifeLog: In progress</span></span><span class="sitem-sub"><span data-t>What you've started</span></span></span>
+            <span class="sitem-btns"><button type="button" class="btn btn-small"></button><a class="btn btn-small" href="#" hidden data-t>Open</a></span>
+          </div>
         </div>
-        <p class="hint" data-t>A row on Stremio's home screen with the movies and shows waiting in your Backlog, starred first. Tap one and it opens in Stremio as usual. It's an add-on your proxy worker serves at a secret address: LifeLog sends it only each title's IMDb id, name and poster, and anyone with the add-on link could see that list. Shows from TMDB need your TMDB key to find their IMDb id.</p>
+        <p class="hint" id="stremioListsHint" hidden></p>
+        <p class="hint" data-t>Rows on Stremio's home screen, each its own add-on, so each can be on or off there. Unreleased and dropped titles are left out. Tap one and it opens in Stremio as usual. Your proxy worker serves them at a secret address: LifeLog sends it only each title's IMDb id, name, poster and star, and anyone with an add-on link could see that list. Titles need an IMDb id: TMDB ones find theirs with your TMDB key; anime from AniList has none, so it isn't there.</p>
       </section>
       </div>
 

@@ -153,7 +153,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Connections as a list with one screen per app; What comes in on Hardcover, AniList, Stremio and Steam: new titles ask/add/skip, a switch per status, send changes on/off (0.315.0)
 - Connections grouped by direction: Both ways (Hardcover, AniList, Trello), Read only (Stremio, Waypage, Steam, Google Calendar, Health Connect, Google Wallet), From a file (Letterboxd); "read only" shows only on a two-way app set to read only (0.326.0)
 - Waypage controls: on/off, Disconnect, check timing, new books ask/add/skip, start-and-finish and progress switches, From Waypage list with Unlink, Kept out with Allow again (0.315.0)
-- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (0.315.0); Add to my Stremio account installs it on every Stremio you're signed in to, a TV too (0.326.0)
+- Stremio "LifeLog: Up next" row: a catalog add-on on your proxy worker (KV) fed with your waiting movies and shows (0.315.0); Add to my Stremio account installs it on every Stremio you're signed in to, a TV too (0.326.0); split into LifeLog: Backlog, Backlog favourites and In progress, unreleased and dropped left out (next release)
 - Letterboxd import (0.252.0)
 - Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (0.313.0)
 - Stremio in a browser: straight to Stremio, through your proxy when it turns the browser away; a test runs the proxy and checks it has every route the apps have
