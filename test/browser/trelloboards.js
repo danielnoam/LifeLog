@@ -153,6 +153,13 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   await page.waitForSelector("#trelloLists .sitem", { timeout: 5000 }).catch(() => {});
   const heRows = await page.$$eval("#trelloLists .sitem .sitem-title", (xs) => xs.map((x) => x.textContent));
   check("and Settings' board switches", heRows[0] === "להביא את הלוח" && heRows[1] === "רשימת משימות אחת ללוח", heRows);
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+
+  // Every card gone from the board: its lists still show, empty.
+  cards.clear();
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await page.waitForTimeout(500);
+  check("a board with no tasks still shows each of its lists", (await shown()).filter((x) => x.startsWith("#")).join("|") === "#To do0|#Doing0", await shown());
 
   await b.close();
   done(errs);

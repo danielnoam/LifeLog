@@ -283,7 +283,13 @@
       const secs = T && T.sectionsOf ? T.sectionsOf(n) : null;
       const secAt = secs ? new Map(secs.map((x, i) => [x.id, i])) : null;
       let open = items.filter((it) => !it.done);
-      if (secs) open = open.map((it, i) => [it, secAt.get(T.sectionOf(n, it)), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([it]) => it);
+      // A subtask right under its task, in its task's section.
+      if (secs) {
+        const ids = new Set(open.map((it) => it.id));
+        const tops = open.filter((it) => !it.parent || !ids.has(it.parent));
+        const sorted = tops.map((it, i) => [it, secAt.get(T.sectionOf(n, it)), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([it]) => it);
+        open = sorted.flatMap((it) => [it, ...open.filter((c) => c.parent === it.id)]);
+      }
       const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
       for (const it of open) todos.push(row(it));

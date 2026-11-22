@@ -628,19 +628,20 @@
     if (headMeta) { h.classList.add("has-meta"); card.appendChild(el("div", "note-list-head-meta")).appendChild(headMeta); }
 
     const rows = el("div", "note-list-rows");
-    if (!items.length) rows.appendChild(el("p", "dsc-note", i18n.t("Nothing here.")));
-    else if (!openTop.length) rows.appendChild(el("p", "dsc-note", i18n.t("All done.")));
+    // A Trello board's lists are its sections (Nov 2026), each folding
+    // under its name. Empty ones show too, so you see the board's lists
+    // (Daniel, 2026-11-22). While reordering, a row dragged under another
+    // section's name moves there (commitItemOrder).
+    const secs = Tasks().sectionsOf(n);
+    if (!secs && !items.length) rows.appendChild(el("p", "dsc-note", i18n.t("Nothing here.")));
+    else if (!secs && !openTop.length) rows.appendChild(el("p", "dsc-note", i18n.t("All done.")));
     const withKids = (it) => {
       const sub = kids.get(it.id) || [];
       rows.appendChild(itemRow(n, it, { sub: false, kids: sub }));
       if (!foldSet().has(it.id)) for (const c of sub) rows.appendChild(itemRow(n, c, { sub: true }));
     };
     const put = (it) => { if (reordering) rows.appendChild(reorderRow(n, it, rows)); else withKids(it); };
-    // A Trello board's lists are its sections (Nov 2026), each folding
-    // under its name. While reordering, a row dragged under another
-    // section's name moves there (commitItemOrder).
-    const secs = Tasks().sectionsOf(n);
-    if (secs && openTop.length) {
+    if (secs) {
       for (const sec of secs) {
         const mine = openTop.filter((it) => Tasks().sectionOf(n, it) === sec.id);
         const shut = !reordering && foldSet().has(n.id + "|" + sec.id);
