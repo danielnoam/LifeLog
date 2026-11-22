@@ -406,6 +406,7 @@ Keel.i18n.strings("he", {
   "Add things you want to get to. They sit here grouped by category and sorted by priority, until the day you log them.": "כאן מוסיפים דברים שרוצים להגיע אליהם. הם מחכים כאן לפי קטגוריה ועדיפות, עד היום שבו הם נרשמים.",
   "Add ticker": "הוספת סימול",
   "Add to {group}": "הוספה ל{group}",
+  "Checklist": "רשימת סימון",
   "Add to backlog": "הוספה לתור",
   "Add to favourites": "הוספה למועדפים",
   "Add to Home": "הוספה לבית",

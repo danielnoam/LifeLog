@@ -633,7 +633,21 @@
     const withKids = (it) => {
       const sub = kids.get(it.id) || [];
       rows.appendChild(itemRow(n, it, { sub: false, kids: sub }));
-      if (!foldSet().has(it.id)) for (const c of sub) rows.appendChild(itemRow(n, c, { sub: true }));
+      if (foldSet().has(it.id)) return;
+      // A Trello card's subtasks under their checklists' names (Daniel,
+      // 2026-11-22), when it has more than one or one not named Checklist.
+      const lists = (it.trello && it.trello.checklists) || [];
+      if (sub.length && (lists.length > 1 || (lists.length === 1 && !/^checklist$/i.test(lists[0].name)))) {
+        const of = (c) => (lists.some((l) => l.id === (c.trello && c.trello.checklist)) ? c.trello.checklist : lists[0].id);
+        for (const l of lists) {
+          const mine = sub.filter((c) => of(c) === l.id);
+          if (!mine.length) continue;
+          rows.appendChild(el("div", "todo-checklist", l.name || i18n.t("Checklist")));
+          for (const c of mine) rows.appendChild(itemRow(n, c, { sub: true }));
+        }
+        return;
+      }
+      for (const c of sub) rows.appendChild(itemRow(n, c, { sub: true }));
     };
     const put = (it) => { if (reordering) rows.appendChild(reorderRow(n, it, rows)); else withKids(it); };
     // A Trello board's lists are its sections (Nov 2026), each folding
@@ -646,6 +660,7 @@
         const shut = !reordering && foldSet().has(n.id + "|" + sec.id);
         rows.appendChild(sectionHead(n, sec, mine.length, { shut, reordering }));
         if (!shut) mine.forEach(put);
+        if (!reordering && !shut && sectionAdding === n.id + "|" + sec.id) rows.appendChild(sectionCompose(n, sec));
       }
     } else openTop.forEach(put);
     // The finished rows and the add line stay while reordering (greyed and
@@ -660,23 +675,72 @@
   }
 
   // A section's name over its rows, with how many are open; pressing it
-  // folds the section. Not a .todo-row, so a drag passes over it.
+  // folds the section. Its + adds a task straight into it (Daniel,
+  // 2026-11-22). Not a .todo-row, so a drag passes over it.
   function sectionHead(n, sec, count, { shut, reordering }) {
     const name = sec.name || i18n.t("Untitled list");
+    const d = el("div", "todo-section");
+    d.dataset.section = sec.id;
     if (reordering) {
-      const d = el("div", "todo-section");
-      d.dataset.section = sec.id;
       d.append(el("span", "todo-section-name", name), el("span", "todo-section-n", String(count)));
       return d;
     }
-    const b = own(el("button", "todo-section"));
+    const b = own(el("button", "todo-section-fold"));
     b.type = "button";
-    b.dataset.section = sec.id;
     b.setAttribute("aria-expanded", String(!shut));
     b.setAttribute("aria-label", (shut ? i18n.t("Show {name}", { name }) : i18n.t("Hide {name}", { name })) + ", " + i18n.tn(count, "{n} open", "{n} open"));
     b.append(ico(shut ? "chevron-right" : "chevron-down"), el("span", "todo-section-name", name), el("span", "todo-section-n", String(count)));
     b.onclick = () => toggleFold(n.id + "|" + sec.id);
-    return b;
+    const add = own(el("button", "todo-section-add"));
+    add.type = "button";
+    add.title = i18n.t("Add to {group}", { group: name });
+    add.setAttribute("aria-label", add.title);
+    add.appendChild(ico("plus"));
+    add.onclick = () => {
+      if (shut) foldSet().delete(n.id + "|" + sec.id);
+      sectionAdding = n.id + "|" + sec.id;
+      render();
+      const input = document.querySelector(`.note-card[data-id="${n.id}"] .todo-section-compose input`);
+      if (input) input.focus();
+    };
+    d.append(b, add);
+    return d;
+  }
+
+  // The add line a section's + opens under its rows: it adds into that
+  // section, and stays open for the next until it's left empty.
+  let sectionAdding = "";
+  function sectionCompose(n, sec) {
+    const key = n.id + "|" + sec.id;
+    const wrap = own(el("div", "todo-compose note-list-compose todo-section-compose"));
+    wrap.dataset.compose = key;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = i18n.t("Add to {group}", { group: sec.name || i18n.t("Untitled list") });
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", input.placeholder);
+    input.value = listDrafts.get(key) || "";
+    const add = el("button", "btn btn-primary btn-sm", i18n.t("Add"));
+    add.type = "button";
+    add.disabled = !input.value.trim();
+    const close = () => { if (sectionAdding === key) { sectionAdding = ""; listDrafts.delete(key); render(); } };
+    const submit = () => {
+      const v = input.value.trim();
+      if (!v) return;
+      listDrafts.delete(key);
+      refocusListId = n.id;
+      addItem(n.id, v, sec.id);
+    };
+    add.onclick = submit;
+    input.oninput = () => { listDrafts.set(key, input.value); add.disabled = !input.value.trim(); };
+    input.onkeydown = (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); submit(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); close(); }
+    };
+    // Left empty, it closes; a press on its own Add doesn't count as leaving.
+    input.onblur = () => setTimeout(() => { if (wrap.isConnected && !input.value.trim() && !wrap.contains(document.activeElement)) close(); }, 150);
+    wrap.append(input, add);
+    return wrap;
   }
 
   // While selecting, a list keeps its items on its card, read-only: drawn as
@@ -797,9 +861,11 @@
     const wrap = own(el("div", "todo-compose note-list-compose"));
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = i18n.t("Add an item…");
+    // On a board it adds to the first list, and says so.
+    const first = Tasks().sectionsOf(n) && n.sections[0];
+    input.placeholder = first ? i18n.t("Add to {group}", { group: first.name || i18n.t("Untitled list") }) : i18n.t("Add an item…");
     input.autocomplete = "off";
-    input.setAttribute("aria-label", i18n.t("Add to {group}", { group: n.text || i18n.t("this list") }));
+    input.setAttribute("aria-label", i18n.t("Add to {group}", { group: (first && first.name) || n.text || i18n.t("this list") }));
     input.value = listDrafts.get(n.id) || "";
     const add = el("button", "btn btn-primary btn-sm", i18n.t("Add"));
     add.type = "button";
@@ -826,7 +892,8 @@
     if (edited) n.editedAt = new Date().toISOString();
     render();
     if (refocusListId) {
-      const input = document.querySelector(`.note-card[data-id="${refocusListId}"] .note-list-compose input`);
+      const card = `.note-card[data-id="${refocusListId}"]`;
+      const input = document.querySelector(`${card} .todo-section-compose input`) || document.querySelector(`${card} .note-list-compose input`);
       refocusListId = "";
       if (input) input.focus();
     }
@@ -878,13 +945,13 @@
     if (head) { for (const k of HEAD_STATE) delete n[k]; Object.assign(n, head); }
     await saveList(n, false);
   }
-  async function addItem(noteId, text) {
+  async function addItem(noteId, text, section) {
     const n = findList(noteId);
     if (!n) return;
     n.items = n.items || [];
     // After the last open item, so it lands at the bottom of what's left to do.
     const lastOpen = n.items.map((i) => !i.done).lastIndexOf(true);
-    n.items.splice(lastOpen + 1, 0, { id: uid(), text });
+    n.items.splice(lastOpen + 1, 0, section ? { id: uid(), text, section } : { id: uid(), text });
     Tasks().reopen(n);
     await saveList(n, true);
   }
