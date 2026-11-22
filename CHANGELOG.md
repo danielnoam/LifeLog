@@ -3,6 +3,37 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.327.0] - 2026-11-22
+
+### Added
+- Boards open where you left them, at the same spot and zoom, on each device. 0 still fits the whole drawing.
+- Duplicate on boards: Ctrl+D or the Duplicate button copies the selection a little down and right; Alt+drag leaves the original and drags a copy away.
+- Stremio: three lists, each its own add-on you can add or remove on your Stremio account: **LifeLog: Backlog** (was Up next), **LifeLog: Backlog favourites** (starred only) and **LifeLog: In progress** (what you've started). Settings → Connections → Stremio → Lists in Stremio.
+- A Trello board comes in as one task list, with each of its lists a section that folds under its name, instead of a task list per list. Moving a task to another section (in its sheet's Trello list row, or by dragging it while reordering) moves its card to that list, and ticking one moves its card to the board's Done list (unless ticking archives). Your Trello task lists join up into their board's at the next sync, keeping every task.
+- Settings → Connections → Trello: each board has a Bring in this board switch, a One task list for the board switch (off gives a task list per list, as before), and a switch for each of its lists. The board's Done list has none: it's where ticked tasks go.
+- The bridge: lifelog_task_section moves a task between sections; lifelog_trello shows each list's section.
+- Settings → About → What's new: an app on a build that isn't a release yet (Unreleased builds, or a test build) lists what it has beyond its version on top, under **Not released yet**, in English and Hebrew. Android and Windows apps only: the web copy reads CHANGELOG.md as committed, so it shows releases as before. Release builds look as before.
+- Android Tasks widget: a Trello board's tasks sit under their section names (To do, Doing, ...), as on the board's card in the Notebook.
+
+### Changed
+- Shift+click on something already selected on a board now takes it out of the selection.
+- Stremio lists leave out unreleased titles (they show up once out) and dropped ones; starring or unstarring updates them right away.
+- A Trello list's icon is a bare icon the size of the star beside it, and a ring turns round it while Trello syncs.
+- Task lists no longer show their open count beside the star.
+- Trello lists sync every couple of minutes while LifeLog is in front, and again when you come back to it or open the Notebook, not only when the app opens. The Windows app keeps them fresh from the tray every 10 minutes.
+- Selecting synced Trello lists offers Sync and Remove instead of Delete. Remove takes the list out of LifeLog and stops syncing it; its cards stay on Trello, and Undo brings it back.
+- The Trello badge on a Notebook list opens its board on Trello, in the Trello app where it's installed.
+- Turning a Trello list off in Settings → Connections → Trello takes its task list out of the Notebook too (Undo puts both back), instead of leaving a copy behind.
+
+### Fixed
+- The selection bar's count is in Hebrew in Hebrew.
+- Google Calendar events now say just "Google Calendar" under them, on Home's Coming up and Calendar panel and in the event sheet, instead of adding the calendar's name, which for your main calendar was your email.
+- A release's Windows app and APK always get published now, even when something else merges right after it. Before, the newer merge cancelled the release's build, which is why 0.326.0 came out with no Windows app.
+- Holding a note, entry or expense to start selecting no longer makes the page jump on a phone: the row you held stays under your finger, and Cancel leaves the page where it was. Notes near the bottom of a long feed jumped the most.
+- Stremio: a refused "Add to my Stremio account" said "Stremio signed you out" and dropped your Stremio sign-in whenever Stremio's answer mentioned "auth". Now only Stremio's "Session does not exist" counts as signed out, the add-on button never signs you out, and its error shows Stremio's own words.
+- Stremio: Add to my Stremio account said "Session does not exist" even when you were signed in. The proxy (and the Android app's route) cut what it passed on to Stremio at 4 KB, and your add-on list is far bigger, so Stremio got broken JSON and never saw your key. Both now pass up to 1 MB.
+- A card archived or moved off a Trello list in Trello (or by a tick here, with Tick set to move or archive) now leaves the Notebook list at the next sync, instead of staying as a ticked task. Ones an earlier version left behind leave too.
+
 ## [0.326.0] - 2026-11-21
 
 ### Added
