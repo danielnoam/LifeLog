@@ -5637,6 +5637,10 @@ html.force-mobile #rangeFilter { flex-wrap: nowrap; gap: 6px; overflow-x: auto; 
   min-height: 48px; padding: 0 var(--space-14); background: none; color: var(--text);
   font: inherit; font-size: var(--fs-md); text-align: start; cursor: pointer;
 }
+/* Its display outranks [hidden]: the sheet's Trello list row is often hidden. */
+/* .modal label.task-field outranks the [hidden] rule further down. */
+.modal label.task-field[hidden] { display: none; }
+.task-field[hidden] + .task-field { border-top: none; }
 .task-field + .task-field, .task-field + .task-repeat-custom, .task-repeat-custom + .task-field,
 .task-from-done + .task-field, .task-repeat-custom + .task-from-done, .task-field + .task-from-done { border-top: 1px solid var(--border); }
 button.task-field { border: 0; }
