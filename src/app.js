@@ -24,7 +24,7 @@
   const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
   const Stremio = window.LifeLogStremio || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
   const Hardcover = window.LifeLogHardcover || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
-  const Trello = window.LifeLogTrello || { init() {}, wire() {}, start() {}, changed() {} };
+  const Trello = window.LifeLogTrello || { init() {}, wire() {}, start() {}, changed() {}, freshen() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -1301,6 +1301,8 @@
     state.view = view;
     state.bulk.active = false;
     state.bulk.selected.clear();
+    // Opening the Notebook brings its Trello lists up to date.
+    if (view === "notes") Trello.freshen();
     buildYearFilter();
     buildCatFilter();
     buildProjectFilter();
@@ -2823,7 +2825,7 @@
   let bulkBarEl = null;
 
   function bulkActionBar(opts) {
-    const { categories, onMove, onDelete, onSync } = opts;
+    const { categories, onMove, onDelete, onSync, deleteLabel } = opts;
     const empty = state.bulk.selected.size === 0;
     // A run re-renders after every item, so the bar's own disabled state has
     // to come from the run rather than from a flag the caller set once —
@@ -2884,7 +2886,7 @@
         return btn;
       },
       update: (node, part) => {
-        if (part.kind === "count") { node.textContent = `${state.bulk.selected.size} selected`; return; }
+        if (part.kind === "count") { node.textContent = i18n.t("{n} selected", { n: state.bulk.selected.size }); return; }
         if (part.kind === "progress") {
           const run = bulkRun;
           node.hidden = !run;
@@ -2908,7 +2910,7 @@
         }
         node.disabled = part.kind === "cancel" ? busy : (empty || busy);
         if (part.kind === "sync") { node.__onSync = onSync; window.LifeLogIcons.setLabel(node, "refresh-cw", i18n.t("Sync")); }
-        if (part.kind === "delete") { node.__onDelete = onDelete; node.textContent = i18n.t("Delete"); }
+        if (part.kind === "delete") { node.__onDelete = onDelete; node.__remove = !!deleteLabel; node.textContent = deleteLabel || i18n.t("Delete"); }
         if (part.kind === "cancel") node.textContent = i18n.t("Cancel");
       },
     });
@@ -3306,7 +3308,7 @@
     items.push({ divider: true });
     items.push({ icon: "x", label: i18n.t("Clear selection"), run: toggleBulkMode });
     const del = btns.find((b) => b.classList.contains("btn-danger"));
-    if (del && !del.disabled) items.push({ icon: "trash", label: i18n.t("Delete {n}", { n }), danger: true, run: () => del.click() });
+    if (del && !del.disabled) items.push({ icon: "trash", label: del.__remove ? i18n.t("Remove {n}", { n }) : i18n.t("Delete {n}", { n }), danger: true, run: () => del.click() });
     return items;
   }
 

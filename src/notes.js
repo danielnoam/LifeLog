@@ -600,25 +600,27 @@
     if (n.tags && !reordering) left.appendChild(tagPills(n.tags));
     h.appendChild(left);
     const right = el("span", "mc-right");
-    // Next to the star (Daniel, 2026-11-21).
+    // Next to the star and the star's size, bare like it (Daniel,
+    // 2026-11-21/22); a ring turns round it while Trello syncs.
     // It opens the board: the Trello app takes the link where it's installed.
-    if (!reordering && window.LifeLogTrello && window.LifeLogTrello.linked(n)) {
-      const b = own(el("button", "note-trello"));
+    const T = window.LifeLogTrello;
+    if (!reordering && T && T.linked(n)) {
+      const b = own(el("button", "note-trello" + (T.syncing() ? " is-syncing" : "")));
       b.type = "button";
       b.title = i18n.t("Open in Trello");
       b.setAttribute("aria-label", i18n.t("Open in Trello"));
-      b.append(ico("square-kanban"), el("span", "note-trello-name", i18n.t("Trello")));
-      b.onclick = (ev) => { ev.stopPropagation(); window.LifeLogTrello.open(n); };
+      b.setAttribute("aria-busy", String(T.syncing()));
+      b.append(el("span", "note-trello-ring"), ico("square-kanban"));
+      b.onclick = (ev) => { ev.stopPropagation(); T.open(n); };
       right.appendChild(b);
     }
+    // No open count beside the star (Daniel, 2026-11-22): the rows say it.
     if (!reordering) right.appendChild(favButton(n));
     if (reordering) {
       const btn = el("button", "btn btn-sm btn-primary", i18n.t("Done"));
       btn.type = "button";
       btn.onclick = (ev) => { ev.stopPropagation(); listReorderId = ""; render(); };
       right.appendChild(btn);
-    } else {
-      right.appendChild(el("span", "mc", String(open.length)));
     }
     h.appendChild(right);
     card.appendChild(h);
@@ -1308,11 +1310,20 @@
       root.appendChild(notesBulkEl);
     }
   }
-  const notesBulkBar = () => bulkActionBar({
-    categories: noteCats(),
-    onMove: noteCats().length ? bulkMoveNotesSelected : null,
-    onDelete: bulkDeleteNotesSelected,
-  });
+  // A selection with Trello lists in it gets Sync and Remove instead of
+  // Delete (Daniel, 2026-11-22): removing a synced list stops syncing it
+  // and leaves its cards on Trello.
+  const notesBulkBar = () => {
+    const T = window.LifeLogTrello;
+    const synced = T ? T.syncedIn(state.bulk.selected) : [];
+    return bulkActionBar({
+      categories: noteCats(),
+      onMove: noteCats().length ? bulkMoveNotesSelected : null,
+      onSync: synced.length ? () => T.check({ manual: true }) : null,
+      onDelete: bulkDeleteNotesSelected,
+      deleteLabel: synced.length && synced.length === state.bulk.selected.size ? i18n.t("Remove") : "",
+    });
+  };
 
   // ---------- collections (0.204.0) ----------
   // What a note is called, and what's left once that's taken off the top: a
@@ -1732,16 +1743,23 @@
 
   async function bulkDeleteNotesSelected() {
     const ids = state.bulk.selected, boardIds = selectedBoards();
-    const notes = state.data.notes.filter((x) => ids.has(x.id)).length;
-    const what = counted(notes, boardIds.length);
-    if (!confirm(i18n.t("Delete {what}?", { what }) + (boardIds.length ? " " + i18n.t("Boards can be brought back from Settings → History → Boards.") : ""))) return;
-    state.data.notes = state.data.notes.filter((x) => !ids.has(x.id));
+    const T = window.LifeLogTrello;
+    const synced = T ? T.syncedIn(ids) : [];
+    const notes = state.data.notes.filter((x) => ids.has(x.id) && !synced.includes(x)).length;
+    if (notes || boardIds.length) {
+      const what = counted(notes, boardIds.length);
+      if (!confirm(i18n.t("Delete {what}?", { what }) + (boardIds.length ? " " + i18n.t("Boards can be brought back from Settings → History → Boards.") : "")
+        + (synced.length ? " " + i18n.tn(synced.length, "The Trello list is only removed here.", "The {n} Trello lists are only removed here.") : ""))) return;
+      state.data.notes = state.data.notes.filter((x) => !ids.has(x.id) || synced.includes(x));
+    }
     state.bulk.active = false;
     state.bulk.selected.clear();
     if (boardIds.length) await window.LifeLogBoards.deleteBoards(boardIds);
-    render();
+    // Its own toast, with Undo: its cards never left Trello.
+    if (synced.length) await T.unlink(synced);
+    else render();
     if (notes) await persist();
-    toast(i18n.t("Deleted {what}", { what }));
+    if (notes || boardIds.length) toast(i18n.t("Deleted {what}", { what: counted(notes, boardIds.length) }));
   }
 
   // ---------- note -> entry ----------

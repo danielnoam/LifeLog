@@ -20,14 +20,16 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
     [C2, { id: C2, idList: L, idBoard: B, name: "Pick tiles", desc: "", due: null, dueComplete: false, closed: false, idLabels: [], idMembers: [ME], checklists: [], dateLastActivity: T }],
   ]);
   const sent = [];
+  let slow = 0;
   const until = async (ok, ms = 10000) => { for (const end = Date.now() + ms; Date.now() < end && !ok();) await new Promise((r) => setTimeout(r, 100)); };
   const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
-  await page.route("https://api.trello.com/**", (r) => {
+  await page.route("https://api.trello.com/**", async (r) => {
     const req = r.request();
     const p = new URL(req.url()).pathname.replace(/^\/1/, "");
     if (req.method() === "OPTIONS") return r.fulfill({ status: 200, headers: { ...cors, "access-control-allow-headers": "authorization, content-type, accept", "access-control-allow-methods": "GET, PUT, POST, DELETE" }, body: "" });
     const auth = req.headers().authorization || "";
     if (!auth.includes('oauth_token="tok"')) return r.fulfill({ status: 401, headers: cors, body: "invalid token" });
+    if (slow) await new Promise((res) => setTimeout(res, slow));
     const body = req.postData() ? JSON.parse(req.postData()) : null;
     if (req.method() !== "GET") sent.push({ method: req.method(), path: p, body });
     let out = null;
@@ -86,6 +88,45 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   d = await data();
   const added = d.notes.find((x) => x.id === "trello-" + L).items.find((x) => x.text === "Call the plumber");
   check("and is linked to it", added && added.trello && added.trello.card === "9".repeat(24), added);
+
+  // Polish (2026-11-22): the badge is a bare icon like the star, no open
+  // count beside them, and a ring turns round it while a sync runs.
+  const head = await card.locator(".note-list-head").evaluate((h) => ({
+    badge: h.querySelector(".note-trello").textContent.trim(), count: !!h.querySelector(".mc"),
+    bg: getComputedStyle(h.querySelector(".note-trello")).backgroundColor, border: getComputedStyle(h.querySelector(".note-trello")).borderTopWidth,
+    size: [h.querySelector(".note-trello .ico"), h.querySelector(".note-fav .ico")].map((i) => Math.round(i.getBoundingClientRect().width)),
+  }));
+  check("the badge is a bare icon the star's size, and no count sits beside them",
+    head.badge === "" && !head.count && /rgba\(0, 0, 0, 0\)|transparent/.test(head.bg) && head.border === "0px" && head.size[0] === head.size[1], head);
+  slow = 1500;
+  await page.evaluate(() => { window.__sync = window.LifeLogTrello.check(); });
+  await page.waitForTimeout(300);
+  const spinning = await card.locator(".note-trello").evaluate((b) => b.classList.contains("is-syncing") && getComputedStyle(b.querySelector(".note-trello-ring")).animationName);
+  await page.evaluate(() => window.__sync);
+  slow = 0;
+  const still = await card.locator(".note-trello").evaluate((b) => b.classList.contains("is-syncing"));
+  check("while it syncs the ring turns round the badge, and stops after", spinning === "ico-spin" && !still, { spinning, still });
+
+  // Selecting synced lists: Sync and Remove, not Delete. Remove keeps the
+  // cards on Trello and stops syncing; Undo brings both back.
+  await card.locator(".note-list-head").click({ button: "right" });
+  await page.click('.ctx-menu:not([hidden]) button:text-is("Select")');
+  await page.waitForSelector(".bulk-bar");
+  const bar = await page.$$eval(".bulk-bar .btn", (xs) => xs.map((x) => x.textContent.trim()));
+  check("the bar offers Sync and Remove for a synced list, no Delete", bar.includes("Sync") && bar.includes("Remove") && !bar.includes("Delete"), bar);
+  const before = sent.length;
+  await page.click('.bulk-bar .btn:text-is("Sync")');
+  await page.waitForSelector('.toast:has-text("Trello")', { timeout: 5000 }).catch(() => {});
+  check("Sync syncs now", /Trello/.test(await page.locator(".toast").last().textContent().catch(() => "")), sent.length - before);
+  await page.click('.bulk-bar .btn:text-is("Remove")');
+  await page.waitForTimeout(300);
+  d = await data();
+  check("Remove takes it out of LifeLog and stops syncing, sending nothing to Trello",
+    !d.notes.some((x) => x.id === "trello-" + L) && !d.settings.trello.lists.length && sent.length === before && cards.get(C2).closed === false, { lists: d.settings.trello.lists, sent: sent.slice(before) });
+  await page.click('.toast:has-text("Trello") .toast-action');
+  await page.waitForFunction((L) => (window.LifeLogStorage.cachedCopy().notes || []).some((x) => x.id === "trello-" + L), L, { timeout: 3000 }).catch(() => {});
+  d = await data();
+  check("and Undo brings the list back, synced", d.notes.some((x) => x.id === "trello-" + L && x.items.length === 3) && d.settings.trello.lists.length === 1, d.settings.trello.lists);
 
   await page.evaluate(() => window.LifeLogSettings.openSettings("conn-trello"));
   await page.waitForSelector("#trelloLists .sitem", { timeout: 5000 }).catch(() => {});

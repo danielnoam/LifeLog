@@ -461,8 +461,11 @@ list gets the window too, its map beside the list.
   task marks its card complete, moves it to the board's Done list or
   archives it (your pick); new tasks become cards and edits go back;
   deleting a task archives its card. It syncs when the app opens, every
-  few minutes while open and a few seconds after a change; the newer
-  change wins. "Only cards I'm on" leaves the rest of a shared board out.
+  couple of minutes while it's in front, when you come back to it or open
+  the Notebook, and a few seconds after a change; the newer change wins,
+  and a ring turns round the list's Trello icon while it syncs. Selecting
+  synced lists offers Sync and Remove (out of LifeLog, the cards stay on
+  Trello). "Only cards I'm on" leaves the rest of a shared board out.
 - **Activity**: anything that takes a while runs in one list, keeps going
   with the app put away on Android, and is offered again if the app was
   closed on it.

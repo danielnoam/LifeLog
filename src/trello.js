@@ -46,7 +46,11 @@
   // tick: what ticking a task does to its card. send: false reads only.
   // mine: only cards you're a member of.
   const DEFAULTS = { key: "", token: "", member: null, connectedAt: "", lists: [], tick: "complete", send: true, mine: false };
-  const EVERY = 5 * 60 * 1000;
+  // While the app is in front: every couple of minutes, and on coming back
+  // to it (tab, window focus, network) once it's been half a minute
+  // (Daniel, 2026-11-22: it only seemed to sync on open). The computer app
+  // in the tray keeps going at the tray's pace.
+  const EVERY = 2 * 60 * 1000, AGAIN = 30 * 1000, TRAY_EVERY = 10 * 60 * 1000;
   const CARD_FIELDS = "name,desc,due,dueComplete,idLabels,idList,idBoard,closed,pos,dateLastActivity,idMembers,shortUrl";
 
   const text = (v) => String(v == null ? "" : v).trim();
@@ -517,8 +521,26 @@
 
   function check(opts = {}) {
     if (running) return running.then(() => (opts.manual ? check(opts) : undefined));
-    running = run(opts).finally(() => { running = null; });
+    running = run(opts).finally(() => { running = null; paintSyncing(); });
+    paintSyncing();
     return running;
+  }
+  // The badges' ring turns while a sync is going. Toggled in place, so a
+  // sync doesn't re-render the Notebook; notes.js reads syncing() when it
+  // builds a badge mid-sync.
+  const syncing = () => !!running;
+  function paintSyncing() {
+    if (typeof document === "undefined") return;
+    for (const b of document.querySelectorAll(".note-trello")) {
+      b.classList.toggle("is-syncing", !!running);
+      b.setAttribute("aria-busy", String(!!running));
+    }
+  }
+  // Once a while has passed since the last one. Coming back to the app
+  // and opening the Notebook both land here.
+  function freshen() {
+    if (!state || !connected(cfgNow()) || !cfgNow().lists.length) return;
+    if (Date.now() - lastAt > AGAIN) check();
   }
   async function run({ manual } = {}) {
     const cfg = cfgNow();
@@ -558,8 +580,41 @@
     if (window.LifeLogPlatform && window.LifeLogPlatform.headless) return;
     check();
     if (timer) clearInterval(timer);
-    timer = setInterval(() => { if (document.visibilityState === "visible") check(); }, EVERY);
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - lastAt > 60000) check(); });
+    timer = setInterval(() => {
+      const shown = document.visibilityState === "visible";
+      if (shown || (window.LifeLogPlatform && window.LifeLogPlatform.desktop && Date.now() - lastAt > TRAY_EVERY)) check();
+    }, EVERY);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") freshen(); });
+    window.addEventListener("focus", freshen);
+    window.addEventListener("online", freshen);
+  }
+
+  // The Notebook's bulk bar: Sync now, and Remove, which takes synced lists
+  // out of LifeLog and stops syncing them. Their cards stay on Trello.
+  // Undo puts both back.
+  function syncedIn(ids) {
+    return (state.data.notes || []).filter((n) => ids.has(n.id) && linked(n));
+  }
+  async function unlink(notes) {
+    if (!notes.length) return;
+    const cur = cfgNow();
+    const listIds = new Set(notes.map((n) => n.trello.list));
+    const was = cur.lists.filter((l) => listIds.has(l.id));
+    cur.lists = cur.lists.filter((l) => !listIds.has(l.id));
+    const gone = (state.data.notes || []).filter((x) => x.trello && listIds.has(x.trello.list));
+    state.data.notes = state.data.notes.filter((x) => !gone.includes(x));
+    await save(cur);
+    paintStatus();
+    render();
+    toast(i18n.tn(gone.length, "Removed {n} list. It stays on Trello", "Removed {n} lists. They stay on Trello"), false, { label: i18n.t("Undo"), onClick: async () => {
+      const c2 = cfgNow();
+      c2.lists = [...c2.lists, ...was.filter((l) => !c2.lists.some((x) => x.id === l.id))];
+      const ids = new Set((state.data.notes || []).map((x) => x.id));
+      state.data.notes = [...gone.filter((x) => !ids.has(x.id)), ...(state.data.notes || [])];
+      await save(c2);
+      paintStatus();
+      render();
+    } });
   }
 
   // ---------- Settings › Connections › Trello ----------
@@ -741,7 +796,7 @@
   }
 
   const api = {
-    init, wire, start, check, changed, renderSettings, status, linked,
+    init, wire, start, check, changed, renderSettings, status, linked, syncing, freshen, syncedIn, unlink,
     // pure, for tests and the bridge
     APP_KEY, DEFAULTS, cleanConfig, authorizeUrl, dueOf, fromDue, reconcile, missingCards, client, syncData, connected, open,
   };

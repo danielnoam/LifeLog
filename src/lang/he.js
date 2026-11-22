@@ -3150,4 +3150,7 @@ Keel.i18n.strings("he", {
   "Couldn't erase this device: {error}": "לא ניתן היה למחוק את הנתונים מהמכשיר הזה: {error}",
   "In their months": "בחודש שלהן",
   "Separate": "בנפרד",
+  "Remove {n}": "הסרת {n}",
+  "Removed {n} lists. They stay on Trello": { one: "רשימה אחת הוסרה. היא נשארת ב-Trello", other: "{n} רשימות הוסרו. הן נשארות ב-Trello" },
+  "The {n} Trello lists are only removed here.": { one: "רשימת ה-Trello מוסרת רק כאן.", other: "{n} רשימות ה-Trello מוסרות רק כאן." },
 });
