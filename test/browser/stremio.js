@@ -114,7 +114,7 @@ const TMDB = {
   const heat = d.backlog.find((x) => x.title === "Heat");
   check("Heat is a backlog item matched on TMDB", heat && heat.mediaSource === "tmdb-movie" && heat.mediaId === "949" && heat.category === "Films" && !heat.startedAt, heat);
   const bb = d.backlog.find((x) => x.title === "Breaking Bad");
-  check("Breaking Bad is in progress at episode 12 of the run", bb && bb.mediaSource === "tmdb-tv" && /^2026-11-1[01]$/.test(bb.startedAt || "") && bb.progress === 12, bb);
+  check("Breaking Bad is in progress at episode 11 of the run (S2E5 is where Stremio is, not watched yet)", bb && bb.mediaSource === "tmdb-tv" && /^2026-11-1[01]$/.test(bb.startedAt || "") && bb.progress === 11, bb);
   const col = d.entries.find((x) => x.title === "Collateral");
   check("Collateral is on the timeline on its last play", col && col.year === 2026 && col.month === 10 && col.category === "Films", col);
   check("and has left the backlog", !d.backlog.some((x) => x.title === "Collateral"));
