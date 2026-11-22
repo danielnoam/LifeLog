@@ -91,8 +91,11 @@
   // No nesting (Daniel, 16 Nov 2026): the list is the task and its rows
   // are its subtasks, so a row's subtasks from 0.317.0 come back to the
   // list's level, in the same place.
+  // A Trello checklist item keeps its card (Nov 2026): without it the next
+  // sync took it for deleted here and deleted it on Trello (Daniel,
+  // 2026-11-22).
   function cleanParents(items) {
-    for (const it of items) delete it.parent;
+    for (const it of items) if (!(it.trello && it.trello.check)) delete it.parent;
     return items;
   }
   // The list's own task fields (16 Nov 2026), on the list note itself:

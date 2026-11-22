@@ -118,6 +118,27 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   d = await data();
   check("and Undo puts them back", d.notes.find((x) => x.id === ID).items.some((x) => x.section === L2) && d.settings.trello.lists.length === 2, d.settings.trello.lists);
 
+  // A card's checklist items stay under it through a save, and nothing
+  // is deleted on Trello (an older build dropped them and did).
+  cards.get(C2).checklists = [{ id: "7".repeat(24), name: "iOS", checkItems: [{ id: "7".repeat(23) + "1", name: "TestFlight", state: "incomplete", pos: 1 }, { id: "7".repeat(23) + "2", name: "Screens", state: "incomplete", pos: 2 }] }];
+  cards.get(C2).dateLastActivity = new Date().toISOString();
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { document.querySelector("#settingsModal").hidden = true; });
+  await page.reload({ waitUntil: "load" });
+  await page.waitForSelector(`.note-card[data-id="${ID}"]`, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
+  await page.waitForSelector("#taskModal:not([hidden])");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await page.waitForTimeout(400);
+  d = await data();
+  const kids = d.notes.find((x) => x.id === ID).items.filter((x) => x.trello && x.trello.check);
+  check("after a save a card's checklist items are still under it", kids.length === 2 && kids.every((x) => x.parent === "trello-" + C2), kids);
+  check("and nothing is deleted on Trello", !sent.some((x) => x.method === "DELETE") && cards.get(C2).checklists[0].checkItems.length === 2, sent.filter((x) => x.method === "DELETE"));
+
   // Hebrew.
   await page.evaluate(() => { const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"); v.language = "he"; localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v)); localStorage.setItem("lifelog.lang", "he"); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" })); });
   await page.reload({ waitUntil: "load" });
