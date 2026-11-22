@@ -3,6 +3,7 @@ package io.github.danielnoam.lifelog.widgets;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -392,6 +393,27 @@ public class WidgetLogicTest {
             + "{\"id\":\"L3\",\"name\":\"Empty\",\"color\":\"\"}],\"todos\":["
             + "{\"id\":\"a\",\"text\":\"Milk\",\"category\":\"Shop\",\"list\":\"L1\"},"
             + "{\"id\":\"b\",\"text\":\"Taxes\",\"category\":\"Work\",\"list\":\"L2\"}]}");
+    }
+
+    @Test
+    public void aBoardsTasksComeUnderTheirSectionsNames() throws Exception {
+        JSONObject snap = json("{\"lists\":[{\"id\":\"B\",\"name\":\"Kitchen\",\"color\":\"\"}],\"todos\":["
+            + "{\"id\":\"a\",\"text\":\"Sink\",\"category\":\"Kitchen\",\"list\":\"B\",\"section\":\"To do\"},"
+            + "{\"id\":\"b\",\"text\":\"Tiles\",\"category\":\"Kitchen\",\"list\":\"B\",\"section\":\"To do\"},"
+            + "{\"id\":\"c\",\"text\":\"Paint\",\"category\":\"Kitchen\",\"list\":\"B\",\"section\":\"Doing\"},"
+            + "{\"id\":\"d\",\"text\":\"Old\",\"category\":\"Kitchen\",\"list\":\"B\",\"done\":true}],\"doneCount\":{\"Kitchen\":1}}");
+        List<String> out = new ArrayList<>();
+        for (WidgetStore.Row r : WidgetStore.todoRows(snap, NONE)) out.add((r.type == WidgetStore.ROW_SEP ? (r.section ? "#" : "-") : "") + r.text);
+        assertEquals("[Kitchen, #To do, Sink, Tiles, #Doing, Paint, -1 done, Old]", out.toString());
+        assertNotEquals(TodosWidget.itemId(sectionRow("To do"), "Kitchen"), TodosWidget.itemId(sectionRow("Doing"), "Kitchen"));
+    }
+
+    private static WidgetStore.Row sectionRow(String name) {
+        WidgetStore.Row r = new WidgetStore.Row();
+        r.type = WidgetStore.ROW_SEP;
+        r.section = true;
+        r.text = name;
+        return r;
     }
 
     @Test

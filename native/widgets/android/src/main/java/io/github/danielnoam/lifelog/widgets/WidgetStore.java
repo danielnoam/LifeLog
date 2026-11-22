@@ -74,6 +74,13 @@ final class WidgetStore {
         /** A list's heading on a widget set not to show its tick: the name and + only. */
         boolean noTick;
         /**
+         * A task's section (Nov 2026: a Trello board's list), as the app
+         * names it; on a ROW_SEP, true marks it as a section's name rather
+         * than the "N done" line.
+         */
+        String sectionName = "";
+        boolean section;
+        /**
          * What else the app's task line shows (0.319.1): the repeat in words,
          * a reminder, the deadline, its own category, its tags, and the first
          * line of its description. `details` and `descOn` are the widget's
@@ -699,6 +706,7 @@ final class WidgetStore {
                 r.dateText = str(t, "dateText");
                 r.meta = str(t, "meta");
                 r.priority = t.optInt("priority");
+                r.sectionName = str(t, "section");
                 readDetails(r, t);
                 color = parseColor(str(t, "color"), 0);
                 boolean saved = t.optBoolean("done");
@@ -735,7 +743,20 @@ final class WidgetStore {
                 }
                 rows.add(h);
             }
-            rows.addAll(open);
+            // A board's tasks come section by section (Nov 2026): each
+            // section's name over its open rows, as the app's card has it.
+            String lastSection = null;
+            for (Row r : open) {
+                if (!r.sectionName.isEmpty() && !r.sectionName.equals(lastSection)) {
+                    Row s = new Row();
+                    s.type = ROW_SEP;
+                    s.section = true;
+                    s.text = r.sectionName;
+                    rows.add(s);
+                    lastSection = r.sectionName;
+                }
+                rows.add(r);
+            }
             // Counted from the app's total, not the rows sent: only the newest
             // few finished ones travel in the snapshot.
             int savedDone = doneCount != null && doneCount.has(cat) ? doneCount.optInt(cat) : done.size() + unticked;
