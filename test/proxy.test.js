@@ -146,6 +146,19 @@ test("/upnext serves three add-ons: the Backlog, its starred ones, and what's in
   assert.strictEqual((await callEnv(UP + "/starred", { method: "POST", body: "{}", headers: { "X-LifeLog-Key": KEY } }, env)).status, 404, "the row is posted in one place");
 });
 
+test("/upnext: a LifeLog from before the three add-ons doesn't empty Favourites and In progress", async () => {
+  const env = { UPNEXT: KV };
+  const post = (row) => callEnv(UP, { method: "POST", body: JSON.stringify(row), headers: { "X-LifeLog-Key": KEY } }, env);
+  await post({ movie: [{ id: "tt0113277", name: "Heat", star: true }], series: [], progress: { movie: [], series: [{ id: "tt0903747", name: "Breaking Bad" }] } });
+  assert.strictEqual((await post({ movie: [{ id: "tt0113277", name: "Heat" }, { id: "tt0083190", name: "Thief" }], series: [] })).status, 200);
+  const get = async (p) => (await callEnv(UP + p, {}, env)).json();
+  assert.deepStrictEqual((await get("/catalog/movie/lifelog-upnext.json")).metas.map((m) => m.id), ["tt0113277", "tt0083190"], "its Backlog still comes in");
+  assert.deepStrictEqual((await get("/starred/catalog/movie/lifelog-starred.json")).metas.map((m) => m.id), ["tt0113277"], "stars kept");
+  assert.deepStrictEqual((await get("/progress/catalog/series/lifelog-progress.json")).metas.map((m) => m.id), ["tt0903747"], "in progress kept");
+  await post({ movie: [{ id: "tt0083190", name: "Thief" }], series: [], progress: { movie: [], series: [] } });
+  assert.deepStrictEqual((await get("/progress/catalog/series/lifelog-progress.json")).metas, [], "a newer LifeLog can still empty them");
+});
+
 test("anything else is not found", async () => {
   assert.strictEqual((await call("/https://example.com/")).status, 404);
 });

@@ -251,8 +251,13 @@ async function upNextRoute(request, env, id, rest, type, list) {
     let body = null;
     try { body = JSON.parse((await request.text()).slice(0, 400000)); } catch (e) { /* said below */ }
     if (!body) return jsonOut({ error: "Send the row as JSON" }, 400);
-    const progress = body.progress || {};
-    const row = { key, movie: cleanMetas(body.movie, "movie"), series: cleanMetas(body.series, "series"),
+    // A LifeLog from before the three add-ons (0.326.0 and older) sends no
+    // progress and no stars; it mustn't empty what a newer one sent.
+    const old = !body.progress && was;
+    const progress = old ? was.progress || {} : body.progress || {};
+    const starred = new Set(old ? ["movie", "series"].flatMap((t) => (was[t] || []).filter((m) => m.star).map((m) => m.id)) : []);
+    const keepStar = (list) => (old ? list.map((m) => (starred.has(m.id) ? { ...m, star: true } : m)) : list);
+    const row = { key, movie: keepStar(cleanMetas(body.movie, "movie")), series: keepStar(cleanMetas(body.series, "series")),
       progress: { movie: cleanMetas(progress.movie, "movie"), series: cleanMetas(progress.series, "series") }, at: new Date().toISOString() };
     await kv.put(id, JSON.stringify(row));
     return jsonOut({ ok: true, movie: row.movie.length, series: row.series.length, progress: row.progress.movie.length + row.progress.series.length });
