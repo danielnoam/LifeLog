@@ -376,6 +376,25 @@
       if (!Array.isArray(card.checklists)) return;
       const there = checksOf(card);
       const known = new Set((it.trello && it.trello.checks) || []);
+      // Rows an older build cut loose from their card (it dropped every
+      // row's parent on save): back under it. One whose item that build
+      // then deleted on Trello goes back on its checklist.
+      const ids0 = new Set(n.items.map((x) => x.id));
+      const lists = new Set(card.checklists.map((c) => c.id));
+      const thereIds = new Set(there.map((c) => c.id));
+      const twin = new Set();
+      for (const x of n.items) {
+        if (x === it || (x.parent && ids0.has(x.parent)) || !x.trello || !(x.trello.check || x.trello.checklist)) continue;
+        // The same row twice (once loose, once under it): the loose one goes.
+        if (n.items.some((y) => y !== x && y.id === x.id && y.parent === it.id)) { twin.add(x); continue; }
+        if (thereIds.has(x.trello.check)) { x.parent = it.id; continue; }
+        if (lists.has(x.trello.checklist)) {
+          x.parent = it.id;
+          known.delete(x.trello.check);
+          x.trello = { checklist: x.trello.checklist };
+        }
+      }
+      if (twin.size) n.items = n.items.filter((x) => !twin.has(x));
       const kids = n.items.filter((x) => x.parent === it.id);
       for (const ci of there) {
         const kid = kids.find((x) => x.trello && x.trello.check === ci.id);
@@ -428,10 +447,11 @@
         }
         for (const kid of fresh) {
           const kidId = kid.id;
-          ops.push({ method: "POST", path: () => checklistId && "/checklists/" + checklistId + "/checkItems", body: { name: kid.text, checked: !!kid.done, pos: "bottom" }, then: (res, d) => {
+          const own = kid.trello && kid.trello.checklist && card.checklists.some((c) => c.id === kid.trello.checklist) ? kid.trello.checklist : "";
+          ops.push({ method: "POST", path: () => (own || checklistId) && "/checklists/" + (own || checklistId) + "/checkItems", body: { name: kid.text, checked: !!kid.done, pos: "bottom" }, then: (res, d) => {
             const x = findItem(d, noteId, kidId);
             if (!x || !res || !res.id) return;
-            x.trello = { check: res.id, checklist: checklistId, base: { name: x.text, done: !!x.done } };
+            x.trello = { check: res.id, checklist: own || checklistId, base: { name: x.text, done: !!x.done } };
             const p = findItem(d, noteId, x.parent);
             if (p && p.trello) p.trello.checks = [...new Set([...(p.trello.checks || []), res.id])];
           } });

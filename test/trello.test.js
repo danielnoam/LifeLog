@@ -234,6 +234,35 @@ test("a subtask ticked or added here goes to the card's checklist", async () => 
   assert.deepStrictEqual(sends(tr), []);
 });
 
+test("checklist items an older build cut loose from their card go back under it, and one it deleted on Trello goes back on its checklist", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "Ship", checklists: [{ id: id(50), name: "iOS", checkItems: [{ id: id(51), name: "TestFlight", state: "incomplete", pos: 1 }, { id: id(52), name: "Screens", state: "incomplete", pos: 2 }] }] }]);
+  const data = { notes: [] };
+  await sync(data, cfg(), tr);
+  const n = note(data);
+  // What that build did: a save dropped every parent, then its sync
+  // deleted the items on Trello and forgot them.
+  for (const x of n.items) delete x.parent;
+  tr.db.get(id(1)).checklists[0].checkItems = tr.db.get(id(1)).checklists[0].checkItems.filter((c) => c.id !== id(52));
+  n.items.find((x) => x.id === "trello-" + id(1)).trello.checks = [];
+  tr.calls.length = 0;
+  await sync(data, cfg(), tr);
+  assert.deepStrictEqual(tr.calls.filter((c) => c.method === "DELETE"), [], "nothing deleted");
+  assert.deepStrictEqual(tr.db.get(id(1)).checklists[0].checkItems.map((c) => c.name), ["TestFlight", "Screens"], "the deleted one is back on its checklist");
+  assert.deepStrictEqual(n.items.filter((x) => x.parent === "trello-" + id(1)).map((x) => x.text).sort(), ["Screens", "TestFlight"]);
+  tr.calls.length = 0;
+  await sync(data, cfg(), tr);
+  assert.deepStrictEqual(sends(tr), []);
+});
+
+test("saving a task list keeps a checklist item under its card", () => {
+  global.window.LifeLogTasks = undefined;
+  const Tk = require("../src/tasks.js");
+  const items = [{ id: "c", text: "Ship", trello: { card: id(1) } }, { id: "k", text: "TestFlight", parent: "c", trello: { check: id(51) } }, { id: "p", text: "plain", parent: "c" }];
+  Tk.cleanParents(items);
+  assert.strictEqual(items[1].parent, "c");
+  assert.strictEqual(items[2].parent, undefined);
+});
+
 test("a repeating task completed in Trello moves to its next date here, and the card reopens with that date", async () => {
   const tr = fakeTrello([{ id: id(1), idList: L1, name: "Water plants", due: T.dueOf({ date: "2026-11-21", time: "09:00" }) }]);
   const data = { notes: [] };

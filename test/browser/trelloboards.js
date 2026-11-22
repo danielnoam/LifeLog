@@ -119,8 +119,28 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   d = await data();
   check("and Undo puts them back", d.notes.find((x) => x.id === ID).items.some((x) => x.section === L2) && d.settings.trello.lists.length === 2, d.settings.trello.lists);
 
+  // A card's checklist items stay under it through a save, and nothing
+  // is deleted on Trello (an older build dropped them and did).
+  cards.get(C2).checklists = [{ id: "7".repeat(24), name: "iOS", checkItems: [{ id: "7".repeat(23) + "1", name: "TestFlight", state: "incomplete", pos: 1 }, { id: "7".repeat(23) + "2", name: "Screens", state: "incomplete", pos: 2 }] }];
+  cards.get(C2).dateLastActivity = new Date().toISOString();
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { document.querySelector("#settingsModal").hidden = true; });
+  await page.reload({ waitUntil: "load" });
+  await page.waitForSelector(`.note-card[data-id="${ID}"]`, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
+  await page.waitForSelector("#taskModal:not([hidden])");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await page.waitForTimeout(400);
+  d = await data();
+  const kids = d.notes.find((x) => x.id === ID).items.filter((x) => x.trello && x.trello.check);
+  check("after a save a card's checklist items are still under it", kids.length === 2 && kids.every((x) => x.parent === "trello-" + C2), kids);
+  check("and nothing is deleted on Trello", !sent.some((x) => x.method === "DELETE") && cards.get(C2).checklists[0].checkItems.length === 2, sent.filter((x) => x.method === "DELETE"));
+
   // A section's + adds a task straight into it, and to its list on Trello.
-  await page.evaluate(() => { document.querySelector("#settingsModal").hidden = true; }); await page.waitForTimeout(300);
   await el.locator(".todo-section", { hasText: "Doing" }).locator(".todo-section-add").click();
   const comp = await page.evaluate(() => [document.activeElement && document.activeElement.placeholder, document.activeElement && !!document.activeElement.closest(".todo-section-compose")]);
   check("a section's + opens an add line for it, focused", comp[0] === "Add to Doing" && comp[1], comp);
@@ -135,21 +155,14 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   check("the card's own add line says it adds to the first list", main === "Add to To do", main);
   await page.keyboard.press("Escape");
 
-  // A card's checklists, each name over its items.
-  cards.get(C2).checklists = [{ id: "7".repeat(24), name: "iOS", checkItems: [{ id: "7".repeat(23) + "1", name: "TestFlight", state: "incomplete", pos: 1 }] }, { id: "8".repeat(24), name: "Android", checkItems: [{ id: "8".repeat(23) + "1", name: "Play listing", state: "incomplete", pos: 1 }] }];
-  cards.get(C2).dateLastActivity = new Date().toISOString();
-  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
-  await page.waitForTimeout(500);
+  // A card's checklist's name over its items.
   const lists = await el.evaluate((c) => [...c.querySelectorAll(".note-list-rows > *")].map((x) => x.classList.contains("todo-checklist") ? "~" + x.textContent : x.querySelector(".todo-text") ? x.querySelector(".todo-text").textContent : "").filter(Boolean));
-  check("a card's checklists show their names over their items", lists.join("|").includes("Pick tiles|~iOS|TestFlight|~Android|Play listing"), lists);
+  check("a card's checklist shows its name over its items", lists.join("|").includes("Pick tiles|~iOS|TestFlight|Screens"), lists);
 
-  console.log("DBG", JSON.stringify((await data()).notes.find((x) => x.id === ID).items.map((x) => [x.text, x.parent && x.parent.slice(-6)])));
   // Hebrew.
   await page.evaluate(() => { const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"); v.language = "he"; localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v)); localStorage.setItem("lifelog.lang", "he"); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" })); });
   await page.reload({ waitUntil: "load" });
   await page.waitForSelector(`.note-card[data-id="${ID}"]`, { timeout: 8000 }).catch(() => {});
-  console.log("DEL", JSON.stringify(sent.filter((x) => x.method === "DELETE")));
-  console.log("DBG2", JSON.stringify((await data()).notes.find((x) => x.id === ID).items.map((x) => [x.text, x.parent && x.parent.slice(-6)])));
   const he = await page.locator(`.note-card[data-id="${ID}"] .todo-section-fold`).first().getAttribute("aria-label");
   check("in Hebrew the section's label is Hebrew", /^(הסתרת|הצגת) /.test(he || ""), he);
   await page.locator(`.note-card[data-id="${ID}"] .todo-row .todo-body`).first().click();
@@ -162,15 +175,12 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   check("and Settings' board switches", heRows[0] === "להביא את הלוח" && heRows[1] === "רשימת משימות אחת ללוח", heRows);
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
 
-  console.log("DBG", JSON.stringify((await data()).notes.find((x) => x.id === ID).items.map((x) => [x.text, x.parent && x.parent.slice(-6)])));
   // Every card gone from the board: its lists still show, empty.
   cards.clear();
   await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
   await page.waitForTimeout(500);
-  console.log(JSON.stringify((await data()).notes.find((x) => x.id === ID).items.map((x) => [x.id.slice(-6), x.text, x.parent && x.parent.slice(-6), x.done])));
   check("a board with no tasks still shows each of its lists", (await shown()).filter((x) => x.startsWith("#")).join("|") === "#To do0|#Doing0", await shown());
 
-  console.log("DELEND", JSON.stringify(sent.filter((x) => x.method === "DELETE")));
   await b.close();
   done(errs);
 })();
