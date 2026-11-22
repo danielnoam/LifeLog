@@ -16,6 +16,7 @@ const LBL = [{ id: id(901), name: "urgent" }, { id: id(902), name: "" }];
 function fakeTrello(cards) {
   const db = new Map(cards.map((c) => [c.id, { idBoard: B, closed: false, dueComplete: false, desc: "", due: null, idLabels: [], idMembers: [ME], checklists: [], dateLastActivity: "2026-11-01T00:00:00.000Z", ...c }]));
   const calls = [];
+  const lists = [{ id: L1, name: "To do" }, { id: L2, name: "Doing" }, { id: DONE, name: "Done" }];
   let next = 500;
   const json = (v, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(v) });
   async function fetch(url, init = {}) {
@@ -27,7 +28,7 @@ function fakeTrello(cards) {
     let m;
     if (method === "GET" && (m = /^\/lists\/(\w+)\/cards$/.exec(p))) return json([...db.values()].filter((c) => c.idList === m[1] && !c.closed));
     if (method === "GET" && /^\/boards\/\w+\/labels$/.test(p)) return json(LBL);
-    if (method === "GET" && /^\/boards\/\w+\/lists$/.test(p)) return json([{ id: L1, name: "To do" }, { id: L2, name: "Doing" }, { id: DONE, name: "Done" }]);
+    if (method === "GET" && /^\/boards\/\w+\/lists$/.test(p)) return json(lists);
     if (method === "GET" && (m = /^\/cards\/(\w+)$/.exec(p))) return db.has(m[1]) ? json(db.get(m[1])) : json("not found", 404);
     if (method === "PUT" && (m = /^\/cards\/(\w+)$/.exec(p))) { Object.assign(db.get(m[1]), body); return json(db.get(m[1])); }
     if (method === "POST" && p === "/cards") { const c = { id: id(next++), idBoard: B, closed: false, dueComplete: false, idLabels: [], idMembers: [ME], checklists: [], ...body }; db.set(c.id, c); return json(c); }
@@ -44,7 +45,7 @@ function fakeTrello(cards) {
     if (method === "DELETE") return json({});
     return json("no route " + method + " " + p, 404);
   }
-  return { db, calls, fetch };
+  return { db, calls, fetch, lists };
 }
 // These run a board as a task list per Trello list (its switch off); the
 // board tests further down run it as one.
@@ -342,6 +343,41 @@ test("a list turned off takes its tasks off the board's task list, and nothing i
   assert.deepStrictEqual(boardNote(data).items.map((x) => x.text), ["A"]);
   assert.deepStrictEqual(boardNote(data).sections.map((x) => x.id), [L1]);
   assert.deepStrictEqual(sends(tr), []);
+});
+
+test("a list archived or deleted in Trello leaves: off the board's task list, out of the picked lists, nothing sent", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L2, name: "B" }]);
+  const data = { notes: [] };
+  await sync(data, boardCfg(), tr);
+  tr.lists.splice(tr.lists.findIndex((l) => l.id === L2), 1);
+  const s = await sync(data, boardCfg(), tr);
+  assert.deepStrictEqual(s.gone.map((l) => l.id), [L2]);
+  assert.deepStrictEqual(boardNote(data).items.map((x) => x.text), ["A"]);
+  assert.deepStrictEqual(boardNote(data).sections.map((x) => x.id), [L1]);
+  assert.deepStrictEqual(sends(tr), []);
+});
+
+test("a split board's list archived in Trello takes its task list with it", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L2, name: "B" }]);
+  const data = { notes: [] };
+  const c = cfg({ lists: [{ id: L1, name: "To do", board: B }, { id: L2, name: "Doing", board: B }] });
+  await sync(data, c, tr);
+  assert.ok(note(data, L2));
+  tr.lists.splice(tr.lists.findIndex((l) => l.id === L2), 1);
+  const s = await sync(data, c, tr);
+  assert.deepStrictEqual(s.gone.map((l) => l.id), [L2]);
+  assert.ok(!note(data, L2), "its task list left");
+  assert.ok(note(data, L1));
+  assert.deepStrictEqual(sends(tr), []);
+});
+
+test("when the board's lists can't be read, nothing is dropped", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }]);
+  const data = { notes: [] };
+  await sync(data, cfg(), tr);
+  const real = tr.fetch;
+  await assert.rejects(T.syncData(() => data, cfg(), (u, i) => /\/boards\/\w+\/lists/.test(u) ? Promise.resolve({ ok: false, status: 500, text: async () => "down" }) : real(u, i)));
+  assert.ok(note(data, L1));
 });
 
 (async () => {
