@@ -6452,6 +6452,8 @@
   // and when it finds one, the update bar says so, as it does at launch.
   async function refreshNow() {
     const newerApp = checkForNewerApp();
+    // Trello boards too, quietly (Daniel, 2026-11-22).
+    if (Trello.check) Trello.check();
     if (!Storage.githubConnected) {
       await newerApp;
       toast(i18n.t("This device isn't syncing with GitHub — connect it in Settings"), true);

@@ -562,7 +562,7 @@
   }
 
   async function fetchRemote(api, data, cfg) {
-    const remote = { lists: {}, cards: {}, labels: {}, doneList: {}, listNames: {} };
+    const remote = { lists: {}, cards: {}, labels: {}, doneList: {}, listNames: {}, boardLists: {} };
     await Promise.all(cfg.lists.map(async (l) => {
       const cards = await api.get("/lists/" + l.id + "/cards?fields=" + CARD_FIELDS + "&checklists=all&checklist_fields=name");
       remote.lists[l.id] = Array.isArray(cards) ? cards : null;
@@ -573,6 +573,7 @@
       remote.labels[b] = Array.isArray(labels) ? labels : [];
       // Its lists: their names now (a section follows a rename) and its Done list.
       const lists = await api.get("/boards/" + b + "/lists?fields=name&filter=open");
+      if (Array.isArray(lists)) remote.boardLists[b] = lists.map((x) => x.id);
       for (const x of Array.isArray(lists) ? lists : []) remote.listNames[x.id] = text(x.name);
       const done = (Array.isArray(lists) ? lists : []).find((x) => isDoneName(x.name));
       remote.doneList[b] = done ? done.id : "";
@@ -602,11 +603,23 @@
 
   // The whole sync, pure but for the network, so the tests run it on a
   // fake Trello.
+  // A picked list archived or deleted in Trello (not among its board's
+  // open lists any more) stops syncing, and its tasks leave, as when it's
+  // turned off here (Daniel, 2026-11-22: removed lists stayed). `gone` is
+  // those lists, for the app to drop from Settings.
   async function syncData(getData, cfg, fetchFn) {
+    cfg = cleanConfig(cfg);
     const api = client(cfg, fetchFn);
     const remote = await fetchRemote(api, getData(), cfg);
+    const gone = cfg.lists.filter((l) => Array.isArray(remote.boardLists[l.board]) && !remote.boardLists[l.board].includes(l.id));
+    if (gone.length) {
+      const ids = new Set(gone.map((l) => l.id));
+      cfg = { ...cfg, lists: cfg.lists.filter((l) => !ids.has(l.id)) };
+      const data = getData();
+      data.notes = (data.notes || []).filter((n) => { const own = listsOf(n); return !(own.length && own.every((id) => ids.has(id))); });
+    }
     const { ops, counts } = reconcile(getData(), cfg, remote);
-    return { ops, counts, run: () => runOps(api, ops, getData), remote };
+    return { ops, counts, gone, run: () => runOps(api, ops, getData), remote };
   }
 
   // ---------- in the app ----------
@@ -647,6 +660,13 @@
     if (whenSynced) await whenSynced();
     try {
       const sync = await syncData(() => state.data, cfg);
+      if (sync.gone.length) {
+        const ids = new Set(sync.gone.map((l) => l.id));
+        const cur = cfgNow();
+        cur.lists = cur.lists.filter((l) => !ids.has(l.id));
+        state.data.settings.trello = cur;
+        boardsCache = null;
+      }
       afterDataChange();
       await persist();
       render();
