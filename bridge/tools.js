@@ -1785,7 +1785,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_trello",
-    description: "The Trello connection (Settings → Connections → Trello): whether it's signed in, which Trello lists come in as task lists and the note id of each, what ticking a task does to its card, and whether changes go back. The tasks themselves are ordinary list items: read and change them with lifelog_tasks, lifelog_add_task and lifelog_update_task, and the app sends those changes to Trello at its next sync (the bridge never calls Trello). Never shows the token.",
+    description: "The Trello connection (Settings → Connections → Trello): whether it's signed in, which Trello lists come in and the note id of the task list each is in (a board is one task list with its lists as sections, unless set otherwise; lifelog_task_section moves a task between them), what ticking a task does to its card, and whether changes go back. The tasks themselves are ordinary list items: read and change them with lifelog_tasks, lifelog_add_task and lifelog_update_task, and the app sends those changes to Trello at its next sync (the bridge never calls Trello). Never shows the token.",
     readOnly: true,
     input: {},
     async run() {
@@ -1794,11 +1794,17 @@ const TOOLS = [
       const out = [c.token ? `Trello: signed in${c.member && c.member.username ? " as @" + c.member.username : ""}.` : "Trello isn't connected (Settings → Connections → Trello)."];
       out.push(`Changes here go to Trello: ${c.send ? "yes" : "no, read only"}. Ticking a task ${{ complete: "marks its card complete", move: "moves its card to the board's Done list", archive: "archives its card" }[c.tick]}. Only cards the user is on: ${c.mine ? "yes" : "no"}.`);
       out.push("", `Lists (${c.lists.length}):`);
+      // A board is one task list with its lists as sections, unless its
+      // "One task list for the board" switch is off.
+      const holds = (x, id) => x.trello && (Array.isArray(x.trello.lists) ? x.trello.lists.includes(id) : x.trello.list === id);
       for (const l of c.lists) {
-        const n = (d.notes || []).find((x) => x.trello && x.trello.list === l.id);
-        const open = n ? (n.items || []).filter((x) => !x.done && !x.parent).length : 0;
-        out.push(`- ${[l.boardName, l.name].filter(Boolean).join(" › ")}: ${n ? `task list "${n.text}" (${n.id}), ${open} open` : "comes in at the app's next sync"}`);
+        const n = (d.notes || []).find((x) => holds(x, l.id));
+        const whole = !!n && Array.isArray(n.trello.lists);
+        const open = n ? (n.items || []).filter((x) => !x.done && !x.parent && (!whole || Tasks.sectionOf(n, x) === l.id || !Tasks.sectionsOf(n))).length : 0;
+        out.push(`- ${[l.boardName, l.name].filter(Boolean).join(" › ")}: ${n ? (whole ? `section of the board's task list "${n.text}" (${n.id})` : `task list "${n.text}" (${n.id})`) + `, ${open} open` : "comes in at the app's next sync"}`);
       }
+      const split = [...new Set(c.lists.filter((l) => c.split.includes(l.board)).map((l) => l.boardName || l.board))];
+      if (split.length) out.push("", `Boards with a task list per Trello list: ${split.join(", ")}. Every other board is one task list, its lists as sections; ticking a task there moves its card to the board's Done list.`);
       if (!c.lists.length) out.push("- none picked");
       return out.join("\n");
     },
@@ -2155,6 +2161,7 @@ const TOOLS = [
           const to = findItem(d, "notes", a.move_to);
           if (to.kind !== "list") fail(`"${cut(to.title || to.text, 40)}" isn't a checklist.`);
           if (to.id !== n.id) {
+            delete it.section; // the other list's sections aren't this one's
             const moving = [it];
             const rest = items.filter((i) => !moving.includes(i));
             const toItems = (to.items || []).map((i) => ({ ...i }));
@@ -2174,6 +2181,33 @@ const TOOLS = [
           next = clean.items.find((i) => i.id === it.id);
         }
         return { text: `Updated "${next.text}" in "${where}"${said.length ? " (" + said.join(", ") + ")" : ""}: ${taskLine(next)}  (${next.id})`, touched };
+      });
+    },
+  },
+  {
+    name: "lifelog_task_section",
+    description: "Move a task to another section of its checklist. A Trello board's task list has a section per Trello list (To do, Doing, ...), and moving a task there moves its card to that Trello list at the app's next sync. lifelog_trello and lifelog_tasks show the sections.",
+    input: {
+      list: S.str("The checklist it's in, by id or title"),
+      task: S.str("The task, by id or text"),
+      section: S.str("The section, by name or id"),
+    },
+    required: ["list", "task", "section"],
+    async run(a) {
+      return change(`section of "${a.task}" in "${a.list}"`, (d) => {
+        const n = findItem(d, "notes", a.list);
+        if (n.kind !== "list") fail(`"${cut(n.title || n.text, 40)}" isn't a checklist.`);
+        const secs = Tasks.sectionsOf(n);
+        if (!secs) fail(`"${cut(n.text, 40)}" has no sections.`);
+        const want = String(a.section).trim().toLowerCase();
+        const sec = secs.find((s) => s.id === a.section) || secs.find((s) => String(s.name).toLowerCase() === want);
+        if (!sec) fail(`No section "${a.section}" in "${cut(n.text, 40)}". It has: ${secs.map((s) => s.name).join(", ")}.`);
+        const items = (n.items || []).map((i) => ({ ...i }));
+        const it = pickTask(items, a.task);
+        if (it.parent) fail("A subtask goes where its task is.");
+        it.section = sec.id;
+        replaceItem(d, "notes", cleanItem(d, "notes", { ...n, items, editedAt: nowIso() }));
+        return { text: `"${it.text}" is in ${sec.name} now${n.trello ? "; its card moves to that Trello list at the app's next sync" : ""}.`, touched: [["notes", n.id]] };
       });
     },
   },

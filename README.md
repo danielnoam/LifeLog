@@ -456,8 +456,12 @@ list gets the window too, its map beside the list.
   the Timeline, one you don't have is added, and a re-read waits for you to
   say so. Reading minutes fill the minutes habit you pick.
 - **Trello, both ways**: sign in once in Settings → Connections → Trello
-  (a token you paste back) and switch on the Trello lists you want. Each
-  is a task list in the Notebook, marked Trello: cards are tasks, due
+  (a token you paste back) and bring in the boards you want. A board is
+  one task list in the Notebook, marked Trello, with each of its lists a
+  section that folds (or a task list per list, if you turn its "One task
+  list for the board" off); moving a task to another section, in its sheet
+  or by dragging, moves its card, and ticking one moves it to the board's
+  Done list. Each list has its own switch. Cards are tasks, due
   dates their date, named labels tags, checklist items subtasks. Ticking a
   task marks its card complete, moves it to the board's Done list or
   archives it (your pick); new tasks become cards and edits go back;

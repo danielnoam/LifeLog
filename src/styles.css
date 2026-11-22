@@ -1350,6 +1350,20 @@ input.todo-check:focus-visible { border-radius: 50%; }
   letter-spacing: .07em; text-transform: uppercase;
 }
 .todo-done-sep + .todo-row { border-top: none; }
+/* A section of a task list (a Trello board's list): its name and open
+   count over its rows; pressing it folds the section. */
+.todo-section {
+  display: flex; align-items: center; gap: var(--space-6); width: 100%;
+  margin-top: var(--space-12); padding: var(--space-8) 0 var(--space-4);
+  border: 0; border-top: 1px solid var(--border); background: none; border-radius: 0;
+  color: var(--text-dim); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-align: start; cursor: pointer;
+}
+.todo-section:first-child { margin-top: 0; border-top: none; }
+.todo-section svg { width: 14px; height: 14px; flex-shrink: 0; }
+.todo-section-n { color: var(--text-faint); font-weight: 500; }
+.todo-section + .todo-row { border-top: none; }
+div.todo-section { cursor: default; }
+.note-card.is-reordering .todo-section { padding-inline-start: var(--space-4); }
 
 /* While reordering: touch-action none so the drag is ours rather than the
    page's scroll, and no text selection to fight the gesture. */
@@ -1855,6 +1869,7 @@ img.cover-loading { opacity: 0; }
   html:not(.force-pc) .picker-group { padding-inline-start: var(--space-16); padding-inline-end: var(--space-16); }
   html:not(.force-pc) .picker-editor { grid-template-columns: 1fr; }
   html:not(.force-pc) .picker-buckets .cat-chip, html:not(.force-pc) .picker-filter-row, html:not(.force-pc) .picker-rail .toggle-label, html:not(.force-pc) .picker-rail .picker-threshold { min-height: 44px; }
+  html:not(.force-pc) button.todo-section { min-height: 44px; padding-top: var(--space-4); }
   html:not(.force-pc) .picker-year-more { width: 44px; height: 44px; }
   html:not(.force-pc) .picker-toolbar .link-btn, html:not(.force-pc) .picker-catbar select { min-height: 44px; }
   html:not(.force-pc) .modal label.picker-include { min-height: 44px; }
@@ -1917,6 +1932,7 @@ html.force-mobile .picker-row .ecat, html.force-mobile .picker-row .fdate { disp
 html.force-mobile .picker-group { padding-inline-start: var(--space-16); padding-inline-end: var(--space-16); }
 html.force-mobile .picker-editor { grid-template-columns: 1fr; }
 html.force-mobile .picker-buckets .cat-chip, html.force-mobile .picker-filter-row, html.force-mobile .picker-rail .toggle-label, html.force-mobile .picker-rail .picker-threshold { min-height: 44px; }
+html.force-mobile button.todo-section { min-height: 44px; padding-top: var(--space-4); }
 html.force-mobile .picker-year-more { width: 44px; height: 44px; }
 html.force-mobile .picker-toolbar .link-btn, html.force-mobile .picker-catbar select { min-height: 44px; }
 html.force-mobile .modal label.picker-include { min-height: 44px; }
@@ -3187,6 +3203,8 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .sitem-title { font-size: var(--fs-md); font-weight: 550; color: var(--text); }
 .sitem-sub { font-size: var(--fs-xs); line-height: 1.4; color: var(--text-dim); }
 .sitem-sub:empty { display: none; }
+/* A list under its board's switches (Settings › Trello). */
+.sitem-nested .sitem-text { padding-inline-start: var(--space-24); }
 #errLogList { display: contents; }
 #errLogList .sitem-title { overflow-wrap: anywhere; font-weight: 450; }
 .modal #errLogList > .sitem + .sitem { border-top: 1px solid var(--border); }

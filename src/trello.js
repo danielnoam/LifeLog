@@ -45,7 +45,9 @@
   const TICKS = ["complete", "move", "archive"];
   // tick: what ticking a task does to its card. send: false reads only.
   // mine: only cards you're a member of.
-  const DEFAULTS = { key: "", token: "", member: null, connectedAt: "", lists: [], tick: "complete", send: true, mine: false };
+  // split: the boards whose lists come in as a task list each; every other
+  // board is one task list with its lists as sections (Daniel, 2026-11-22).
+  const DEFAULTS = { key: "", token: "", member: null, connectedAt: "", lists: [], split: [], tick: "complete", send: true, mine: false };
   // While the app is in front: every couple of minutes, and on coming back
   // to it (tab, window focus, network) once it's been half a minute
   // (Daniel, 2026-11-22: it only seemed to sync on open). The computer app
@@ -72,12 +74,25 @@
     out.lists = (Array.isArray(c.lists) ? c.lists : []).map(plainObj)
       .filter((l) => isId(l.id) && isId(l.board) && !seen.has(l.id) && seen.add(l.id))
       .map((l) => ({ id: l.id, name: text(l.name), board: l.board, boardName: text(l.boardName) }));
+    out.split = [...new Set((Array.isArray(c.split) ? c.split : []).filter(isId))];
     out.tick = TICKS.includes(c.tick) ? c.tick : DEFAULTS.tick;
     out.send = c.send !== false;
     out.mine = c.mine === true;
     return out;
   }
   const keyOf = (c) => c.key || APP_KEY;
+  const together = (c, board) => !c.split.includes(board);
+  // A board's own Done list: where its ticked tasks go, never a section.
+  const DONE_NAME = /^(done|finished|complete|completed|בוצע|הושלם|סיום)$/i;
+  const isDoneName = (name) => DONE_NAME.test(text(name));
+  // The Trello lists a task list holds: one, or a board's.
+  const listsOf = (n) => (n && n.trello ? (Array.isArray(n.trello.lists) ? n.trello.lists : n.trello.list ? [n.trello.list] : []) : []);
+  // The Trello list a task sits in: its section on a board's task list
+  // (the first when it has none, or one no longer brought in).
+  function sectionOf(n, it) {
+    const ls = listsOf(n);
+    return it && ls.includes(it.section) ? it.section : ls[0];
+  }
   const connected = (c) => !!(keyOf(c) && c.token);
   function authorizeUrl(key) {
     return "https://trello.com/1/authorize?expiration=never&name=LifeLog&scope=read,write&response_type=token&key=" + encodeURIComponent(key || "");
@@ -114,25 +129,32 @@
     return (it.tags || []).filter((t) => names.has(tagKey(t)));
   }
   // A card counts as done here when it's complete, archived or off the list.
-  const cardDone = (card, listId) => !!(card.closed || card.dueComplete || card.idList !== listId);
-  function remoteOf(card, listId, labels) {
-    return { name: text(card.name), desc: String(card.desc || ""), due: card.due || null, done: cardDone(card, listId), labels: labelTags(card, labels) };
+  // `lists` is every Trello list the task list holds: a card moved between
+  // two of a board's lists is moved, not done.
+  const asLists = (l) => (Array.isArray(l) ? l : [l]);
+  const cardDone = (card, lists) => !!(card.closed || card.dueComplete || !asLists(lists).includes(card.idList));
+  function remoteOf(card, lists, labels, was) {
+    lists = asLists(lists);
+    const list = lists.includes(card.idList) ? card.idList : was || lists[0];
+    return { name: text(card.name), desc: String(card.desc || ""), due: card.due || null, done: cardDone(card, lists), labels: labelTags(card, labels), list };
   }
-  function localOf(it, labels) {
-    return { name: it.text, desc: it.note || "", due: dueOf(it), done: !!it.done, labels: labelled(it, labels) };
+  function localOf(it, labels, list) {
+    return { name: it.text, desc: it.note || "", due: dueOf(it), done: !!it.done, labels: labelled(it, labels), list };
   }
-  const SAME = { name: (a, b) => a === b, desc: (a, b) => a === b, due: sameDue, done: (a, b) => a === b, labels: sameSet };
+  const SAME = { name: (a, b) => a === b, desc: (a, b) => a === b, due: sameDue, done: (a, b) => a === b, labels: sameSet, list: (a, b) => a === b };
   const FIELDS = Object.keys(SAME);
 
-  function itemFromCard(card, listId, labels, now) {
-    const r = remoteOf(card, listId, labels);
+  function itemFromCard(card, lists, labels, now, onBoard = asLists(lists).length > 1) {
+    lists = asLists(lists);
+    const r = remoteOf(card, lists, labels);
     const it = { id: "trello-" + card.id, text: r.name || i18n.t("Untitled card") };
+    if (onBoard) it.section = r.list;
     if (r.desc.trim()) it.note = r.desc;
     if (r.due) Object.assign(it, fromDue(r.due));
     if (r.labels.length) it.tags = r.labels;
     if (r.done) { it.done = true; it.doneAt = now; }
     it.trello = { card: card.id, base: r, checks: [] };
-    if (r.done) it.trello.gone = card.idList !== listId || !!card.closed;
+    if (r.done) it.trello.gone = !lists.includes(card.idList) || !!card.closed;
     return it;
   }
   function checksOf(card) {
@@ -142,7 +164,9 @@
   }
 
   // What ticking (or unticking) a task asks of its card.
-  function doneParams(done, cfg, listId, card, doneList) {
+  // On a board's task list a tick moves the card to the board's Done list
+  // when it has one, unless ticking archives (Daniel, 2026-11-22).
+  function doneParams(done, cfg, listId, card, doneList, board) {
     if (!done) {
       const p = { dueComplete: false };
       if (card.closed) p.closed = false;
@@ -150,7 +174,7 @@
       return p;
     }
     if (cfg.tick === "archive") return { closed: true };
-    if (cfg.tick === "move" && doneList && doneList !== listId) return { idList: doneList, pos: "top" };
+    if ((cfg.tick === "move" || board) && doneList && doneList !== listId) return { idList: doneList, pos: "top" };
     return { dueComplete: true };
   }
 
@@ -171,22 +195,82 @@
     const mineOk = (card) => !cfg.mine || !me || (card.idMembers || []).includes(me);
     const T = Tasks();
 
-    // The notes, made where missing.
+    // The task lists, made where missing: one per Trello list, or one per
+    // board with the board's lists as its sections (its switch in Settings).
+    const names = remote.listNames || {};
+    const nameOf = (l) => text(names[l.id]) || l.name;
+    const picked = new Map();
+    for (const l of cfg.lists) { if (!picked.has(l.board)) picked.set(l.board, []); picked.get(l.board).push(l); }
+    const linkedIds = new Set(cfg.lists.map((l) => l.id));
     const noteOf = new Map();
     for (const l of cfg.lists) {
-      let n = data.notes.find((x) => x.trello && x.trello.list === l.id) || data.notes.find((x) => x.id === "trello-" + l.id);
+      const whole = together(cfg, l.board);
+      const id = whole ? "trello-board-" + l.board : "trello-" + l.id;
+      let n = noteOf.get(l.id) || data.notes.find((x) => x.id === id)
+        || (!whole && data.notes.find((x) => x.trello && x.trello.list === l.id && !Array.isArray(x.trello.lists)));
       if (!n) {
-        n = { id: "trello-" + l.id, kind: "list", text: [l.boardName, l.name].filter(Boolean).join(" · ") || i18n.t("Trello list"), items: [], createdAt: now, editedAt: now };
+        const title = whole ? l.boardName || i18n.t("Trello board") : [l.boardName, l.name].filter(Boolean).join(" · ") || i18n.t("Trello list");
+        n = { id, kind: "list", text: title, items: [], createdAt: now, editedAt: now };
         data.notes.unshift(n);
       }
       if (n.kind !== "list") continue;
       n.items = n.items || [];
-      n.trello = { ...plainObj(n.trello), list: l.id, board: l.board, cards: Array.isArray((n.trello || {}).cards) ? n.trello.cards : [] };
-      noteOf.set(l.id, n);
+      const prev = plainObj(n.trello);
+      if (whole) {
+        const ls = picked.get(l.board);
+        n.trello = { ...prev, board: l.board, lists: ls.map((x) => x.id), cards: Array.isArray(prev.cards) ? prev.cards : [] };
+        delete n.trello.list;
+        n.sections = ls.map((x) => ({ id: x.id, name: nameOf(x) }));
+        for (const x of ls) noteOf.set(x.id, n);
+      } else {
+        n.trello = { ...prev, list: l.id, board: l.board, cards: Array.isArray(prev.cards) ? prev.cards : [] };
+        delete n.trello.lists;
+        delete n.sections;
+        noteOf.set(l.id, n);
+      }
+    }
+    const notes = [...new Set(noteOf.values())];
+    // A board switched to one task list, or back to one each: the tasks
+    // move to where their Trello list now lives, with their ids (their
+    // cards'), so nothing comes in twice. A task list left holding none of
+    // the lists brought in goes.
+    const at = (x) => Math.min(...listsOf(x).map((id) => cfg.lists.findIndex((l) => l.id === id)).filter((i) => i >= 0), Infinity);
+    for (const x of data.notes.filter((y) => y.trello && !notes.includes(y)).sort((p, q) => at(p) - at(q))) {
+      if (x.kind !== "list") continue;
+      const own = listsOf(x);
+      if (!own.some((id) => linkedIds.has(id))) continue;
+      const kidsOf = (id) => (x.items || []).filter((c) => c.parent === id);
+      for (const it of (x.items || []).filter((i) => !i.parent || !x.items.some((p) => p.id === i.parent))) {
+        const sec = Array.isArray(x.trello.lists) ? sectionOf(x, it) : x.trello.list;
+        const to = noteOf.get(sec);
+        if (!to) continue;
+        const moving = [it, ...kidsOf(it.id)];
+        x.items = x.items.filter((i) => !moving.includes(i));
+        if (to.items.some((i) => i.id === it.id)) continue; // already there (another device moved it)
+        if (Array.isArray(to.trello.lists)) it.section = sec; else delete it.section;
+        to.items.push(...moving.filter((i) => !to.items.some((y) => y.id === i.id)));
+        if (it.trello && it.trello.card) to.trello.cards = [...new Set([...to.trello.cards, it.trello.card])];
+      }
+      const dest = notes.find((n) => listsOf(n).some((id) => own.includes(id)));
+      for (const k of ["fav", "pinned", "category"]) if (dest && x[k] && !dest[k]) dest[k] = x[k];
+      if (own.every((id) => linkedIds.has(id)) || !(x.items || []).length) data.notes = data.notes.filter((y) => y !== x);
+    }
+    // On a board's task list, a task whose Trello list was turned off goes
+    // with it (as a list's own task list does); one made here and not sent
+    // yet moves to the first section.
+    for (const n of notes) {
+      if (!Array.isArray(n.trello.lists)) continue;
+      for (const it of [...n.items]) {
+        if (it.parent || it.section == null || n.trello.lists.includes(it.section)) continue;
+        if (it.trello && it.trello.card && it.trello.board === n.trello.board) {
+          const gone = new Set([it.id, ...n.items.filter((c) => c.parent === it.id).map((c) => c.id)]);
+          n.items = n.items.filter((c) => !gone.has(c.id));
+        } else delete it.section;
+      }
     }
     // Where every linked card is now, across all linked lists.
     const whereCard = new Map();
-    for (const [listId, n] of noteOf) for (const it of n.items) if (it.trello && it.trello.card) whereCard.set(it.trello.card, { n, it });
+    for (const n of notes) for (const it of n.items) if (it.trello && it.trello.card) whereCard.set(it.trello.card, { n, it });
     const onLists = new Map();
     for (const [listId] of noteOf) for (const card of remote.lists[listId] || []) if (mineOk(card)) onLists.set(card.id, { card, listId });
 
@@ -195,7 +279,8 @@
       n.items = n.items.filter((x) => !gone.has(x.id));
       counts.removed++;
     };
-    const moveTo = (from, to, it) => {
+    const moveTo = (from, to, it, listId) => {
+      if (Array.isArray(to.trello.lists)) it.section = listId; else delete it.section;
       const kids = from.items.filter((x) => x.parent === it.id);
       const ids = new Set([it.id, ...kids.map((x) => x.id)]);
       from.items = from.items.filter((x) => !ids.has(x.id));
@@ -207,28 +292,32 @@
     };
 
     // One card against its task: pull what changed there, send what changed here.
-    function oneCard(n, it, card, listId) {
+    function oneCard(n, it, card) {
       const labels = remote.labels[card.idBoard] || [];
-      const r = remoteOf(card, listId, labels);
-      const l = localOf(it, labels);
-      const base = (it.trello && it.trello.base) || r;
+      const lists = listsOf(n), here = sectionOf(n, it), onBoard = Array.isArray(n.trello.lists);
+      const r = remoteOf(card, lists, labels, here);
+      const l = localOf(it, labels, here);
+      // A base from before sections had no list: the card's is it.
+      const base = { list: r.list, ...((it.trello && it.trello.base) || r) };
       const theirsNewer = Date.parse(card.dateLastActivity || 0) > Date.parse(it.updatedAt || 0);
       const nextBase = { ...base };
       const push = {};
       let pulled = false;
       for (const f of FIELDS) {
-        const here = !SAME[f](l[f], base[f]), there = !SAME[f](r[f], base[f]);
-        if (there && (!here || theirsNewer)) {
+        const mine = !SAME[f](l[f], base[f]), there = !SAME[f](r[f], base[f]);
+        // A finished task's section isn't sent: its card is in Done.
+        if (f === "list" && mine && !there && (l.done || r.done)) { nextBase.list = base.list; continue; }
+        if (there && (!mine || theirsNewer)) {
           pulled = pullField(n, it, f, r[f], labels) || pulled;
           nextBase[f] = r[f];
-        } else if (here && cfg.send) {
+        } else if (mine && cfg.send) {
           push[f] = l[f];
         } else {
           nextBase[f] = r[f];
         }
       }
       it.trello = { ...plainObj(it.trello), card: card.id, base: nextBase };
-      if (card.closed || card.idList !== listId) it.trello.gone = true; else delete it.trello.gone;
+      if (card.closed || !lists.includes(card.idList)) it.trello.gone = true; else delete it.trello.gone;
       if (pulled) counts.updated++;
       // A repeating task ticked in Trello moves on here, and its new date
       // and an open card go back.
@@ -240,13 +329,14 @@
         const params = {};
         if ("name" in push) params.name = push.name;
         if ("desc" in push) params.desc = push.desc;
+        if ("list" in push) { params.idList = push.list; params.pos = "bottom"; }
         if ("due" in push) params.due = push.due;
         if ("labels" in push) {
           const byName = new Map(labels.filter((x) => text(x.name)).map((x) => [tagKey(Tags().cleanOne(x.name)), x.id]));
           const unnamed = (card.idLabels || []).filter((id) => !labels.some((x) => x.id === id && text(x.name)));
           params.idLabels = [...unnamed, ...push.labels.map((t) => byName.get(tagKey(t))).filter(Boolean)];
         }
-        if ("done" in push) Object.assign(params, doneParams(push.done, cfg, listId, card, remote.doneList[card.idBoard]));
+        if ("done" in push) Object.assign(params, doneParams(push.done, cfg, here, card, remote.doneList[card.idBoard], onBoard));
         const noteId = n.id, itemId = it.id;
         ops.push({ method: "PUT", path: "/cards/" + card.id, body: params, then: (res, d) => {
           const x = findItem(d, noteId, itemId);
@@ -261,6 +351,7 @@
 
     function pullField(n, it, f, v, labels) {
       if (f === "name") { if (!v) return false; it.text = v; }
+      else if (f === "list") { if (Array.isArray(n.trello.lists)) it.section = v; else delete it.section; }
       else if (f === "desc") { if (v.trim()) it.note = v; else delete it.note; }
       else if (f === "due") {
         if (v) Object.assign(it, fromDue(v));
@@ -360,13 +451,13 @@
         if (!mineOk(card)) continue;
         const at = whereCard.get(card.id);
         if (at) {
-          if (at.n !== n) { moveTo(at.n, n, at.it); at.n = n; counts.updated++; }
-          oneCard(n, at.it, card, l.id);
+          if (at.n !== n) { moveTo(at.n, n, at.it, l.id); at.n = n; counts.updated++; }
+          oneCard(n, at.it, card);
         } else if (known.has(card.id)) {
           // Its task was deleted here: the card is archived, never deleted.
           if (cfg.send) { ops.push({ method: "PUT", path: "/cards/" + card.id, body: { closed: true }, then: () => {} }); counts.sent++; }
         } else {
-          const it = itemFromCard(card, l.id, remote.labels[card.idBoard], now);
+          const it = itemFromCard(card, listsOf(n), remote.labels[card.idBoard], now, Array.isArray(n.trello.lists));
           it.trello.board = card.idBoard;
           n.items.push(it);
           whereCard.set(card.id, { n, it });
@@ -378,30 +469,34 @@
     // Tasks whose card isn't on its list any more leave it, as in Trello
     // (Daniel, 2026-11-21: archived and moved cards stayed as ticked tasks).
     // Only one unticked here after it left stays, and its card comes back.
-    for (const [listId, n] of noteOf) {
-      if (!remote.lists[listId]) continue;
+    // On a board's task list, "its list" is any of the board's brought in.
+    for (const n of notes) {
+      const lists = listsOf(n);
       for (const it of [...n.items]) {
         const id = it.trello && it.trello.card;
         if (!id || onLists.has(id) || it.parent) continue;
+        if (!remote.lists[sectionOf(n, it)]) continue;
         if (it.done && it.trello.gone) { drop(n, it); continue; }
         if (!(id in remote.cards)) continue;
         const card = remote.cards[id];
         if (card === null) { drop(n, it); continue; }
-        if (card.idList === listId && !card.closed && !mineOk(card)) { drop(n, it); continue; }
+        const onIt = lists.includes(card.idList);
+        if (onIt && !card.closed && !mineOk(card)) { drop(n, it); continue; }
         const reopened = !it.done && it.trello.base && it.trello.base.done;
-        if ((card.closed || card.idList !== listId) && !(reopened && cfg.send)) { drop(n, it); continue; }
-        if (whereCard.get(id).n === n) oneCard(n, it, card, listId);
+        if ((card.closed || !onIt) && !(reopened && cfg.send)) { drop(n, it); continue; }
+        if (whereCard.get(id).n === n) oneCard(n, it, card);
       }
     }
-    // New tasks here become cards.
+    // New tasks here become cards, on their section's Trello list.
     if (cfg.send) {
-      for (const [listId, n] of noteOf) {
-        if (!remote.lists[listId]) continue;
-        const l = cfg.lists.find((x) => x.id === listId);
+      for (const n of notes) {
+        const board = n.trello.board, onBoard = Array.isArray(n.trello.lists);
         for (const it of n.items) {
           if (it.trello || it.parent || it.done) continue;
+          const listId = sectionOf(n, it);
+          if (!remote.lists[listId]) continue;
           const noteId = n.id, itemId = it.id;
-          const labels = remote.labels[l.board] || [];
+          const labels = remote.labels[board] || [];
           const byName = new Map(labels.filter((x) => text(x.name)).map((x) => [tagKey(Tags().cleanOne(x.name)), x.id]));
           const body = { idList: listId, name: it.text, pos: "bottom" };
           if (it.note) body.desc = it.note;
@@ -413,7 +508,8 @@
           ops.push({ method: "POST", path: "/cards", body, then: (res, d) => {
             const x = findItem(d, noteId, itemId);
             if (!x || !res || !res.id) return;
-            x.trello = { card: res.id, board: l.board, base: localOf(x, labels), checks: [] };
+            if (onBoard) x.section = listId;
+            x.trello = { card: res.id, board, base: localOf(x, labels, listId), checks: [] };
             const nn = d.notes.find((y) => y.id === noteId);
             if (nn && nn.trello) nn.trello.cards = [...new Set([...(nn.trello.cards || []), res.id])];
           }, failed: (d) => { const x = findItem(d, noteId, itemId); if (x && x.trello && x.trello.pending) delete x.trello; } });
@@ -421,7 +517,7 @@
         }
       }
     }
-    for (const [, n] of noteOf) n.trello.cards = n.items.filter((x) => x.trello && x.trello.card).map((x) => x.trello.card);
+    for (const n of notes) n.trello.cards = n.items.filter((x) => x.trello && x.trello.card).map((x) => x.trello.card);
     return { ops, counts };
   }
 
@@ -432,11 +528,13 @@
     const on = new Set();
     for (const id of Object.keys(lists)) for (const c of lists[id] || []) on.add(c.id);
     const out = [];
+    const linkedIds = new Set(cfg.lists.map((l) => l.id));
     for (const n of data.notes || []) {
-      if (!n.trello || !cfg.lists.some((l) => l.id === n.trello.list) || !lists[n.trello.list]) continue;
+      if (!listsOf(n).some((id) => linkedIds.has(id))) continue;
       for (const it of n.items || []) {
         const id = it.trello && it.trello.card;
         if (!id || on.has(id) || it.parent) continue;
+        if (!lists[sectionOf(n, it)]) continue;
         if (it.done && it.trello.gone) continue; // leaves without asking
         out.push(id);
       }
@@ -464,7 +562,7 @@
   }
 
   async function fetchRemote(api, data, cfg) {
-    const remote = { lists: {}, cards: {}, labels: {}, doneList: {} };
+    const remote = { lists: {}, cards: {}, labels: {}, doneList: {}, listNames: {} };
     await Promise.all(cfg.lists.map(async (l) => {
       const cards = await api.get("/lists/" + l.id + "/cards?fields=" + CARD_FIELDS + "&checklists=all&checklist_fields=name");
       remote.lists[l.id] = Array.isArray(cards) ? cards : null;
@@ -473,11 +571,11 @@
     await Promise.all(boards.map(async (b) => {
       const labels = await api.get("/boards/" + b + "/labels?fields=name,color&limit=1000");
       remote.labels[b] = Array.isArray(labels) ? labels : [];
-      if (cfg.tick === "move") {
-        const lists = await api.get("/boards/" + b + "/lists?fields=name&filter=open");
-        const done = (Array.isArray(lists) ? lists : []).find((x) => /^(done|finished|complete|completed|בוצע|הושלם|סיום)$/i.test(text(x.name)));
-        remote.doneList[b] = done ? done.id : "";
-      }
+      // Its lists: their names now (a section follows a rename) and its Done list.
+      const lists = await api.get("/boards/" + b + "/lists?fields=name&filter=open");
+      for (const x of Array.isArray(lists) ? lists : []) remote.listNames[x.id] = text(x.name);
+      const done = (Array.isArray(lists) ? lists : []).find((x) => isDoneName(x.name));
+      remote.doneList[b] = done ? done.id : "";
     }));
     for (const id of missingCards(data, cfg, remote.lists).slice(0, 50)) {
       remote.cards[id] = await api.get("/cards/" + id + "?fields=" + CARD_FIELDS + "&checklists=all&checklist_fields=name");
@@ -516,7 +614,7 @@
   let running = null, lastStatus = "", lastSig = "", lastAt = 0, soon = null;
   const linkedSig = () => {
     const ids = new Set(cfgNow().lists.map((l) => l.id));
-    return JSON.stringify((state.data.notes || []).filter((n) => n.trello && ids.has(n.trello.list)).map((n) => n.items));
+    return JSON.stringify((state.data.notes || []).filter((n) => listsOf(n).some((id) => ids.has(id))).map((n) => n.items));
   };
 
   function check(opts = {}) {
@@ -598,10 +696,10 @@
   async function unlink(notes) {
     if (!notes.length) return;
     const cur = cfgNow();
-    const listIds = new Set(notes.map((n) => n.trello.list));
+    const listIds = new Set(notes.flatMap(listsOf));
     const was = cur.lists.filter((l) => listIds.has(l.id));
     cur.lists = cur.lists.filter((l) => !listIds.has(l.id));
-    const gone = (state.data.notes || []).filter((x) => x.trello && listIds.has(x.trello.list));
+    const gone = (state.data.notes || []).filter((x) => listsOf(x).some((id) => listIds.has(id)));
     state.data.notes = state.data.notes.filter((x) => !gone.includes(x));
     await save(cur);
     paintStatus();
@@ -642,6 +740,9 @@
   }
 
   let boardsCache = null;
+  // A board's group: Bring in this board, One task list for the board, then
+  // its lists, each with its own switch. While the board is one task list
+  // its Done list has none: ticked tasks go there (Daniel, 2026-11-22).
   async function paintLists(fresh) {
     const box = $("#trelloLists");
     if (!box) return;
@@ -661,53 +762,110 @@
     const on = new Set(c.lists.map((l) => l.id));
     // A list you picked that's gone from Trello stays here so you can turn it off.
     const missing = c.lists.filter((l) => !boardsCache.some((b) => (b.lists || []).some((x) => x.id === l.id)));
-    const groups = boardsCache.map((b) => ({ name: b.name, id: b.id, lists: (b.lists || []).map((x) => ({ id: x.id, name: x.name })) }));
+    const groups = boardsCache.map((b) => ({ name: b.name, id: b.id, lists: (b.lists || []).map((x) => ({ id: x.id, name: x.name, board: b.id, boardName: b.name })) }));
     if (missing.length) groups.push({ name: i18n.t("Not found on Trello"), lists: missing.map((l) => ({ id: l.id, name: [l.boardName, l.name].filter(Boolean).join(" · "), board: l.board, boardName: l.boardName, gone: true })) });
     if (!groups.length) { box.appendChild(el("p", "dsc-note", i18n.t("No open boards on this Trello account."))); return; }
+    const notes = () => state.data.notes || [];
+    const openIn = (pred) => notes().reduce((sum, n) => sum + (n.items || []).filter((x) => !x.done && !x.parent && pred(n, x)).length, 0);
+    const row = (title, sub, sw, cls = "") => {
+      const r = el("label", "sitem toggle-label" + cls);
+      const t = el("span", "sitem-text");
+      t.appendChild(el("span", "sitem-title", title));
+      if (sub) t.appendChild(el("span", "sitem-sub", sub));
+      r.append(t, sw);
+      return r;
+    };
+    const switchEl = (checked, label, onchange) => {
+      const sw = el("input", "switch");
+      sw.type = "checkbox";
+      sw.checked = checked;
+      if (label) sw.setAttribute("aria-label", label);
+      sw.onchange = () => onchange(sw.checked);
+      return sw;
+    };
+    // Lists in the order the board has them, so sections keep that order.
+    const ordered = (lists) => {
+      const pos = new Map();
+      for (const g of groups) g.lists.forEach((l, i) => pos.set(l.id, i));
+      return [...lists].sort((a, b) => (a.board === b.board ? (pos.get(a.id) ?? 1e9) - (pos.get(b.id) ?? 1e9) : 0));
+    };
+    // Turning lists off takes their tasks out of the Notebook too (Daniel,
+    // 2026-11-21: a kept copy read as a duplicate); Undo puts them back.
+    async function setLists(add, remove, label) {
+      const cur = cfgNow();
+      const was = { lists: cur.lists, notes: notes() };
+      const drop = new Set(remove.map((l) => l.id));
+      cur.lists = ordered([...cur.lists.filter((x) => !drop.has(x.id)), ...add.filter((l) => !cur.lists.some((x) => x.id === l.id)).map((l) => ({ id: l.id, name: l.name, board: l.board, boardName: l.boardName }))]);
+      let took = false;
+      if (drop.size) {
+        const keep = new Set(cur.lists.map((l) => l.id));
+        state.data.notes = notes().flatMap((n) => {
+          const own = listsOf(n);
+          if (!own.some((id) => drop.has(id))) return [n];
+          took = true;
+          if (!own.some((id) => keep.has(id))) return [];
+          const gone = new Set(n.items.filter((x) => !x.parent && drop.has(sectionOf(n, x))).map((x) => x.id));
+          return [{ ...n, items: n.items.filter((x) => !gone.has(x.id) && !gone.has(x.parent)) }];
+        });
+      }
+      await save(cur);
+      paintStatus();
+      if (add.length) await check({ manual: true });
+      paintLists();
+      if (took) render();
+      if (drop.size) toast(i18n.t("Stopped syncing {name}", { name: label }), false, { label: i18n.t("Undo"), onClick: async () => {
+        const c2 = cfgNow();
+        c2.lists = was.lists;
+        // Only the synced task lists go back as they were: anything else
+        // changed since stays.
+        state.data.notes = [...was.notes.filter((n) => n.trello), ...notes().filter((n) => !n.trello)];
+        await save(c2);
+        paintStatus();
+        paintLists();
+        render();
+      } });
+    }
+    async function setTogether(board, whole) {
+      const cur = cfgNow();
+      cur.split = whole ? cur.split.filter((b) => b !== board) : [...new Set([...cur.split, board])];
+      await save(cur);
+      await check({ manual: true });
+      paintLists();
+      render();
+    }
     for (const g of groups) {
       if (!g.lists.length) continue;
       box.appendChild(el("h3", "sgroup-label", g.name));
       const card = el("div", "sgroup-card");
+      const whole = !g.gone && g.id && together(c, g.id);
+      const isDone = (l) => g.id && whole && isDoneName(l.name);
+      const picks = g.lists.filter((l) => !isDone(l));
+      const anyOn = g.lists.some((l) => on.has(l.id));
+      if (g.id) {
+        const sub = anyOn ? (whole ? i18n.tn(openIn((n) => n.trello && n.trello.board === g.id), "One task list in the Notebook · {n} open", "One task list in the Notebook · {n} open")
+          : i18n.t("A task list for each list")) : "";
+        card.appendChild(row(i18n.t("Bring in this board"), sub, switchEl(anyOn, i18n.t("Bring in {name}", { name: g.name }), (v) =>
+          v ? setLists(g.lists.filter((l) => !isDoneName(l.name)), [], g.name) : setLists([], g.lists.filter((l) => on.has(l.id)), g.name))));
+        if (anyOn) card.appendChild(row(i18n.t("One task list for the board"), whole ? i18n.t("Its lists are sections in it") : i18n.t("Off: a task list for each list"),
+          switchEl(whole, null, (v) => setTogether(g.id, v))));
+      }
       for (const l of g.lists) {
-        const r = el("label", "sitem toggle-label");
-        const t = el("span", "sitem-text");
-        t.appendChild(el("span", "sitem-title", l.name));
-        if (on.has(l.id)) {
-          const n = (state.data.notes || []).find((x) => x.trello && x.trello.list === l.id);
-          const open = n ? (n.items || []).filter((x) => !x.done && !x.parent).length : 0;
-          t.appendChild(el("span", "sitem-sub", n ? i18n.tn(open, "A task list in the Notebook · {n} open", "A task list in the Notebook · {n} open") : i18n.t("Comes in at the next sync")));
+        if (g.id && !anyOn) break;
+        const cls = g.id ? " sitem-nested" : "";
+        if (isDone(l)) {
+          const r = el("div", "sitem" + cls);
+          const t = el("span", "sitem-text");
+          t.append(el("span", "sitem-title", l.name), el("span", "sitem-sub", i18n.t("Ticked tasks move here")));
+          r.appendChild(t);
+          card.appendChild(r);
+          continue;
         }
-        const sw = el("input", "switch");
-        sw.type = "checkbox";
-        sw.checked = on.has(l.id);
-        sw.onchange = async () => {
-          const cur = cfgNow();
-          const was = cur.lists.find((x) => x.id === l.id);
-          cur.lists = sw.checked
-            ? [...cur.lists.filter((x) => x.id !== l.id), { id: l.id, name: l.name, board: l.board || g.id, boardName: l.boardName || g.name }]
-            : cur.lists.filter((x) => x.id !== l.id);
-          // Off takes its task list out of the Notebook too (Daniel,
-          // 2026-11-21: a kept copy read as a duplicate); Undo puts both back.
-          const gone = sw.checked ? [] : (state.data.notes || []).filter((x) => x.trello && x.trello.list === l.id);
-          if (gone.length) state.data.notes = state.data.notes.filter((x) => !gone.includes(x));
-          await save(cur);
-          paintStatus();
-          if (sw.checked) await check({ manual: true });
-          paintLists();
-          if (gone.length) render();
-          if (!sw.checked) toast(i18n.t("Stopped syncing {name}", { name: l.name }), false, { label: i18n.t("Undo"), onClick: async () => {
-            const c2 = cfgNow();
-            if (was && !c2.lists.some((x) => x.id === l.id)) c2.lists = [...c2.lists, was];
-            const ids = new Set((state.data.notes || []).map((x) => x.id));
-            state.data.notes = [...gone.filter((x) => !ids.has(x.id)), ...(state.data.notes || [])];
-            await save(c2);
-            paintStatus();
-            paintLists();
-            render();
-          } });
-        };
-        r.append(t, sw);
-        card.appendChild(r);
+        let sub = "";
+        if (on.has(l.id)) {
+          const has = notes().some((n) => listsOf(n).includes(l.id));
+          sub = has ? i18n.tn(openIn((n, x) => listsOf(n).includes(l.id) && sectionOf(n, x) === l.id), "{n} open", "{n} open") : i18n.t("Comes in at the next sync");
+        }
+        card.appendChild(row(l.name, sub, switchEl(on.has(l.id), null, (v) => (v ? setLists([l], [], l.name) : setLists([], [l], l.name))), cls));
       }
       box.appendChild(card);
     }
@@ -792,7 +950,8 @@
   function linked(n) {
     if (!n || !n.trello || !state) return false;
     const c = cfgNow();
-    return connected(c) && c.lists.some((l) => l.id === n.trello.list);
+    const own = listsOf(n);
+    return connected(c) && c.lists.some((l) => own.includes(l.id));
   }
 
   const api = {

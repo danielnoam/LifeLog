@@ -635,7 +635,19 @@
       rows.appendChild(itemRow(n, it, { sub: false, kids: sub }));
       if (!foldSet().has(it.id)) for (const c of sub) rows.appendChild(itemRow(n, c, { sub: true }));
     };
-    for (const it of openTop) { if (reordering) rows.appendChild(reorderRow(n, it, rows)); else withKids(it); }
+    const put = (it) => { if (reordering) rows.appendChild(reorderRow(n, it, rows)); else withKids(it); };
+    // A Trello board's lists are its sections (Nov 2026), each folding
+    // under its name. While reordering, a row dragged under another
+    // section's name moves there (commitItemOrder).
+    const secs = Tasks().sectionsOf(n);
+    if (secs && openTop.length) {
+      for (const sec of secs) {
+        const mine = openTop.filter((it) => Tasks().sectionOf(n, it) === sec.id);
+        const shut = !reordering && foldSet().has(n.id + "|" + sec.id);
+        rows.appendChild(sectionHead(n, sec, mine.length, { shut, reordering }));
+        if (!shut) mine.forEach(put);
+      }
+    } else openTop.forEach(put);
     // The finished rows and the add line stay while reordering (greyed and
     // hidden, not removed): the card keeping its height is what keeps the
     // page from scrolling under a finger that is already holding a row.
@@ -645,6 +657,26 @@
     }
     card.appendChild(rows);
     card.appendChild(listCompose(n));
+  }
+
+  // A section's name over its rows, with how many are open; pressing it
+  // folds the section. Not a .todo-row, so a drag passes over it.
+  function sectionHead(n, sec, count, { shut, reordering }) {
+    const name = sec.name || i18n.t("Untitled list");
+    if (reordering) {
+      const d = el("div", "todo-section");
+      d.dataset.section = sec.id;
+      d.append(el("span", "todo-section-name", name), el("span", "todo-section-n", String(count)));
+      return d;
+    }
+    const b = own(el("button", "todo-section"));
+    b.type = "button";
+    b.dataset.section = sec.id;
+    b.setAttribute("aria-expanded", String(!shut));
+    b.setAttribute("aria-label", (shut ? i18n.t("Show {name}", { name }) : i18n.t("Hide {name}", { name })) + ", " + i18n.tn(count, "{n} open", "{n} open"));
+    b.append(ico(shut ? "chevron-right" : "chevron-down"), el("span", "todo-section-name", name), el("span", "todo-section-n", String(count)));
+    b.onclick = () => toggleFold(n.id + "|" + sec.id);
+    return b;
   }
 
   // While selecting, a list keeps its items on its card, read-only: drawn as
@@ -1067,10 +1099,20 @@
     if (!n) return;
     const order = [...list.querySelectorAll(".todo-row")].map((r) => r.dataset.item);
     const byId = new Map(n.items.map((i) => [i.id, i]));
+    // Each row takes the section whose name it now stands under.
+    let moved = false;
+    if (Tasks().sectionsOf(n)) {
+      let sec = null;
+      for (const node of list.children) {
+        if (node.dataset.section) { sec = node.dataset.section; continue; }
+        const it = node.classList.contains("todo-row") && byId.get(node.dataset.item);
+        if (it && sec && Tasks().sectionOf(n, it) !== sec) { it.section = sec; moved = true; }
+      }
+    }
     const open = order.map((id) => byId.get(id)).filter(Boolean);
     const rest = n.items.filter((i) => !order.includes(i.id));
     const next = [...open, ...rest];
-    if (next.every((it, i) => it === n.items[i])) return;
+    if (!moved && next.every((it, i) => it === n.items[i])) return;
     n.items = next;
     render();
     await persist();

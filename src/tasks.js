@@ -110,6 +110,14 @@
   }
   const isTask = (it) => ["note", "priority", "date", "deadline", "parent", "category", "tags"].some((k) => it[k] != null);
   const childrenOf = (items, id) => (items || []).filter((i) => i.parent === id);
+  // A task list's sections (Nov 2026: a Trello board's lists), and the one
+  // a task sits in: its own, else the first. Fewer than two is no sections.
+  const sectionsOf = (n) => (n && Array.isArray(n.sections) && n.sections.length > 1 ? n.sections : null);
+  function sectionOf(n, it) {
+    const secs = sectionsOf(n);
+    if (!secs) return null;
+    return it && secs.some((s) => s.id === it.section) ? it.section : secs[0].id;
+  }
 
   // ---------- repeats ----------
   // The next date after `day` by the rule, once.
@@ -347,6 +355,7 @@
     if (document.activeElement !== $("#taskText")) $("#taskText").value = it.text;
     if (document.activeElement !== $("#taskNote")) $("#taskNote").value = it.note || "";
     fillCategory(n, it, parent);
+    fillSection(n, it, parent);
     $("#taskPriority").value = it.priority ? String(it.priority) : "";
     if (tagField) tagField.refresh();
     const when = dateSummary(it, today);
@@ -367,6 +376,17 @@
     }
     sel.value = n.id;
     $("#taskListChip .dot").style.background = n.category ? catColor(n.category) : "";
+  }
+  // A board's task list: which of its Trello lists the task is in.
+  // Changing it moves the card there at the next sync.
+  function fillSection(n, it, parent) {
+    const secs = !parent && sectionsOf(n);
+    $("#taskSectionRow").hidden = !secs;
+    if (!secs) return;
+    $("#taskSectionLabel").textContent = n.trello ? i18n.t("Trello list") : i18n.t("Section");
+    const sel = $("#taskSection");
+    sel.replaceChildren(...secs.map((sec) => { const o = document.createElement("option"); o.value = sec.id; o.textContent = sec.name || i18n.t("Untitled list"); return o; }));
+    sel.value = sectionOf(n, it);
   }
   function fillCategory(n, it, parent) {
     const sel = $("#taskCategory");
@@ -444,6 +464,7 @@
     commitText(false);
     const moving = [it, ...childrenOf(n.items, it.id)];
     n.items = n.items.filter((i) => !moving.includes(i));
+    delete it.section; // another list's sections aren't this one's
     to.items = to.items || [];
     const lastOpen = to.items.map((i) => !i.done).lastIndexOf(true);
     to.items.splice(lastOpen + 1, 0, ...moving);
@@ -656,6 +677,11 @@
     $("#taskCopyBtn").onclick = copyTask;
     $("#taskDeleteBtn").onclick = deleteTask;
     $("#taskList").onchange = () => moveToList($("#taskList").value);
+    $("#taskSection").onchange = () => change((it, n) => {
+      const v = $("#taskSection").value;
+      if (v === sectionOf(n, it)) return false;
+      it.section = v;
+    });
     $("#taskTick").onchange = () => tickOne(cur.itemId, $("#taskTick").checked);
     const text = $("#taskText");
     text.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); text.blur(); } };
@@ -693,7 +719,7 @@
 
   const api = {
     init, wire, openTask, openDateFor, closeTask, closeAll: () => closeTask({ all: true }), closeDate: applyDate, handleEscape, isOpen: () => !!cur,
-    cleanItem, cleanParents, cleanHead, cleanRepeat, isTask, childrenOf, nextDate, tick, reopen, dueTasks, categoryOf, remindAt,
+    cleanItem, cleanParents, cleanHead, cleanRepeat, isTask, childrenOf, sectionsOf, sectionOf, nextDate, tick, reopen, dueTasks, categoryOf, remindAt,
     today: () => localDay(new Date()), shortDay, repeatText, remindText, dateSummary, listLines, addDays, isDay, isTime, PRIORITY_NAMES,
   };
   if (typeof window !== "undefined") window.LifeLogTasks = api;

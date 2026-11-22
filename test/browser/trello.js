@@ -4,6 +4,8 @@
 // marks the card complete a few seconds later, a task added there becomes a
 // card, and Settings → Connections → Trello lists the boards with the
 // picked list switched on. In Hebrew the page has no English left but names.
+// The board here is set to a task list per Trello list; trelloboards.js has
+// a board as one task list.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
@@ -47,7 +49,7 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   await forgetCopy(page);
   await page.evaluate(({ T, L, B, ME }) => { localStorage.clear(); localStorage.setItem("lifelog-cache-v1", JSON.stringify({
     categories: [], entries: [], backlog: [], habits: [], notes: [{ id: "fav1", text: "A favourite", fav: true, createdAt: T, updatedAt: T }],
-    settings: { trello: { key: "k".repeat(32), token: "tok", member: { id: ME, username: "reader" }, connectedAt: T, lists: [{ id: L, name: "To do", board: B, boardName: "Home" }] } } })); }, { T, L, B, ME });
+    settings: { trello: { key: "k".repeat(32), token: "tok", member: { id: ME, username: "reader" }, connectedAt: T, lists: [{ id: L, name: "To do", board: B, boardName: "Home" }], split: [B] } } })); }, { T, L, B, ME });
   await page.reload({ waitUntil: "load" });
   await page.waitForFunction((L) => (window.LifeLogStorage.cachedCopy().notes || []).some((x) => x.id === "trello-" + L && x.items.length), L, { timeout: 10000 }).catch(() => {});
   const data = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
@@ -132,7 +134,7 @@ const L = "a".repeat(24), B = "b".repeat(24), ME = "c".repeat(24), C1 = "1".repe
   await page.waitForSelector("#trelloLists .sitem", { timeout: 5000 }).catch(() => {});
   check("the account line names who's signed in", /@reader/.test(await page.textContent("#trelloState")));
   const rows = await page.$$eval("#trelloLists .sitem", (xs) => xs.map((x) => x.querySelector(".sitem-title").textContent + ":" + x.querySelector("input").checked));
-  check("Settings lists the board's lists, the picked one on", rows.join() === "To do:true,Later:false", rows);
+  check("Settings shows the board's switches, then its lists, the picked one on", rows.join() === "Bring in this board:true,One task list for the board:false,To do:true,Later:false", rows);
   const status = await page.evaluate(() => window.LifeLogConnections.status("trello").text);
   check("the Connections row says what it's doing", /@reader · 1 list$/.test(status), status);
 

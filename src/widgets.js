@@ -274,10 +274,16 @@
         if (it.time && it.date) out.time = it.time;
         if (meta) out.meta = meta;
         if (it.priority) out.priority = it.priority;
+        if (secs) out.section = (secs[secAt.get(T.sectionOf(n, it))] || {}).name || "";
         return Object.assign(out, taskDetails(n, it, false));
       };
       const items = all;
-      const open = items.filter((it) => !it.done);
+      // A Trello board's task list (Nov 2026): its open rows section by
+      // section, in the board's order, each naming its section.
+      const secs = T && T.sectionsOf ? T.sectionsOf(n) : null;
+      const secAt = secs ? new Map(secs.map((x, i) => [x.id, i])) : null;
+      let open = items.filter((it) => !it.done);
+      if (secs) open = open.map((it, i) => [it, secAt.get(T.sectionOf(n, it)), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([it]) => it);
       const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
       for (const it of open) todos.push(row(it));
