@@ -2686,6 +2686,7 @@ Keel.i18n.strings("he", {
   "Unpin from Home": "הסרה מהבית",
   "Unpinned from Home": "הוסר מהבית",
   "Unreleased": "לא יצא",
+  "Not released yet": "עוד לא שוחרר",
   "Unstar": "הסרת כוכב",
   "Unstarred": "הכוכב הוסר",
   "Unsync": "ניתוק סנכרון",

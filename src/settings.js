@@ -902,7 +902,10 @@
         const res = await fetch("CHANGELOG.md?v=" + APP_VERSION);
         if (!res.ok) throw new Error(res.status);
         // "## [0.231.0] - 2026-10-04" reads as "0.231.0 · 4 Oct 2026".
+        // A build of main has what's merged and not released yet on top as
+        // "## [Unreleased]" (keel's withPending in tools/build-www.js).
         changelog = (await res.text()).split(/\n(?=## \[)/).slice(1).map((v) => v
+          .replace(/^## \[Unreleased\][^\n]*/, () => "## " + i18n.t("Not released yet"))
           .replace(/^## \[([^\]]+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/, (m, ver, d) =>
             "## " + ver + " · " + window.LifeLogDates.day(d)));
       } catch (e) {

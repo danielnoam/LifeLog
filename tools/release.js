@@ -36,7 +36,21 @@ function bump(version, { root = ROOT, date = new Date().toISOString().slice(0, 1
   const nextCache = cache[1] + "v" + (Number(cache[2]) + 1);
   write("sw.js", sw.replace(cache[0], 'const CACHE = "' + nextCache + '"'));
 
-  let log = read("CHANGELOG.md");
+  const { log, notes, entry } = pending(root);
+  if (!entry) throw new Error("nothing to release: no notes in changes/ and no '## Unreleased' in CHANGELOG.md");
+  const first = log.search(/^## /m);
+  const at = first < 0 ? log.length : first;
+  write("CHANGELOG.md", log.slice(0, at).replace(/\n*$/, "\n\n") + "## [" + version + "] - " + date + "\n\n" + entry + "\n" + log.slice(at));
+  for (const f of notes) fs.unlinkSync(path.join(root, "changes", f));
+
+  return { was, version, cache: nextCache, tags, notes: notes.length };
+}
+
+// What's merged and not released yet: the notes in changes/ and any older
+// "## Unreleased" section, merged into one entry ("" when there are none),
+// with the CHANGELOG.md text that's left once that section is taken out.
+function pending(root = ROOT) {
+  let log = fs.readFileSync(path.join(root, "CHANGELOG.md"), "utf8");
   const heading = /^## Unreleased[^\n]*\n/m;
   const texts = [];
   if (heading.test(log)) {
@@ -46,14 +60,19 @@ function bump(version, { root = ROOT, date = new Date().toISOString().slice(0, 1
   const dir = path.join(root, "changes");
   const notes = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md").sort() : [];
   for (const f of notes) texts.push(fs.readFileSync(path.join(dir, f), "utf8"));
-  const entry = mergeNotes(texts);
-  if (!entry) throw new Error("nothing to release: no notes in changes/ and no '## Unreleased' in CHANGELOG.md");
+  return { log, notes, entry: mergeNotes(texts) };
+}
+
+// CHANGELOG.md as a build ships it (tools/build-www.js): what's merged and
+// not released yet on top, as "## [Unreleased]", so a build of main (the
+// unreleased channel, a test build) lists what it has beyond its version.
+// A release build has no notes left, so it gets the file as it is.
+function withPending(root = ROOT) {
+  const { log, entry } = pending(root);
+  if (!entry) return fs.readFileSync(path.join(root, "CHANGELOG.md"), "utf8");
   const first = log.search(/^## /m);
   const at = first < 0 ? log.length : first;
-  write("CHANGELOG.md", log.slice(0, at).replace(/\n*$/, "\n\n") + "## [" + version + "] - " + date + "\n\n" + entry + "\n" + log.slice(at));
-  for (const f of notes) fs.unlinkSync(path.join(dir, f));
-
-  return { was, version, cache: nextCache, tags, notes: notes.length };
+  return log.slice(0, at).replace(/\n*$/, "\n\n") + "## [Unreleased]\n\n" + entry + "\n" + log.slice(at);
 }
 
 // Notes ("### Added" and its "- " lines, and so on) merged under one
@@ -89,4 +108,4 @@ if (require.main === module) {
   console.log(r.was + " -> " + r.version + ": src/app.js, " + r.tags + " tags in index.html, sw.js " + r.cache + ", CHANGELOG.md written from " + r.notes + " notes in changes/. Now commit and open the release PR.");
 }
 
-module.exports = { bump, newer, mergeNotes };
+module.exports = { bump, newer, mergeNotes, pending, withPending };
