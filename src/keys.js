@@ -50,6 +50,7 @@
     Equal: i18n.t("Zoom in"), "Shift+Equal": i18n.t("Zoom in"), NumpadAdd: i18n.t("Zoom in"), Minus: i18n.t("Zoom out"), NumpadSubtract: i18n.t("Zoom out"),
     Digit0: i18n.t("Fit the drawing on screen"), "Ctrl+KeyZ": i18n.t("Undo"), "Ctrl+Shift+KeyZ": i18n.t("Redo"), "Ctrl+KeyY": i18n.t("Redo"),
     "Ctrl+KeyA": i18n.t("Select everything"), "Ctrl+KeyC": i18n.t("Copy"), "Ctrl+KeyX": i18n.t("Cut"), "Ctrl+KeyV": i18n.t("Paste"),
+    "Ctrl+KeyD": i18n.t("Duplicate"),
   };
   const MAX_KEYS = 2;
   const MAX_TABS = 9;

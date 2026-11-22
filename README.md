@@ -128,9 +128,11 @@ view a note opens in.
 On a board, ⋯ holds the board options for this device: a grid, snapping to
 it, alignment guides while moving, arrows that stick to the shapes they're
 drawn between (and follow them), and pen smoothing. A selection can be
-grouped (Ctrl+G) or locked (Ctrl+L), a picture cropped (double-tap it), and
+grouped (Ctrl+G) or locked (Ctrl+L), duplicated (Ctrl+D, the Duplicate
+button, or Alt+drag to drag a copy away), a picture cropped (double-tap it), and
 a text, shape or picture linked to a note or another board with Link to…;
-its link icon opens it. What's written on a board is found by search.
+its link icon opens it. What's written on a board is found by search. A board
+opens where you left it on this device; 0 fits the whole drawing.
 
 Three more tools put live things on a board: Card places a note, quote,
 tasks list or task you can read and edit in place (tick a task, double-click

@@ -1195,6 +1195,34 @@
   const GRID = 24;
   let opts = { ...OPT_DEFAULTS };
   try { opts = { ...OPT_DEFAULTS, ...JSON.parse(localStorage.getItem(OPTS_KEY) || "{}") }; } catch (e) { /* the defaults */ }
+  // Where each board was left (Nov 2026, from Lorien), per device: the
+  // world point at the screen's centre and the zoom, so a different window
+  // size still opens on the same spot. Only the latest boards are kept.
+  const VIEWS_KEY = "lifelog-board-views-v1";
+  const VIEWS_MAX = 100;
+  function savedViews() {
+    try { const o = JSON.parse(localStorage.getItem(VIEWS_KEY) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; }
+  }
+  function saveView(id) {
+    if (!svg || !id) return;
+    const r = svg.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const all = savedViews();
+    delete all[id];
+    all[id] = [Math.round((r.width / 2 - view.x) / view.k), Math.round((r.height / 2 - view.y) / view.k), +view.k.toFixed(3)];
+    const ids = Object.keys(all);
+    for (const old of ids.slice(0, Math.max(0, ids.length - VIEWS_MAX))) delete all[old];
+    try { localStorage.setItem(VIEWS_KEY, JSON.stringify(all)); } catch (e) { /* opens fitted next time */ }
+  }
+  function restoreView(id) {
+    const v = savedViews()[id];
+    if (!Array.isArray(v) || v.length !== 3 || !v.every(Number.isFinite) || v[2] <= 0) return false;
+    const r = svg.getBoundingClientRect();
+    const w = r.width || innerWidth, h = r.height || innerHeight;
+    const k = Math.min(8, Math.max(0.1, v[2]));
+    view = { k, x: w / 2 - v[0] * k, y: h / 2 - v[1] * k };
+    return true;
+  }
   function setOpt(k, v) {
     opts = { ...opts, [k]: !!v };
     try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* this session only */ }
@@ -1219,7 +1247,7 @@
     syncTagsBtn();
     const ov = $("#boardEditor");
     ov.hidden = false;
-    fitView();
+    if (!restoreView(b.id)) fitView();
     redraw();
     syncToolbar();
     fontReady().then((fresh) => { if (fresh && editing) redraw(); });
@@ -1278,6 +1306,7 @@
     endCrop();
     const name = $("#boardName").value.trim() || "Untitled board";
     if (name !== editing.name) { editing.name = name; changed(editing); }
+    saveView(editing.id);
     editing = null;
     clearLive(); playing.clear();
     $("#boardEditor").hidden = true;
@@ -1539,8 +1568,13 @@
       if (h && h.kind === "rotate") { op = { kind: "rotate", h, a0: Math.atan2(y - h.cy, x - h.cx), orig: orig(), moved: false }; return; }
       const hit = topHit(x, y, tolerance(ev));
       if (hit) {
+        if (ev.shiftKey && selection.has(hit.id)) {
+          const off = withGroups(editing.elements, new Set([hit.id]));
+          selection = new Set([...selection].filter((id) => !off.has(id)));
+          op = null; redraw(); return;
+        }
         if (!selection.has(hit.id)) selection = withGroups(editing.elements, ev.shiftKey ? new Set([...selection, hit.id]) : new Set([hit.id]));
-        op = { kind: "move", x0: x, y0: y, orig: editing.elements.filter((e) => selection.has(e.id) && !e.lk).map((e) => ({ ...e })), moved: false, tapped: hit };
+        op = { kind: "move", x0: x, y0: y, orig: editing.elements.filter((e) => selection.has(e.id) && !e.lk).map((e) => ({ ...e })), moved: false, tapped: hit, copy: ev.altKey };
       } else {
         if (!ev.shiftKey) selection = new Set();
         op = { kind: "box", x0: x, y0: y, x1: x, y1: y, base: new Set(selection) };
@@ -1595,6 +1629,13 @@
       if (!op.moved && Math.hypot(dx, dy) * view.k < 3) return;
       if (!op.moved) {
         remember(); op.moved = true;
+        // Alt+drag leaves the originals (and what's stuck to them) where
+        // they were and drags new copies away.
+        if (op.copy) {
+          op.orig = reid(op.orig, uid);
+          editing.elements.push(...op.orig.map((e) => ({ ...e })));
+          selection = new Set(op.orig.map((e) => e.id));
+        }
         // An arrow moved on its own comes loose from what it stuck to.
         const ids = new Set(op.orig.map((e) => e.id));
         op.orig = op.orig.map((e) => {
@@ -1609,13 +1650,14 @@
       op.guides = null;
       const box = { ...op.box, x: op.box.x + dx, y: op.box.y + dy };
       let gx = null, gy = null;
-      if (opts.guides && !ev.altKey) {
+      const free = ev.altKey && !op.copy;
+      if (opts.guides && !free) {
         const g = guideSnap(box, op.others, 6 / view.k);
         gx = g.dx; gy = g.dy;
         if (g.lines.length) op.guides = g.lines;
       }
-      if (gx != null) dx += gx; else if (opts.snap && !ev.altKey) dx += snapTo(box.x, GRID) - box.x;
-      if (gy != null) dy += gy; else if (opts.snap && !ev.altKey) dy += snapTo(box.y, GRID) - box.y;
+      if (gx != null) dx += gx; else if (opts.snap && !free) dx += snapTo(box.x, GRID) - box.x;
+      if (gy != null) dy += gy; else if (opts.snap && !free) dy += snapTo(box.y, GRID) - box.y;
       const byId = new Map(op.orig.map((e) => [e.id, moved(e, dx, dy)]));
       editing.elements = editing.elements.map((e) => byId.get(e.id) || e);
       redraw();
@@ -2365,10 +2407,24 @@
     syncToolbar();
     changed(editing); redraw();
   }
+  // A copy of the selection a little down and right, selected (Ctrl+D).
+  function duplicateSelection() {
+    if (!editing || !selection.size) return;
+    commitText();
+    const added = reid(editing.elements.filter((e) => selection.has(e.id)).map((e) => moved(e, 16, 16)), uid);
+    remember();
+    editing.elements.push(...added);
+    tool = "select";
+    selection = new Set(added.map((e) => e.id));
+    syncToolbar();
+    changed(editing); redraw();
+  }
   const B_sanitize = (list) => sanitizeBoard({ id: "x", elements: list.filter((e) => e && typeof e === "object") }).elements;
   function syncClipButtons() {
     const c = $("#boardCopy"), p = $("#boardPaste");
     if (c) c.hidden = !selection.size;
+    const d = $("#boardDuplicate");
+    if (d) d.hidden = !selection.size;
     if (p) p.hidden = !clip || (tool !== "select" && tool !== "hand");
   }
   // Only what the tool (or the selection) can use. A bar left with nothing
@@ -2504,6 +2560,7 @@
     const letter = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (mod && letter === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return true; }
     if (mod && letter === "y") { e.preventDefault(); redo(); return true; }
+    if (mod && letter === "d") { e.preventDefault(); duplicateSelection(); return true; }
     if (mod && letter === "g") { e.preventDefault(); toggleGroup(); return true; }
     if (mod && letter === "l") { e.preventDefault(); toggleLock(); return true; }
     if (mod && letter === "a") { e.preventDefault(); setTool("select"); selection = new Set(editing.elements.filter((x) => !x.lk).map((x) => x.id)); redraw(); return true; }
@@ -2694,6 +2751,9 @@
     document.addEventListener("copy", onCopy);
     document.addEventListener("cut", onCut);
     $("#boardCopy").onclick = copyNow;
+    $("#boardDuplicate").onclick = duplicateSelection;
+    // A closed app never reaches closeBoard, so where it was goes now.
+    document.addEventListener("visibilitychange", () => { if (document.hidden && editing) saveView(editing.id); });
     $("#boardGroup").onclick = toggleGroup;
     $("#boardLock").onclick = toggleLock;
     $("#boardLink").onclick = (e) => { e.stopPropagation(); if ($("#boardLinkPick").hidden) openLinkPick(); else closeLinkPick(); };
