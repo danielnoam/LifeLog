@@ -451,7 +451,7 @@
     sheetEvent = ev;
     const text = G.plainText(ev.text);
     $("#gcalEventTitle").textContent = ev.title;
-    $("#gcalEventFrom").textContent = i18n.t("From Google Calendar") + (G.calName(ev.cal) ? " · " + G.calName(ev.cal) : "");
+    $("#gcalEventFrom").textContent = i18n.t("From Google Calendar");
     $("#gcalEventWhen").textContent = G.whenText(ev, Dates());
     $("#gcalEventPlace").hidden = !ev.place;
     $("#gcalEventPlace").textContent = ev.place;

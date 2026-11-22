@@ -434,7 +434,7 @@
     row.appendChild(el("span", "home-row-ico")).appendChild(ico("calendar"));
     const text = row.appendChild(el("span", "home-row-text"));
     text.appendChild(el("span", "home-row-title", r.title));
-    text.appendChild(el("span", "home-row-sub", ["Google Calendar", G.calName(r.cal)].filter(Boolean).join(" · ")));
+    text.appendChild(el("span", "home-row-sub", G.sourceOf(r.cal)));
     const when = r.allDay ? i18n.t("All day") : r.time;
     const day = r.day === today ? "" : bucketOf(r.day, today) === i18n.t("This week") || r.day === addDays(today, 1)
       ? D.WEEKDAYS[D.parts(r.day).wd] + " " + D.parts(r.day).d : D.day(r.day, { year: "auto" });
@@ -1099,7 +1099,7 @@
       row.appendChild(el("span", "home-cal-time", ev.allDay ? i18n.t("All day") : ev.time));
       const text = row.appendChild(el("span", "home-row-text"));
       text.appendChild(el("span", "home-row-title", ev.title));
-      text.appendChild(el("span", "home-row-sub", ["Google Calendar", G.calName(ev.cal)].filter(Boolean).join(" · ")));
+      text.appendChild(el("span", "home-row-sub", G.sourceOf(ev.cal)));
       row.onclick = () => J.openEventSheet(ev);
     }
     for (const r of mo.tasksByDay.get(d) || []) {

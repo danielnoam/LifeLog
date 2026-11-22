@@ -408,10 +408,14 @@
   }
   const colorOf = (calId) => { const c = cfg && (cfg.calendars || []).find((x) => x.id === calId); return (c && c.color) || ""; };
   const calName = (calId) => { const c = cfg && (cfg.calendars || []).find((x) => x.id === calId); return (c && c.name) || ""; };
+  // An event row's second line, the same in every list that shows one: just
+  // the source. Calendar names stay off it, since a primary calendar is
+  // named after the account's email (Daniel, 2026-11-22).
+  const sourceOf = () => "Google Calendar";
 
   window.LifeLogGcal = {
     GcalError, SCOPES, readEvents, byDay, whenText, plainText,
-    connect, disconnect, sync, ensure, setCalendar, eventsFor, colorOf, calName, getToken,
+    connect, disconnect, sync, ensure, setCalendar, eventsFor, colorOf, calName, sourceOf, getToken,
     onChange: (f) => listeners.add(f),
     // A way in: the plugin on a phone, the Desktop client on a computer,
     // the Web client in a browser over https (or localhost).
