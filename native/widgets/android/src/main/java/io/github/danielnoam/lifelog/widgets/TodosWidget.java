@@ -107,7 +107,7 @@ public class TodosWidget extends AppWidgetProvider {
     }
 
     static long itemId(WidgetStore.Row r, String panel) {
-        String key = r.type == WidgetStore.ROW_TODO ? "todo:" + r.id : r.type + ":" + panel;
+        String key = r.type == WidgetStore.ROW_TODO ? "todo:" + r.id : r.section ? "section:" + panel + ":" + r.text : r.type + ":" + panel;
         // A heading's layout changes with its tick, so it isn't one view kept across updates.
         return key.hashCode();
     }
