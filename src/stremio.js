@@ -62,24 +62,28 @@
       else if (inLibrary) status = "planning";
       else continue;
       const rec = { id, type: it.type, name: String(it.name || "").trim(), poster: /^https:\/\//.test(it.poster || "") ? it.poster : "", status, last };
-      if (ep && +ep[1] > 0) { rec.season = +ep[1]; rec.episode = +ep[2]; }
+      if (ep && +ep[1] > 0) { rec.season = +ep[1]; rec.episode = +ep[2]; rec.episodeDone = (+st.flaggedWatched || 0) > 0; }
       out.push(rec);
     }
     return out;
   }
 
-  // Episodes watched for a show last played at S<season>E<episode>, in the
+  // Episodes watched for a show Stremio has at S<season>E<episode>, in the
   // count the app shows: the whole run for a show that has ended, the
   // season's for one still going (its "5/6/12" is that season's). 0 when it
-  // can't be told.
-  function episodesWatched(season, episode, info) {
+  // can't be told. Stremio's video_id is the episode you're on, not the last
+  // one finished: past the credits it moves to the next episode and clears
+  // flaggedWatched, so that episode counts only when `done` (flaggedWatched,
+  // e.g. a last episode with nothing after it).
+  function episodesWatched(season, episode, info, done) {
     if (!season || !episode) return 0;
+    const n = done ? episode : episode - 1;
     if (info && (info.airing === "finished" || info.airing === "cancelled") && info.seasons && info.seasons.length) {
       const before = info.seasons.filter((s) => s.season < season).reduce((n, s) => n + (s.episodes || 0), 0);
-      return before + episode;
+      return before + n;
     }
-    if (info && info.airingSeason) return info.airingSeason === season ? episode : 0;
-    return season === 1 ? episode : 0;
+    if (info && info.airingSeason) return info.airingSeason === season ? n : 0;
+    return season === 1 ? n : 0;
   }
 
   // Records to review rows. `opts`: categories { movie, series } (empty is
@@ -131,7 +135,7 @@
         }
         entries.push({ entry, id: r.id, finishes: b ? b.id : null, dated: DAY.test(r.last) });
       } else if (r.status === "watching") {
-        const count = r.type === "series" ? episodesWatched(r.season, r.episode, seasons && seasons.get(r.id)) : 0;
+        const count = r.type === "series" ? episodesWatched(r.season, r.episode, seasons && seasons.get(r.id), r.episodeDone) : 0;
         const started = DAY.test(r.last) ? r.last : opts.today;
         if (b) {
           if (b.dropped) continue;

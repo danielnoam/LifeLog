@@ -46,12 +46,30 @@ test("1970 and nothing both mean never played", () => {
 
 test("episodes watched follow how the app counts", () => {
   const ended = { airing: "finished", seasons: [{ season: 1, episodes: 7 }, { season: 2, episodes: 13 }] };
-  assert.strictEqual(S.episodesWatched(2, 5, ended), 12, "an ended show counts the whole run");
-  assert.strictEqual(S.episodesWatched(3, 4, { airing: "airing", airingSeason: 3 }), 4, "a running show counts its season");
-  assert.strictEqual(S.episodesWatched(2, 4, { airing: "airing", airingSeason: 3 }), 0, "an older season of a running show can't be told");
-  assert.strictEqual(S.episodesWatched(1, 6, null), 6);
+  assert.strictEqual(S.episodesWatched(2, 5, ended, true), 12, "an ended show counts the whole run");
+  assert.strictEqual(S.episodesWatched(2, 5, ended), 11, "the episode Stremio is on isn't watched yet");
+  assert.strictEqual(S.episodesWatched(2, 1, ended), 7, "on a new season's first episode, the seasons before");
+  assert.strictEqual(S.episodesWatched(3, 4, { airing: "airing", airingSeason: 3 }, true), 4, "a running show counts its season");
+  assert.strictEqual(S.episodesWatched(3, 4, { airing: "airing", airingSeason: 3 }), 3);
+  assert.strictEqual(S.episodesWatched(2, 4, { airing: "airing", airingSeason: 3 }, true), 0, "an older season of a running show can't be told");
+  assert.strictEqual(S.episodesWatched(1, 6, null, true), 6);
+  assert.strictEqual(S.episodesWatched(1, 6, null), 5);
   assert.strictEqual(S.episodesWatched(2, 6, null), 0);
   assert.strictEqual(S.episodesWatched(0, 0, null), 0);
+});
+
+// What Stremio's own player leaves after you finish episodes 1 and 2 and
+// haven't started 3: past the credits of 2 it moves video_id on to 3, sets
+// timeOffset to 1 and clears flaggedWatched (stremio-core advance_to_video).
+test("finishing episode 2 counts 2, not the episode 3 Stremio moved on to", () => {
+  const [up] = S.readLibrary([item("tt7660850", "series", "Next up", { lastWatched: "2026-11-22T19:00:00.000Z", timeWatched: 0, overallTimeWatched: 5000000, timeOffset: 1, duration: 2600000, flaggedWatched: 0, video_id: "tt7660850:1:3" })]);
+  assert.deepStrictEqual([up.status, up.season, up.episode, up.episodeDone], ["watching", 1, 3, false]);
+  const p = S.planStremio([up], { categories: { movie: "Films", series: "Shows" }, data: { backlog: [], entries: [] }, matches: new Map(), seasons: new Map(), today: "2026-11-22" });
+  assert.strictEqual(p.backlog[0].item.progress, 2);
+  const mid = S.readLibrary([item("tt7660850", "series", "Halfway", { lastWatched: "2026-11-22T19:00:00.000Z", timeWatched: 900000, timeOffset: 900000, duration: 2600000, video_id: "tt7660850:1:3" })])[0];
+  assert.strictEqual(S.episodesWatched(mid.season, mid.episode, null, mid.episodeDone), 2, "part-way through 3 is still 2");
+  const last = S.readLibrary([item("tt7660850", "series", "Finale", { lastWatched: "2026-11-22T19:00:00.000Z", timeWatched: 2500000, timeOffset: 0, duration: 2600000, flaggedWatched: 1, video_id: "tt7660850:1:8" })])[0];
+  assert.strictEqual(S.episodesWatched(last.season, last.episode, null, last.episodeDone), 8, "a last episode with nothing after it stays and is flagged watched");
 });
 
 const cats = { movie: "Films", series: "Shows" };
@@ -98,7 +116,7 @@ test("what you already have is left alone, or filled in", () => {
   assert.strictEqual(p.updates.length, 1);
   const u = p.updates[0];
   assert.strictEqual(u.target.id, "b3");
-  assert.strictEqual(u.patch.progress, 12);
+  assert.strictEqual(u.patch.progress, 11, "S2E5 is where Stremio is, so S1 and four of S2");
   assert.strictEqual(u.patch.startedAt, undefined, "a start you have is kept");
 });
 
