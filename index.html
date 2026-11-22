@@ -492,6 +492,9 @@
           </div>
           <textarea id="taskNote" class="task-note" rows="1" autocomplete="off" aria-label="Description" placeholder="Add a description" data-t-attr="placeholder,aria-label"></textarea>
           <div class="task-fields">
+            <label class="task-field" id="taskSectionRow" hidden><span data-ico="square-kanban"></span><span class="task-field-label" id="taskSectionLabel"></span>
+              <select id="taskSection"></select>
+            </label>
             <label class="task-field"><span data-ico="layers"></span><span class="task-field-label"><span data-t>Category</span></span>
               <span class="dot" id="taskCatDot"></span><select id="taskCategory"></select>
             </label>
@@ -2340,7 +2343,7 @@
       <section class="sgroup">
         <h3 class="sgroup-label" data-t>Lists to bring in</h3>
         <div id="trelloLists"></div>
-        <p class="hint" data-t>Each list you turn on is a task list in the Notebook. Cards are tasks: the due date is the task's date, named labels are tags, checklist items are subtasks. Turning a list off stops syncing it and keeps its task list.</p>
+        <p class="hint" data-t>A board you bring in is one task list in the Notebook, with its lists as sections: moving a task to another section moves its card, and ticking one moves it to the board's Done list. Turn off One task list for the board to get a task list for each list instead. Cards are tasks: the due date is the task's date, named labels are tags, checklist items are subtasks. Turning a list off stops syncing it and takes its tasks out of the Notebook.</p>
       </section>
       <section class="sgroup">
         <h3 class="sgroup-label" data-t>What goes back to Trello</h3>

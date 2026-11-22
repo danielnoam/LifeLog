@@ -412,16 +412,26 @@ when known (true otherwise); `lifelog_waypage_unlink` puts a book there,
 Trello API key typed in, "" uses the app's own), `token` (reads and writes
 every board the user can; blanked in exports like the others), `member`
 (`{ id, username, fullName }`), `connectedAt`, `lists` (the Trello lists
-that come in, each `{ id, name, board, boardName }`), `tick` ("complete",
+that come in, each `{ id, name, board, boardName }`), `split` (board ids
+whose lists come in as a task list each; every other board is one task
+list), `tick` ("complete",
 "move" to the board's Done list, or "archive": what ticking a task does to
 its card), `send` (false reads only) and `mine` (true keeps only cards the
 user is a member of). `lifelog_trello` shows it without the token.
-Each list is a task list note with `trello: { list, board, cards }`
-(`cards`: the card ids it had at the last sync, so a task deleted here
-archives its card) and id `trello-<list id>`. A task from a card has id
+A board (Nov 2026) is one task list note with id `trello-board-<board id>`,
+`trello: { board, lists, cards }` (`lists`: its Trello lists brought in, in
+the board's order) and `sections: [{ id, name }]` (a section per Trello
+list; any task list with two or more sections draws them). Each task there
+has `section`, the Trello list it's on (none: the first); changing it moves
+the card (`lifelog_task_section`), and ticking moves the card to the
+board's Done list when it has one, unless `tick` is "archive". A board in
+`split` has a task list note per list instead, with
+`trello: { list, board, cards }` and id `trello-<list id>`. In both,
+`cards` is the card ids it had at the last sync, so a task deleted here
+archives its card. A task from a card has id
 `trello-<card id>` and `trello: { card, board, base, checks, gone? }`:
 `base` is what Trello had at the last sync (`name`, `desc`, `due`, `done`,
-`labels`), which is how the app tells a change here from one there;
+`labels`, `list`), which is how the app tells a change here from one there;
 `checks` the checklist item ids its subtasks came from; `gone` true once
 the card is archived or off the list (the task leaves the list at the next
 sync, unless it was unticked here, which brings the card back). A subtask from a checklist item has

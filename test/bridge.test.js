@@ -1414,6 +1414,22 @@ test("Trello (Nov 2026): the connection is shown without its token, with each li
   assert.ok(data().notes.find((n) => n.id === "trello-" + L).items[0].trello.base, "reading keeps the link");
 });
 
+test("Trello boards (Nov 2026): a board's task list shows its lists as sections, and a task moves between them", async () => {
+  reset();
+  const d0 = data();
+  const L = "a".repeat(24), L2 = "d".repeat(24), B = "b".repeat(24), C = "e".repeat(24);
+  d0.settings.trello = { token: "tok", member: { id: "c".repeat(24), username: "reader" }, lists: [{ id: L, name: "To do", board: B, boardName: "Home" }, { id: L2, name: "Doing", board: B, boardName: "Home" }] };
+  d0.notes.push({ id: "trello-board-" + B, kind: "list", text: "Home", createdAt: T, updatedAt: T, sections: [{ id: L, name: "To do" }, { id: L2, name: "Doing" }], trello: { board: B, lists: [L, L2], cards: [C] },
+    items: [{ id: "trello-" + C, text: "Paint", section: L, trello: { card: C, board: B, base: { name: "Paint", desc: "", due: null, done: false, labels: [], list: L } } }] });
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const shown = await ok("lifelog_trello", {});
+  assert.match(shown, /Home › To do: section of the board's task list "Home" \(trello-board-b+\), 1 open/);
+  assert.match(shown, /Home › Doing: section of the board's task list "Home" \(trello-board-b+\), 0 open/);
+  assert.match(await ok("lifelog_task_section", { list: "Home", task: "Paint", section: "doing" }), /is in Doing now; its card moves/);
+  assert.strictEqual(data().notes.find((n) => n.id === "trello-board-" + B).items[0].section, L2);
+  await refused("lifelog_task_section", { list: "Home", task: "Paint", section: "Someday" }, /It has: To do, Doing/);
+});
+
 test("Waypage (0.313.0): the reading log is shown without its token, and a review row is answered", async () => {
   reset();
   const d0 = data();

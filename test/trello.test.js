@@ -27,7 +27,7 @@ function fakeTrello(cards) {
     let m;
     if (method === "GET" && (m = /^\/lists\/(\w+)\/cards$/.exec(p))) return json([...db.values()].filter((c) => c.idList === m[1] && !c.closed));
     if (method === "GET" && /^\/boards\/\w+\/labels$/.test(p)) return json(LBL);
-    if (method === "GET" && /^\/boards\/\w+\/lists$/.test(p)) return json([{ id: L1, name: "To do" }, { id: DONE, name: "Done" }]);
+    if (method === "GET" && /^\/boards\/\w+\/lists$/.test(p)) return json([{ id: L1, name: "To do" }, { id: L2, name: "Doing" }, { id: DONE, name: "Done" }]);
     if (method === "GET" && (m = /^\/cards\/(\w+)$/.exec(p))) return db.has(m[1]) ? json(db.get(m[1])) : json("not found", 404);
     if (method === "PUT" && (m = /^\/cards\/(\w+)$/.exec(p))) { Object.assign(db.get(m[1]), body); return json(db.get(m[1])); }
     if (method === "POST" && p === "/cards") { const c = { id: id(next++), idBoard: B, closed: false, dueComplete: false, idLabels: [], idMembers: [ME], checklists: [], ...body }; db.set(c.id, c); return json(c); }
@@ -46,7 +46,9 @@ function fakeTrello(cards) {
   }
   return { db, calls, fetch };
 }
-const cfg = (o = {}) => T.cleanConfig({ key: "k".repeat(32), token: "tok", member: { id: ME, username: "me" }, lists: [{ id: L1, name: "To do", board: B, boardName: "Home" }], ...o });
+// These run a board as a task list per Trello list (its switch off); the
+// board tests further down run it as one.
+const cfg = (o = {}) => T.cleanConfig({ key: "k".repeat(32), token: "tok", member: { id: ME, username: "me" }, lists: [{ id: L1, name: "To do", board: B, boardName: "Home" }], split: [B], ...o });
 async function sync(data, c, trello) {
   const s = await T.syncData(() => data, c, trello.fetch);
   await s.run();
@@ -251,6 +253,95 @@ test("settings are cleaned: bad ids dropped, unknown fields kept, token blanked 
   assert.strictEqual(c.future, 1);
   assert.strictEqual(T.connected(c), !!T.APP_KEY && false);
   assert.ok(/key=k{32}$/.test(T.authorizeUrl("k".repeat(32))) && /scope=read,write/.test(T.authorizeUrl("x")) && /expiration=never/.test(T.authorizeUrl("x")));
+});
+
+// ---------- a board as one task list (Daniel, 2026-11-22) ----------
+const BOTH = [{ id: L1, name: "To do", board: B, boardName: "Home" }, { id: L2, name: "Doing", board: B, boardName: "Home" }];
+const boardCfg = (o = {}) => cfg({ lists: BOTH, split: [], ...o });
+const boardNote = (data) => data.notes.find((n) => n.id === "trello-board-" + B);
+
+test("a board's lists come in as one task list, each list a section", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L2, name: "B" }]);
+  const data = { notes: [] };
+  await sync(data, boardCfg(), tr);
+  assert.strictEqual(data.notes.length, 1);
+  const n = boardNote(data);
+  assert.strictEqual(n.text, "Home");
+  assert.deepStrictEqual(n.sections, [{ id: L1, name: "To do" }, { id: L2, name: "Doing" }]);
+  assert.deepStrictEqual(n.items.map((x) => [x.text, x.section]), [["A", L1], ["B", L2]]);
+  assert.deepStrictEqual(sends(tr), []);
+});
+
+test("a card moved between the board's lists changes section; a section changed here moves the card", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L1, name: "B" }]);
+  const data = { notes: [] };
+  await sync(data, boardCfg(), tr);
+  tr.db.get(id(1)).idList = L2;
+  tr.db.get(id(1)).dateLastActivity = "2026-11-30T00:00:00.000Z";
+  await sync(data, boardCfg(), tr);
+  assert.strictEqual(task(data, id(1)).section, L2);
+  assert.ok(!task(data, id(1)).done, "moved, not done");
+  assert.deepStrictEqual(sends(tr), []);
+  task(data, id(2)).section = L2;
+  task(data, id(2)).updatedAt = "2026-12-01T00:00:00.000Z";
+  await sync(data, boardCfg(), tr);
+  assert.strictEqual(tr.db.get(id(2)).idList, L2);
+  const n = sends(tr).length;
+  await sync(data, boardCfg(), tr);
+  assert.strictEqual(sends(tr).length, n, "a second sync sends nothing");
+});
+
+test("on a board's task list a tick moves the card to its Done list, unless ticking archives", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L2, name: "A" }, { id: id(2), idList: L1, name: "B" }]);
+  const data = { notes: [] };
+  await sync(data, boardCfg(), tr);
+  Object.assign(task(data, id(1)), { done: true, doneAt: "2026-11-02T00:00:00.000Z" });
+  await sync(data, boardCfg(), tr);
+  assert.strictEqual(tr.db.get(id(1)).idList, DONE);
+  Object.assign(task(data, id(2)), { done: true, doneAt: "2026-11-02T00:00:00.000Z" });
+  await sync(data, boardCfg({ tick: "archive" }), tr);
+  assert.strictEqual(tr.db.get(id(2)).closed, true);
+  assert.strictEqual(tr.db.get(id(2)).idList, L1);
+});
+
+test("a new task here goes to its section's list, the first when it has none", async () => {
+  const tr = fakeTrello([]);
+  const data = { notes: [] };
+  await sync(data, boardCfg(), tr);
+  boardNote(data).items.push({ id: "n1", text: "First" }, { id: "n2", text: "Second", section: L2 });
+  await sync(data, boardCfg(), tr);
+  const posts = sends(tr).filter((c) => c.path === "/cards");
+  assert.deepStrictEqual(posts.map((c) => [c.body.name, c.body.idList]), [["First", L1], ["Second", L2]]);
+  assert.strictEqual(boardNote(data).items.find((x) => x.id === "n2").section, L2);
+});
+
+test("switching a board to one task list and back moves the tasks, keeps their ids and sends nothing", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L2, name: "B" }]);
+  const data = { notes: [{ id: "x", kind: "list", text: "Mine", items: [] }] };
+  const split = boardCfg({ split: [B] });
+  await sync(data, split, tr);
+  note(data, L1).fav = true;
+  assert.strictEqual(data.notes.length, 3);
+  await sync(data, boardCfg(), tr);
+  assert.deepStrictEqual(data.notes.map((n) => n.id).sort(), ["trello-board-" + B, "x"].sort());
+  assert.deepStrictEqual(boardNote(data).items.map((x) => [x.id, x.section]), [["trello-" + id(1), L1], ["trello-" + id(2), L2]]);
+  assert.strictEqual(boardNote(data).fav, true, "the favourite star comes along");
+  await sync(data, split, tr);
+  assert.ok(!boardNote(data));
+  assert.deepStrictEqual(note(data, L1).items.map((x) => x.id), ["trello-" + id(1)]);
+  assert.deepStrictEqual(note(data, L2).items.map((x) => x.id), ["trello-" + id(2)]);
+  assert.ok(!note(data, L2).items[0].section);
+  assert.deepStrictEqual(sends(tr), []);
+});
+
+test("a list turned off takes its tasks off the board's task list, and nothing is archived", async () => {
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "A" }, { id: id(2), idList: L2, name: "B" }]);
+  const data = { notes: [] };
+  await sync(data, boardCfg(), tr);
+  await sync(data, boardCfg({ lists: [BOTH[0]] }), tr);
+  assert.deepStrictEqual(boardNote(data).items.map((x) => x.text), ["A"]);
+  assert.deepStrictEqual(boardNote(data).sections.map((x) => x.id), [L1]);
+  assert.deepStrictEqual(sends(tr), []);
 });
 
 (async () => {
