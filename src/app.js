@@ -645,6 +645,9 @@
   // above the anchor collapse to header height on rebuild, so the old
   // scrollY no longer lines up with the same content and gets clamped.
   let scrollAnchor = null;
+  // Whether the last render was selecting, and the row a long press just
+  // started a selection on (see captureRowAnchor).
+  let lastRenderedBulk = false, bulkPressedRow = null, bulkLastId = null;
   // Replays the view-fade-in animation on `root` only when the active view
   // actually changed (not on every in-view re-render, e.g. after an edit).
   let lastRenderedMode = null;
@@ -1720,6 +1723,17 @@
     if (inPlace && !keepSnapshots) modeSnapshots.clear();
     const prevScrollY = window.scrollY;
     scrollAnchor = inPlace ? captureScrollAnchor() : null;
+    // Starting or ending a selection reshapes every row (a tick column, a
+    // list note's items going read-only), so the section header above isn't
+    // close enough to hold the view: a phone saw the row it was holding
+    // jump a few hundred pixels. Pin the row itself instead.
+    const bulkFlip = state.bulk.active !== lastRenderedBulk;
+    const rowAnchor = inPlace && bulkFlip ? captureRowAnchor(bulkPressedRow, bulkLastId) : null;
+    lastRenderedBulk = state.bulk.active;
+    bulkPressedRow = null;
+    // Held at its old height through the rebuild, so the page can't come
+    // out too short to scroll back to the row (see below).
+    if (rowAnchor) $("#viewBody").style.minHeight = $("#viewBody").offsetHeight + "px";
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
     try {
       placeTabs();
@@ -1799,6 +1813,17 @@
       if (inPlace) {
         if (!(scrollAnchor && restoreScrollAnchor(scrollAnchor)) && prevScrollY) {
           window.scrollTo(0, prevScrollY);
+        }
+        if (rowAnchor) {
+          // Fresh month cards and sections are content-visibility: auto and
+          // stand at a 300px guess until the next frame lays them out, so
+          // the row is pinned again once they're real, and the held height
+          // let go.
+          restoreRowAnchor(rowAnchor);
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            $("#viewBody").style.minHeight = "";
+            restoreRowAnchor(rowAnchor);
+          }));
         }
       } else if (prevScrollY) {
         // A new view or mode starts at the top, explicitly. This used to
@@ -1889,6 +1914,30 @@
       if (heads[i].getBoundingClientRect().top <= offset) index = i; else break;
     }
     return { index, top: heads[index].getBoundingClientRect().top };
+  }
+  // The row to keep still when a selection starts or ends: the one pressed,
+  // else the last one ticked while it's on screen (a grid of notes reflows
+  // around it, so the top one can be a column away from where you were
+  // looking), else the first one fully below the top bar. Its id and which
+  // copy of it (a Backlog item can show twice) find it again after the
+  // rebuild.
+  function captureRowAnchor(pressed, lastId) {
+    const body = $("#viewBody");
+    if (!body) return null;
+    const line = $(".topbar").getBoundingClientRect().bottom;
+    const live = (e) => e.dataset.id && e.isConnected && e.getClientRects().length;
+    const onScreen = (e) => { const r = e.getBoundingClientRect(); return r.top >= line && r.top < innerHeight; };
+    let row = pressed && body.contains(pressed) && live(pressed) ? pressed : null;
+    if (!row && lastId) row = [...body.querySelectorAll(`[data-id="${CSS.escape(lastId)}"]`)].find((e) => live(e) && onScreen(e)) || null;
+    if (!row) row = [...body.querySelectorAll("[data-id]")].find((e) => live(e) && onScreen(e));
+    if (!row) return null;
+    const same = [...body.querySelectorAll(`[data-id="${CSS.escape(row.dataset.id)}"]`)];
+    return { id: row.dataset.id, nth: same.indexOf(row), top: row.getBoundingClientRect().top };
+  }
+  function restoreRowAnchor(a) {
+    const same = [...$("#viewBody").querySelectorAll(`[data-id="${CSS.escape(a.id)}"]`)];
+    const row = same[a.nth] || same[0];
+    if (row && row.getClientRects().length) window.scrollBy(0, row.getBoundingClientRect().top - a.top);
   }
   // Undo the scroll clamp a content rebuild causes: put the anchored section
   // header back at the same viewport offset it held before. Positions
@@ -2786,6 +2835,7 @@
 
   function setBulkItem(id, value, opts) {
     if (state.bulk.selected.has(id) === value) return;
+    bulkLastId = id;
     if (value) state.bulk.selected.add(id); else state.bulk.selected.delete(id);
     if (opts && opts.skipRender) {
       // Mid-drag: update the checkbox in place instead of re-rendering, since a
@@ -3213,6 +3263,8 @@
         clearBulkRun();
         state.bulk.selected.clear();
         state.bulk.selected.add(b.id);
+        bulkPressedRow = row.closest("[data-id]") || row;
+        bulkLastId = b.id;
         render();
       }, 500);
     });
@@ -3274,6 +3326,7 @@
     if (state.bulk.selected.has(id)) { state.bulk.active = was.active; state.bulk.selected = was.selected; }
   }
   function selectOne(id) {
+    bulkLastId = id;
     state.bulk.active = true;
     clearBulkRun();
     state.bulk.selected.clear();
