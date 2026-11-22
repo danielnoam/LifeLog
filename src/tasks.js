@@ -111,11 +111,14 @@
   const isTask = (it) => ["note", "priority", "date", "deadline", "parent", "category", "tags"].some((k) => it[k] != null);
   const childrenOf = (items, id) => (items || []).filter((i) => i.parent === id);
   // A task list's sections (Nov 2026: a Trello board's lists), and the one
-  // a task sits in: its own, else the first. Fewer than two is no sections.
+  // a task sits in: its own, else the first. A subtask sits in its task's.
+  // Fewer than two is no sections.
   const sectionsOf = (n) => (n && Array.isArray(n.sections) && n.sections.length > 1 ? n.sections : null);
   function sectionOf(n, it) {
     const secs = sectionsOf(n);
     if (!secs) return null;
+    const up = it && it.parent && (n.items || []).find((x) => x.id === it.parent && x !== it);
+    if (up && !up.parent) return sectionOf(n, up);
     return it && secs.some((s) => s.id === it.section) ? it.section : secs[0].id;
   }
 
