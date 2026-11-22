@@ -155,6 +155,66 @@ async function run(b, width) {
   await page.click("#boardCrop");
   check("Done ends cropping" + at, await page.evaluate(() => !document.querySelector("#boardSvg .board-crop-handle")));
 
+  // ---- duplicate, Shift+click off, Alt+drag (Nov 2026) ----
+  await page.evaluate(() => window.LifeLogBoards.openBoard("bt"));
+  await page.waitForTimeout(300);
+  await tool("select");
+  let bx = await box("B");
+  await page.mouse.click(bx.x + 1, bx.cy);
+  check("the Duplicate button shows with a selection" + at, await page.evaluate(() => !document.querySelector("#boardDuplicate").hidden));
+  const blank = () => page.mouse.click(bx.x - 60, bx.y + bx.h + 30);
+  const n0 = (await els()).length, bEl = await el("B");
+  await page.keyboard.press("Control+d");
+  await page.waitForTimeout(100);
+  let all = await els(), dup = all[all.length - 1];
+  check("Ctrl+D adds a copy a little down and right" + at, all.length === n0 + 1 && dup.id !== "B" && dup.t === "rect" && dup.x === bEl.x + 16 && dup.y === bEl.y + 16, JSON.stringify(dup));
+  await page.click("#boardDuplicate");
+  await page.waitForTimeout(100);
+  all = await els();
+  check("the Duplicate button copies the copy (it was selected)" + at, all.length === n0 + 2 && all[all.length - 1].x === bEl.x + 32);
+  await page.keyboard.press("Control+z"); await page.keyboard.press("Control+z");
+  await page.waitForTimeout(100);
+  check("undo takes the copies back" + at, (await els()).length === n0);
+  await blank();
+  const tb = await box("tx");
+  await page.mouse.click(bx.x + 1, bx.cy);
+  await page.keyboard.down("Shift"); await page.mouse.click(tb.cx, tb.cy); await page.mouse.click(tb.cx, tb.cy); await page.keyboard.up("Shift");
+  await page.keyboard.press("Control+d");
+  await page.waitForTimeout(100);
+  all = await els();
+  check("Shift+click on a selected item takes it out of the selection" + at, all.length === n0 + 1 && all[all.length - 1].t === "rect", JSON.stringify(all[all.length - 1]));
+  await page.keyboard.press("Control+z");
+  await blank();
+  bx = await box("B");
+  await page.keyboard.down("Alt");
+  await drag(bx.x + 1, bx.cy, bx.x + 151, bx.cy + 20);
+  await page.keyboard.up("Alt");
+  all = await els();
+  const left = all.find((e) => e.id === "B"), copy = all[all.length - 1];
+  check("Alt+drag leaves the shape and drags a copy away" + at, all.length === n0 + 1 && left.x === bEl.x && left.y === bEl.y && copy.id !== "B" && copy.x > bEl.x + 60, JSON.stringify([left, copy]));
+  check("and the arrow stays stuck to the original" + at, (await els()).some((e) => e.t === "arrow" && e.b2 && e.b2.id === "B"));
+
+  // ---- a board opens where it was left ----
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => window.LifeLogBoards.openBoard("bt"));
+  await page.waitForTimeout(300);
+  for (let i = 0; i < 3; i++) await page.keyboard.press("Equal");
+  await tool("hand");
+  await drag(width / 2, 400, width / 2 - 120, 330);
+  await tool("select");
+  const where = await page.evaluate(() => document.querySelector("#boardSvg .board-world").getAttribute("transform"));
+  await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check("closing keeps where the board was for this device" + at, await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-board-views-v1") || "{}").bt));
+  await page.evaluate(() => window.LifeLogBoards.openBoard("bt"));
+  await page.waitForTimeout(300);
+  const again = await page.evaluate(() => document.querySelector("#boardSvg .board-world").getAttribute("transform"));
+  const nums = (t) => t.match(/-?[\d.]+/g).map(Number);
+  check("reopening it comes back to the same spot and zoom" + at, nums(where).every((v, i) => Math.abs(v - nums(again)[i]) < 2), where + " vs " + again);
+  await page.keyboard.press("Digit0");
+  check("0 still fits the drawing" + at, await page.evaluate((w) => document.querySelector("#boardSvg .board-world").getAttribute("transform") !== w, again));
+
   check("no errors" + at, errs.length === 0, errs.join("\n"));
   await ctx.close();
 }
