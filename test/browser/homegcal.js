@@ -42,6 +42,8 @@ async function run(browser, lang, width) {
   check(`${at}: Coming up lists the events, one under way today, none past two weeks`,
     JSON.stringify(await titles()) === JSON.stringify(["Trip", "Dentist"]), await titles());
   check(`${at}: a timed event shows its day and time`, /09:30$/.test(await page.textContent('.home-up-ev:has-text("Dentist") .home-row-end')));
+  check(`${at}: the row says just "Google Calendar", no email or calendar name`,
+    (await page.$$eval(".home-up-ev .home-row-sub", (n) => n.map((x) => x.textContent))).every((t) => t === "Google Calendar"));
   check(`${at}: in its calendar's colour`, (await page.$eval(".home-up-ev", (e) => getComputedStyle(e.querySelector(".home-row-ico")).color)) === "rgb(11, 128, 67)");
   if (shots) await page.locator('.home-sec[data-sec="upcoming"]').screenshot({ path: `${shots}/upcoming-${lang}-${width}.png` });
 
@@ -65,6 +67,7 @@ async function run(browser, lang, width) {
 
   await page.click('.home-up-ev:has-text("Dentist")'); await page.waitForTimeout(300);
   check(`${at}: tapping one opens its event sheet`, /Dentist/.test(await page.textContent(".modal-overlay:not([hidden]), .modal-overlay.open").catch(() => "")));
+  check(`${at}: and the sheet doesn't show the email either`, !/@/.test(await page.textContent("#gcalEventFrom")));
   await page.keyboard.press("Escape"); await page.waitForTimeout(200);
 
   await page.evaluate(() => LifeLogGcal.disconnect()); await page.waitForTimeout(300);
