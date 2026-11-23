@@ -459,6 +459,9 @@
         }
       }
       it.trello.checks = n.items.filter((x) => x.parent === it.id && x.trello && x.trello.check).map((x) => x.trello.check);
+      // Their checklists' names, for the card to show over each one's items.
+      const named = card.checklists.map((c) => ({ id: c.id, name: text(c.name) }));
+      if (named.length) it.trello.checklists = named; else delete it.trello.checklists;
     }
 
     for (const l of cfg.lists) {

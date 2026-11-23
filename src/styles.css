@@ -1355,9 +1355,30 @@ input.todo-check:focus-visible { border-radius: 50%; }
 .todo-section {
   display: flex; align-items: center; gap: var(--space-6); width: 100%;
   margin-top: var(--space-12); padding: var(--space-8) 0 var(--space-4);
-  border: 0; border-top: 1px solid var(--border); background: none; border-radius: 0;
-  color: var(--text-dim); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-align: start; cursor: pointer;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim); font-size: var(--fs-xs); font-weight: 600;
 }
+.todo-section-fold {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-6); padding: 0;
+  border: 0; background: none; border-radius: 0; color: inherit; font: inherit; text-align: start; cursor: pointer;
+}
+.todo-section-add {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: var(--r-sm); background: none; color: var(--text-faint); cursor: pointer;
+}
+.todo-section-add:hover, .todo-section-add:focus-visible { color: var(--text); background: var(--hover-bg); }
+.todo-section-compose { margin: var(--space-4) 0 var(--space-8); }
+/* A Trello card's checklists in its task sheet: each name over its items. */
+.task-checklists { margin-top: var(--space-20); }
+.task-checklists[hidden] { display: none; }
+.task-cl-head { margin: var(--space-16) 0 var(--space-8); font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); }
+.task-cl-head:first-child { margin-top: 0; }
+.task-cl { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); }
+.task-sub { display: flex; align-items: center; gap: var(--space-12); min-height: 48px; padding: 0 var(--space-14); }
+.task-sub + .task-sub, .task-sub + .task-sub-compose { border-top: 1px solid var(--border); }
+.task-sub-text { flex: 1; min-width: 0; min-height: 48px; padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: var(--fs-md); text-align: start; cursor: pointer; overflow-wrap: anywhere; }
+.task-sub.is-done .task-sub-text { color: var(--text-faint); text-decoration: line-through; }
+.task-cl .task-sub-compose { margin: 0; border: 0; border-radius: 0 0 var(--r-card) var(--r-card); background: none; }
 .todo-section:first-child { margin-top: 0; border-top: none; }
 .todo-section svg { width: 14px; height: 14px; flex-shrink: 0; }
 .todo-section-n { color: var(--text-faint); font-weight: 500; }
@@ -1869,7 +1890,9 @@ img.cover-loading { opacity: 0; }
   html:not(.force-pc) .picker-group { padding-inline-start: var(--space-16); padding-inline-end: var(--space-16); }
   html:not(.force-pc) .picker-editor { grid-template-columns: 1fr; }
   html:not(.force-pc) .picker-buckets .cat-chip, html:not(.force-pc) .picker-filter-row, html:not(.force-pc) .picker-rail .toggle-label, html:not(.force-pc) .picker-rail .picker-threshold { min-height: 44px; }
-  html:not(.force-pc) button.todo-section { min-height: 44px; padding-top: var(--space-4); }
+  html:not(.force-pc) .todo-section-fold, html:not(.force-pc) .todo-section-add { min-height: 44px; }
+  html:not(.force-pc) .todo-section-add { width: 44px; }
+  html:not(.force-pc) .todo-section { padding-top: var(--space-4); padding-bottom: 0; }
   html:not(.force-pc) .picker-year-more { width: 44px; height: 44px; }
   html:not(.force-pc) .picker-toolbar .link-btn, html:not(.force-pc) .picker-catbar select { min-height: 44px; }
   html:not(.force-pc) .modal label.picker-include { min-height: 44px; }
@@ -1932,7 +1955,9 @@ html.force-mobile .picker-row .ecat, html.force-mobile .picker-row .fdate { disp
 html.force-mobile .picker-group { padding-inline-start: var(--space-16); padding-inline-end: var(--space-16); }
 html.force-mobile .picker-editor { grid-template-columns: 1fr; }
 html.force-mobile .picker-buckets .cat-chip, html.force-mobile .picker-filter-row, html.force-mobile .picker-rail .toggle-label, html.force-mobile .picker-rail .picker-threshold { min-height: 44px; }
-html.force-mobile button.todo-section { min-height: 44px; padding-top: var(--space-4); }
+html.force-mobile .todo-section-fold, html.force-mobile .todo-section-add { min-height: 44px; }
+html.force-mobile .todo-section-add { width: 44px; }
+html.force-mobile .todo-section { padding-top: var(--space-4); padding-bottom: 0; }
 html.force-mobile .picker-year-more { width: 44px; height: 44px; }
 html.force-mobile .picker-toolbar .link-btn, html.force-mobile .picker-catbar select { min-height: 44px; }
 html.force-mobile .modal label.picker-include { min-height: 44px; }

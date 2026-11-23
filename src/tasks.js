@@ -95,7 +95,7 @@
   // sync took it for deleted here and deleted it on Trello (Daniel,
   // 2026-11-22).
   function cleanParents(items) {
-    for (const it of items) if (!(it.trello && it.trello.check)) delete it.parent;
+    for (const it of items) if (!(it.trello && typeof it.trello === "object")) delete it.parent;
     return items;
   }
   // The list's own task fields (16 Nov 2026), on the list note itself:
@@ -362,6 +362,7 @@
     if (document.activeElement !== $("#taskNote")) $("#taskNote").value = it.note || "";
     fillCategory(n, it, parent);
     fillSection(n, it, parent);
+    fillSubs(n, it, parent);
     $("#taskPriority").value = it.priority ? String(it.priority) : "";
     if (tagField) tagField.refresh();
     const when = dateSummary(it, today);
@@ -393,6 +394,70 @@
     const sel = $("#taskSection");
     sel.replaceChildren(...secs.map((sec) => { const o = document.createElement("option"); o.value = sec.id; o.textContent = sec.name || i18n.t("Untitled list"); return o; }));
     sel.value = sectionOf(n, it);
+  }
+  // A Trello card's checklist items, under their checklists' names (Daniel,
+  // 2026-11-22/23: in the card's sheet, not on the Notebook card). A tap on
+  // one opens it; the add line adds to the checklist it's under.
+  function fillSubs(n, it, parent) {
+    const box = $("#taskSubs");
+    const kids = parent ? [] : n.items.filter((x) => x.parent === it.id);
+    const isCard = !parent && !!(it.trello && it.trello.card);
+    box.hidden = !kids.length && !isCard;
+    if (box.hidden) { box.replaceChildren(); return; }
+    const lists = (it.trello && it.trello.checklists) || [];
+    const of = (c) => (lists.some((l) => l.id === (c.trello && c.trello.checklist)) ? c.trello.checklist : (lists[0] || {}).id);
+    const groups = lists.length ? lists.map((l) => ({ id: l.id, name: l.name, rows: kids.filter((c) => of(c) === l.id) })).filter((g) => g.rows.length) : [{ id: "", name: "", rows: kids }];
+    if (!groups.length) groups.push({ id: (lists[0] || {}).id || "", name: (lists[0] || {}).name || "", rows: [] });
+    const out = [];
+    groups.forEach((g, i) => {
+      out.push(el("p", "task-cl-head", g.name || i18n.t("Checklist")));
+      const card = el("div", "task-cl");
+      for (const c of g.rows) {
+        const r = el("div", "task-sub" + (c.done ? " is-done" : ""));
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.className = "todo-check";
+        cb.checked = !!c.done;
+        cb.setAttribute("aria-label", c.done ? i18n.t("Mark as not done: {title}", { title: c.text }) : i18n.t("Mark as done: {title}", { title: c.text }));
+        cb.onchange = () => tickOne(c.id, cb.checked);
+        const b = el("button", "task-sub-text", c.text);
+        b.type = "button";
+        b.onclick = () => { commitText(); cur = { noteId: cur.noteId, itemId: c.id }; fill(); fitText(); };
+        r.append(cb, b);
+        card.appendChild(r);
+      }
+      if (i === groups.length - 1 && isCard) card.appendChild(subCompose(g.id));
+      if (card.children.length) out.push(card);
+    });
+    box.replaceChildren(...out);
+  }
+  function subCompose(checklist) {
+    const wrap = el("div", "todo-compose task-sub-compose");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = i18n.t("Add an item…");
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", i18n.t("Add an item…"));
+    const add = el("button", "btn btn-primary btn-sm", i18n.t("Add"));
+    add.type = "button";
+    add.disabled = true;
+    const submit = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      await change((it, n) => {
+        const kid = { id: uid(), text, parent: it.id };
+        kid.trello = checklist ? { checklist } : {};
+        const last = n.items.map((x) => x.id === it.id || x.parent === it.id).lastIndexOf(true);
+        n.items.splice(last + 1, 0, kid);
+      });
+      const again = $("#taskSubs .task-sub-compose input");
+      if (again) again.focus();
+    };
+    add.onclick = submit;
+    input.oninput = () => { add.disabled = !input.value.trim(); };
+    input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submit(); } };
+    wrap.append(input, add);
+    return wrap;
   }
   function fillCategory(n, it, parent) {
     const sel = $("#taskCategory");

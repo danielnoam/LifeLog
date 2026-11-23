@@ -1436,6 +1436,9 @@ test("Trello boards (Nov 2026): a board's task list shows its lists as sections,
   assert.match(await ok("lifelog_task_section", { list: "Home", task: "Paint", section: "doing" }), /is in Doing now; its card moves/);
   assert.strictEqual(data().notes.find((n) => n.id === "trello-board-" + B).items[0].section, L2);
   await refused("lifelog_task_section", { list: "Home", task: "Paint", section: "Someday" }, /It has: To do, Doing/);
+  await ok("lifelog_add_task", { list: "Home", text: "Sand", section: "Doing" });
+  assert.strictEqual(data().notes.find((n) => n.id === "trello-board-" + B).items.find((x) => x.text === "Sand").section, L2);
+  await refused("lifelog_add_task", { list: "Home", text: "Prime", section: "Someday" }, /Its sections: To do, Doing/);
 });
 
 test("Waypage (0.313.0): the reading log is shown without its token, and a review row is answered", async () => {

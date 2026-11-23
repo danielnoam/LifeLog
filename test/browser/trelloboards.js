@@ -19,6 +19,14 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   const cards = new Map([card(C1, L1, "Order the sink"), card(C2, L1, "Pick tiles"), card(C3, L2, "Paint the ceiling")]);
   const sent = [];
   const until = async (ok, ms = 10000) => { for (const end = Date.now() + ms; Date.now() < end && !ok();) await new Promise((r) => setTimeout(r, 100)); };
+  // Escape until the task sheet is shut: under load a press can land
+  // before the sheet is listening.
+  const closeSheet = async () => {
+    for (let i = 0; i < 5 && await page.evaluate(() => !document.querySelector("#taskModal").hidden); i++) {
+      await page.keyboard.press("Escape");
+      await page.waitForSelector("#taskModal", { state: "hidden", timeout: 2000 }).catch(() => {});
+    }
+  };
   const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
   const LISTS = [{ id: L1, name: "To do" }, { id: L2, name: "Doing" }, { id: DONE, name: "Done" }];
   await page.route("https://api.trello.com/**", async (r) => {
@@ -33,6 +41,8 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
     else if ((m = /^\/lists\/(\w+)\/cards$/.exec(p))) out = [...cards.values()].filter((c) => c.idList === m[1] && !c.closed);
     else if (p === `/boards/${B}/labels`) out = [];
     else if (p === `/boards/${B}/lists`) out = LISTS;
+    else if (req.method() === "POST" && (m = /^\/checklists\/(\w+)\/checkItems$/.exec(p))) { out = { id: "6".repeat(24), name: body.name, state: "incomplete", pos: 9 }; for (const c of cards.values()) for (const cl of c.checklists || []) if (cl.id === m[1]) cl.checkItems.push(out); }
+    else if (req.method() === "POST" && p === "/cards") { out = { id: "9".repeat(24), idBoard: B, closed: false, dueComplete: false, idLabels: [], idMembers: [ME], checklists: [], dateLastActivity: T, desc: "", due: null, ...body }; cards.set(out.id, out); }
     else if (req.method() === "PUT" && p.startsWith("/cards/")) { const c = cards.get(p.split("/")[2]); Object.assign(c, body); out = c; }
     else if (req.method() === "GET" && p.startsWith("/cards/")) out = cards.get(p.split("/")[2]);
     if (!out) return r.fulfill({ status: 404, headers: cors, body: "not found" });
@@ -60,9 +70,9 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   check("the card shows each section's name and open count over its tasks", (await shown()).join("|") === "#To do2|Order the sink|Pick tiles|#Doing1|Paint the ceiling", await shown());
   const hit = await el.locator(".todo-section").first().boundingBox();
   check("a section's name is a 44px tap target on a phone", hit && hit.height >= 44, hit);
-  await el.locator(".todo-section", { hasText: "To do" }).click();
+  await el.locator(".todo-section", { hasText: "To do" }).locator(".todo-section-fold").click();
   check("pressing a section's name folds it", (await shown()).join("|") === "#To do2|#Doing1|Paint the ceiling", await shown());
-  await el.locator(".todo-section", { hasText: "To do" }).click();
+  await el.locator(".todo-section", { hasText: "To do" }).locator(".todo-section-fold").click();
 
   // The sheet's Trello list moves the card.
   await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
@@ -70,7 +80,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   const row = await page.evaluate(() => ({ hidden: document.querySelector("#taskSectionRow").hidden, label: document.querySelector("#taskSectionLabel").textContent, opts: [...document.querySelectorAll("#taskSection option")].map((o) => o.textContent) }));
   check("the task sheet has a Trello list row with the board's lists", !row.hidden && row.label === "Trello list" && row.opts.join() === "To do,Doing", row);
   await page.selectOption("#taskSection", L2);
-  await page.keyboard.press("Escape");
+  await closeSheet();
   await until(() => sent.some((s) => s.path === "/cards/" + C2 && s.body.idList === L2));
   check("changing it moves the card to that list on Trello", cards.get(C2).idList === L2, sent);
   check("and the task now sits under Doing", (await shown()).join("|") === "#To do1|Order the sink|#Doing2|Paint the ceiling|Pick tiles" || (await shown()).join("|") === "#To do1|Order the sink|#Doing2|Pick tiles|Paint the ceiling", await shown());
@@ -130,7 +140,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   await page.waitForTimeout(500);
   await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
   await page.waitForSelector("#taskModal:not([hidden])");
-  await page.keyboard.press("Escape");
+  await closeSheet();
   await page.waitForTimeout(400);
   await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
   await page.waitForTimeout(400);
@@ -139,16 +149,51 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   check("after a save a card's checklist items are still under it", kids.length === 2 && kids.every((x) => x.parent === "trello-" + C2), kids);
   check("and nothing is deleted on Trello", !sent.some((x) => x.method === "DELETE") && cards.get(C2).checklists[0].checkItems.length === 2, sent.filter((x) => x.method === "DELETE"));
 
+  // A section's + adds a task straight into it, and to its list on Trello.
+  await el.locator(".todo-section", { hasText: "Doing" }).locator(".todo-section-add").click();
+  const comp = await page.evaluate(() => [document.activeElement && document.activeElement.placeholder, document.activeElement && !!document.activeElement.closest(".todo-section-compose")]);
+  check("a section's + opens an add line for it, focused", comp[0] === "Add to Doing" && comp[1], comp);
+  const plus = await el.locator(".todo-section", { hasText: "Doing" }).locator(".todo-section-add").boundingBox();
+  check("its + is a 44px tap target on a phone", plus && plus.width >= 44 && plus.height >= 44, plus);
+  await page.keyboard.type("Sand the walls");
+  await page.keyboard.press("Enter");
+  await until(() => sent.some((s) => s.method === "POST" && s.path === "/cards"));
+  check("what's added there goes to that list on Trello", sent.some((s) => s.method === "POST" && s.path === "/cards" && s.body.idList === L2 && s.body.name === "Sand the walls"), sent.filter((s) => s.method === "POST"));
+  check("and sits under its name here", (await shown()).indexOf("Sand the walls") > (await shown()).findIndex((x) => x.startsWith("#Doing")), await shown());
+  const main = await el.locator(".note-list-compose:not(.todo-section-compose) input").getAttribute("placeholder");
+  check("the card's own add line says it adds to the first list", main === "Add to To do", main);
+  await page.keyboard.press("Escape");
+
+  // A card's checklist items stay in its sheet, under the checklist's name.
+  const onCard = await el.evaluate((c) => [...c.querySelectorAll(".todo-text")].map((x) => x.textContent));
+  check("a card's checklist items aren't on the Notebook card", onCard.includes("Pick tiles") && !onCard.includes("TestFlight"), onCard);
+  const meta = await el.locator(".todo-row", { hasText: "Pick tiles" }).textContent();
+  check("its row says how many are ticked", /0\/2/.test(meta), meta);
+  await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
+  await page.waitForSelector("#taskModal:not([hidden])");
+  const subs = await page.$$eval("#taskSubs .task-cl-head, #taskSubs .task-sub-text, #taskSubs .task-sub-compose", (xs) => xs.map((x) => x.classList.contains("task-cl-head") ? "~" + x.textContent : x.classList.contains("task-sub-text") ? x.textContent : "+"));
+  check("its sheet lists them under the checklist's name, with an add line", subs.join("|") === "~iOS|TestFlight|Screens|+", subs);
+  const subH = await page.locator("#taskSubs .task-sub").first().boundingBox();
+  check("each is a 44px row", subH && subH.height >= 44, subH);
+  await page.fill("#taskSubs .task-sub-compose input", "Release notes");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(300);
+  check("one added there shows in the sheet", (await page.$$eval("#taskSubs .task-sub-text", (xs) => xs.map((x) => x.textContent))).includes("Release notes"));
+  await closeSheet(); await page.waitForTimeout(300);
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await until(() => sent.some((s) => s.method === "POST" && /checkItems/.test(s.path)));
+  check("and goes on that checklist on Trello", sent.some((s) => s.method === "POST" && s.path === "/checklists/" + "7".repeat(24) + "/checkItems" && s.body.name === "Release notes"), sent.filter((s) => s.method === "POST"));
+
   // Hebrew.
   await page.evaluate(() => { const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"); v.language = "he"; localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v)); localStorage.setItem("lifelog.lang", "he"); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" })); });
   await page.reload({ waitUntil: "load" });
   await page.waitForSelector(`.note-card[data-id="${ID}"]`, { timeout: 8000 }).catch(() => {});
-  const he = await page.locator(`.note-card[data-id="${ID}"] .todo-section`).first().getAttribute("aria-label");
+  const he = await page.locator(`.note-card[data-id="${ID}"] .todo-section-fold`).first().getAttribute("aria-label");
   check("in Hebrew the section's label is Hebrew", /^(הסתרת|הצגת) /.test(he || ""), he);
   await page.locator(`.note-card[data-id="${ID}"] .todo-row .todo-body`).first().click();
   await page.waitForSelector("#taskModal:not([hidden])");
   check("and so is the sheet's Trello list row", (await page.textContent("#taskSectionLabel")) === "רשימת Trello", await page.textContent("#taskSectionLabel"));
-  await page.keyboard.press("Escape");
+  await closeSheet();
   await page.evaluate(() => window.LifeLogSettings.openSettings("conn-trello"));
   await page.waitForSelector("#trelloLists .sitem", { timeout: 5000 }).catch(() => {});
   const heRows = await page.$$eval("#trelloLists .sitem .sitem-title", (xs) => xs.map((x) => x.textContent));

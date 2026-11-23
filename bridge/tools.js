@@ -2115,6 +2115,7 @@ const TOOLS = [
       text: S.str("The task"),
       ...TASK_FIELDS,
       parent: S.str("A task in the same list to put this right after, by id or text (rows don't nest any more)"),
+      section: S.str("On a Trello board's task list: the section (Trello list) to add it to, by name or id; the first when left out"),
     },
     required: ["list", "text"],
     async run(a) {
@@ -2126,6 +2127,14 @@ const TOOLS = [
         const items = (n.items || []).map((i) => ({ ...i }));
         const it = { id: L.uid(), text };
         applyTaskFields(d, it, a);
+        if (a.section) {
+          const secs = Tasks.sectionsOf(n);
+          if (!secs) fail(`"${cut(n.text, 40)}" has no sections.`);
+          const want = String(a.section).trim().toLowerCase();
+          const sec = secs.find((s) => s.id === a.section) || secs.find((s) => String(s.name).toLowerCase() === want);
+          if (!sec) fail(`No section "${a.section}". Its sections: ${secs.map((s) => s.name).join(", ")}.`);
+          it.section = sec.id;
+        }
         if (a.parent) {
           const p = pickTask(items, a.parent);
           items.splice(items.indexOf(p) + 1, 0, it);
