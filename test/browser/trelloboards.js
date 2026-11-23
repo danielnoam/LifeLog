@@ -19,6 +19,14 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   const cards = new Map([card(C1, L1, "Order the sink"), card(C2, L1, "Pick tiles"), card(C3, L2, "Paint the ceiling")]);
   const sent = [];
   const until = async (ok, ms = 10000) => { for (const end = Date.now() + ms; Date.now() < end && !ok();) await new Promise((r) => setTimeout(r, 100)); };
+  // Escape until the task sheet is shut: under load a press can land
+  // before the sheet is listening.
+  const closeSheet = async () => {
+    for (let i = 0; i < 5 && await page.evaluate(() => !document.querySelector("#taskModal").hidden); i++) {
+      await page.keyboard.press("Escape");
+      await page.waitForSelector("#taskModal", { state: "hidden", timeout: 2000 }).catch(() => {});
+    }
+  };
   const cors = { "access-control-allow-origin": "*", "content-type": "application/json" };
   const LISTS = [{ id: L1, name: "To do" }, { id: L2, name: "Doing" }, { id: DONE, name: "Done" }];
   await page.route("https://api.trello.com/**", async (r) => {
@@ -72,7 +80,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   const row = await page.evaluate(() => ({ hidden: document.querySelector("#taskSectionRow").hidden, label: document.querySelector("#taskSectionLabel").textContent, opts: [...document.querySelectorAll("#taskSection option")].map((o) => o.textContent) }));
   check("the task sheet has a Trello list row with the board's lists", !row.hidden && row.label === "Trello list" && row.opts.join() === "To do,Doing", row);
   await page.selectOption("#taskSection", L2);
-  await page.keyboard.press("Escape");
+  await closeSheet();
   await until(() => sent.some((s) => s.path === "/cards/" + C2 && s.body.idList === L2));
   check("changing it moves the card to that list on Trello", cards.get(C2).idList === L2, sent);
   check("and the task now sits under Doing", (await shown()).join("|") === "#To do1|Order the sink|#Doing2|Paint the ceiling|Pick tiles" || (await shown()).join("|") === "#To do1|Order the sink|#Doing2|Pick tiles|Paint the ceiling", await shown());
@@ -132,7 +140,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   await page.waitForTimeout(500);
   await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
   await page.waitForSelector("#taskModal:not([hidden])");
-  await page.keyboard.press("Escape");
+  await closeSheet();
   await page.waitForTimeout(400);
   await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
   await page.waitForTimeout(400);
@@ -171,7 +179,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   await page.keyboard.press("Enter");
   await page.waitForTimeout(300);
   check("one added there shows in the sheet", (await page.$$eval("#taskSubs .task-sub-text", (xs) => xs.map((x) => x.textContent))).includes("Release notes"));
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  await closeSheet(); await page.waitForTimeout(300);
   await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
   await until(() => sent.some((s) => s.method === "POST" && /checkItems/.test(s.path)));
   check("and goes on that checklist on Trello", sent.some((s) => s.method === "POST" && s.path === "/checklists/" + "7".repeat(24) + "/checkItems" && s.body.name === "Release notes"), sent.filter((s) => s.method === "POST"));
@@ -185,7 +193,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   await page.locator(`.note-card[data-id="${ID}"] .todo-row .todo-body`).first().click();
   await page.waitForSelector("#taskModal:not([hidden])");
   check("and so is the sheet's Trello list row", (await page.textContent("#taskSectionLabel")) === "רשימת Trello", await page.textContent("#taskSectionLabel"));
-  await page.keyboard.press("Escape");
+  await closeSheet();
   await page.evaluate(() => window.LifeLogSettings.openSettings("conn-trello"));
   await page.waitForSelector("#trelloLists .sitem", { timeout: 5000 }).catch(() => {});
   const heRows = await page.$$eval("#trelloLists .sitem .sitem-title", (xs) => xs.map((x) => x.textContent));
