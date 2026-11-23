@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "+3": what a day in the Calendar widget's month has beyond its chips. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cal_chip_more"
+    android:layout_width="match_parent"
+    android:layout_height="13dp"
+    android:layout_marginTop="1dp"
+    android:includeFontPadding="false"
+    android:maxLines="1"
+    android:paddingStart="3dp"
+    android:textAlignment="viewStart"
+    android:textColor="@color/widget_muted"
+    android:textSize="10sp" />

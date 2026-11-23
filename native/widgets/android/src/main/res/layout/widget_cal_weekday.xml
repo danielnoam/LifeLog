@@ -8,4 +8,4 @@
     android:gravity="center"
     android:maxLines="1"
     android:textColor="@color/widget_muted"
-    android:textSize="11sp" />
+    android:textSize="12sp" />

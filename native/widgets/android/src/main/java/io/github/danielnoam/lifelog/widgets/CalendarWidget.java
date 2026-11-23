@@ -8,9 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.widget.RemoteViews;
 import java.text.SimpleDateFormat;
@@ -24,27 +21,32 @@ import org.json.JSONObject;
 /**
  * The Calendar widget (Nov 2026): the Home calendar on the home screen.
  * Google Calendar's events, tasks due, backlog releases and next episodes,
- * and what was finished each day, as an agenda (today and the days ahead)
- * or a month with marks under each day, chosen in its settings
- * (CalendarSettingsActivity). There, too, the events can come from the
- * phone's own calendars instead of LifeLog's Google connection
+ * and what was finished each day, as a month whose weeks fill the widget,
+ * each day with as many chips as its height holds (Nov 2026, laid out like
+ * Google Calendar's month widget; the agenda layout it started with is
+ * gone). In its settings (CalendarSettingsActivity) the events can come
+ * from the phone's own calendars instead of LifeLog's Google connection
  * (PhoneCalendar): always current, every account on the phone, no app run
- * needed, at the cost of the calendar permission.
+ * needed, at the cost of the calendar permission. Week numbers can be
+ * turned off there too.
  *
  * Words come from the app (widgets.js calendarSnapshot), in its language,
- * and the layout turns right to left with it. Every tap opens the app on
- * that day of the Timeline's calendar; the month's arrows step through the
- * months the app sent, here on the home screen.
+ * and the layout turns right to left with it. A day's tap opens the app on
+ * that day of the Timeline's calendar; the arrows step through the months
+ * the app sent, here on the home screen; "+" opens the quick-add window.
  */
 public class CalendarWidget extends AppWidgetProvider {
 
     static final String ACTION_SHIFT = "io.github.danielnoam.lifelog.widgets.CALENDAR_SHIFT";
     static final String EXTRA_DELTA = "delta";
-    static final String AGENDA = "agenda", MONTH = "month", APP = "app", PHONE = "phone";
+    static final String APP = "app", PHONE = "phone";
 
-    private static final int ROW_DP = 24;
-    private static final int HEAD_DP = 52;
-    private static final int MARKS = 4;
+    // The month's measures, in dp, as its layouts have them: the head, the
+    // weekday letters' row, the space under the weeks, a week's line and
+    // day number, a chip with its gap, and the "+N" line.
+    private static final int HEAD_DP = 56, LETTERS_DP = 26, BOTTOM_DP = 4, NUM_DP = 23, CHIP_DP = 15, MORE_DP = 13;
+    /** Room a day has before the launcher has said how tall the widget is. */
+    private static final int ROOMY_DP = 3 * CHIP_DP;
 
     @Override
     public void onUpdate(Context c, AppWidgetManager manager, int[] ids) {
@@ -89,8 +91,9 @@ public class CalendarWidget extends AppWidgetProvider {
         }
     }
 
-    static String layoutOf(JSONObject cfg) {
-        return cfg != null && MONTH.equals(WidgetStore.str(cfg, "layout")) ? MONTH : AGENDA;
+    /** Week numbers beside the month: on unless the widget's settings turned them off. */
+    static boolean weekNumbersOf(JSONObject cfg) {
+        return cfg == null || cfg.optBoolean("weekNumbers", true);
     }
 
     static String sourceOf(JSONObject cfg) {
@@ -113,7 +116,6 @@ public class CalendarWidget extends AppWidgetProvider {
         JSONObject cfg = WidgetStore.config(c, id);
         JSONObject snap = WidgetStore.snapshot(c);
         JSONObject cal = snap == null ? null : snap.optJSONObject("calendar");
-        boolean month = MONTH.equals(layoutOf(cfg));
         boolean phone = PHONE.equals(sourceOf(cfg));
         Locale locale = localeOf(cal);
         boolean rtl = cal != null ? cal.optBoolean("rtl") : android.text.TextUtils.getLayoutDirectionFromLocale(locale) == View.LAYOUT_DIRECTION_RTL;
@@ -139,110 +141,74 @@ public class CalendarWidget extends AppWidgetProvider {
         }
 
         WidgetSize size = WidgetSize.of(manager, id);
-        int shift = month ? CalendarDays.clampShift(cfg == null ? 0 : cfg.optInt("shift")) : 0;
+        int shift = CalendarDays.clampShift(cfg == null ? 0 : cfg.optInt("shift"));
         int[] ym = CalendarDays.shifted(today, shift);
         Calendar now = WidgetStore.dayOf(today);
-        if (month) {
-            Calendar first = WidgetStore.dayOf(CalendarDays.key(ym[0], ym[1]) + "-01");
-            v.setTextViewText(R.id.cal_title, new SimpleDateFormat("LLLL yyyy", locale).format(first.getTime()));
-        } else {
-            v.setTextViewText(R.id.cal_title, word(cal, "title", "Calendar"));
-        }
-        CalendarDays.Day todays = days.get(today);
-        String sub = new SimpleDateFormat("EEE d MMM", locale).format(now.getTime());
-        if (todays != null && note == null) sub += " · " + todays.total + " " + word(cal, "today", "today").toLowerCase(locale);
-        v.setTextViewText(R.id.cal_sub, sub);
-        v.setOnClickPendingIntent(R.id.cal_head, open(c, id, month && shift != 0 ? CalendarDays.key(ym[0], ym[1]) + "-01" : today));
+        // The month's name alone, as a wall calendar has it; the year only
+        // when it isn't this one.
+        Calendar first = WidgetStore.dayOf(CalendarDays.key(ym[0], ym[1]) + "-01");
+        String pattern = ym[0] == now.get(Calendar.YEAR) ? "LLLL" : "LLLL yyyy";
+        v.setTextViewText(R.id.cal_title, new SimpleDateFormat(pattern, locale).format(first.getTime()));
+        v.setOnClickPendingIntent(R.id.cal_title, open(c, id, shift != 0 ? CalendarDays.key(ym[0], ym[1]) + "-01" : today));
 
-        v.setViewVisibility(R.id.cal_prev, month ? View.VISIBLE : View.GONE);
-        v.setViewVisibility(R.id.cal_next, month ? View.VISIBLE : View.GONE);
-        v.setViewVisibility(R.id.cal_heads, month && note == null ? View.VISIBLE : View.GONE);
-        if (month) {
-            // The arrows point the way the months go, which turns with the page.
-            v.setTextViewText(R.id.cal_prev, rtl ? "›" : "‹");
-            v.setTextViewText(R.id.cal_next, rtl ? "‹" : "›");
-            v.setOnClickPendingIntent(R.id.cal_prev, shiftIntent(c, id, -1));
-            v.setOnClickPendingIntent(R.id.cal_next, shiftIntent(c, id, 1));
-            v.setFloat(R.id.cal_prev, "setAlpha", shift > -1 ? 1f : 0.35f);
-            v.setFloat(R.id.cal_next, "setAlpha", shift < 2 ? 1f : 0.35f);
-        }
+        // The arrows point the way the months go, which turns with the page.
+        v.setImageViewResource(R.id.cal_prev, rtl ? R.drawable.widget_ico_chevron_right : R.drawable.widget_ico_chevron_left);
+        v.setImageViewResource(R.id.cal_next, rtl ? R.drawable.widget_ico_chevron_left : R.drawable.widget_ico_chevron_right);
+        v.setOnClickPendingIntent(R.id.cal_prev, shiftIntent(c, id, -1));
+        v.setOnClickPendingIntent(R.id.cal_next, shiftIntent(c, id, 1));
+        v.setInt(R.id.cal_prev, "setImageAlpha", shift > -1 ? 255 : 90);
+        v.setInt(R.id.cal_next, "setImageAlpha", shift < 2 ? 255 : 90);
+        v.setContentDescription(R.id.cal_prev, word(cal, "prevMonth", "Previous month"));
+        v.setContentDescription(R.id.cal_next, word(cal, "nextMonth", "Next month"));
+        // The quick-add window, on an entry: the kind of thing that lands on
+        // the calendar on the day it's given. Its tabs switch kinds.
+        v.setOnClickPendingIntent(R.id.cal_add, WidgetStore.addButton(c, "add-entry", 442, Uri.parse("lifelog-calendar-add://" + id), false));
+        v.setContentDescription(R.id.cal_add, word(cal, "add", "Add"));
 
-        if (note == null) {
-            if (month) month(c, v, id, days, ym, today, cal, locale, size);
-            else note = agenda(c, v, id, days, today, cal, locale, size);
-        }
+        v.setViewVisibility(R.id.cal_heads, note == null ? View.VISIBLE : View.GONE);
+        if (note == null) month(c, v, id, days, ym, today, cal, locale, size, weekNumbersOf(cfg));
         v.setTextViewText(R.id.cal_note, note == null ? "" : note);
         v.setViewVisibility(R.id.cal_note, note == null ? View.GONE : View.VISIBLE);
         return v;
     }
 
-    /** Returns what to say instead, or null. */
-    private static String agenda(Context c, RemoteViews v, int id, Map<String, CalendarDays.Day> days, String today, JSONObject cal, Locale locale, WidgetSize size) {
-        int max = size.height <= 0 ? 9 : Math.max(3, (size.height - HEAD_DP) / ROW_DP);
-        SimpleDateFormat dayName = new SimpleDateFormat("EEE d", locale);
-        String tomorrow = WidgetStore.addDays(today, 1);
-        int accent = c.getResources().getColor(R.color.widget_accent, null);
-        int muted = c.getResources().getColor(R.color.widget_muted, null);
-        for (CalendarDays.Line line : CalendarDays.agenda(days, today, max)) {
-            if (line.type == CalendarDays.HEAD) {
-                RemoteViews h = new RemoteViews(c.getPackageName(), R.layout.widget_cal_day);
-                String name = dayName.format(WidgetStore.dayOf(line.date).getTime());
-                if (line.date.equals(today)) name = word(cal, "today", "Today") + " · " + name;
-                else if (line.date.equals(tomorrow)) name = word(cal, "tomorrow", "Tomorrow") + " · " + name;
-                h.setTextViewText(R.id.cal_day, name);
-                if (line.date.equals(today)) h.setTextColor(R.id.cal_day, accent);
-                h.setOnClickPendingIntent(R.id.cal_day, open(c, id, line.date));
-                v.addView(R.id.cal_body, h);
-            } else if (line.type == CalendarDays.ITEM) {
-                RemoteViews r = new RemoteViews(c.getPackageName(), R.layout.widget_cal_row);
-                CalendarDays.Item it = line.item;
-                r.setImageViewResource(R.id.cal_mark, markOf(it.kind));
-                r.setInt(R.id.cal_mark, "setColorFilter", colorOf(c, it));
-                r.setTextViewText(R.id.cal_text, it.title);
-                if (CalendarDays.DONE.equals(it.kind)) r.setTextColor(R.id.cal_text, muted);
-                r.setTextViewText(R.id.cal_time, it.allDay ? word(cal, "allDay", "All day") : it.time);
-                r.setOnClickPendingIntent(R.id.cal_row, open(c, id, line.date));
-                v.addView(R.id.cal_body, r);
-            } else {
-                RemoteViews h = new RemoteViews(c.getPackageName(), R.layout.widget_cal_more);
-                h.setTextViewText(R.id.cal_more, line.type == CalendarDays.MORE
-                    ? CalendarDays.more(word(cal, "more", "{n} more"), line.count)
-                    : word(cal, "nothing", "Nothing today"));
-                h.setOnClickPendingIntent(R.id.cal_more, open(c, id, today));
-                v.addView(R.id.cal_body, h);
-            }
-        }
-        return null;
-    }
-
-    private static void month(Context c, RemoteViews v, int id, Map<String, CalendarDays.Day> days, int[] ym, String today, JSONObject cal, Locale locale, WidgetSize size) {
+    private static void month(Context c, RemoteViews v, int id, Map<String, CalendarDays.Day> days, int[] ym, String today, JSONObject cal, Locale locale, WidgetSize size, boolean weekNumbers) {
         int weekStart = cal == null ? Calendar.getInstance(locale).getFirstDayOfWeek() - Calendar.SUNDAY : cal.optInt("weekStart");
         List<String> cells = CalendarDays.monthCells(ym[0], ym[1], weekStart);
+        int weeks = cells.size() / 7;
         SimpleDateFormat letter = new SimpleDateFormat("EEEEE", locale);
+        if (weekNumbers) v.addView(R.id.cal_heads, new RemoteViews(c.getPackageName(), R.layout.widget_cal_week_gap));
         for (int i = 0; i < 7; i++) {
             RemoteViews w = new RemoteViews(c.getPackageName(), R.layout.widget_cal_weekday);
             w.setTextViewText(R.id.cal_weekday, letter.format(WidgetStore.dayOf(cells.get(i)).getTime()));
             v.addView(R.id.cal_heads, w);
         }
+        // What a day has room for: the weeks share the height under the head.
+        int room = size.height <= 0 ? ROOMY_DP : (size.height - HEAD_DP - LETTERS_DP - BOTTOM_DP) / weeks - NUM_DP;
         String key = CalendarDays.key(ym[0], ym[1]);
         int text = c.getResources().getColor(R.color.widget_text, null);
-        int muted = c.getResources().getColor(R.color.widget_muted, null);
         int white = c.getResources().getColor(R.color.widget_on_accent, null);
-        for (int w = 0; w < cells.size() / 7; w++) {
+        for (int w = 0; w < weeks; w++) {
             RemoteViews week = new RemoteViews(c.getPackageName(), R.layout.widget_cal_week);
+            if (weekNumbers) {
+                RemoteViews n = new RemoteViews(c.getPackageName(), R.layout.widget_cal_week_num);
+                n.setTextViewText(R.id.cal_week_num, String.valueOf(CalendarDays.weekNumber(cells.get(w * 7))));
+                week.addView(R.id.cal_week, n);
+            }
             for (int i = 0; i < 7; i++) {
                 String date = cells.get(w * 7 + i);
                 boolean inMonth = date.startsWith(key);
                 RemoteViews cell = new RemoteViews(c.getPackageName(), R.layout.widget_cal_cell);
+                if (i == 0) cell.setViewVisibility(R.id.cal_line, View.GONE);
                 cell.setTextViewText(R.id.cal_num, String.valueOf(Integer.parseInt(date.substring(8))));
                 if (date.equals(today)) {
                     cell.setInt(R.id.cal_num, "setBackgroundResource", R.drawable.widget_cal_today);
                     cell.setTextColor(R.id.cal_num, white);
                 } else {
-                    cell.setTextColor(R.id.cal_num, inMonth ? text : muted);
-                    if (!inMonth) cell.setFloat(R.id.cal_num, "setAlpha", 0.5f);
+                    cell.setTextColor(R.id.cal_num, text);
+                    if (!inMonth) cell.setFloat(R.id.cal_num, "setAlpha", 0.45f);
                 }
-                cell.setTextViewText(R.id.cal_marks, inMonth ? marks(c, days.get(date)) : " ");
+                chips(c, cell, days.get(date), room, !inMonth);
                 cell.setOnClickPendingIntent(R.id.cal_cell, open(c, id, date));
                 week.addView(R.id.cal_week, cell);
             }
@@ -250,25 +216,28 @@ public class CalendarWidget extends AppWidgetProvider {
         }
     }
 
-    /** A day's marks as coloured glyphs: ▬ an event, ○ a task, □ a release, ● something finished. */
-    private static CharSequence marks(Context c, CalendarDays.Day day) {
-        List<CalendarDays.Item> list = CalendarDays.marks(day, MARKS);
-        if (list.isEmpty()) return " ";
-        SpannableStringBuilder s = new SpannableStringBuilder();
-        for (CalendarDays.Item it : list) {
-            String glyph = CalendarDays.EVENT.equals(it.kind) ? "▬" : CalendarDays.TASK.equals(it.kind) ? "○" : CalendarDays.RELEASE.equals(it.kind) ? "□" : "●";
-            int at = s.length();
-            s.append(glyph);
-            s.setSpan(new ForegroundColorSpan(colorOf(c, it)), at, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    /** A day's things as chips, as many as its room holds, then "+N" for the rest. */
+    private static void chips(Context c, RemoteViews cell, CalendarDays.Day day, int room, boolean faded) {
+        if (day == null) return;
+        int shown = CalendarDays.chipsShown(day.total, day.items.size(), room, CHIP_DP, MORE_DP);
+        for (int i = 0; i < shown; i++) {
+            CalendarDays.Item it = day.items.get(i);
+            int color = colorOf(c, it);
+            boolean filled = CalendarDays.EVENT.equals(it.kind) || CalendarDays.DONE.equals(it.kind);
+            RemoteViews chip = new RemoteViews(c.getPackageName(), R.layout.widget_cal_chip);
+            chip.setImageViewResource(R.id.cal_chip_bg, CalendarDays.TASK.equals(it.kind) ? R.drawable.widget_cal_chip_line
+                : CalendarDays.RELEASE.equals(it.kind) ? R.drawable.widget_cal_chip_dash : R.drawable.widget_cal_chip_fill);
+            chip.setInt(R.id.cal_chip_bg, "setColorFilter", color);
+            chip.setTextViewText(R.id.cal_chip_text, it.title);
+            chip.setTextColor(R.id.cal_chip_text, filled ? (CalendarDays.light(color) ? 0xFF1B1F27 : 0xFFFFFFFF) : color);
+            if (CalendarDays.DONE.equals(it.kind) || faded) chip.setFloat(R.id.cal_chip, "setAlpha", 0.55f);
+            cell.addView(R.id.cal_chips, chip);
         }
-        return s;
-    }
-
-    private static int markOf(String kind) {
-        if (CalendarDays.EVENT.equals(kind)) return R.drawable.widget_cal_bar;
-        if (CalendarDays.TASK.equals(kind)) return R.drawable.widget_cal_ring;
-        if (CalendarDays.RELEASE.equals(kind)) return R.drawable.widget_cal_dash;
-        return R.drawable.widget_cal_dot;
+        if (shown < day.total) {
+            RemoteViews more = new RemoteViews(c.getPackageName(), R.layout.widget_cal_chip_more);
+            more.setTextViewText(R.id.cal_chip_more, "+" + (day.total - shown));
+            cell.addView(R.id.cal_chips, more);
+        }
     }
 
     private static int colorOf(Context c, CalendarDays.Item it) {

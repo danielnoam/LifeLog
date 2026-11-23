@@ -14,8 +14,8 @@ import org.json.JSONObject;
  * it runs in WidgetLogicTest. The app sends each day's items (widgets.js
  * calendarDays: Google events, tasks, releases, finished entries); set to
  * the phone's calendars, the widget drops the app's events and puts the
- * phone's in their place (PhoneCalendar). The agenda and the month grid
- * both read the days from here.
+ * phone's in their place (PhoneCalendar). The month grid reads the days
+ * from here.
  */
 final class CalendarDays {
     private CalendarDays() {}
@@ -99,75 +99,6 @@ final class CalendarDays {
         }
     }
 
-    // ---- the agenda ----
-
-    static final int HEAD = 0, ITEM = 1, NOTHING = 2, MORE = 3;
-    /** How far ahead the agenda looks. */
-    static final int HORIZON = 14;
-
-    static final class Line {
-        final int type;
-        final String date;
-        final Item item;
-        final int count;
-
-        Line(int type, String date, Item item, int count) {
-            this.type = type;
-            this.date = date;
-            this.item = item;
-            this.count = count;
-        }
-    }
-
-    /**
-     * Today and the days after it that have anything, as headings and rows,
-     * in at most `max` lines (three or more). Today always has its heading,
-     * with "Nothing today" under it when empty. What doesn't fit is one "N
-     * more" line; a later day's heading never shows without a row of its own.
-     */
-    static List<Line> agenda(Map<String, Day> days, String today, int max) {
-        List<Line> out = new ArrayList<>();
-        max = Math.max(3, max);
-        int hidden = 0;
-        boolean full = false;
-        for (int i = 0; i < HORIZON; i++) {
-            String date = WidgetStore.addDays(today, i);
-            Day day = days.get(date);
-            if (day == null && i > 0) continue;
-            int total = day == null ? 0 : day.total;
-            if (full || (i > 0 && max - out.size() < 2)) {
-                full = true;
-                hidden += total;
-                continue;
-            }
-            out.add(new Line(HEAD, date, null, 0));
-            if (day == null) {
-                out.add(new Line(NOTHING, date, null, 0));
-                continue;
-            }
-            int shown = 0;
-            for (Item it : day.items) {
-                if (out.size() >= max) break;
-                out.add(new Line(ITEM, date, it, 0));
-                shown++;
-            }
-            hidden += total - shown;
-            if (shown < total) full = true;
-        }
-        if (hidden > 0 && out.size() >= max) {
-            if (out.remove(out.size() - 1).type == ITEM) hidden++;
-            if (out.size() > 1 && out.get(out.size() - 1).type == HEAD) out.remove(out.size() - 1);
-        }
-        if (hidden > 0) out.add(new Line(MORE, null, null, hidden));
-        return out;
-    }
-
-    /** Whether anything at all is on in the next fortnight. */
-    static boolean anyAhead(Map<String, Day> days, String today) {
-        for (int i = 0; i < HORIZON; i++) if (days.containsKey(WidgetStore.addDays(today, i))) return true;
-        return false;
-    }
-
     // ---- the month ----
 
     /** The yyyy-MM-dd of every cell, whole weeks from the one the 1st is in, starting on `weekStart` (0 = Sunday). */
@@ -202,15 +133,35 @@ final class CalendarDays {
         return Math.max(-1, Math.min(2, shift));
     }
 
-    /** A day's marks in the month grid: kinds in the order they show, at most `max`. */
-    static List<Item> marks(Day day, int max) {
-        List<Item> out = new ArrayList<>();
-        if (day == null) return out;
-        for (Item it : day.items) {
-            if (out.size() >= max) break;
-            out.add(it);
-        }
-        return out;
+    /**
+     * How many chips a day of `total` things shows in `room` dp: all of them
+     * when they fit, otherwise as many as leave room for the "+N" line under
+     * them. Never more than the app sent (`sent`).
+     */
+    static int chipsShown(int total, int sent, int room, int chip, int more) {
+        if (total <= 0) return 0;
+        int n = total * chip <= room ? total : Math.max(0, (room - more) / chip);
+        return Math.min(n, sent);
+    }
+
+    /**
+     * The number of the week a row of the month starts on: the ISO week of
+     * the row's Thursday, so a row has one number whichever day it starts
+     * on, the one a Monday-first calendar gives most of its days.
+     */
+    static int weekNumber(String rowStart) {
+        Calendar c = WidgetStore.dayOf(rowStart);
+        int weekday = c.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY;
+        Calendar thursday = WidgetStore.dayOf(WidgetStore.addDays(rowStart, ((4 - weekday) % 7 + 7) % 7));
+        thursday.setFirstDayOfWeek(Calendar.MONDAY);
+        thursday.setMinimalDaysInFirstWeek(4);
+        return thursday.get(Calendar.WEEK_OF_YEAR);
+    }
+
+    /** Whether a colour is light enough that dark text reads better on it than white. */
+    static boolean light(int color) {
+        double r = ((color >> 16) & 0xFF) / 255.0, g = ((color >> 8) & 0xFF) / 255.0, b = (color & 0xFF) / 255.0;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6;
     }
 
     /** "{n} more" in the app's words, or English before the app has sent them. */

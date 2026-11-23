@@ -12,4 +12,5 @@
     <color name="widget_amber">#E3A33B</color>
     <color name="widget_down">#F0716B</color>
     <color name="widget_up_soft">#294CC38A</color>
+    <color name="widget_line">#2C3240</color>
 </resources>

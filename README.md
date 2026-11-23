@@ -486,8 +486,8 @@ list gets the window too, its map beside the list.
 - **App lock**: a PIN, with fingerprint or face where the device has it.
 - **Widgets**: on Android, tasks, habits, quick add, spending, note,
   random note, upcoming (releases and dated tasks), in progress, investments and
-  calendar (Google or the phone's calendars with tasks and releases, as an
-  agenda or a month), with an optional background
+  calendar (a month of Google or the phone's calendars with tasks and
+  releases, named on each day), with an optional background
   refresh. Quick add and the Tasks widget's + open a small window over the
   home screen, so an entry, expense, backlog item, note or list item goes
   in without opening the app and syncs when it next opens; on iPhone, habits, tasks, quick add, this month and a note.

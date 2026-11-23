@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The week's number, at the start of a week in the Calendar widget's month. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="34dp"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/cal_week_num"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="3dp"
+        android:background="@drawable/widget_cal_week_num"
+        android:includeFontPadding="false"
+        android:paddingStart="3dp"
+        android:paddingTop="1dp"
+        android:paddingEnd="3dp"
+        android:paddingBottom="1dp"
+        android:textColor="@color/widget_muted"
+        android:textSize="10sp" />
+</FrameLayout>

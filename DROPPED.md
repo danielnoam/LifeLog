@@ -581,3 +581,12 @@ already works, for a browsing habit the app doesn't otherwise serve. The API
 support is real and unchanged, so if Discover ever becomes something used
 often enough to want steering by subscription, this is still the way to do
 it.
+
+## The Calendar widget's Agenda layout
+
+Shipped with the widget in 0.325.0 (today and the days ahead as a list).
+When the month was redone like Google Calendar's (names on each day, weeks
+filling the widget), Daniel had it removed (2026-11-23): the month now
+shows what the agenda did and more, and one layout is one thing to keep
+right. An agenda widget is a separate home screen widget if it's ever
+wanted again, not a setting of this one.
