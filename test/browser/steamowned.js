@@ -74,22 +74,34 @@ const SEED = {
   check("Portal is still one entry", data.entries.filter((e) => e.title === "Portal").length === 1);
   check("the key never reaches the Timeline", !JSON.stringify(data.entries).includes("ABCDEF0123456789"));
 
-  // A second run remembers what was left unticked (0.257.0): Stardew and
-  // the demo are skipped, behind a toggle, until ticked there.
+  // A second run remembers what was left unticked (0.257.0), and where it
+  // was (Nov 2026): Stardew at 1 hour, the demo at 0.
   const skips = data.settings.importSkips || {};
-  check("what was left unticked is remembered in settings", (skips.steamOwned || []).includes("steam:413150") && (skips.steamOwned || []).includes("steam:999"), skips);
+  check("what was left unticked is remembered with its hours", (skips.steamOwned || []).includes("steam:413150#1") && (skips.steamOwned || []).includes("steam:999#0"), skips);
+  await page.click("#steamOwnedSyncBtn");
+  // The import's own toast (Imported, Undo) may still be up: wait for this one.
+  await page.waitForFunction(() => /Show skipped/.test((document.querySelector("#toast") || {}).textContent || ""), null, { timeout: 8000 });
+  const toastNow = await page.evaluate(() => ({ text: document.querySelector("#toast").textContent, review: !document.querySelector("#financePickerModal").hidden }));
+  check("with only skips left the review doesn't open; the toast offers them", !toastNow.review && /only what you skipped before/.test(toastNow.text) && /Show skipped/.test(toastNow.text), toastNow);
+  await page.evaluate(() => [...document.querySelectorAll("#toast .toast-action")].find((x) => /Show skipped/.test(x.textContent)).click());
+  await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 });
+  await page.waitForTimeout(200);
+  const shown = await page.evaluate(() => ({ on: document.querySelector("#financePickerShowSkipped").checked, n: document.querySelector("#financePickerSkippedCount").textContent,
+    rows: [...document.querySelectorAll("#financePickerList label")].map((r) => ({ t: r.textContent.replace(/\s+/g, " ").trim(), on: r.querySelector("input").checked })) }));
+  check("Show skipped opens the review with the skipped shown, unticked, and where they were", shown.on && /2/.test(shown.n) && shown.rows.some((r) => /Stardew/.test(r.t) && /skipped at 1 hrs/.test(r.t) && !r.on), shown);
+  await page.click("#financePickerCancelBtn"); await page.waitForTimeout(400);
+
+  // Another hour in Stardew: it's asked about again, ticked as any new
+  // game would be, and says why it's back. The demo, unplayed, stays out.
+  OWNED.response.games.find((g) => g.appid === 413150).playtime_forever = 160;
   await page.click("#steamOwnedSyncBtn");
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 });
-  const again = await page.evaluate(() => ({ rows: [...document.querySelectorAll("#financePickerList label")].map((r) => r.textContent.replace(/\s+/g, " ").trim()), skipRow: !document.querySelector("#financePickerSkipRow").hidden, n: document.querySelector("#financePickerSkippedCount").textContent }));
-  check("running it again hides the skipped games behind a toggle", again.rows.length === 0 && again.skipRow && /2/.test(again.n), again);
-  await page.check("#financePickerShowSkipped"); await page.waitForTimeout(200);
-  const shown = await page.evaluate(() => [...document.querySelectorAll("#financePickerList label")].map((r) => ({ t: r.textContent.replace(/\s+/g, " ").trim(), on: r.querySelector("input").checked })));
-  check("the toggle shows them, unticked", shown.some((r) => /Stardew/.test(r.t) && !r.on), shown);
-  await page.evaluate(() => { const l = [...document.querySelectorAll("#financePickerList label")].find((r) => /Stardew/.test(r.textContent)); l.querySelector("input").click(); });
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(200);
+  const back = await page.evaluate(() => [...document.querySelectorAll("#financePickerList label")].map((r) => ({ t: r.textContent.replace(/\s+/g, " ").trim(), on: r.querySelector("input").checked })));
+  check("played more since, Stardew comes back saying so", back.length === 1 && /Stardew/.test(back[0].t) && /moved on/.test(back[0].t) && back[0].on, back);
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(700);
   const d2 = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
-  check("ticking a skipped game imports it and forgets the skip", d2.entries.some((e) => e.title === "Stardew Valley") && !(d2.settings.importSkips.steamOwned || []).includes("steam:413150") && d2.settings.importSkips.steamOwned.includes("steam:999"), d2.settings.importSkips);
+  check("ticking it imports it and forgets the skip; the demo stays skipped", d2.entries.some((e) => e.title === "Stardew Valley") && !(d2.settings.importSkips.steamOwned || []).some((k) => k.startsWith("steam:413150")) && d2.settings.importSkips.steamOwned.includes("steam:999#0"), d2.settings.importSkips);
   check("no errors", errs.length === 0, errs);
   await ctx.close();
   await b.close();

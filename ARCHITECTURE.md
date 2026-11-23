@@ -27,6 +27,7 @@ src/letterboxd.js   the Letterboxd import
 src/stremio.js      the Stremio sync, read only
 src/trello.js       Trello lists as task lists, both ways
 src/io.js           JSON/CSV import and export, and the shared review screen
+src/skips.js        what an import remembers you skipped, and when it asks again
 src/docimport.js    PDF and EPUB read as text, for notes
 src/markdown.js     Markdown for notes in a collection
 src/images.js       images in notes: shrunk, kept on the device, synced

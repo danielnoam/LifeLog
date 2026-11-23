@@ -3,6 +3,7 @@
 // shape is the one api.strem.io's datastoreGet sends for "libraryItem".
 const assert = require("assert");
 global.window = {};
+require("../src/skips.js");
 const S = require("../src/stremio.js");
 
 let passed = 0;
@@ -141,6 +142,10 @@ test("rows: finishing, updates, undated unticked and skips hidden", () => {
   assert.strictEqual(a.finishes, "b1");
   assert.strictEqual(b.checked, false);
   assert.ok(c.skipped && !c.checked);
+  // Skipped at 2 episodes, it's back at 3; still at 2, it stays out.
+  const again = (state) => S.buildRows({ entries: [], backlog: [{ item: { title: "C", progress: 3 }, id: "tt3" }], updates: [] }, fakeBuild, ["stremio:tt3#" + state]).items[0];
+  assert.ok(again("2").cameBack && !again("2").skipped);
+  assert.ok(again("3").skipped && !again("3").cameBack);
   assert.deepStrictEqual([d.update, d.targetId, d.entry.progress, d.stremioId], [true, "b5", 4, "tt4"]);
 });
 

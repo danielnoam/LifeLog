@@ -31,7 +31,7 @@ test("a book here by another source is matched by title and linked; author clash
     { id: "b1", title: "Dune", category: "Books", mediaSource: "openlibrary", mediaId: "OL1", author: "A. Writer" },
     { id: "b2", title: "Emma", category: "Books", author: "Someone Else" },
   ], entries: [] };
-  const p = H.plan(remote([row(1, "dune", "Dune", 1), row(2, "emma", "Emma", 1)]), data, "Books", {}, new Set());
+  const p = H.plan(remote([row(1, "dune", "Dune", 1), row(2, "emma", "Emma", 1)]), data, "Books", {});
   assert.strictEqual(p.titles.length, 1);
   assert.strictEqual(p.titles[0].b.id, "b1");
   assert.deepStrictEqual(p.fresh.map((r) => r.slug), ["emma"]);
@@ -42,10 +42,10 @@ test("a book here by another source is matched by title and linked; author clash
 test("with a base, the side that moved wins", () => {
   const data = { backlog: [{ id: "b1", title: "Dune", category: "Books", mediaSource: "hardcover", mediaId: "dune", startedAt: "2026-11-12" }], entries: [] };
   // Started here, Hardcover still Want to Read: push.
-  let p = H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", { dune: "want" }, new Set());
+  let p = H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", { dune: "want" });
   assert.deepStrictEqual([p.titles[0].status, p.titles[0].push, p.titles[0].pull], ["reading", true, false]);
   // Finished on Hardcover since: pull, and the item moves to the Timeline.
-  p = H.plan(remote([row(1, "dune", "Dune", 3, { finished: "2026-11-13", rating: 4.5 })]), data, "Books", { dune: "reading" }, new Set());
+  p = H.plan(remote([row(1, "dune", "Dune", 3, { finished: "2026-11-13", rating: 4.5 })]), data, "Books", { dune: "reading" });
   assert.deepStrictEqual([p.titles[0].status, p.titles[0].pull], ["read", true]);
   const res = H.applyPlan(p, data, TODAY, NOW);
   assert.strictEqual(res.counts.finished, 1);
@@ -57,26 +57,26 @@ test("with a base, the side that moved wins", () => {
 test("both moved: the newer change wins; no base: the further one", () => {
   const b = { id: "b1", title: "Dune", category: "Books", mediaSource: "hardcover", mediaId: "dune", dropped: true, updatedAt: "2026-11-12T00:00:00Z" };
   const data = { backlog: [b], entries: [] };
-  let p = H.plan(remote([row(1, "dune", "Dune", 2, { updated_at: "2026-11-13T00:00:00Z" })]), data, "Books", { dune: "want" }, new Set());
+  let p = H.plan(remote([row(1, "dune", "Dune", 2, { updated_at: "2026-11-13T00:00:00Z" })]), data, "Books", { dune: "want" });
   assert.deepStrictEqual([p.titles[0].status, p.titles[0].pull], ["reading", true]);
   b.updatedAt = "2026-11-14T00:00:00Z";
-  p = H.plan(remote([row(1, "dune", "Dune", 2, { updated_at: "2026-11-13T00:00:00Z" })]), data, "Books", { dune: "want" }, new Set());
+  p = H.plan(remote([row(1, "dune", "Dune", 2, { updated_at: "2026-11-13T00:00:00Z" })]), data, "Books", { dune: "want" });
   assert.deepStrictEqual([p.titles[0].status, p.titles[0].push], ["dnf", true]);
   delete b.dropped; b.startedAt = "2026-11-01";
-  p = H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", {}, new Set());
+  p = H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", {});
   assert.deepStrictEqual([p.titles[0].status, p.titles[0].push], ["reading", true], "Reading is further than Want to Read");
 });
 
 test("Paused on Hardcover matches Want to Read here and sends nothing", () => {
   const data = { backlog: [{ id: "b1", title: "Dune", category: "Books", mediaSource: "hardcover", mediaId: "dune" }], entries: [] };
-  const p = H.plan(remote([row(1, "dune", "Dune", 4)]), data, "Books", {}, new Set());
+  const p = H.plan(remote([row(1, "dune", "Dune", 4)]), data, "Books", {});
   assert.deepStrictEqual([p.titles[0].push, p.titles[0].pull], [false, false]);
 });
 
-test("a removed or skipped book isn't offered again", () => {
+test("a book agreed on before isn't offered again; a skipped one is fresh, for the review to hide", () => {
   const data = { backlog: [], entries: [] };
-  assert.strictEqual(H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", { dune: "want" }, new Set()).fresh.length, 0);
-  assert.strictEqual(H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", {}, new Set(["hardcover:dune"])).fresh.length, 0);
+  assert.strictEqual(H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", { dune: "want" }).fresh.length, 0);
+  assert.strictEqual(H.plan(remote([row(1, "dune", "Dune", 1)]), data, "Books", {}).fresh.length, 1);
 });
 
 test("fresh books: Read to the Timeline (noted when undated), the rest to the backlog", () => {
@@ -89,7 +89,7 @@ test("fresh books: Read to the Timeline (noted when undated), the rest to the ba
 
 test("Read on Hardcover after you finished it here and started again: a re-read comes back in progress", () => {
   const data = { backlog: [], entries: [{ id: "e1", title: "Dune", category: "Books", year: 2025, month: 3, date: "2025-03", mediaSource: "hardcover", mediaId: "dune" }] };
-  const p = H.plan(remote([row(1, "dune", "Dune", 2, { started: "2026-11-10" })]), data, "Books", { dune: "read" }, new Set());
+  const p = H.plan(remote([row(1, "dune", "Dune", 2, { started: "2026-11-10" })]), data, "Books", { dune: "read" });
   H.applyPlan(p, data, TODAY, NOW);
   assert.deepStrictEqual([data.backlog.length, data.backlog[0].startedAt, data.backlog[0].mediaId], [1, "2026-11-10", "dune"]);
 });

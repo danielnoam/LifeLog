@@ -141,6 +141,9 @@ function storeOf(file) {
 // AI reads "3 Nov 2026" without guessing whether 03/11 is March or November.
 let seenSettings = null;
 const Dates = require("../src/dates.js");
+const Skips = require("../src/skips.js");
+// The imports that remember what you left unticked (src/skips.js).
+const IMPORT_SKIP_SOURCES = { steamWishlist: "Steam wishlist", steamOwned: "Steam games played", anilist: "AniList", stremio: "Stremio", hardcover: "Hardcover" };
 Dates.bind(() => ({ weekStart: seenSettings && seenSettings.weekStart }));
 const seen = (data) => { if (data && data.settings) seenSettings = data.settings; return data; };
 async function readData() { return seen((await storeOf().read()).data); }
@@ -1090,6 +1093,42 @@ const TOOLS = [
         if (keys.size) all.bills = [...keys]; else delete all.bills;
         d.settings.importSkips = all;
         return { text: a.undo ? `${a.key} can be suggested again.` : `Won't suggest ${a.key} again.`, touched: [] };
+      });
+    },
+  },
+  {
+    name: "lifelog_import_skips",
+    description: "What each import (Steam wishlist, Steam games played, AniList, Stremio, Hardcover) remembers you left unticked in its review, by key, with where the title was when skipped: an episode/chapter count (hours for Steam games played; Hardcover 0 want to read, 1 reading), \"done\" if finished, or unknown for skips older than that. A skipped title isn't offered again until it moves past that (more progress, or finished); then the review asks again. lifelog_unskip_import makes the next sync offer one again.",
+    readOnly: true,
+    input: { source: S.str("Only this source: steamWishlist, steamOwned, anilist, stremio or hardcover") },
+    async run(a) {
+      const all = ((await readData()).settings || {}).importSkips || {};
+      const sources = Object.keys(IMPORT_SKIP_SOURCES).filter((k) => !a.source || k === a.source);
+      if (a.source && !sources.length) fail(`No import ${a.source}; use one of ${Object.keys(IMPORT_SKIP_SOURCES).join(", ")}.`);
+      const out = [];
+      for (const k of sources) {
+        const rows = [...Skips.index(all[k]).entries()];
+        if (!rows.length) continue;
+        out.push(`${IMPORT_SKIP_SOURCES[k]} (${k}), ${rows.length} skipped:`, ...rows.map(([key, st]) => `- ${key}: ${st === null || st === "" ? "state unknown" : st === "done" ? "finished" : "at " + st}`));
+      }
+      return out.length ? out.join("\n") : "Nothing skipped.";
+    },
+  },
+  {
+    name: "lifelog_unskip_import",
+    description: "Forget a skip (source and key from lifelog_import_skips), so that import's next sync offers the title again in its review. Kept in the synced settings on every device.",
+    input: { source: S.str("steamWishlist, steamOwned, anilist, stremio or hardcover"), key: S.str("The skip's key, like anilist-anime:12345") },
+    required: ["source", "key"],
+    async run(a) {
+      if (!IMPORT_SKIP_SOURCES[a.source]) fail(`No import ${a.source}; use one of ${Object.keys(IMPORT_SKIP_SOURCES).join(", ")}.`);
+      return change(`unskip ${a.source} ${a.key}`, (d) => {
+        d.settings = d.settings || {};
+        const all = { ...(d.settings.importSkips || {}) };
+        if (!Skips.index(all[a.source]).has(a.key)) fail(`${a.key} isn't skipped in ${a.source}; see lifelog_import_skips.`);
+        const next = Skips.forget(all[a.source], a.key);
+        if (next.length) all[a.source] = next; else delete all[a.source];
+        d.settings.importSkips = all;
+        return { text: `${a.key} is offered again at the next ${IMPORT_SKIP_SOURCES[a.source]} sync.`, touched: [] };
       });
     },
   },
