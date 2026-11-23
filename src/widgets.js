@@ -277,19 +277,16 @@
         if (secs) out.section = (secs[secAt.get(T.sectionOf(n, it))] || {}).name || "";
         return Object.assign(out, taskDetails(n, it, false));
       };
-      const items = all;
+      // A Trello card's checklist items stay in the app's task sheet
+      // (Daniel, 2026-11-23), as on the Notebook card.
+      const ids = new Set(all.map((it) => it.id));
+      const items = all.filter((it) => !it.parent || !ids.has(it.parent));
       // A Trello board's task list (Nov 2026): its open rows section by
       // section, in the board's order, each naming its section.
       const secs = T && T.sectionsOf ? T.sectionsOf(n) : null;
       const secAt = secs ? new Map(secs.map((x, i) => [x.id, i])) : null;
       let open = items.filter((it) => !it.done);
-      // A subtask right under its task, in its task's section.
-      if (secs) {
-        const ids = new Set(open.map((it) => it.id));
-        const tops = open.filter((it) => !it.parent || !ids.has(it.parent));
-        const sorted = tops.map((it, i) => [it, secAt.get(T.sectionOf(n, it)), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([it]) => it);
-        open = sorted.flatMap((it) => [it, ...open.filter((c) => c.parent === it.id)]);
-      }
+      if (secs) open = open.map((it, i) => [it, secAt.get(T.sectionOf(n, it)), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([it]) => it);
       const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
       for (const it of open) todos.push(row(it));

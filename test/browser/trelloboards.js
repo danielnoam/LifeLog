@@ -33,6 +33,7 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
     else if ((m = /^\/lists\/(\w+)\/cards$/.exec(p))) out = [...cards.values()].filter((c) => c.idList === m[1] && !c.closed);
     else if (p === `/boards/${B}/labels`) out = [];
     else if (p === `/boards/${B}/lists`) out = LISTS;
+    else if (req.method() === "POST" && (m = /^\/checklists\/(\w+)\/checkItems$/.exec(p))) { out = { id: "6".repeat(24), name: body.name, state: "incomplete", pos: 9 }; for (const c of cards.values()) for (const cl of c.checklists || []) if (cl.id === m[1]) cl.checkItems.push(out); }
     else if (req.method() === "POST" && p === "/cards") { out = { id: "9".repeat(24), idBoard: B, closed: false, dueComplete: false, idLabels: [], idMembers: [ME], checklists: [], dateLastActivity: T, desc: "", due: null, ...body }; cards.set(out.id, out); }
     else if (req.method() === "PUT" && p.startsWith("/cards/")) { const c = cards.get(p.split("/")[2]); Object.assign(c, body); out = c; }
     else if (req.method() === "GET" && p.startsWith("/cards/")) out = cards.get(p.split("/")[2]);
@@ -155,9 +156,25 @@ const L1 = "a".repeat(24), L2 = "d".repeat(24), DONE = "f".repeat(24), B = "b".r
   check("the card's own add line says it adds to the first list", main === "Add to To do", main);
   await page.keyboard.press("Escape");
 
-  // A card's checklist's name over its items.
-  const lists = await el.evaluate((c) => [...c.querySelectorAll(".note-list-rows > *")].map((x) => x.classList.contains("todo-checklist") ? "~" + x.textContent : x.querySelector(".todo-text") ? x.querySelector(".todo-text").textContent : "").filter(Boolean));
-  check("a card's checklist shows its name over its items", lists.join("|").includes("Pick tiles|~iOS|TestFlight|Screens"), lists);
+  // A card's checklist items stay in its sheet, under the checklist's name.
+  const onCard = await el.evaluate((c) => [...c.querySelectorAll(".todo-text")].map((x) => x.textContent));
+  check("a card's checklist items aren't on the Notebook card", onCard.includes("Pick tiles") && !onCard.includes("TestFlight"), onCard);
+  const meta = await el.locator(".todo-row", { hasText: "Pick tiles" }).textContent();
+  check("its row says how many are ticked", /0\/2/.test(meta), meta);
+  await el.locator(".todo-row", { hasText: "Pick tiles" }).locator(".todo-body").click();
+  await page.waitForSelector("#taskModal:not([hidden])");
+  const subs = await page.$$eval("#taskSubs .task-cl-head, #taskSubs .task-sub-text, #taskSubs .task-sub-compose", (xs) => xs.map((x) => x.classList.contains("task-cl-head") ? "~" + x.textContent : x.classList.contains("task-sub-text") ? x.textContent : "+"));
+  check("its sheet lists them under the checklist's name, with an add line", subs.join("|") === "~iOS|TestFlight|Screens|+", subs);
+  const subH = await page.locator("#taskSubs .task-sub").first().boundingBox();
+  check("each is a 44px row", subH && subH.height >= 44, subH);
+  await page.fill("#taskSubs .task-sub-compose input", "Release notes");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(300);
+  check("one added there shows in the sheet", (await page.$$eval("#taskSubs .task-sub-text", (xs) => xs.map((x) => x.textContent))).includes("Release notes"));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  await page.evaluate(() => window.LifeLogTrello.check({ manual: true }));
+  await until(() => sent.some((s) => s.method === "POST" && /checkItems/.test(s.path)));
+  check("and goes on that checklist on Trello", sent.some((s) => s.method === "POST" && s.path === "/checklists/" + "7".repeat(24) + "/checkItems" && s.body.name === "Release notes"), sent.filter((s) => s.method === "POST"));
 
   // Hebrew.
   await page.evaluate(() => { const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"); v.language = "he"; localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v)); localStorage.setItem("lifelog.lang", "he"); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" })); });

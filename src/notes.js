@@ -635,25 +635,9 @@
     const secs = Tasks().sectionsOf(n);
     if (!secs && !items.length) rows.appendChild(el("p", "dsc-note", i18n.t("Nothing here.")));
     else if (!secs && !openTop.length) rows.appendChild(el("p", "dsc-note", i18n.t("All done.")));
-    const withKids = (it) => {
-      const sub = kids.get(it.id) || [];
-      rows.appendChild(itemRow(n, it, { sub: false, kids: sub }));
-      if (foldSet().has(it.id)) return;
-      // A Trello card's subtasks under their checklists' names (Daniel,
-      // 2026-11-22), when it has more than one or one not named Checklist.
-      const lists = (it.trello && it.trello.checklists) || [];
-      if (sub.length && (lists.length > 1 || (lists.length === 1 && !/^checklist$/i.test(lists[0].name)))) {
-        const of = (c) => (lists.some((l) => l.id === (c.trello && c.trello.checklist)) ? c.trello.checklist : lists[0].id);
-        for (const l of lists) {
-          const mine = sub.filter((c) => of(c) === l.id);
-          if (!mine.length) continue;
-          rows.appendChild(el("div", "todo-checklist", l.name || i18n.t("Checklist")));
-          for (const c of mine) rows.appendChild(itemRow(n, c, { sub: true }));
-        }
-        return;
-      }
-      for (const c of sub) rows.appendChild(itemRow(n, c, { sub: true }));
-    };
+    // A Trello card's checklist items stay in its sheet (Daniel,
+    // 2026-11-23): the row says how many are ticked.
+    const withKids = (it) => rows.appendChild(itemRow(n, it, { sub: false, kids: kids.get(it.id) || [] }));
     const put = (it) => { if (reordering) rows.appendChild(reorderRow(n, it, rows)); else withKids(it); };
     if (secs) {
       for (const sec of secs) {
@@ -802,16 +786,6 @@
     body.setAttribute("aria-label", i18n.t("Open {title}", { title: it.text }));
     body.onclick = () => T.openTask(n.id, it.id);
     row.appendChild(body);
-    if (kids.length) {
-      const shut = foldSet().has(it.id);
-      const fold = el("button", "todo-fold");
-      fold.type = "button";
-      fold.appendChild(ico(shut ? "chevron-right" : "chevron-down"));
-      fold.setAttribute("aria-label", (shut ? i18n.t("Show subtasks of {title}", { title: it.text }) : i18n.t("Hide subtasks of {title}", { title: it.text })));
-      fold.setAttribute("aria-expanded", String(!shut));
-      fold.onclick = () => toggleFold(it.id);
-      row.appendChild(fold);
-    }
     const del = el("button", "todo-del");
     del.appendChild(ico("x"));
     del.type = "button";

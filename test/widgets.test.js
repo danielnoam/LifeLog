@@ -491,14 +491,14 @@ test("Calendar widget: a busy day sends its first few and says how many it has",
   assert.strictEqual(days[TODAY].n, W.CAL_PER_DAY + 3);
 });
 
-test("a Trello board's subtasks sit under their task, in its section, not the first one", () => {
+test("a Trello board's tasks come by section, and a card's checklist items stay in the app", () => {
   const had = global.window.LifeLogTasks;
   require("../src/tasks.js");
   try {
     const d = { notes: [{ id: "trello-board-b", kind: "list", text: "LifeLog", createdAt: "2026-01-01", sections: [{ id: "L1", name: "To do" }, { id: "L2", name: "Doing" }],
       items: [{ id: "a", text: "Android", section: "L1" }, { id: "i", text: "iOS", section: "L2" }, { id: "p", text: "Paint", section: "L2" }, { id: "k1", text: "Widgets", parent: "i" }, { id: "k2", text: "Share sheet", parent: "i" }] }] };
     const rows = W.snapshotOf(d, { today: TODAY }).todos.filter((t) => t.list === "trello-board-b");
-    assert.deepStrictEqual(rows.map((t) => t.text + "@" + t.section), ["Android@To do", "iOS@Doing", "Widgets@Doing", "Share sheet@Doing", "Paint@Doing"]);
+    assert.deepStrictEqual(rows.map((t) => t.text + "@" + t.section), ["Android@To do", "iOS@Doing", "Paint@Doing"]);
   } finally { global.window.LifeLogTasks = had; }
 });
 

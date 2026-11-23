@@ -75,7 +75,7 @@ const SEED = {
   let p = await item("L", "p");
   check("the sheet's fields are saved", p.text === "Pack the car" && p.note === "Tent first" && p.priority === 1 && p.category === "Work"
     && p.date === day(1) && p.time === "08:30" && p.remind === 15 && p.deadline === day(5), p);
-  check("the sheet has no subtasks of its own (the list is the task)", !(await page.$("#taskSubs")));
+  check("the sheet has no subtasks of its own (the list is the task)", await page.$eval("#taskSubs", (x) => x.hidden && !x.children.length));
   await page.selectOption("#taskList", "M");
   await page.waitForTimeout(300);
   const d = await saved();
