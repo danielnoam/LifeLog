@@ -546,9 +546,8 @@
     const [y, m] = today.split("-").map(Number);
     if (G && G.on && !hidden) { G.ensure(y, m); G.ensure(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1); }
     const words = {
-      title: i18n.t("Calendar"), today: i18n.t("Today"), tomorrow: i18n.t("Tomorrow"), allDay: i18n.t("All day"),
-      more: i18n.t("{n} more", { n: "{n}" }), nothing: i18n.t("Nothing today"), empty: i18n.t("Nothing on the calendar in the next two weeks"),
-      settings: i18n.t("Calendar widget"), layout: i18n.t("Layout"), agenda: i18n.t("Agenda: today and the days ahead"), month: i18n.t("Month: the whole month, with marks"),
+      settings: i18n.t("Calendar widget"), add: i18n.t("Add"), prevMonth: i18n.t("Previous month"), nextMonth: i18n.t("Next month"),
+      show: i18n.t("Show"), weekNumbers: i18n.t("Week numbers"),
       source: i18n.t("Calendars"), sourceApp: i18n.t("LifeLog's Google Calendar connection"), sourcePhone: i18n.t("This phone's calendars"),
       sourceHint: i18n.t("This phone's calendars are read on the phone and never leave it. They're always up to date and include every account on the phone. LifeLog's connection is only as fresh as the last time the app ran."),
       allow: i18n.t("Allow LifeLog to read your calendars in the widget's settings"), locked: i18n.t("Hidden while LifeLog is locked"),

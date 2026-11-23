@@ -300,6 +300,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Quick-add window: the quick add widget's buttons and the checklist widget's + open a small window over the home screen (entry, expense, backlog item, note, list item) instead of the app; saved on the phone and added when LifeLog next opens (0.311.0)
 - Investments widget (Android): what you hold and the day's move, then each ticker with its close, day's change, a month's sparkline and an "At target" tag; a row opens that ticker; shrinks to the total; amounts hidden with the lock's "hide in widgets" (0.313.0)
 - Calendar widget (Android only; Windows and the web have no home screen widgets, and iPhone didn't get it): Google Calendar events or the phone's own calendars (every account, read on the phone, calendar permission asked in the widget's settings), with tasks due, backlog releases and next episodes and finished entries, as an agenda (today and the days ahead, "N more") or a month with marks and arrows; a tap opens that day on the Timeline calendar; in the app's language, right to left in Hebrew (0.325.0)
+- Calendar widget as a Google Calendar style month (Android only): weeks fill the widget, each day lists its things by name on chips (filled events, outlined tasks, dashed releases, faded finished) as far as the height holds then "+N", week numbers (can be turned off), "+" opens quick add; the Agenda layout was removed (next release)
 
 ## iOS app
 

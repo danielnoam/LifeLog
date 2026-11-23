@@ -1,0 +1,3 @@
+### Changed
+- The Calendar widget (Android only; Windows and the web have no home screen widgets, and iPhone didn't get it) is now one month that fills the whole widget, laid out like Google Calendar's: each day shows its events, tasks, releases and finished entries by name on chips (filled for events, outlined for tasks, dashed for releases, faded for finished), as many as the widget's height holds, then "+N". Week numbers sit beside the weeks (off in the widget's settings), and a "+" opens the quick-add window. Hebrew turns the month right to left.
+- The Calendar widget's Agenda layout is gone; an Agenda widget already on the home screen becomes the month.

@@ -810,35 +810,10 @@ public class WidgetLogicTest {
             + "\"2026-10-20\":{\"n\":1,\"items\":[{\"k\":\"task\",\"t\":\"Far\"}]}}}");
     }
 
-    private static String lines(List<CalendarDays.Line> lines) {
+    private static String titles(CalendarDays.Day day) {
         StringBuilder s = new StringBuilder();
-        for (CalendarDays.Line l : lines) {
-            if (s.length() > 0) s.append(" | ");
-            s.append(l.type == CalendarDays.HEAD ? "#" + l.date.substring(8) : l.type == CalendarDays.ITEM ? l.item.title : l.type == CalendarDays.MORE ? "+" + l.count : "nothing");
-        }
+        for (CalendarDays.Item it : day.items) s.append(s.length() > 0 ? " | " : "").append(it.title);
         return s.toString();
-    }
-
-    @Test
-    public void calendarAgendaShowsTheDaysThatHaveSomethingWithinAFortnight() throws Exception {
-        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), true);
-        assertEquals("#24 | Gym | Pack | Dune | #25 | Game | #28 | Standup | Bills", lines(CalendarDays.agenda(days, D, 20)));
-    }
-
-    @Test
-    public void calendarAgendaFoldsWhatDoesntFitIntoOneMoreLine() throws Exception {
-        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), true);
-        assertEquals("#24 | Gym | Pack | Dune | +3", lines(CalendarDays.agenda(days, D, 5)));
-        // A later day's heading never shows without a row of its own.
-        assertEquals("#24 | Gym | Pack | Dune | +3", lines(CalendarDays.agenda(days, D, 6)));
-        assertEquals("#24 | Gym | Pack | Dune | #25 | Game | +2", lines(CalendarDays.agenda(days, D, 7)));
-        assertEquals("#24 | Gym | +5", lines(CalendarDays.agenda(days, D, 3)));
-    }
-
-    @Test
-    public void calendarAgendaSaysNothingTodayAndStillShowsWhatsAhead() throws Exception {
-        java.util.Map<String, CalendarDays.Day> days = CalendarDays.fromSnapshot(calendar(), true);
-        assertEquals("#23 | nothing | #24 | Gym | Pack | +4", lines(CalendarDays.agenda(days, "2026-09-23", 6)));
     }
 
     @Test
@@ -854,8 +829,40 @@ public class WidgetLogicTest {
         phone.put(D, mine);
         phone.put("2026-09-26", new ArrayList<>(mine.subList(0, 1)));
         CalendarDays.addEvents(days, phone);
-        assertEquals("#24 | Holiday | Dentist | Pack | Party | Dune | #25 | Game | #26 | Dentist | #28 | Bills", lines(CalendarDays.agenda(days, D, 20)));
+        assertEquals("Holiday | Dentist | Pack | Party | Dune", titles(days.get(D)));
+        assertEquals("Dentist", titles(days.get("2026-09-26")));
+        assertEquals("Bills", titles(days.get("2026-09-28")));
         assertEquals(5, days.get(D).total);
+    }
+
+    @Test
+    public void calendarDayShowsTheChipsItsHeightHoldsThenAMoreLine() {
+        // Chips of 15dp, a "+N" line of 13dp.
+        assertEquals(3, CalendarDays.chipsShown(3, 3, 45, 15, 13));
+        assertEquals(2, CalendarDays.chipsShown(4, 4, 45, 15, 13));
+        assertEquals(0, CalendarDays.chipsShown(2, 2, 20, 15, 13));
+        assertEquals(1, CalendarDays.chipsShown(1, 1, 20, 15, 13));
+        assertEquals(0, CalendarDays.chipsShown(0, 0, 100, 15, 13));
+        // Never more than the app sent, though the day has more.
+        assertEquals(8, CalendarDays.chipsShown(11, 8, 400, 15, 13));
+        assertEquals(0, CalendarDays.chipsShown(3, 3, -5, 15, 13));
+    }
+
+    @Test
+    public void calendarWeekNumberIsTheIsoWeekOfTheRowsThursday() {
+        assertEquals(45, CalendarDays.weekNumber("2026-11-01"));
+        assertEquals(44, CalendarDays.weekNumber("2026-10-26"));
+        assertEquals(45, CalendarDays.weekNumber("2026-10-31"));
+        assertEquals(53, CalendarDays.weekNumber("2026-12-27"));
+        assertEquals(1, CalendarDays.weekNumber("2027-01-03"));
+        assertEquals(53, CalendarDays.weekNumber("2020-12-27"));
+    }
+
+    @Test
+    public void calendarChipTextIsDarkOnlyOnLightColours() {
+        assertTrue(CalendarDays.light(0xFFFFEB3B));
+        assertFalse(CalendarDays.light(0xFF4285F4));
+        assertFalse(CalendarDays.light(0xFF1A1E26));
     }
 
     @Test

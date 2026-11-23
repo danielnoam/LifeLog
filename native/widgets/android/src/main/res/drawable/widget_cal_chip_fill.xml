@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A chip in the Calendar widget's month (Nov 2026), as the Home calendar's
+     marks: filled is an event (faded, something finished), outlined a task,
+     dashed a release. White; the cell tints each to its colour. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFFFF" />
+    <corners android:radius="3dp" />
+</shape>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One thing on a day in the Calendar widget's month: its name on a chip.
+     A name too long is cut inside the chip's own padding, so it never runs
+     into the chip's edge. Each name starts on its own side, so a Hebrew
+     title in an English week still reads from the right. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cal_chip"
+    android:layout_width="match_parent"
+    android:layout_height="13dp"
+    android:layout_marginTop="2dp">
+
+    <ImageView
+        android:id="@+id/cal_chip_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_cal_chip_fill" />
+
+    <TextView
+        android:id="@+id/cal_chip_text"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:includeFontPadding="false"
+        android:paddingStart="4dp"
+        android:paddingEnd="3dp"
+        android:singleLine="true"
+        android:textAlignment="textStart"
+        android:textDirection="firstStrong"
+        android:textColor="@color/widget_on_accent"
+        android:textSize="10.5sp" />
+</FrameLayout>

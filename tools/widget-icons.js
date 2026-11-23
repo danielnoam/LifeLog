@@ -21,6 +21,9 @@ const WIDGET_ICONS = {
   "check": ["@color/widget_on_accent", 16],
   "x": ["@color/widget_slip", 16],
   "refresh-cw": ["@color/widget_text", 16],
+  "chevron-left": ["@color/widget_muted", 20],
+  "chevron-right": ["@color/widget_muted", 20],
+  "plus": ["@color/widget_on_accent", 20],
 };
 
 function lucide() {
