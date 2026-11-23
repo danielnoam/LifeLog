@@ -79,10 +79,11 @@ const SEED = {
   const skips = data.settings.importSkips || {};
   check("what was left unticked is remembered with its hours", (skips.steamOwned || []).includes("steam:413150#1") && (skips.steamOwned || []).includes("steam:999#0"), skips);
   await page.click("#steamOwnedSyncBtn");
-  await page.waitForSelector("#toast .toast-action", { timeout: 8000 });
+  // The import's own toast (Imported, Undo) may still be up: wait for this one.
+  await page.waitForFunction(() => /Show skipped/.test((document.querySelector("#toast") || {}).textContent || ""), null, { timeout: 8000 });
   const toastNow = await page.evaluate(() => ({ text: document.querySelector("#toast").textContent, review: !document.querySelector("#financePickerModal").hidden }));
   check("with only skips left the review doesn't open; the toast offers them", !toastNow.review && /only what you skipped before/.test(toastNow.text) && /Show skipped/.test(toastNow.text), toastNow);
-  await page.click("#toast .toast-action");
+  await page.evaluate(() => [...document.querySelectorAll("#toast .toast-action")].find((x) => /Show skipped/.test(x.textContent)).click());
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 });
   await page.waitForTimeout(200);
   const shown = await page.evaluate(() => ({ on: document.querySelector("#financePickerShowSkipped").checked, n: document.querySelector("#financePickerSkippedCount").textContent,

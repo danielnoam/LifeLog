@@ -50,6 +50,7 @@ const rowsOf = (page) => page.evaluate(() => [...document.querySelectorAll("#fin
   check("each skip keeps its episode count", JSON.stringify(d.settings.importSkips.anilist.slice().sort()) === JSON.stringify(["anilist-anime:41#5", "anilist-anime:42#3"]), d.settings.importSkips);
 
   await sync();
+  await page.waitForFunction(() => /Show skipped/.test((document.querySelector("#toast") || {}).textContent || ""), null, { timeout: 8000 }).catch(() => {});
   const t = await page.evaluate(() => document.querySelector("#toast").textContent);
   check("unchanged, nothing is asked; the toast offers what was skipped", !(await reviewOpen()) && /Show skipped/.test(t), t);
   await page.evaluate(() => [...document.querySelectorAll(".toast-action")].find((x) => /Show skipped/.test(x.textContent)).click());
