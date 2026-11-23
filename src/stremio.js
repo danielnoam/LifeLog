@@ -183,10 +183,14 @@
     for (const u of plan.updates) {
       built.items.push({ kind: "backlog", entry: { ...u.target, ...u.patch }, dup: true, update: true, targetId: u.target.id, targetKind: "backlog", fills: u.fills, checked: true, stremioId: u.id });
     }
-    for (const it of built.items) {
-      if (!it.dup && !it.update && it.stremioId && skips.has("stremio:" + it.stremioId)) { it.skipped = true; it.checked = false; }
-    }
+    if (window.LifeLogSkips) window.LifeLogSkips.mark(built.items, skips, (it) => (it.stremioId ? "stremio:" + it.stremioId : ""), skipState);
     return built;
+  }
+  // Where a row is, for skips (skips.js): watched is done, watching is its
+  // episode count; one in your library you haven't started is 0.
+  function skipState(it) {
+    if (it.kind === "entry") return "done";
+    return String(Math.floor(+it.entry.progress || 0));
   }
 
   function due(setting, lastAt, now = Date.now()) {
@@ -331,11 +335,11 @@
           }
           plan.updates = plan.updates.filter((u) => u.fills.length);
         }
-        const skips = new Set(((S().importSkips || {}).stremio) || []);
-        const built = buildRows(plan, ctx.buildImportItems, skips);
+        const built = buildRows(plan, ctx.buildImportItems, (S().importSkips || {}).stremio);
         const fresh = built.items.filter((it) => (it.update || !it.dup) && !it.skipped);
         if (!fresh.length) {
-          if (manual) ctx.toast(i18n.t("Nothing new from Stremio"));
+          const skipped = built.items.filter((it) => it.skipped);
+          if (manual) ctx.toast(i18n.t("Nothing new from Stremio"), false, skipped.length ? { label: i18n.t("Show skipped"), onClick: () => ctx.reviewAndImport("Stremio", HINT, { items: skipped, newCategories: [] }, (selected) => rememberSkips(skipped, selected), { showSkipped: true }) } : undefined);
           job.finish(i18n.t("Nothing new"));
           return;
         }
@@ -370,13 +374,9 @@
   async function rememberSkips(rows, selected) {
     const chosen = new Set(selected);
     const all = { ...(S().importSkips || {}) };
-    const next = new Set(all.stremio || []);
-    for (const it of rows) {
-      if (it.dup || it.update || !it.stremioId) continue;
-      const k = "stremio:" + it.stremioId;
-      if (chosen.has(it)) next.delete(k); else next.add(k);
-    }
-    if (next.size) all.stremio = [...next]; else delete all.stremio;
+    const seen = rows.filter((it) => !it.dup && !it.update && it.stremioId);
+    const next = window.LifeLogSkips.remember(all.stremio, seen.map((it) => ({ key: "stremio:" + it.stremioId, state: skipState(it), chosen: chosen.has(it) })));
+    if (next.length) all.stremio = next; else delete all.stremio;
     S().importSkips = all;
     await ctx.persist();
   }

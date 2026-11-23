@@ -732,9 +732,13 @@
     openImportPicker({
       title, hint, mode: "import", items: built.items, newCategories: built.newCategories,
       confirmLabel: i18n.t("Import"), ...(opts || {}),
+      // A review that remembers skips can be confirmed with nothing ticked:
+      // that's "none of these", kept like any other unticked row.
+      skippable: !!extraOnConfirm,
       onConfirm: async (selected, addCats) => {
-        await applyImportSelection(selected, addCats);
+        if (selected.length) await applyImportSelection(selected, addCats);
         if (extraOnConfirm) await extraOnConfirm(selected);
+        if (!selected.length && extraOnConfirm) toast(i18n.t("Skipped. They stay out until they move on"));
       },
     });
   }
@@ -1314,6 +1318,8 @@
       }
       row.appendChild(diff);
     } else if (item.dup) row.appendChild(el("span", "dup-tag", i18n.t("already added")));
+    else if (item.skipped) row.appendChild(el("span", "dup-tag", skippedText(item)));
+    else if (item.cameBack) { const tag = el("span", "dup-tag", i18n.t("moved on")); tag.title = skippedText(item); row.appendChild(tag); }
     else if (item.edited) row.appendChild(el("span", "dup-tag", i18n.t("edited")));
     if (onEdit && !item.dup) {
       const edit = el("button", "btn btn-icon picker-edit");
@@ -1325,6 +1331,15 @@
       row.appendChild(edit);
     }
     return row;
+  }
+  // Where a skipped title was when you skipped it, and that it has moved on
+  // if it came back (skips.js).
+  function skippedText(item) {
+    const at = item.skippedAt || "";
+    const where = at === "done" ? i18n.t("skipped when finished")
+      : at && at !== "0" ? (item.skipUnit === "hrs" ? i18n.t("skipped at {n} hrs", { n: at }) : i18n.t("skipped at {n}", { n: at }))
+      : i18n.t("skipped");
+    return item.cameBack ? i18n.t("{where}, moved on since", { where }) : where;
   }
   // The row as a small form (0.258.0): title, when, category and rating as
   // the kind allows, written back into the item on Done. The categories
@@ -1496,6 +1511,8 @@
       return doc;
     }
     if (item.dup) doc.appendChild(el("p", "picker-doc-note", i18n.t("Already in your data — tick it only to bring in a second copy")));
+    else if (item.cameBack) doc.appendChild(el("p", "picker-doc-note", i18n.t("You skipped this before ({where}). It has moved on since, so it's asked about again.", { where: skippedText({ skippedAt: item.skippedAt, skipUnit: item.skipUnit }) })));
+    else if (item.skipped) doc.appendChild(el("p", "picker-doc-note", i18n.t("You skipped this before ({where}). It stays out until it moves on: more progress, or finished.", { where: skippedText(item) })));
     if (item.kind === "board" && window.LifeLogBoards) {
       // An Excalidraw drawing, drawn as the board it becomes.
       if (item.leftOut) doc.appendChild(el("p", "picker-doc-note", i18n.t("Left out, as a board can't show them: {what}", { what: item.leftOut })));
@@ -1571,7 +1588,7 @@
     habit: i18n.t("Import this habit"), achievement: i18n.t("Import this achievement"), board: i18n.t("Import this board"),
   };
   const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
-  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold, previewImage }) {
+  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold, previewImage, showSkipped, skippable }) {
     const sorted = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
     items = sorted;
     newCategories = newCategories || [];
@@ -1589,7 +1606,7 @@
     const showSkipCb = $("#financePickerShowSkipped");
     const skippedCount = items.filter((i) => i.skipped).length;
     skipRow.hidden = mode !== "import" || !skippedCount;
-    showSkipCb.checked = false;
+    showSkipCb.checked = !!showSkipped && !!skippedCount;
     $("#financePickerSkippedCount").textContent = skippedCount ? `(${skippedCount})` : "";
     const unresolvedRow = $("#financePickerUnresolvedRow");
     const hideUnresolvedCb = $("#financePickerHideUnresolved");
@@ -1906,7 +1923,9 @@
         const under = items.filter(underThreshold).length;
         $("#financePickerThresholdHidden").textContent = under ? `${under} hidden` : "";
       }
-      $("#financePickerConfirmBtn").disabled = mode === "import" && !chosen.length;
+      const skipAll = mode === "import" && skippable && !chosen.length;
+      $("#financePickerConfirmBtn").disabled = mode === "import" && !chosen.length && !skipAll;
+      $("#financePickerConfirmBtn").textContent = skipAll ? i18n.t("Skip these") : confirmLabel;
     }
     let editing = null;
     const onEdit = mode === "import" ? (item, row) => {

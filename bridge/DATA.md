@@ -467,6 +467,9 @@ Keys: `scratchpad`, `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
 `anilist`, `waypage`, `stremio`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time;
+since Nov 2026 each may end in `#<state>`, where the title was when
+skipped: a count, or `done`. It's offered again once it moves past that,
+see src/skips.js, `lifelog_import_skips` and `lifelog_unskip_import`;
 `bills` (0.309.0) holds the `category|note` keys of hand-logged bills
 answered Not a bill, so the Ledger stops suggesting them),
 `tagNames` (saved tag names, see Notes → Tags),

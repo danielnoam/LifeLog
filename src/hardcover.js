@@ -97,7 +97,9 @@
   // Every book on your Hardcover lists against what you have in the
   // category: `titles` you have (linked by slug, or matched by title and
   // author and then linked), and `fresh` ones you have nowhere.
-  function plan(remote, data, category, base, skips) {
+  // A book new to LifeLog is fresh whether or not you skipped it before:
+  // the review marks skips (skips.js).
+  function plan(remote, data, category, base) {
     const bSlug = new Map(), eSlug = new Map(), bName = new Map(), eName = new Map();
     const newer = (map, k, x) => { const y = map.get(k); if (!y || String(x.date || "") + pad2(x.day || 0) > String(y.date || "") + pad2(y.day || 0)) map.set(k, x); };
     for (const b of data.backlog || []) {
@@ -118,7 +120,7 @@
         else if (me && !authorsClash(me.author, r.author)) { e = link = me; eName.delete(k); }
       }
       if (!b && !e) {
-        if (base[r.slug] === undefined && !skips.has(SOURCE + ":" + r.slug)) fresh.push(r);
+        if (base[r.slug] === undefined) fresh.push(r);
         continue;
       }
       const l = localState(b);
@@ -352,10 +354,11 @@
         }
         const data = ctx.state.data;
         const base = readJson(BASE_KEY);
-        const skips = new Set(((S().importSkips || {}).hardcover) || []);
+        const skipList = (S().importSkips || {}).hardcover || [];
+        const skips = new Set(window.LifeLogSkips.index(skipList).keys());
         const today = localDay();
         const now = new Date().toISOString();
-        const p = plan(remote, data, cfg.category, base, skips);
+        const p = plan(remote, data, cfg.category, base);
         // What comes in: a status switched off leaves the book here as it is.
         const C = window.LifeLogConnections;
         const takes = (s) => !C || C.takes("hardcover", s === "paused" ? "want" : s);
@@ -424,10 +427,12 @@
           built = ctx.buildImportItems({ entries: recs.entries.map((x) => x.entry), backlog: recs.backlog.map((x) => x.item), categories: [] });
           const eRows = built.items.filter((it) => it.kind === "entry"), bRows = built.items.filter((it) => it.kind === "backlog");
           eRows.forEach((it, i) => { const rec = recs.entries[i]; if (!rec) return; it.hardcoverSlug = rec.r.slug; if (!it.dup && !isDay(rec.r.finishedAt)) it.checked = false; });
-          bRows.forEach((it, i) => { if (recs.backlog[i]) it.hardcoverSlug = recs.backlog[i].r.slug; });
-          for (const it of built.items) if (!it.dup && skips.has(SOURCE + ":" + it.hardcoverSlug)) { it.skipped = true; it.checked = false; }
+          bRows.forEach((it, i) => { if (recs.backlog[i]) { it.hardcoverSlug = recs.backlog[i].r.slug; it.hardcoverStatus = recs.backlog[i].r.status; } });
+          window.LifeLogSkips.mark(built.items, skipList, (it) => (it.hardcoverSlug ? SOURCE + ":" + it.hardcoverSlug : ""), skipState);
           n = built.items.filter((it) => !it.dup && !it.skipped).length;
         }
+        const skippedRows = built ? built.items.filter((it) => it.skipped) : [];
+        if (!n && skippedRows.length && manual && !(result.changed && parts.length) && !(C && C.newMode("hardcover") === "none")) ctx.toast(i18n.t("Nothing new on Hardcover — only what you skipped before"), false, { label: i18n.t("Show skipped"), onClick: () => ctx.reviewAndImport("Hardcover", HINT, { items: skippedRows, newCategories: [] }, (selected) => rememberSkips(skippedRows, selected, base), { showSkipped: true }) });
         const mode = C ? C.newMode("hardcover") : "ask";
         job.finish([parts.join(", "), sent && i18n.t("sent {n}", { n: sent }), n && mode !== "none" && (mode === "add" ? i18n.t("{n} new", { n }) : i18n.t("{n} to review", { n }))].filter(Boolean).join(" · ") || i18n.t("Up to date"));
         if (n && C) C.route("hardcover", { built, title: "Hardcover", hint: HINT, manual, onSkips: (selected, rows) => rememberSkips(rows, selected, base), onAdded: (rows) => rememberSkips(rows, rows, base) });
@@ -442,23 +447,26 @@
   }
   const HINT = i18n.t("Books on your Hardcover lists that aren't in LifeLog yet. Read books go to your Timeline on the day you finished; ones Hardcover has no date for are unticked. What you leave unticked stays out next time.");
 
-  // Unticked rows stay out of the way next time. Ticked ones are agreed
-  // on, so the next sync starts from them.
+  // Where a book is, for skips (skips.js): want to read 0, reading (or
+  // put down) 1, read done. It comes back once it moves along that.
+  function skipState(it) {
+    if (it.kind === "entry") return "done";
+    return it.hardcoverStatus === "reading" || it.hardcoverStatus === "dnf" ? "1" : "0";
+  }
+
+  // Unticked rows stay out of the way next time, at the state they're in.
+  // Ticked ones are agreed on, so the next sync starts from them.
   async function rememberSkips(rows, selected, base) {
     const chosen = new Set(selected);
     const all = { ...(S().importSkips || {}) };
-    const next = new Set(all.hardcover || []);
     const b = base || readJson(BASE_KEY);
-    for (const it of rows) {
-      if (it.dup || !it.hardcoverSlug) continue;
-      const k = SOURCE + ":" + it.hardcoverSlug;
-      if (chosen.has(it)) {
-        next.delete(k);
-        b[it.hardcoverSlug] = it.kind === "entry" ? "read" : it.entry.dropped ? "dnf" : isDay(it.entry.startedAt) ? "reading" : "want";
-      } else next.add(k);
+    const seen = rows.filter((it) => !it.dup && it.hardcoverSlug);
+    for (const it of seen) {
+      if (chosen.has(it)) b[it.hardcoverSlug] = it.kind === "entry" ? "read" : it.entry.dropped ? "dnf" : isDay(it.entry.startedAt) ? "reading" : "want";
     }
+    const next = window.LifeLogSkips.remember(all.hardcover, seen.map((it) => ({ key: SOURCE + ":" + it.hardcoverSlug, state: skipState(it), chosen: chosen.has(it) })));
     writeJson(BASE_KEY, b);
-    if (next.size) all.hardcover = [...next]; else delete all.hardcover;
+    if (next.length) all.hardcover = next; else delete all.hardcover;
     S().importSkips = all;
     await ctx.persist();
   }
@@ -506,9 +514,7 @@
   function removed(item) {
     if (!ctx || !isLinked(item)) return;
     const all = { ...(S().importSkips || {}) };
-    const k = SOURCE + ":" + item.mediaId;
-    if ((all.hardcover || []).includes(k)) return;
-    all.hardcover = [...(all.hardcover || []), k];
+    all.hardcover = window.LifeLogSkips.add(all.hardcover, SOURCE + ":" + item.mediaId);
     S().importSkips = all;
   }
 

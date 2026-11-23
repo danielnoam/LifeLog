@@ -345,7 +345,7 @@ test("applyItemRelease moves the counts along and finishes a show", () => {
     const r = decideAniList(remote("current", 2, "2026-10-09T00:00:00Z"), null, { id: "e1", createdAt: "2026-01-01T00:00:00Z" }, { s: "completed", p: null });
     assert.deepStrictEqual([r.status, r.pullStatus, r.progress, r.pullProgress], ["current", true, 2, true]);
   });
-  test("the plan links a hand-added title, and leaves out a removed or skipped one", () => {
+  test("the plan links a hand-added title, and leaves out one agreed on before (a skipped one is fresh: the review hides it)", () => {
     const data = {
       backlog: [{ id: "h1", title: "frieren ", category: "Anime" }],
       entries: [{ id: "e9", title: "Old", category: "Anime", date: "2025-01", mediaSource: "anilist-anime", mediaId: "3" }],
@@ -357,10 +357,10 @@ test("applyItemRelease moves the counts along and finishes a show", () => {
       { m: { ...remote("planning", 0, ""), id: "51", title: "Removed" }, category: "Anime" },
       { m: { ...remote("planning", 0, ""), id: "52", title: "Skipped" }, category: "Anime" },
     ];
-    const plan = planAniList(raw, data, { "anilist-anime:51": { s: "planning", p: 0 } }, new Set(["anilist-anime:52"]));
+    const plan = planAniList(raw, data, { "anilist-anime:51": { s: "planning", p: 0 } });
     assert.deepStrictEqual(plan.titles.map((t) => [t.key, t.link ? t.link.id : null, t.status]),
       [["anilist-anime:7", "h1", "current"], ["anilist-anime:3", null, "completed"]]);
-    assert.deepStrictEqual(plan.fresh.map((f) => f.m.title), ["New One"]);
+    assert.deepStrictEqual(plan.fresh.map((f) => f.m.title), ["New One", "Skipped"]);
   });
   test("what's sent: the status with its dates, or just the count", () => {
     const e = { year: 2026, month: 3, day: 14, startedAt: "2026-01-20" };

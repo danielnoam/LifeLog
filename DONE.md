@@ -162,6 +162,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Excalidraw drawings (Obsidian's `.excalidraw.md`, compressed or not, and `.excalidraw` files) come in as boards with the Markdown import; images and frames left out and counted (0.309.0); their pictures come in too, vault files when picked, web ones shown from their address (0.310.0)
 - One review screen for every import: pick rows, edit a row, see what an update writes (0.24.0, 0.258.0)
 - The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; "Note:" titles named by their first sentence (0.304.0)
+- Skips remember where a title was (Steam games played, Steam wishlist, AniList, Stremio, Hardcover): left unticked, it stays out until it moves on (more episodes, chapters or hours, or finished), then the review asks again saying so; Show skipped on a sync with nothing new, Skip these with nothing ticked; bridge lifelog_import_skips / lifelog_unskip_import (next release)
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)

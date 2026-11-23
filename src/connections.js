@@ -109,15 +109,18 @@
     }
     let offer = built;
     if (mode === "add") {
-      const picked = fresh.filter((it) => it.checked);
+      // A title you skipped that has moved on since is asked about, never
+      // added unseen.
+      const picked = fresh.filter((it) => it.checked && !it.cameBack);
       if (picked.length) ctx.importStraight(title, picked, built.newCategories || [], onAdded && (() => onAdded(picked)));
-      const rest = fresh.filter((it) => !it.checked);
+      const rest = fresh.filter((it) => !picked.includes(it));
       if (!rest.length) return picked.length;
-      offer = { items: rest, newCategories: [] };
+      // What you skipped rides along behind "Show what you skipped before".
+      offer = { items: [...rest, ...built.items.filter((it) => it.skipped && !it.dup)], newCategories: [] };
     }
     const review = () => ctx.reviewAndImport(title, hint, offer, onSkips && ((selected) => onSkips(selected, offer.items)));
     if (manual) review();
-    else ctx.toast(i18n.t("{title}: {n} to review", { title, n: offer.items.filter((it) => !it.dup).length }), false, { label: i18n.t("Review"), onClick: review });
+    else ctx.toast(i18n.t("{title}: {n} to review", { title, n: offer.items.filter((it) => !it.dup && !it.skipped).length }), false, { label: i18n.t("Review"), onClick: review });
     return fresh.length;
   }
 

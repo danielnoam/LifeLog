@@ -499,30 +499,36 @@
         // one, and a source with a lot of noise in it says otherwise.
         if (source.ticked) for (const it of built.items) if (!it.dup) it.checked = source.ticked(it.entry);
         // What you left unticked last time stays out of the way (0.257.0):
-        // hidden behind "Show skipped", unticked, until you tick it there.
-        const skipKey = (it) => (it.entry.mediaSource || "") + ":" + (it.entry.mediaId || "");
-        const skips = new Set(((state.data.settings.importSkips || {})[source.skipKey] || []));
-        for (const it of built.items) if (!it.dup && it.entry.mediaId && skips.has(skipKey(it))) { it.skipped = true; it.checked = false; }
-        job.finish(job.stopping ? i18n.t("Stopped — {n} fetched, sent to review", { n: raw.length }) : i18n.t("{n} to review", { n: built.items.length }));
-        const rememberSkips = async (selected) => {
+        // hidden behind "Show what you skipped before", unticked, until it
+        // moves on (skips.js) or you tick it there.
+        const Skips = window.LifeLogSkips;
+        const skipKey = (it) => (it.entry.mediaId ? (it.entry.mediaSource || "") + ":" + it.entry.mediaId : "");
+        const skipState = (it) => (source.skipState ? source.skipState(it.entry) : "");
+        if (source.skipKey) Skips.mark(built.items, (state.data.settings.importSkips || {})[source.skipKey], skipKey, skipState, source.skipUnit);
+        const waiting = built.items.filter((it) => !it.dup || it.update).filter((it) => !it.skipped);
+        if (!waiting.length && built.items.some((it) => it.skipped)) {
+          const m = i18n.t("Nothing new — only what you skipped before");
+          job.finish(m);
+          toast(m, false, { label: i18n.t("Show skipped"), onClick: () => reviewAndImport(source.label, source.hint, built, rememberSkips, { ...(source.picker ? source.picker(built) : {}), showSkipped: true }) });
+          return;
+        }
+        job.finish(job.stopping ? i18n.t("Stopped — {n} fetched, sent to review", { n: raw.length }) : i18n.t("{n} to review", { n: waiting.length }));
+        async function rememberSkips(selected, rows) {
           if (!source.skipKey) return;
           const chosen = new Set(selected);
-          const next = new Set(skips);
-          for (const it of built.items) {
-            if (it.dup || !it.entry.mediaId) continue;
-            if (chosen.has(it)) next.delete(skipKey(it)); else next.add(skipKey(it));
-          }
+          const seen = (rows || built.items).filter((it) => !it.dup && !it.update && skipKey(it));
           const all = { ...(state.data.settings.importSkips || {}) };
-          if (next.size) all[source.skipKey] = [...next]; else delete all[source.skipKey];
+          const next = Skips.remember(all[source.skipKey], seen.map((it) => ({ key: skipKey(it), state: skipState(it), chosen: chosen.has(it) })));
+          if (next.length) all[source.skipKey] = next; else delete all[source.skipKey];
           state.data.settings.importSkips = all;
           await persist();
-        };
+        }
         // A connection's "New ..." choice (Settings → Connections): the
         // review, straight in, or only what you have kept up to date.
         const C = window.LifeLogConnections;
         if (source.connection && C && C.newMode(source.connection) !== "ask") {
           if (C.newMode(source.connection) === "none") for (const it of built.items) if (!it.dup && !it.update) { it.skipped = true; it.checked = false; }
-          C.route(source.connection, { built: { ...built, items: built.items.filter((it) => !it.skipped || it.update) }, title: source.label, hint: source.hint, manual: true, onSkips: (selected) => rememberSkips(selected) });
+          C.route(source.connection, { built, title: source.label, hint: source.hint, manual: true, onSkips: (selected, rows) => rememberSkips(selected, rows) });
           return;
         }
         reviewAndImport(source.label, source.hint, built, rememberSkips, source.picker ? source.picker(built) : undefined);
@@ -672,6 +678,9 @@
       return games.filter((g) => g.playtime_forever > 0 && !have.has(String(g.appid))).sort((a, b) => b.playtime_forever - a.playtime_forever);
     },
     toItem: (game, ctx) => ownedToEntry(game, ctx.category),
+    // A skipped game is asked about again once you've played another hour.
+    skipState: (entry) => String(Math.floor(parseFloat(entry.length) || 0)),
+    skipUnit: "hrs",
     ticked: (entry) => parseFloat(entry.length) * 60 >= PLAYED_TICK_MINUTES,
     // The review's "Played at least N hrs" line: what's under it is hidden
     // and unticked, so the one-minute demos never need unticking by hand.
@@ -1369,7 +1378,10 @@
   // (matched by AniList id, or by title and category for one added by hand,
   // which then gets linked), and `fresh` ones you have nowhere and haven't
   // removed or skipped.
-  function planAniList(raw, data, base, skips) {
+  // A title new to LifeLog is fresh whether or not you skipped it before:
+  // the review marks skips (skips.js) so "Show what you skipped before"
+  // can bring them back.
+  function planAniList(raw, data, base) {
     const nameKey = (t, c) => String(t || "").trim().toLowerCase() + "\u0000" + c;
     const keyOf = (x) => x.mediaSource + ":" + x.mediaId;
     const bKey = new Map(), bName = new Map(), eKey = new Map(), eName = new Map();
@@ -1395,7 +1407,7 @@
         if (b) bName.delete(n); else if (e) eName.delete(n);
       }
       if (!b && !e) {
-        if (!base[key] && !skips.has(key)) fresh.push({ m, category });
+        if (!base[key]) fresh.push({ m, category });
         continue;
       }
       titles.push({ key, m, b, e, link, ...decideAniList(m, b, e, base[key]) });
@@ -1555,8 +1567,7 @@
         }
         if (job.stopping) { job.finish(i18n.t("Stopped")); return; }
         const base = readAniListBase();
-        const skips = new Set(((state.data.settings.importSkips || {}).anilist) || []);
-        const plan = planAniList(raw, state.data, base, skips);
+        const plan = planAniList(raw, state.data, base);
         // What comes in (Settings → Connections → AniList): a status switched
         // off leaves the title here as it is; new titles come in, wait for
         // the review, or don't come at all.
@@ -1572,8 +1583,12 @@
         plan.fresh = mode === "none" ? [] : plan.fresh.filter(({ m }) => takes(m.listStatus));
         plan.freshByKey = new Map(plan.fresh.map(({ m }) => [m.source + ":" + m.id, m]));
         const built = plan.fresh.length ? buildAniList(plan.fresh) : { items: [], newCategories: [] };
-        const rows = mode === "add" ? built.items.filter((it) => !it.dup && !it.update && it.checked) : [];
+        const aniKey = (it) => it.entry.mediaSource + ":" + it.entry.mediaId;
+        window.LifeLogSkips.mark(built.items, (state.data.settings.importSkips || {}).anilist, aniKey, (it) => aniListSkipState(plan.freshByKey.get(aniKey(it))));
+        const rows = mode === "add" ? built.items.filter((it) => !it.dup && !it.update && it.checked && !it.cameBack) : [];
         const leftovers = built.items.filter((it) => !it.dup && !it.update && !rows.includes(it));
+        const toReview = leftovers.filter((it) => !it.skipped).length;
+        const reviewSkipped = () => reviewAndImport("AniList", i18n.t("What you skipped before on your AniList lists. Tick the ones to bring in now."), { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected, plan.freshByKey), { showSkipped: true });
         const result = applyAniListPlan(plan, rows);
         for (const it of rows) {
           const m = plan.freshByKey.get(it.entry.mediaSource + ":" + it.entry.mediaId);
@@ -1620,17 +1635,20 @@
           await persist();
           toast(i18n.t("AniList: {what}", { what: parts.join(", ") }), false, { label: i18n.t("Undo"), onClick: () => undoAniListPlan(result.undo) });
         } else if (manual) {
-          toast(sent ? i18n.tn(sent, "AniList is up to date — sent {n} change", "AniList is up to date — sent {n} changes") : waiting ? i18n.t("Up to date here — sign in to AniList to send your changes") : i18n.t("Your AniList lists are up to date"));
+          // Only skips left: they're one tap away, under "Show skipped".
+          const onlySkips = leftovers.length && !toReview ? { label: i18n.t("Show skipped"), onClick: () => reviewSkipped() } : undefined;
+          toast(sent ? i18n.tn(sent, "AniList is up to date — sent {n} change", "AniList is up to date — sent {n} changes") : waiting ? i18n.t("Up to date here — sign in to AniList to send your changes") : i18n.t("Your AniList lists are up to date"), false, onlySkips);
         }
-        if (leftovers.length) {
+        // Only skips left: nothing opens by itself (the toast above offers them).
+        if (toReview) {
           const hint = mode === "ask" ? i18n.t("New on your AniList lists. Completed titles AniList has no dates for are unticked and go under this month. What you leave unticked stays out next time.")
             : i18n.t("Completed titles AniList has no dates for. Tick the ones to log; they go under this month.");
-          const review = () => reviewAndImport("AniList", hint, { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected));
+          const review = () => reviewAndImport("AniList", hint, { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected, plan.freshByKey));
           if (manual) review();
-          else if (mode === "ask") toast(i18n.t("AniList: {n} new to review", { n: leftovers.length }), false, { label: i18n.t("Review"), onClick: review });
-          else if (!result.changed) toast(i18n.tn(leftovers.length, "{n} AniList title without dates to review", "{n} AniList titles without dates to review"), false, { label: i18n.t("Review"), onClick: review });
+          else if (mode === "ask") toast(i18n.t("AniList: {n} new to review", { n: toReview }), false, { label: i18n.t("Review"), onClick: () => review() });
+          else if (!result.changed) toast(i18n.tn(toReview, "{n} AniList title without dates to review", "{n} AniList titles without dates to review"), false, { label: i18n.t("Review"), onClick: () => review() });
         }
-        job.finish([parts.join(", "), sent && i18n.t("sent {n}", { n: sent }), leftovers.length && i18n.t("{n} to review", { n: leftovers.length })].filter(Boolean).join(" · ") || i18n.t("Up to date"));
+        job.finish([parts.join(", "), sent && i18n.t("sent {n}", { n: sent }), toReview && i18n.t("{n} to review", { n: toReview })].filter(Boolean).join(" · ") || i18n.t("Up to date"));
       });
     } catch (e) {
       // Already said, and kept in Activity.
@@ -1641,17 +1659,20 @@
 
   // Unticked in the review, they stay out of the way next time, as the
   // other imports' skips do.
-  async function rememberAniListSkips(rows, selected) {
+  // Each kept at where it is on AniList now (skips.js): it comes back
+  // with more episodes or chapters, or completed.
+  async function rememberAniListSkips(rows, selected, byKey) {
     const chosen = new Set(selected);
     const all = { ...(state.data.settings.importSkips || {}) };
-    const next = new Set(all.anilist || []);
-    for (const it of rows) {
-      const key = it.entry.mediaSource + ":" + it.entry.mediaId;
-      if (chosen.has(it)) next.delete(key); else next.add(key);
-    }
-    if (next.size) all.anilist = [...next]; else delete all.anilist;
+    const key = (it) => it.entry.mediaSource + ":" + it.entry.mediaId;
+    const next = window.LifeLogSkips.remember(all.anilist, rows.map((it) => ({ key: key(it), state: aniListSkipState(byKey && byKey.get(key(it))), chosen: chosen.has(it) })));
+    if (next.length) all.anilist = next; else delete all.anilist;
     state.data.settings.importSkips = all;
     await persist();
+  }
+  function aniListSkipState(m) {
+    if (!m) return "";
+    return window.LifeLogSkips.stateOf({ done: m.listStatus === "completed", progress: m.progress });
   }
 
   // Settings → Connections → AniList → Sync automatically: "open" (every time
@@ -1693,8 +1714,7 @@
     if (!item || !isAniListSource(item.mediaSource) || !item.mediaId) return;
     const key = item.mediaSource + ":" + item.mediaId;
     const all = { ...(state.data.settings.importSkips || {}) };
-    if ((all.anilist || []).includes(key)) return;
-    all.anilist = [...(all.anilist || []), key];
+    all.anilist = window.LifeLogSkips.add(all.anilist, key);
     state.data.settings.importSkips = all;
   }
   const syncAniListPlanning = () => syncAniList({ manual: true });
