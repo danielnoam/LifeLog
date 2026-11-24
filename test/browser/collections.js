@@ -274,10 +274,90 @@ async function run(b, width) {
   await ctx.close();
 }
 
+// A list in a collection shows its tasks as rows (2026-11-24): a packing
+// list that was all ticked read "All done" and nothing else.
+const it = (id, text, done) => ({ id, text, done: !!done, ...(done ? { doneAt: T(2) } : {}) });
+const LISTS = {
+  ...SEED,
+  noteCategories: [{ id: "pack", name: "Packing", color: "#2f9e44", layout: "collection" }],
+  notes: [
+    { id: "army", kind: "list", text: "Army", category: "Packing", items: [it("a1", "Boots", 1), it("a2", "Socks", 1)], createdAt: T(1), updatedAt: T(1) },
+    { id: "ski", kind: "list", text: "Ski", category: "Packing", items: [it("s1", "Jackets"), it("s2", "Gloves", 1), ...[3, 4, 5, 6, 7, 8].map((k) => it("s" + k, "Thing " + k))], createdAt: T(1), updatedAt: T(1) },
+    { id: "none", kind: "list", text: "Empty", category: "Packing", items: [], createdAt: T(1), updatedAt: T(1) },
+  ],
+};
+async function runLists(b, width) {
+  const errs = [];
+  const ctx = await b.newContext({ viewport: { width, height: 900 } });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
+  await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
+  await page.evaluate((seed) => {
+    localStorage.clear();
+    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
+    localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
+  }, LISTS);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(400);
+  const at = " (" + width + "px)";
+  await page.locator("#catFilter .cat-chip.is-collection", { hasText: "Packing" }).click();
+  await page.waitForTimeout(300);
+  const rows = (id) => page.evaluate((id) => [...document.querySelectorAll(`.coll-card[data-id="${id}"] .todo-row`)]
+    .map((r) => (r.classList.contains("is-done") ? "x " : "") + r.textContent), id);
+  check("an all-done list shows its ticked tasks" + at, JSON.stringify(await rows("army")) === JSON.stringify(["x Boots", "x Socks"]), await rows("army"));
+  const ski = await rows("ski");
+  check("open tasks come first, six at most, with how many more" + at, ski.length === 6 && ski[0] === "Jackets" && !ski.some((r) => r.startsWith("x"))
+    && /2/.test(await page.textContent('.coll-card[data-id="ski"] .coll-card-more')), ski);
+  check("an empty list says so" + at, (await rows("none")).length === 0 && /Nothing here/.test(await page.textContent('.coll-card[data-id="none"]')));
+  await page.click('.coll-card[data-id="ski"] .todo-row:first-child .todo-check');
+  await page.waitForTimeout(300);
+  check("a tick on the card ticks the task, without opening the list" + at, await page.evaluate(() =>
+    window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items.find((i) => i.id === "s1").done
+    && document.querySelector("#noteModal").hidden));
+  await page.click('.coll-card[data-id="army"] .coll-card-title .note-list-tick');
+  await page.waitForTimeout(300);
+  check("the list's own tick on its card ticks the list" + at, await page.evaluate(() =>
+    window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "army").done === true
+    && document.querySelector('.coll-card[data-id="army"] .coll-card-title').classList.contains("is-done")
+    && document.querySelector("#noteModal").hidden));
+  // The list's page ticks its rows too (2026-11-24), saved at once.
+  await page.click('.coll-card[data-id="ski"] .coll-card-title');
+  await page.waitForTimeout(400);
+  const sheetTicks = () => page.evaluate(() => [...document.querySelectorAll("#nItems .note-list-check")].map((c) => c.checked));
+  check("the list's page has a tick on each row" + at, (await sheetTicks()).length === 8, await sheetTicks());
+  await page.locator("#nItems .note-list-row").nth(1).locator(".note-list-check").click();
+  await page.waitForTimeout(300);
+  check("ticking one there saves it on the list and strikes the row" + at, await page.evaluate(() =>
+    !window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items.find((i) => i.id === "s2").done
+    && !document.querySelectorAll("#nItems .note-list-row")[1].classList.contains("is-done")));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  check("and leaving the page keeps the ticks" + at, await page.evaluate(() => {
+    const items = window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items;
+    return items.find((i) => i.id === "s1").done && !items.find((i) => i.id === "s2").done;
+  }));
+  await page.click('.coll-card[data-id="ski"] .coll-card-title');
+  await page.waitForTimeout(400);
+  await page.click("#nListTick");
+  await page.waitForTimeout(300);
+  check("the list's own tick on its page ticks it and every row" + at, await page.evaluate(() => {
+    const n = window.LifeLogStorage.cachedCopy().notes.find((x) => x.id === "ski");
+    return n.done && n.items.every((i) => i.done) && [...document.querySelectorAll("#nItems .note-list-check")].every((c) => c.checked);
+  }));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  check("and it stays ticked after leaving" + at, await page.evaluate(() => window.LifeLogStorage.cachedCopy().notes.find((x) => x.id === "ski").done === true));
+  check("no errors" + at, errs.length === 0, errs);
+  await ctx.close();
+}
+
 (async () => {
   const b = await chromium.launch();
   await run(b, 1280);
   await run(b, 390);
+  await runLists(b, 1280);
+  await runLists(b, 390);
   await b.close();
   done();
 })();

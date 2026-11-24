@@ -364,9 +364,12 @@
       </div>
       <form id="noteForm" class="nv-scroll">
         <div class="nv-col">
-          <label id="nTitleLabel" class="nv-title-label" hidden><span id="nTitleLabelText" class="sr-only"><span data-t>Title</span></span>
-            <input id="nTitle" class="nv-title" type="text" autocomplete="off" placeholder="Title" data-t-attr="placeholder" />
-          </label>
+          <div class="nv-title-row">
+            <input id="nListTick" class="todo-check note-list-tick" type="checkbox" hidden />
+            <label id="nTitleLabel" class="nv-title-label" hidden><span id="nTitleLabelText" class="sr-only"><span data-t>Title</span></span>
+              <input id="nTitle" class="nv-title" type="text" autocomplete="off" placeholder="Title" data-t-attr="placeholder" />
+            </label>
+          </div>
           <textarea id="nDesc" class="task-note note-desc" rows="1" autocomplete="off" aria-label="Description" placeholder="Add a description" hidden data-t-attr="placeholder,aria-label"></textarea>
           <!-- One box for what's set on it, above the words (16 Nov 2026):
                a list's rows are its date and priority too; a quote's its

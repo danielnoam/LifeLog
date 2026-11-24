@@ -1,5 +1,5 @@
 // The note sheet (0.199.0): a plain note's optional title, a list's items
-// written without ticks or a quick-add switch, and a quote's author and
+// written with no quick-add switch (ticks on each row since 2026-11-24), and a quote's author and
 // source side by side — at phone and desktop widths.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
@@ -60,8 +60,8 @@ async function run(b, width) {
     !document.querySelector("#nListEditor input[type=checkbox]") && !document.querySelector("#nQuickList")));
   await page.fill("#nTitle", "Trip");
   for (const t of ["Passport", "Charger"]) { await page.fill("#nNewItem", t); await page.press("#nNewItem", "Enter"); }
-  check("items typed in are rows to edit, still without ticks" + at, await page.evaluate(() =>
-    document.querySelectorAll("#nItems .note-list-row input[type=text]").length === 2 && !document.querySelector("#nItems input[type=checkbox]")));
+  check("items typed in are rows to edit, each with a tick (2026-11-24)" + at, await page.evaluate(() =>
+    document.querySelectorAll("#nItems .note-list-row input[type=text]").length === 2 && document.querySelectorAll("#nItems input[type=checkbox]").length === 2));
   await shot("list");
   await save();
   d = await saved();
@@ -78,7 +78,7 @@ async function run(b, width) {
   await page.mouse.down();
   await page.mouse.move(g.x + g.width / 2, top.y + 4, { steps: 8 });
   await page.mouse.up();
-  const order = () => page.evaluate(() => [...document.querySelectorAll("#nItems .note-list-row input")].map((i) => i.value).join());
+  const order = () => page.evaluate(() => [...document.querySelectorAll("#nItems .note-list-row input[type=text]")].map((i) => i.value).join());
   check("dragging the last item's handle to the top moves it there" + at, await order() === "Tickets,Passport,Charger", await order());
   await page.focus("#nItems .note-list-row:nth-child(1) .note-list-grip");
   await page.keyboard.press("ArrowDown");

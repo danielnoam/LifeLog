@@ -4790,6 +4790,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-list-words .todo-meta { padding: 0 var(--space-12) var(--space-10); cursor: pointer; }
 .note-list-words.has-meta input[type="text"] { padding-bottom: var(--space-2); }
 .note-list-row.is-sub { padding-inline-start: var(--space-24); }
+.note-list-row .note-list-check { margin-inline: var(--space-4) var(--space-8); }
 .note-list-open { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--text-faint); cursor: pointer; }
 .note-list-open:hover { color: var(--text); }
 .note-list-open svg { width: 18px; height: 18px; }
@@ -4835,11 +4836,20 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .coll-card.is-bulk { padding-inline-start: 40px; }
 .coll-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
 .coll-card-title { font-weight: 650; font-size: var(--fs-read); overflow-wrap: anywhere; }
+.coll-card-title.has-tick { display: flex; align-items: center; gap: var(--space-8); }
+.coll-card-title.has-tick .note-list-tick { margin: 0; }
+.coll-card-title.is-done { color: var(--text-dim); text-decoration: line-through; }
 .coll-card-text {
   color: var(--text-dim); font-size: var(--fs-sm); line-height: 1.45; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
 .coll-card-meta { color: var(--text-dim); font-size: var(--fs-xs); margin-top: auto; }
+/* A list's tasks on its collection card (collectionRows). */
+.coll-card-rows { display: flex; flex-direction: column; min-width: 0; }
+.coll-card-rows .todo-row { padding: var(--space-4) 0; gap: var(--space-8); }
+.coll-card-rows .todo-text { cursor: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coll-card-rows .todo-check:disabled { opacity: 1; }
+.coll-card-more { color: var(--text-dim); font-size: var(--fs-xs); padding-top: var(--space-4); }
 
 .md { font-size: var(--fs-read); line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
 .md > :first-child { margin-top: 0; }
@@ -4941,7 +4951,11 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .nv-mode button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; cursor: default; }
 .nv-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-24) var(--space-32) var(--space-16); }
 .nv-col { max-width: 640px; margin: 0 auto; }
-.nv-title-label { display: block; margin: 0; }
+.nv-title-label { display: block; margin: 0; flex: 1 1 auto; min-width: 0; }
+.nv-title-row { display: flex; align-items: flex-start; gap: var(--space-10); }
+.nv-title-row .note-list-tick { flex: 0 0 auto; width: 24px; height: 24px; margin: var(--space-2) 0 0; }
+.nv-title-row input.note-list-tick::before { width: 12px; height: 12px; }
+.nv-title-row .note-list-tick::after { content: ""; position: absolute; inset: -10px; }
 .nv-title-label[hidden] { display: none; }
 #noteModal .nv-title, #noteReader .nv-title, .nv-title {
   display: block; width: 100%; box-sizing: border-box; margin: 0 0 var(--space-8); padding: 0;
