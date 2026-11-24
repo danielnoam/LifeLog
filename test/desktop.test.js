@@ -387,6 +387,36 @@ test("links leave for the browser: the app's own pages, downloads and right clic
   assert.deepStrictEqual(d.opened, []);
 });
 
+console.log("\nthe unreleased Windows update");
+
+{
+  const U = require("../tools/unreleased-update.js");
+  const sha = "a".repeat(40);
+  const art = (over) => Object.assign({ name: U.ARTIFACT, expired: false, created_at: "2026-11-24T10:00:00Z", workflow_run: { id: 1, head_branch: "main", head_sha: sha } }, over);
+
+  test("the exe comes from the same build of main as build.json's windows entry", () => {
+    const other = art({ created_at: "2026-11-24T11:00:00Z", workflow_run: { id: 2, head_branch: "main", head_sha: "b".repeat(40) } });
+    const branch = art({ workflow_run: { id: 3, head_branch: "fix/x", head_sha: sha } });
+    assert.strictEqual(U.match([other, branch, art({ expired: true }), art()], sha).workflow_run.id, 1);
+    assert.strictEqual(U.match([other, branch], sha), null);
+  });
+
+  test("its latest.json names the portable target, the site's exe and the signature", () => {
+    const m = U.manifest({ version: "0.327.0", at: "2026-11-24T10:00:00Z" }, "c2lnbmVk\n", U.siteOf("danielnoam/LifeLog"));
+    assert.deepStrictEqual(m.platforms, { "windows-x86_64-portable": { signature: "c2lnbmVk", url: "https://danielnoam.github.io/LifeLog/unreleased/LifeLog.exe" } });
+    assert.strictEqual(m.version, "0.327.0");
+  });
+
+  test("the app looks for it where the deploy puts it", () => {
+    const rs = fs.readFileSync(path.join(ROOT, "src-tauri/src/portable.rs"), "utf8");
+    assert.ok(rs.includes('UNRELEASED: &str = "' + U.siteOf("danielnoam/LifeLog") + 'unreleased/latest.json"'));
+    assert.ok(rs.includes('TARGET: &str = "' + U.TARGET + '"'));
+    const pages = fs.readFileSync(path.join(ROOT, ".github/workflows/pages.yml"), "utf8");
+    assert.ok(pages.indexOf("tools/unreleased-update.js fetch unreleased") > pages.indexOf("tools/unreleased.js fetch unreleased"));
+    assert.ok(fs.readFileSync(path.join(ROOT, ".github/workflows/desktop.yml"), "utf8").includes("name: " + U.ARTIFACT));
+  });
+}
+
 fs.rmSync(tmp, { recursive: true, force: true });
 asyncTests().catch((e) => { console.error("  FAIL - a reminder checks GitHub before it rings"); console.error("    " + e.message); process.exitCode = 1; })
   .then(() => console.log(`\n${passed} passed`));

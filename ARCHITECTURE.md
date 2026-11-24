@@ -146,8 +146,9 @@ everything else follows from it:
 
 index.html's `keel-site` and `keel-repo` metas name where the web copy
 lives and its repo: installed copies look for unreleased builds there and
-link to it. Before moving the repo to an organization or a custom domain,
-change both and ship a release; GitHub redirects the repo, not its Pages
+link to it. The Windows app's unreleased update address is written out in
+`src-tauri/src/portable.rs` (`UNRELEASED`) too. Before moving the repo to an
+organization or a custom domain, change all three and ship a release; GitHub redirects the repo, not its Pages
 address (keel README, "Moving an app").
 
 ## Tests

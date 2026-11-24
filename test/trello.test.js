@@ -264,16 +264,16 @@ test("saving a task list keeps a checklist item under its card", () => {
 });
 
 test("a repeating task completed in Trello moves to its next date here, and the card reopens with that date", async () => {
-  const tr = fakeTrello([{ id: id(1), idList: L1, name: "Water plants", due: T.dueOf({ date: "2026-11-21", time: "09:00" }) }]);
+  const tr = fakeTrello([{ id: id(1), idList: L1, name: "Water plants", due: T.dueOf({ date: "2099-01-01", time: "09:00" }) }]);
   const data = { notes: [] };
   await sync(data, cfg(), tr);
   Object.assign(task(data, id(1)), { repeat: { every: 3, unit: "day" }, updatedAt: "2026-11-20T00:00:00.000Z" });
-  Object.assign(tr.db.get(id(1)), { dueComplete: true, dateLastActivity: "2026-11-21T10:00:00.000Z" });
+  Object.assign(tr.db.get(id(1)), { dueComplete: true, dateLastActivity: "2099-01-01T10:00:00.000Z" });
   await sync(data, cfg(), tr);
   const it = task(data, id(1));
-  assert.ok(!it.done && it.date === "2026-11-24" && it.ticks.length === 1, JSON.stringify(it));
+  assert.ok(!it.done && it.date === "2099-01-04" && it.ticks.length === 1, JSON.stringify(it));
   assert.strictEqual(tr.db.get(id(1)).dueComplete, false);
-  assert.ok(T.fromDue(tr.db.get(id(1)).due).date === "2026-11-24");
+  assert.ok(T.fromDue(tr.db.get(id(1)).due).date === "2099-01-04");
 });
 
 test("settings are cleaned: bad ids dropped, unknown fields kept, token blanked out of exports", () => {

@@ -277,9 +277,13 @@ force-push `main`.
   Windows, per device) offers them, on the same update bar. Hidden, not
   private: the repo is public and the address can be guessed. They keep
   the last release's version, so the APK installs over the release and
-  the next release installs over it; on Windows the zip downloads in the
-  browser, to unzip over the app's folder, since the updater skips a
-  same-version build.
+  the next release installs over it. On Windows (2026-11-24) the app
+  updates itself from it like a release: `desktop.yml` also leaves the
+  signed `LifeLog.exe` as `unreleased-windows-exe`, and `pages.yml`
+  (`tools/unreleased-update.js`) serves it with an `unreleased/latest.json`
+  that `src-tauri/src/portable.rs` reads, taking any version since the
+  page only offers a different commit. Without that file (no signing key,
+  expired artifact) the bar opens the zip in the browser instead.
 
 **Test builds.** A pull request labelled `test` gets an APK and the
 Windows app, `test-android` or `test-desktop` just one (sooner);

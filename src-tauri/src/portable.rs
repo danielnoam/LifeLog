@@ -15,6 +15,12 @@
 // A folder LifeLog can't write to (Program Files) answers "readonly" before
 // anything downloads; the page then sends you to the download.
 //
+// Settings → About → Unreleased builds (2026-11-24) updates the same way,
+// from the site's unreleased/latest.json (pages.yml, tools/unreleased-update.js):
+// main's newest LifeLog.exe, signed with the same key. It has the release's
+// version, so any version is taken; the page asks only when its commit
+// differs from this copy's.
+//
 // What the installer used to do once, done on every start instead: the
 // name notifications show under (AUMID), and a refusal to run from inside
 // the zip, where Windows unpacks into a temp folder that gets emptied.
@@ -24,6 +30,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const TARGET: &str = "windows-x86_64-portable";
+pub const UNRELEASED: &str = "https://danielnoam.github.io/LifeLog/unreleased/latest.json";
 const ASIDE: &str = ".old";
 const INCOMING: &str = ".new";
 
@@ -145,17 +152,22 @@ pub mod win {
         }
     }
 
-    pub async fn find(app: &AppHandle) -> Result<Option<tauri_plugin_updater::Update>, String> {
-        let u = app.updater_builder().target(TARGET).build().map_err(|e| e.to_string())?;
+    pub async fn find(app: &AppHandle, unreleased: bool) -> Result<Option<tauri_plugin_updater::Update>, String> {
+        let mut b = app.updater_builder().target(TARGET);
+        if unreleased {
+            let url = tauri::Url::parse(UNRELEASED).map_err(|e| e.to_string())?;
+            b = b.endpoints(vec![url]).map_err(|e| e.to_string())?.version_comparator(|_, _| true);
+        }
+        let u = b.build().map_err(|e| e.to_string())?;
         u.check().await.map_err(|e| e.to_string())
     }
 
-    pub async fn update(app: AppHandle, exe: PathBuf, progress: Channel<f64>) -> Result<bool, String> {
+    pub async fn update(app: AppHandle, exe: PathBuf, progress: Channel<f64>, unreleased: bool) -> Result<bool, String> {
         let dir = exe.parent().ok_or("readonly")?;
         if !writable(dir) {
             return Err("readonly".into());
         }
-        let Some(update) = find(&app).await? else { return Ok(false) };
+        let Some(update) = find(&app, unreleased).await? else { return Ok(false) };
         let mut got = 0u64;
         let bytes = update
             .download(
@@ -191,14 +203,15 @@ pub mod win {
 }
 
 // The version waiting, or None. An error (no network, or a release
-// without a portable entry) reads as None to the page.
+// without a portable entry) reads as None to the page. `unreleased`: main's
+// newest build instead of the release.
 #[tauri::command]
-pub async fn portable_check(app: tauri::AppHandle) -> Result<Option<String>, String> {
+pub async fn portable_check(app: tauri::AppHandle, unreleased: Option<bool>) -> Result<Option<String>, String> {
     #[cfg(windows)]
-    return Ok(win::find(&app).await?.map(|u| u.version));
+    return Ok(win::find(&app, unreleased.unwrap_or(false)).await?.map(|u| u.version));
     #[cfg(not(windows))]
     {
-        let _ = app;
+        let _ = (app, unreleased);
         Err("Windows only".into())
     }
 }
@@ -207,12 +220,12 @@ pub async fn portable_check(app: tauri::AppHandle) -> Result<Option<String>, Str
 // Resolves false when there's nothing to install. Fails with "readonly"
 // when the folder can't be written, before downloading.
 #[tauri::command]
-pub async fn portable_update(app: tauri::AppHandle, exe: tauri::State<'_, Exe>, progress: tauri::ipc::Channel<f64>) -> Result<bool, String> {
+pub async fn portable_update(app: tauri::AppHandle, exe: tauri::State<'_, Exe>, progress: tauri::ipc::Channel<f64>, unreleased: Option<bool>) -> Result<bool, String> {
     #[cfg(windows)]
-    return win::update(app, exe.0.clone(), progress).await;
+    return win::update(app, exe.0.clone(), progress, unreleased.unwrap_or(false)).await;
     #[cfg(not(windows))]
     {
-        let _ = (app, exe, progress);
+        let _ = (app, exe, progress, unreleased);
         Err("Windows only".into())
     }
 }
