@@ -143,4 +143,19 @@ test("a ticked list gets unticked when a row is unticked", () => {
   assert.deepStrictEqual(T.reopen({ id: "M" }), { id: "M" });
 });
 
+test("a pasted list: one task per line, bullets and numbers off, blanks skipped", () => {
+  const got = T.pastedLines("- Milk\r\n\n* Eggs\n1. Bread\n2) Jam\n• Tea\n  ✓ Rice\n-5 degrees\n1.5kg flour\n   \n");
+  assert.deepStrictEqual(got.map((l) => l.text), ["Milk", "Eggs", "Bread", "Jam", "Tea", "Rice", "-5 degrees", "1.5kg flour"]);
+  assert.ok(got.every((l) => !l.done));
+});
+test("a pasted checklist keeps what was ticked", () => {
+  assert.deepStrictEqual(T.pastedLines("- [ ] A\n- [x] B\n[X] C\n☐ D\n☑ E\n☒ F"),
+    [{ text: "A" }, { text: "B", done: true }, { text: "C", done: true }, { text: "D" }, { text: "E", done: true }, { text: "F", done: true }]);
+});
+test("a pasted Hebrew list, with direction marks", () => {
+  assert.deepStrictEqual(T.pastedLines("\u200f- חלב\n\u200f2. ביצים\nלחם").map((l) => l.text), ["חלב", "ביצים", "לחם"]);
+  assert.strictEqual(T.pastedLines("just one line").length, 1);
+  assert.deepStrictEqual(T.pastedLines(""), []);
+});
+
 console.log(`\n${passed} test(s) passed.`);

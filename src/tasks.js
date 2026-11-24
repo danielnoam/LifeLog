@@ -453,6 +453,23 @@
       const again = $("#taskSubs .task-sub-compose input");
       if (again) again.focus();
     };
+    wirePasteList(input, async (lines) => {
+      const ids = new Set();
+      await change((it, n) => {
+        const kids = lines.map((l) => {
+          const kid = { id: uid(), text: l.text, parent: it.id };
+          if (l.done) { kid.done = true; kid.doneAt = new Date().toISOString(); }
+          kid.trello = checklist ? { checklist } : {};
+          ids.add(kid.id);
+          return kid;
+        });
+        const last = n.items.map((x) => x.id === it.id || x.parent === it.id).lastIndexOf(true);
+        n.items.splice(last + 1, 0, ...kids);
+      });
+      toast(i18n.tn(ids.size, "Added {n} item", "Added {n} items"), false, { label: i18n.t("Undo"), onClick: () => change((it, n) => { n.items = n.items.filter((x) => !ids.has(x.id)); }) });
+      const again = $("#taskSubs .task-sub-compose input");
+      if (again) again.focus();
+    });
     add.onclick = submit;
     input.oninput = () => { add.disabled = !input.value.trim(); };
     input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submit(); } };
@@ -788,10 +805,40 @@
     $("#taskDateDone").onclick = applyDate;
   }
 
+  // A pasted list becomes one task per line (Daniel, 2026-11-24): bullets,
+  // numbers and checkboxes come off, blank lines are skipped, and a ticked
+  // box ([x], ☑) comes in done. Fewer than two lines is an ordinary paste.
+  const LEAD = /^[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]*(?:(?:[-*+–—]\s+|[•◦▪‣·●○✓✔]\s*|\(?\d{1,3}[.)]\s+)?(?:\[([ xX✓✔]?)\]\s*|([☐☑☒✅])\s*)?)/;
+  function pastedLines(text) {
+    const out = [];
+    for (const line of String(text || "").replace(/\r\n?/g, "\n").split("\n")) {
+      const m = line.match(LEAD);
+      const t = line.slice(m[0].length).replace(/\s+/g, " ").trim();
+      if (!t) continue;
+      const box = (m[1] || m[2] || "").trim();
+      out.push(box && box !== "☐" ? { text: t, done: true } : { text: t });
+    }
+    return out;
+  }
+  // `add` gets the lines; what was already typed in the box comes first.
+  function wirePasteList(input, add) {
+    input.addEventListener("paste", (ev) => {
+      const lines = pastedLines(ev.clipboardData && ev.clipboardData.getData("text/plain"));
+      if (lines.length < 2) return;
+      ev.preventDefault();
+      const v = input.value, a = input.selectionStart == null ? v.length : input.selectionStart, b = input.selectionEnd == null ? v.length : input.selectionEnd;
+      const typed = (v.slice(0, a) + v.slice(b)).replace(/\s+/g, " ").trim();
+      if (typed) lines.unshift({ text: typed });
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      add(lines);
+    });
+  }
+
   const api = {
     init, wire, openTask, openDateFor, closeTask, closeAll: () => closeTask({ all: true }), closeDate: applyDate, handleEscape, isOpen: () => !!cur,
     cleanItem, cleanParents, cleanHead, cleanRepeat, isTask, childrenOf, sectionsOf, sectionOf, nextDate, tick, reopen, dueTasks, categoryOf, remindAt,
-    today: () => localDay(new Date()), shortDay, repeatText, remindText, dateSummary, listLines, addDays, isDay, isTime, PRIORITY_NAMES,
+    today: () => localDay(new Date()), pastedLines, wirePasteList, shortDay, repeatText, remindText, dateSummary, listLines, addDays, isDay, isTime, PRIORITY_NAMES,
   };
   if (typeof window !== "undefined") window.LifeLogTasks = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
