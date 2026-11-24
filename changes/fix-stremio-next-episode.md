@@ -1,2 +1,0 @@
-### Fixed
-- Stremio sync no longer counts one episode too many. Stremio keeps the episode you're on, and once you're past an episode's credits it moves on to the next one before you've started it; LifeLog took that next episode as watched. Now the episode Stremio is on counts only when Stremio marked it watched (a last episode with nothing after it). A count already one too high stays as it is (sync never lowers a count you have): set it back once.

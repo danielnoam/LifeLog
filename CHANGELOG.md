@@ -3,6 +3,34 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.328.0] - 2026-11-24
+
+### Added
+- An import remembers where a title was when you skipped it (Steam games played, AniList, Stremio, Hardcover). It stays out while it's there, and is asked about again once it moves on: more episodes or chapters, another hour played, or finished. The row says "skipped at 5, moved on since", and a title that comes back always goes through the review, never straight in. A Steam wishlist skip stays a skip.
+- A sync with nothing new but things you skipped says so, with Show skipped to change your mind. A review with nothing ticked can be confirmed as Skip these.
+- Bridge: `lifelog_import_skips` lists what each import remembers you skipped, and `lifelog_unskip_import` makes the next sync offer one again.
+- Paste a list into a task list's add box (on the card, in the list's page, or a Trello card's checklist) and each line becomes its own task. Bullets (-, *, •), numbers (1., 2)) and checkboxes come off, blank lines are skipped, ticked boxes ([x], ☑) come in done, and Undo takes them all back. Works in English and Hebrew, on phone and computer, in the web, Windows and Android apps.
+- A Trello board's task list has a + beside each of its lists' names. It opens an add line under that list ("Add to Doing"), and what you add goes to that list on Trello. The card's own add line now says which list it adds to (the first).
+- A Trello card's checklist items are in its task sheet now, under their checklists' names (iOS, Android, ...), with a tick each and an add line. They're no longer drawn on the Notebook card or the Tasks widget, where the card's row shows how many are ticked (1/4).
+- The bridge: lifelog_add_task takes a section, to add straight into a Trello list on a board's task list.
+
+### Changed
+- The Calendar widget (Android only; Windows and the web have no home screen widgets, and iPhone didn't get it) is now one month that fills the whole widget, laid out like Google Calendar's: each day shows its events, tasks, releases and finished entries by name on chips (filled for events, outlined for tasks, dashed for releases, faded for finished), as many as the widget's height holds, then "+N". Week numbers sit beside the weeks (off in the widget's settings), and a "+" opens the quick-add window. Hebrew turns the month right to left.
+- The Calendar widget's Agenda layout is gone; an Agenda widget already on the home screen becomes the month.
+- Unreleased builds on Windows: the update bar's Update now downloads the newest build of main, swaps it in and restarts, like a release, instead of opening the zip to unzip by hand. If it can't (a read-only folder, or the site has no signed copy yet) it opens the zip as before. The first update to this build is still the old way, by hand.
+
+### Fixed
+- AniList and Hardcover reviews, and any connection set to Add straight away, now show what you skipped under "Show what you skipped before"; before, skipped titles never reached the review at all.
+- Calendar widget (Android only): outlined task chips and dashed release chips drew filled in their own colour, hiding their names; they're outlines now.
+- Calendar widget: names on chips no longer end in "…"; they're cut at the chip's edge like Google Calendar's, and the chips are a little wider, so more of each name shows.
+- Stremio's LifeLog: Backlog favourites and LifeLog: In progress rows no longer go empty when a LifeLog from before 0.327.0 (another device not yet updated) sends its Backlog: the worker keeps the stars and the in-progress list it already has.
+- Stremio sync no longer counts one episode too many. Stremio keeps the episode you're on, and once you're past an episode's credits it moves on to the next one before you've started it; LifeLog took that next episode as watched. Now the episode Stremio is on counts only when Stremio marked it watched (a last episode with nothing after it). A count already one too high stays as it is (sync never lowers a count you have): set it back once.
+- Android Tasks widget: a Trello card's checklist items now sit right under their card, in its list's section. Before, they fell under the board's first list.
+- A Trello board's task list shows each of its lists' names even when they're empty, and even when the whole board is empty or all ticked.
+- Trello: a card's checklist items no longer come loose from their card, and the app no longer deletes them on Trello. Saving a task list dropped the link between each checklist item and its card. The next sync then took the items as deleted here and deleted them on Trello. Loose items go back under their card at the next sync. Any that were deleted on Trello this way go back on their checklist, so one you deleted in Trello yourself while it was loose here comes back too.
+- A Trello list archived or deleted in Trello now leaves LifeLog on the next sync: its tasks go, and it drops out of the lists picked in Settings → Connections → Trello. Nothing is archived in Trello.
+- Pull to refresh syncs your Trello boards too, not only GitHub.
+
 ## [0.327.0] - 2026-11-22
 
 ### Added

@@ -1,2 +1,0 @@
-### Fixed
-- Trello: a card's checklist items no longer come loose from their card, and the app no longer deletes them on Trello. Saving a task list dropped the link between each checklist item and its card. The next sync then took the items as deleted here and deleted them on Trello. Loose items go back under their card at the next sync. Any that were deleted on Trello this way go back on their checklist, so one you deleted in Trello yourself while it was loose here comes back too.
