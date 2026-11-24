@@ -693,6 +693,7 @@ Keel.i18n.strings("he", {
   "Clear selection": "ניקוי הבחירה",
   "Cleared": "נוקה",
   "Cleared {n}": "נוקו {n}",
+  "Added {n} items": { one: "נוסף פריט אחד", other: "נוספו {n} פריטים" },
   "Cleared {n} days": { one: "נוקה יום אחד", other: "נוקו {n} ימים" },
   "Click a key to change it, × to turn it off. Your keys sync, so the browser and the desktop app match.": "לחיצה על מקש משנה אותו, × מכבה אותו. המקשים מסתנכרנים, כך שהדפדפן ואפליקציית המחשב תואמים.",
   "Click to clear": "לחיצה לניקוי",

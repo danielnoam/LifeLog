@@ -716,6 +716,7 @@
       refocusListId = n.id;
       addItem(n.id, v, sec.id);
     };
+    Tasks().wirePasteList(input, (lines) => { listDrafts.delete(key); refocusListId = n.id; addItems(n.id, lines, sec.id); });
     add.onclick = submit;
     input.oninput = () => { listDrafts.set(key, input.value); add.disabled = !input.value.trim(); };
     input.onkeydown = (ev) => {
@@ -852,6 +853,7 @@
       refocusListId = n.id;
       addItem(n.id, v);
     };
+    Tasks().wirePasteList(input, (lines) => { listDrafts.delete(n.id); refocusListId = n.id; addItems(n.id, lines); });
     add.onclick = submit;
     input.oninput = () => { listDrafts.set(n.id, input.value); add.disabled = !input.value.trim(); };
     input.onkeydown = (ev) => {
@@ -929,6 +931,25 @@
     n.items.splice(lastOpen + 1, 0, section ? { id: uid(), text, section } : { id: uid(), text });
     Tasks().reopen(n);
     await saveList(n, true);
+  }
+  // A pasted list, one task per line, with Undo for the lot.
+  async function addItems(noteId, lines, section) {
+    const n = findList(noteId);
+    if (!n) return;
+    const before = (n.items || []).map((i) => ({ ...i }));
+    n.items = n.items || [];
+    const now = new Date().toISOString();
+    const made = lines.map((l) => {
+      const it = { id: uid(), text: l.text };
+      if (section) it.section = section;
+      if (l.done) { it.done = true; it.doneAt = now; }
+      return it;
+    });
+    const lastOpen = n.items.map((i) => !i.done).lastIndexOf(true);
+    n.items.splice(lastOpen + 1, 0, ...made);
+    if (made.some((i) => !i.done)) Tasks().reopen(n);
+    await saveList(n, true);
+    toast(i18n.tn(made.length, "Added {n} item", "Added {n} items"), false, { label: i18n.t("Undo"), onClick: () => restoreItems(noteId, before) });
   }
   async function editItem(noteId, itemId, text) {
     const n = findList(noteId);
@@ -2619,6 +2640,14 @@
       syncPinButton(state.data.notes.find((x) => x.id === editingNoteId));
     };
     $("#nBoardPad").onclick = startBoard;
+    Tasks().wirePasteList($("#nNewItem"), (lines) => {
+      const now = new Date().toISOString();
+      const made = lines.map((l) => (l.done ? { id: uid(), text: l.text, done: true, doneAt: now } : { id: uid(), text: l.text }));
+      sheetItems.push(...made);
+      renderSheetItems();
+      const ids = new Set(made.map((i) => i.id));
+      toast(i18n.tn(made.length, "Added {n} item", "Added {n} items"), false, { label: i18n.t("Undo"), onClick: () => { sheetItems = sheetItems.filter((i) => !ids.has(i.id)); renderSheetItems(); } });
+    });
     $("#nNewItem").onkeydown = (ev) => {
       if (ev.key === "Enter") { ev.preventDefault(); addSheetItem(); }
       else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") $("#noteForm").requestSubmit();
