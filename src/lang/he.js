@@ -435,7 +435,6 @@ Keel.i18n.strings("he", {
   "Alert at": "התראה ב",
   "All": "הכול",
   "All data on this device permanently deleted": "כל הנתונים במכשיר הזה נמחקו לצמיתות",
-  "All done": "הכול בוצע",
   "All done.": "הכול בוצע.",
   "all out": "הכול יצא",
   "All results": "כל התוצאות",

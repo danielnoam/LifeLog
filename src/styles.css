@@ -4790,6 +4790,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-list-words .todo-meta { padding: 0 var(--space-12) var(--space-10); cursor: pointer; }
 .note-list-words.has-meta input[type="text"] { padding-bottom: var(--space-2); }
 .note-list-row.is-sub { padding-inline-start: var(--space-24); }
+.note-list-row .note-list-check { margin-inline: var(--space-4) var(--space-8); }
 .note-list-open { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--text-faint); cursor: pointer; }
 .note-list-open:hover { color: var(--text); }
 .note-list-open svg { width: 18px; height: 18px; }
@@ -4840,6 +4841,12 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
 .coll-card-meta { color: var(--text-dim); font-size: var(--fs-xs); margin-top: auto; }
+/* A list's tasks on its collection card (collectionRows). */
+.coll-card-rows { display: flex; flex-direction: column; min-width: 0; }
+.coll-card-rows .todo-row { padding: var(--space-4) 0; gap: var(--space-8); }
+.coll-card-rows .todo-text { cursor: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coll-card-rows .todo-check:disabled { opacity: 1; }
+.coll-card-more { color: var(--text-dim); font-size: var(--fs-xs); padding-top: var(--space-4); }
 
 .md { font-size: var(--fs-read); line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
 .md > :first-child { margin-top: 0; }
