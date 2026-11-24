@@ -6254,12 +6254,26 @@
     // On a computer, the app updates itself and restarts, when the release
     // has its signed files; otherwise the release page has the download (a
     // .deb is always updated that way).
-    // An unreleased Windows build has the release's version, so the updater
-    // would skip it: its zip downloads in the browser, and its LifeLog.exe
-    // goes over the one in the app's folder, which keeps the data.
+    // An unreleased Windows build (2026-11-24) swaps in its LifeLog.exe and
+    // restarts, like a release. A site without its signed exe yet, or a copy
+    // that can't update itself, gets the zip in the browser instead.
     if (Platform.desktop && unreleased) {
-      btn.onclick = () => Platform.openOutside(unreleased.url);
-      say(isOut(), i18n.t("Download"));
+      let zipOnly = false;
+      const openZip = () => Platform.openOutside(unreleased.url);
+      btn.onclick = async () => {
+        if (zipOnly) return openZip();
+        say(i18n.t("Downloading build {sha}…", { sha: short }), "0%", true);
+        try {
+          if (await window.LifeLogDesktop.installUnreleased((f) => { btn.textContent = Math.round(f * 100) + "%"; })) return;
+          zipOnly = true;
+          say(isOut(), i18n.t("Download"));
+          openZip();
+        } catch (e) {
+          zipOnly = true;
+          say(window.LifeLogDesktop.readOnly(e) ? i18n.t("LifeLog's folder is read-only, so it can't update itself") : i18n.t("The update didn't finish"), i18n.t("Download"));
+        }
+      };
+      say(isOut(), i18n.t("Update"));
       showUpdateBar(key);
       return;
     }

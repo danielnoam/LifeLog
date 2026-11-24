@@ -278,6 +278,17 @@
   }
   const readOnly = (e) => String((e && e.message) || e) === "readonly";
 
+  // Settings → About → Unreleased builds on Windows (2026-11-24): main's
+  // newest LifeLog.exe from the site's unreleased/latest.json, signed with
+  // the release's key, swapped in the same way. True once it restarts;
+  // false when the site has none (the page then opens the zip).
+  async function installUnreleased(onProgress) {
+    if (!T() || !P.windows) return false;
+    const ch = new (T().core.Channel)();
+    ch.onmessage = (f) => { if (onProgress && typeof f === "number") onProgress(f); };
+    return !!(await invoke("portable_update", { progress: ch, unreleased: true }));
+  }
+
   // Settings → Notifications' Send a test notification.
   function ringTest() {
     return ring({ key: "test:" + Date.now(), title: "LifeLog", body: i18n.t("Notifications work on this computer."), action: "" });
@@ -300,7 +311,7 @@
   window.LifeLogDesktop = {
     available: () => !!T(),
     notifier, start, tick, dueNow, keptSince, notifyId, ringTest,
-    startsAtLogin, setStartsAtLogin, findUpdate, installUpdate, readOnly,
+    startsAtLogin, setStartsAtLogin, findUpdate, installUpdate, installUnreleased, readOnly,
     prefs, setPref, FIRED_KEY, PREFS_KEY,
     dataFolder, chooseDataFolder, pickFolder, openDataFolder, removeOldDataCopy,
   };

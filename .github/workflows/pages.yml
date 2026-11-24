@@ -10,7 +10,9 @@
 # tools/unreleased.js. Not on the Releases page, so only Settings → About →
 # Unreleased builds finds it. Hidden, not private: the repo is public and
 # the address can be guessed. Each deploy puts them in, and a finished
-# build of main deploys again to bring its file in.
+# build of main deploys again to bring its file in. The Windows build's
+# signed LifeLog.exe and a latest.json come along too (2026-11-24,
+# tools/unreleased-update.js), so the Windows app updates itself from it.
 #
 # Until the repo's Settings → Pages → Source is "GitHub Actions", Pages is
 # still deploying from the branch on its own, so this says so and stops
@@ -92,6 +94,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tools/unreleased.js fetch unreleased
+
+      # The Windows app's self-update from that build (2026-11-24).
+      - name: The unreleased Windows update
+        if: steps.at.outputs.sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/unreleased-update.js fetch unreleased
 
       - uses: actions/upload-pages-artifact@v3
         if: steps.at.outputs.sha
