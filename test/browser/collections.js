@@ -315,6 +315,12 @@ async function runLists(b, width) {
   check("a tick on the card ticks the task, without opening the list" + at, await page.evaluate(() =>
     window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items.find((i) => i.id === "s1").done
     && document.querySelector("#noteModal").hidden));
+  await page.click('.coll-card[data-id="army"] .coll-card-title .note-list-tick');
+  await page.waitForTimeout(300);
+  check("the list's own tick on its card ticks the list" + at, await page.evaluate(() =>
+    window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "army").done === true
+    && document.querySelector('.coll-card[data-id="army"] .coll-card-title').classList.contains("is-done")
+    && document.querySelector("#noteModal").hidden));
   // The list's page ticks its rows too (2026-11-24), saved at once.
   await page.click('.coll-card[data-id="ski"] .coll-card-title');
   await page.waitForTimeout(400);
@@ -323,7 +329,7 @@ async function runLists(b, width) {
   await page.locator("#nItems .note-list-row").nth(1).locator(".note-list-check").click();
   await page.waitForTimeout(300);
   check("ticking one there saves it on the list and strikes the row" + at, await page.evaluate(() =>
-    window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items.find((i) => i.id === "s2").done === false
+    !window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items.find((i) => i.id === "s2").done
     && !document.querySelectorAll("#nItems .note-list-row")[1].classList.contains("is-done")));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(400);
@@ -331,6 +337,17 @@ async function runLists(b, width) {
     const items = window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "ski").items;
     return items.find((i) => i.id === "s1").done && !items.find((i) => i.id === "s2").done;
   }));
+  await page.click('.coll-card[data-id="ski"] .coll-card-title');
+  await page.waitForTimeout(400);
+  await page.click("#nListTick");
+  await page.waitForTimeout(300);
+  check("the list's own tick on its page ticks it and every row" + at, await page.evaluate(() => {
+    const n = window.LifeLogStorage.cachedCopy().notes.find((x) => x.id === "ski");
+    return n.done && n.items.every((i) => i.done) && [...document.querySelectorAll("#nItems .note-list-check")].every((c) => c.checked);
+  }));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  check("and it stays ticked after leaving" + at, await page.evaluate(() => window.LifeLogStorage.cachedCopy().notes.find((x) => x.id === "ski").done === true));
   check("no errors" + at, errs.length === 0, errs);
   await ctx.close();
 }

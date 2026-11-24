@@ -1550,7 +1550,24 @@
     }
     const { title, body } = splitTitle(n);
     const kind = kindOf(n);
-    card.appendChild(el("span", "coll-card-title", title));
+    const head = card.appendChild(el("span", "coll-card-title"));
+    if (kind === "list") {
+      // The list is a task too: its own tick, as on the feed's card.
+      head.classList.add("has-tick");
+      if (n.done) head.classList.add("is-done");
+      const cb = own(document.createElement("input"));
+      cb.type = "checkbox";
+      cb.className = "todo-check note-list-tick" + (n.priority ? " is-p" + n.priority : "");
+      cb.checked = !!n.done;
+      const name = n.text || i18n.t("this list");
+      if (state.bulk.active) { cb.disabled = true; cb.tabIndex = -1; cb.setAttribute("aria-hidden", "true"); }
+      else {
+        cb.setAttribute("aria-label", n.done ? i18n.t("Mark as not done: {title}", { title: name }) : i18n.t("Mark as done: {title}", { title: name }));
+        cb.onchange = () => tickItem(n.id, n.id, cb.checked);
+      }
+      head.appendChild(cb);
+    }
+    head.appendChild(document.createTextNode(title));
     if (kind === "list") card.appendChild(collectionRows(n));
     const preview = kind === "list" ? "" : kind === "quote" ? "“" + plainPreview(body) + "”" : plainPreview(body);
     if (preview) card.appendChild(el("span", "coll-card-text", preview));
@@ -2017,6 +2034,7 @@
     sheetKind = KINDS.includes(kind) || kind === "board" ? kind : "text";
     const board = sheetKind === "board";
     $("#nTitleLabel").hidden = sheetKind === "quote";
+    syncListTick();
     $("#nBoardPad").hidden = !board;
     $("#nTitle").placeholder = sheetKind === "list" ? i18n.t("Shopping, packing, this week…") : i18n.t("Title");
     $("#nListEditor").hidden = sheetKind !== "list";
@@ -2199,6 +2217,7 @@
       wrap.appendChild(row);
     });
     syncClearDone();
+    syncListTick();
   }
   async function tickSheetItem(it, done) {
     const n = editingNoteId && findList(editingNoteId);
@@ -2210,9 +2229,37 @@
       return;
     }
     await tickItem(n.id, it.id, done);
+    refreshSheetTicks(n);
+  }
+  // The list's own tick on its page (Daniel, 2026-11-24), as on its card:
+  // it ticks every row, or moves a repeating list on. Shown once it's saved.
+  function syncListTick() {
+    const cb = $("#nListTick");
+    const n = sheetKind === "list" && editingNoteId && findList(editingNoteId);
+    cb.hidden = !n;
+    if (!n) return;
+    cb.checked = !!n.done;
+    cb.className = "todo-check note-list-tick" + (n.priority ? " is-p" + n.priority : "");
+    const title = n.text || i18n.t("this list");
+    cb.setAttribute("aria-label", n.done ? i18n.t("Mark as not done: {title}", { title }) : i18n.t("Mark as done: {title}", { title }));
+  }
+  async function tickSheetList(done) {
+    const n = editingNoteId && findList(editingNoteId);
+    if (!n) return;
+    await tickItem(n.id, n.id, done);
+    refreshSheetTicks(n);
+  }
+  // Ticks (and a repeating list's next day) taken from the stored list,
+  // keeping what's typed on the page.
+  function refreshSheetTicks(n) {
     if (editingNoteId !== n.id || $("#noteModal").hidden) return;
     const now = new Map((n.items || []).map((x) => [x.id, x]));
     sheetItems = sheetItems.map((s) => (now.has(s.id) ? { ...now.get(s.id), text: s.text } : s));
+    for (const k of ["date", "time", "deadline"]) {
+      if (n[k] != null) sheetHead[k] = n[k]; else delete sheetHead[k];
+      if (sheetBase) { if (n[k] != null) sheetBase.head[k] = n[k]; else delete sheetBase.head[k]; }
+    }
+    syncSheetHead();
     renderSheetItems();
   }
   // A task opened from its list's page: the page is saved first so the
@@ -2696,6 +2743,7 @@
       const ids = new Set(made.map((i) => i.id));
       toast(i18n.tn(made.length, "Added {n} item", "Added {n} items"), false, { label: i18n.t("Undo"), onClick: () => { sheetItems = sheetItems.filter((i) => !ids.has(i.id)); renderSheetItems(); } });
     });
+    $("#nListTick").onchange = (ev) => tickSheetList(ev.target.checked);
     $("#nNewItem").onkeydown = (ev) => {
       if (ev.key === "Enter") { ev.preventDefault(); addSheetItem(); }
       else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") $("#noteForm").requestSubmit();

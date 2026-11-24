@@ -4836,6 +4836,9 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .coll-card.is-bulk { padding-inline-start: 40px; }
 .coll-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
 .coll-card-title { font-weight: 650; font-size: var(--fs-read); overflow-wrap: anywhere; }
+.coll-card-title.has-tick { display: flex; align-items: center; gap: var(--space-8); }
+.coll-card-title.has-tick .note-list-tick { margin: 0; }
+.coll-card-title.is-done { color: var(--text-dim); text-decoration: line-through; }
 .coll-card-text {
   color: var(--text-dim); font-size: var(--fs-sm); line-height: 1.45; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
@@ -4948,7 +4951,11 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .nv-mode button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; cursor: default; }
 .nv-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-24) var(--space-32) var(--space-16); }
 .nv-col { max-width: 640px; margin: 0 auto; }
-.nv-title-label { display: block; margin: 0; }
+.nv-title-label { display: block; margin: 0; flex: 1 1 auto; min-width: 0; }
+.nv-title-row { display: flex; align-items: flex-start; gap: var(--space-10); }
+.nv-title-row .note-list-tick { flex: 0 0 auto; width: 24px; height: 24px; margin: var(--space-2) 0 0; }
+.nv-title-row input.note-list-tick::before { width: 12px; height: 12px; }
+.nv-title-row .note-list-tick::after { content: ""; position: absolute; inset: -10px; }
 .nv-title-label[hidden] { display: none; }
 #noteModal .nv-title, #noteReader .nv-title, .nv-title {
   display: block; width: 100%; box-sizing: border-box; margin: 0 0 var(--space-8); padding: 0;
