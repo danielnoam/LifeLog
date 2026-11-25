@@ -407,9 +407,6 @@
       (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false)));
     return web ? "available" : "unsupported";
   }
-  async function biometricAvailable() {
-    return (await biometricState()) === "available";
-  }
   // Rejects with .cancelled set when someone backed out or chose the PIN,
   // which isn't a failure worth an error message.
   async function nativeBiometricCheck(W, title) {
@@ -6590,7 +6587,7 @@
     setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout, applyMotion,
-    prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+    prefersReducedMotion, biometricState, hashPin, randomHex, registerBiometric,
     applyPrivacyScreen, widgetsChanged: () => Widgets.changed(),
     isMobileLayout, switchToView,
     updateSteamRetryUnresolvedButton: Sync.updateSteamRetryUnresolvedButton,
@@ -6607,18 +6604,18 @@
   Journal.init({
     state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, placeCatChip, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
-    attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
+    attachLongPressSelect, animatedNumberText, barRow, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
-    rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
+    rebuildColorMap, buildYearFilter, buildCatFilter, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus,
   });
   Habits.init({
-    state, $, el, uid, toast, persist, render, emptyState, activatable,
-    backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter,
+    state, $, el, uid, toast, persist, render, emptyState,
+    backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE,
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
@@ -6652,7 +6649,7 @@
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
-    monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
+    monthCardHeader, emptyState, buildCatFilter,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     openEntryModal: Journal.openEntryModal,
     backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS, CATEGORY_PALETTE, sortSelect, attachSwipe,
@@ -6661,7 +6658,7 @@
 
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-    MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
+    MEDIA_SOURCE_LABELS, saveVisualSettings,
     emptyState, emptyCoverEl, placeCatChip, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
@@ -6672,18 +6669,17 @@
     makeMediaAcItem: Journal.makeMediaAcItem,
     fetchMediaMatch: Journal.fetchMediaMatch,
     renderStreamedSuggestions: Journal.renderStreamedSuggestions,
-    resolveMediaIdentity: Journal.resolveMediaIdentity,
     pickDetails: Journal.pickDetails,
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,
     categoryShows: Journal.categoryShows, authorOf: Journal.authorOf, titleWithAuthor: Journal.titleWithAuthor,
     setAuthorField: Journal.setAuthorField, fillAuthor: Journal.fillAuthor, clearSyncedAuthor: Journal.clearSyncedAuthor,
     pinnedAuthor: Journal.pinnedAuthor, saveAuthor: Journal.saveAuthor, wireAuthorField: Journal.wireAuthorField,
-    renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
+    renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
     sanitizeGameInfo: Journal.sanitizeGameInfo, loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backlogPriceOf: Sync.backlogPriceOf, priceEpoch: Sync.priceEpoch,
-    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus,
+    backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus,
   });
   Wheel.init({ $, toast, prefersReducedMotion });
   Finance.init({

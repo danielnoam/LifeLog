@@ -951,16 +951,6 @@
     await saveList(n, true);
     toast(i18n.tn(made.length, "Added {n} item", "Added {n} items"), false, { label: i18n.t("Undo"), onClick: () => restoreItems(noteId, before) });
   }
-  async function editItem(noteId, itemId, text) {
-    const n = findList(noteId);
-    const it = n && (n.items || []).find((i) => i.id === itemId);
-    if (!it) return;
-    text = text.trim();
-    if (!text) return deleteItem(noteId, itemId);
-    if (text === it.text) { render(); return; }
-    it.text = text;
-    await saveList(n, true);
-  }
   // A task goes with its subtasks. Only a task with something to lose
   // (subtasks or a description) offers Undo; a plain row went as before.
   async function deleteItem(noteId, itemId, { always = false } = {}) {

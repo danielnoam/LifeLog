@@ -20,13 +20,13 @@
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
-    resolveMediaIdentity, pickDetails, updateSyncBtnVisibility, showSyncStatus,
+    pickDetails, updateSyncBtnVisibility, showSyncStatus,
     categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
     pinnedAuthor, saveAuthor, wireAuthorField,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
-    backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
+    backfillUpdatedAt, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus;
 
   // Looked up at call time rather than captured: this file is required by the
@@ -41,13 +41,13 @@
       startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
-      resolveMediaIdentity, pickDetails, updateSyncBtnVisibility, showSyncStatus,
+      pickDetails, updateSyncBtnVisibility, showSyncStatus,
       categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
       pinnedAuthor, saveAuthor, wireAuthorField,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
-      backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
+      backfillUpdatedAt, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus } = ctx);
     const CM = window.LifeLogContextMenu;
     if (CM) {

@@ -1334,12 +1334,6 @@ input.todo-check:focus-visible { border-radius: 50%; }
 .todo-meta .is-today { color: var(--success); }
 .todo-meta .dot { width: 8px; height: 8px; border-radius: 50%; }
 .todo-row.is-done .todo-meta { color: var(--text-faint); }
-.todo-fold {
-  flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px 4px;
-  color: var(--text-dim); line-height: 1; position: relative;
-}
-.todo-fold .ico { width: 16px; height: 16px; display: block; }
-.todo-fold::after { content: ""; position: absolute; inset: -8px -4px; }
 /* The panel's own category, beside its name in the heading. */
 .month-card .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 /* The finished ones, under a rule at the foot of their own panel rather than
@@ -2871,12 +2865,6 @@ html.force-mobile .pick-title { font-size: var(--fs-xl); }
    reports a wide one. Two of them side by side (start/stop, pause from/until)
    would otherwise overflow the modal on a narrow phone. */
 .modal .row label { flex: 1; min-width: 0; }
-/* Two date fields in a 285px-wide sheet are 137px each, and Chrome's date
-   field cuts its own text at that ("01/01/202"), so a pair of dates goes
-   one per row on a phone (0.273.0). */
-@media (max-width: 480px) {
-  .modal .row-dates { flex-direction: column; align-items: stretch; }
-}
 /* The entry's Finished and Started (0.281.0) stay side by side, as Daniel
    asked: less side padding and a closer calendar icon fit "10/24/2026"
    in the half-width a 390px phone leaves. */
@@ -3338,7 +3326,6 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 }
 .version-skew h3 { margin: 0 0 6px; font-size: var(--fs-md); color: var(--danger-text); }
 .version-skew .hint { margin-top: 6px; }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 /* Every fold (the sheets' Advanced, Sync's advanced and error log, habit
    Insights, a place's hours) grows open and shuts instead of snapping.
    ::details-content and interpolate-size are Chromium-only for now: Android
@@ -4120,7 +4107,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   background: var(--bg-elev); border: 1px solid var(--border);
   border-radius: var(--r-lg); padding: 10px 12px;
 }
-.recap-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 .recap-listlabel { flex: 1 1 auto; min-width: 0; font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recap-listnote { flex: 0 0 auto; font-size: var(--fs-xs); color: var(--text-dim); }
 
@@ -4374,9 +4360,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-tick-mark .ico { width: 18px; height: 18px; }
 .habit-tick-mark:empty { display: none; }
 .habit-notdue { margin: 0; font-size: var(--fs-sm); color: var(--text-dim); font-style: italic; }
-/* Everything longer than the last ninety days, which is the only thing
-   backfilling produces and the rest of the card never mentions. */
-.habit-life { margin-block: 6px 0; margin-inline: 20px 0; font-size: var(--fs-xs); color: var(--text-dim); }
 
 /* Insights (0.274.0): a fold under the grid. The facts are the Stats
    cards' big-number-over-label at the card's size; the months are bars in
@@ -5019,8 +5002,6 @@ html.note-lines .nv-gutter { display: block; }
 .nv-measure { position: absolute; visibility: hidden; left: -9999px; top: 0; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
 .nv-measure > div { min-height: 1lh; }
 #noteForm .note-list-editor { margin: var(--space-16) 0 0; }
-.nv-hint { margin: var(--space-8) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
-.nv-hint[hidden] { display: none; }
 .nv-foot {
   display: flex; align-items: center; gap: var(--space-8); flex: 0 0 auto;
   padding: var(--space-10) var(--space-12); border-top: 1px solid var(--border);
@@ -5081,8 +5062,7 @@ html.note-lines .nv-gutter { display: block; }
   html.printing-note #noteReader .md pre, html.printing-note #noteReader .md code, html.printing-note #noteReader .md th { background: var(--print-shade) !important; }
 }
 .nv-menu[hidden] { display: none; }
-.nv-menu-label { margin: 0; padding: var(--space-6) var(--space-10) var(--space-2); font-size: var(--fs-2xs); color: var(--text-dim); }
-.nv-menu-label[hidden], .nv-menu hr[hidden], .nv-menu button[hidden] { display: none; }
+.nv-menu hr[hidden], .nv-menu button[hidden] { display: none; }
 .nv-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-4) var(--space-2); }
 .nv-menu button {
   display: flex; width: 100%; gap: var(--space-10); align-items: center; justify-content: flex-start;
@@ -5699,16 +5679,6 @@ button.task-field { border: 0; }
 .task-field:first-child { border-radius: var(--r-card) var(--r-card) 0 0; }
 .task-field:last-child { border-radius: 0 0 var(--r-card) var(--r-card); }
 .task-field input:disabled, .task-field select:disabled { opacity: .45; }
-.task-subs-wrap { margin-top: var(--space-20); }
-.task-subs-wrap[hidden] { display: none; }
-.task-subs-head { margin: 0 0 var(--space-8); font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); }
-.task-subs { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); }
-.task-subs[hidden] { display: none; }
-.task-subs .todo-row { padding-block: var(--space-8); padding-inline: 0 var(--space-10); font-size: var(--fs-md); }
-.task-subs .note-list-grip { align-self: stretch; }
-.task-sub-new { margin-top: var(--space-8); }
-.task-sub-new input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-md); padding: var(--space-10) var(--space-6); }
-.task-sub-new input:focus { outline: none; box-shadow: none; }
 
 /* The Date sheet: what's set, quick picks, the month, then the rest. */
 .modal.task-date { width: 380px; padding: var(--space-14) 0 var(--space-12); }
@@ -5760,11 +5730,11 @@ button.task-field { border: 0; }
 .modal.task-date .modal-actions { padding: var(--space-12) var(--space-14) 0; }
 @media (max-width: 720px) {
   .modal.task-date { width: 100%; }
-  .task-field select, .task-field input, .task-sub-new input, .task-repeat-custom input { font-size: var(--fs-lg); }
+  .task-field select, .task-field input, .task-repeat-custom input { font-size: var(--fs-lg); }
   #taskModal .task-note { font-size: var(--fs-lg); }
 }
 html.force-mobile .modal.task-date { width: 100%; }
-html.force-mobile .task-field select, html.force-mobile .task-field input, html.force-mobile .task-sub-new input,
+html.force-mobile .task-field select, html.force-mobile .task-field input,
 html.force-mobile .task-repeat-custom input { font-size: var(--fs-lg); }
 html.force-mobile #taskModal .task-note { font-size: var(--fs-lg); }
 
