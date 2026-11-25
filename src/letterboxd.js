@@ -20,6 +20,7 @@
 // the page.
 (() => {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const Connections = () => (typeof window === "object" && window.LifeLogConnections) || require("./connections.js");
   let ctx = null;
   const lower = (s) => String(s || "").toLowerCase();
 
@@ -123,6 +124,8 @@
   }
 
   function start(c) { ctx = c; }
+
+  Connections().register("letterboxd", { status: () => ({ text: i18n.t("Diary and watchlist from an export") }) });
 
   const api = { parseExport, kindOf, starsOf, importFiles, start };
   if (typeof window !== "undefined") window.LifeLogLetterboxd = api;

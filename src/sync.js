@@ -1723,6 +1723,43 @@
     window.LifeLogJobs.onAgain("releases", () => refreshUpcomingReleases());
   }
 
+  // Steam and AniList in Settings → Connections (connections.js).
+  if (window.LifeLogConnections) {
+    window.LifeLogConnections.register("steam", {
+      comesIn: {
+        defaultNew: "ask", newLabel: i18n.t("New wishlist games"),
+        take: [],
+      },
+      status: (st) => ({ text: (st.steam || {}).steamId ? i18n.t("Wishlist, played games, game times") : i18n.t("Not set up") }),
+      labels: {
+        "steam.proxyUrl": i18n.t("Steam proxy URL"), "steam.steamId": i18n.t("Steam ID"), "steam.apiKey": i18n.t("Steam Web API key"),
+        "steam.wishlistCategory": i18n.t("Steam wishlist category"), "steam.autoSyncDays": i18n.t("Steam auto-sync"),
+        "importSkips.steamWishlist": i18n.t("Steam wishlist skips"), "importSkips.steamOwned": i18n.t("Steam played-games skips"),
+      },
+      onOpen: () => { maybeAutoCheckSteamWishlist(); },
+    });
+    window.LifeLogConnections.register("anilist", {
+      comesIn: {
+        defaultNew: "add", newLabel: i18n.t("New titles"),
+        take: [["planning", "Planning", i18n.t("To the backlog")], ["current", "Watching / Reading", i18n.t("In progress, with the episode count")], ["completed", "Completed", i18n.t("To the Timeline")], ["dropped", "Paused and Dropped", i18n.t("Into Dropped")]],
+        send: [i18n.t("Send my changes to AniList"), i18n.t("Needs the sign-in below")],
+      },
+      status(st) {
+        const c = st.anilist || {};
+        if (!String(c.userName || "").trim()) return { text: i18n.t("Not set up") };
+        return { text: c.userName + (c.token && window.LifeLogConnections.sends("anilist") ? "" : " · " + i18n.t("read only")) };
+      },
+      labels: {
+        "anilist.userName": i18n.t("AniList user name"), "anilist.animeCategory": i18n.t("AniList anime category"),
+        "anilist.mangaCategory": i18n.t("AniList manga category"), "anilist.autoSyncDays": i18n.t("AniList auto-sync"),
+        "anilist.clientId": i18n.t("AniList client ID"), "anilist.token": i18n.t("AniList access token"), "anilist.connectedAt": i18n.t("AniList sign-in time"),
+        "importSkips.anilist": i18n.t("AniList skips"),
+      },
+      onOpen: () => { maybeAutoCheckAniList(); },
+      onFocus: () => { maybeAutoCheckAniList(); },
+    });
+  }
+
   window.LifeLogSync = {
     init,
     // pure per-item logic, for test/sync.test.js — the flows that use these

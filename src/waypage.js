@@ -28,6 +28,7 @@
 // is in `seen`.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const Connections = () => (typeof window === "object" && window.LifeLogConnections) || require("./connections.js");
   const { pad, isDay, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   let state, $, el, toast, persist, afterDataChange, render, whenSynced;
 
@@ -649,6 +650,21 @@
       toast(i18n.t("Disconnected from Waypage. What it brought in stays"));
     };
   }
+
+  Connections().register("waypage", {
+    status(st) {
+      const c = cleanConfig(st.waypage);
+      if (!c.repo || !c.token) return { text: i18n.t("Not connected") };
+      const n = Object.keys(c.review || {}).length;
+      if (c.paused) return { text: i18n.t("Turned off"), tone: "warn" };
+      return n ? { text: i18n.t("{n} to check", { n }), tone: "warn" } : { text: i18n.t("Reading log") + " · " + c.repo };
+    },
+    labels: {
+      "waypage.repo": i18n.t("Waypage sync repo"), "waypage.token": i18n.t("Waypage token"), "waypage.kinds": i18n.t("Waypage categories"), "waypage.habit": i18n.t("Waypage minutes habit"),
+    },
+    renderSettings: () => renderSettings(),
+    onOpen: () => { start(); },
+  });
 
   const api = {
     init, wire, start, check, renderSettings, progressLabel,

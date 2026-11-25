@@ -23,6 +23,7 @@
 // bridge.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const Connections = () => (typeof window === "object" && window.LifeLogConnections) || require("./connections.js");
   const { localDay, addDays, today: todayStr } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const Habits = () => { if (!window.LifeLogHabits) require("./habits.js"); return window.LifeLogHabits; };
 
@@ -572,6 +573,12 @@
       if (document.visibilityState === "visible") refreshStatus().then(() => { read(); paint(); });
     });
   }
+
+  Connections().register("health", {
+    status: () => rowStatus(),
+    renderSettings: () => renderSettings(),
+    onOpen: () => { start(); },
+  });
 
   const api = {
     init, wire, start, read, backgroundRead, renderSettings, rowStatus, chip, handleEscape, openLink, available,

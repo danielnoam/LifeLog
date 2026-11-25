@@ -28,6 +28,7 @@
 // plugin uses with a personal token.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const Connections = () => (typeof window === "object" && window.LifeLogConnections) || require("./connections.js");
   const { pad, isDay, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   let ctx = null;
 
@@ -552,6 +553,27 @@
   }
 
   function start(c) { ctx = c; wire(); }
+
+  Connections().register("hardcover", {
+    comesIn: {
+      defaultNew: "ask", newLabel: i18n.t("New books"),
+      take: [["want", "Want to Read", i18n.t("To the backlog")], ["reading", "Currently Reading", i18n.t("In progress")], ["read", "Read", i18n.t("To the Timeline on the day you finished")], ["dnf", "Did Not Finish", i18n.t("Into Dropped")]],
+      send: [i18n.t("Send my changes to Hardcover"), i18n.t("Starts, finishes, drops, and books you add")],
+    },
+    status(st) {
+      const c = st.hardcover || {};
+      if (!String((st.mediaKeys || {}).hardcover || "").trim()) return { text: i18n.t("Needs a token in Media lookups") };
+      if (!c.category) return { text: i18n.t("Not set up") };
+      return { text: c.category + (Connections().sends("hardcover") ? "" : ", " + i18n.t("read only")) + (c.username ? " · @" + c.username : "") };
+    },
+    labels: {
+      "hardcover.category": i18n.t("Hardcover category"), "hardcover.autoSyncDays": i18n.t("Hardcover auto-sync"), "hardcover.connectedAt": i18n.t("Hardcover start time"), "hardcover.username": i18n.t("Hardcover username"),
+      "importSkips.hardcover": i18n.t("Hardcover skips"),
+    },
+    renderSettings: () => renderSettings(),
+    onOpen: () => { maybeAutoCheck(); },
+    onFocus: () => { maybeAutoCheck(); },
+  });
 
   const api = {
     start, sync, maybeAutoCheck, renderSettings, changed, removed,

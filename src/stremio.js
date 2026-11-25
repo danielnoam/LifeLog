@@ -26,6 +26,7 @@
 // the Settings rows and the flows need a whole app.
 (() => {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const Connections = () => (typeof window === "object" && window.LifeLogConnections) || require("./connections.js");
   const { pad, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const API = "https://api.strem.io/api/";
   const SYNC_KEY = "lifelog-stremio-autosync-v1";
@@ -711,6 +712,25 @@
     // Backlog changes (sync.js passes those on), at most daily when unchanged.
     setTimeout(async () => { if (ctx.whenSynced) await ctx.whenSynced(); pushUpNext(); }, 4000);
   }
+
+  Connections().register("stremio", {
+    comesIn: {
+      defaultNew: "ask", newLabel: i18n.t("New titles"),
+      take: [["planning", i18n.t("In your library"), i18n.t("To the backlog")], ["watching", i18n.t("Watching"), i18n.t("In progress, with the episode you're on")], ["watched", i18n.t("Watched movies"), i18n.t("To the Timeline on the last play")], ["progress", i18n.t("Episode counts"), i18n.t("Updates shows you already have")]],
+    },
+    status(st) {
+      const c = st.stremio || {};
+      return { text: c.authKey ? (c.email ? i18n.t("Signed in as {email}", { email: c.email }) : i18n.t("Signed in")) : i18n.t("Not signed in") };
+    },
+    labels: {
+      "stremio.email": i18n.t("Stremio email"), "stremio.authKey": i18n.t("Stremio sign-in key"), "stremio.movieCategory": i18n.t("Stremio movie category"),
+      "stremio.showCategory": i18n.t("Stremio show category"), "stremio.autoSyncDays": i18n.t("Stremio auto-check"), "stremio.connectedAt": i18n.t("Stremio sign-in time"),
+      "importSkips.stremio": i18n.t("Stremio skips"),
+    },
+    renderSettings: () => renderSettings(),
+    onOpen: () => { maybeAutoCheck(); },
+    onFocus: () => { maybeAutoCheck(); },
+  });
 
   const api = { readLibrary, episodesWatched, planStremio, buildRows, due, dayOf, start, sync, maybeAutoCheck, renderSettings, upNextItems, inProgressItems, upNextRow, withUpNext, withoutUpNext, upNextChanged, pushUpNext };
   if (typeof window !== "undefined") window.LifeLogStremio = api;
