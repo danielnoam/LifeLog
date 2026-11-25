@@ -33,6 +33,8 @@ src/markdown.js     Markdown for notes in a collection
 src/images.js       images in notes: shrunk, kept on the device, synced
 src/jobs.js         Activity: the work that takes a while
 src/share.js        what other apps share into LifeLog
+src/connections.js  Settings → Connections: the list each connection registers
+                    itself in (status line, What comes in, its checks)
 src/storage.js      persistence: GitHub, local file, IndexedDB
 src/drive.js        Google Drive backups: keel's drive.js set up for LifeLog
 src/gcal.js         Google Calendar's events, read only, kept on the device

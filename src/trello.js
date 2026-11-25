@@ -29,6 +29,7 @@
 // other keys and is left out of exports (storage.js).
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const Connections = () => (typeof window === "object" && window.LifeLogConnections) || require("./connections.js");
   const { pad, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const Tasks = () => (typeof window !== "undefined" && window.LifeLogTasks) || require("./tasks.js");
   const Tags = () => (typeof window !== "undefined" && window.LifeLogTags) || require("./tags.js");
@@ -995,6 +996,15 @@
     const own = listsOf(n);
     return connected(c) && c.lists.some((l) => own.includes(l.id));
   }
+
+  Connections().register("trello", {
+    status: () => status(),
+    labels: {
+      "trello.key": i18n.t("Trello API key"), "trello.token": i18n.t("Trello token"), "trello.lists": i18n.t("Trello lists"), "trello.tick": i18n.t("Trello tick action"), "trello.send": i18n.t("Trello send changes"), "trello.mine": i18n.t("Trello only my cards"), "trello.member": i18n.t("Trello account"), "trello.connectedAt": i18n.t("Trello sign-in time"),
+    },
+    renderSettings: () => renderSettings(),
+    onOpen: () => { start(); },
+  });
 
   const api = {
     init, wire, start, check, changed, renderSettings, status, linked, syncing, freshen, syncedIn, unlink,

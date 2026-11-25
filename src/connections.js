@@ -13,35 +13,37 @@
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   let ctx = null;
 
-  // Each connection's statuses, in its own words. `defaultNew` is how it
-  // behaved before the choice existed.
-  const SPECS = {
-    hardcover: {
-      defaultNew: "ask", newLabel: i18n.t("New books"),
-      take: [["want", "Want to Read", i18n.t("To the backlog")], ["reading", "Currently Reading", i18n.t("In progress")], ["read", "Read", i18n.t("To the Timeline on the day you finished")], ["dnf", "Did Not Finish", i18n.t("Into Dropped")]],
-      send: [i18n.t("Send my changes to Hardcover"), i18n.t("Starts, finishes, drops, and books you add")],
-    },
-    anilist: {
-      defaultNew: "add", newLabel: i18n.t("New titles"),
-      take: [["planning", "Planning", i18n.t("To the backlog")], ["current", "Watching / Reading", i18n.t("In progress, with the episode count")], ["completed", "Completed", i18n.t("To the Timeline")], ["dropped", "Paused and Dropped", i18n.t("Into Dropped")]],
-      send: [i18n.t("Send my changes to AniList"), i18n.t("Needs the sign-in below")],
-    },
-    stremio: {
-      defaultNew: "ask", newLabel: i18n.t("New titles"),
-      take: [["planning", i18n.t("In your library"), i18n.t("To the backlog")], ["watching", i18n.t("Watching"), i18n.t("In progress, with the episode you're on")], ["watched", i18n.t("Watched movies"), i18n.t("To the Timeline on the last play")], ["progress", i18n.t("Episode counts"), i18n.t("Updates shows you already have")]],
-    },
-    steam: {
-      defaultNew: "ask", newLabel: i18n.t("New wishlist games"),
-      take: [],
-    },
-  };
+  // Each connection hands in one object from its own file (stremio.js,
+  // hardcover.js, sync.js for Steam and AniList...), so adding or removing
+  // one doesn't mean editing this file or settings.js:
+  //   comesIn         its "What comes in" block: { defaultNew, newLabel,
+  //                   take: [[status, their word, where it lands]], send }.
+  //                   `defaultNew` is how it behaved before the choice existed.
+  //   status(st)      the line under its row in the list: { text, tone }
+  //   renderSettings  fills its own screen in Settings
+  //   labels          its settings by name, for Restore settings
+  //   onOpen, onFocus its check when the app opens and when it comes back
+  //                   to the front
+  // test/connections.test.js checks each one is whole.
+  const REG = new Map();
+  function register(id, def) { REG.set(id, { ...(REG.get(id) || {}), ...def }); }
+  const ids = () => [...REG.keys()];
+  const spec = (k) => (REG.get(k) || {}).comesIn;
+  // One connection failing must not stop the rest (or the app opening);
+  // the error still reaches the error log.
+  function each(key, ...args) {
+    for (const [, def] of REG) {
+      if (typeof def[key] !== "function") continue;
+      try { def[key](...args); } catch (e) { setTimeout(() => { throw e; }, 0); }
+    }
+  }
   const NEW_OPTIONS = [["ask", i18n.t("Ask me first")], ["add", i18n.t("Add straight away")], ["none", i18n.t("Don't add new")]];
 
   const S = () => ctx.state.data.settings;
   const cfg = (k) => S()[k] || {};
   function newMode(k) {
     const v = cfg(k).newMode;
-    return v === "ask" || v === "add" || v === "none" ? v : (SPECS[k] || {}).defaultNew || "ask";
+    return v === "ask" || v === "add" || v === "none" ? v : (spec(k) || {}).defaultNew || "ask";
   }
   const takes = (k, status) => !(cfg(k).take && cfg(k).take[status] === false);
   const sends = (k) => cfg(k).send !== false;
@@ -55,7 +57,7 @@
   // ---------- the block ----------
   function render(k) {
     const box = document.getElementById(k + "ComesIn");
-    const spec = SPECS[k];
+    const spec = (REG.get(k) || {}).comesIn;
     if (!box || !spec || !ctx) return;
     const el = ctx.el;
     box.replaceChildren(el("h3", "sgroup-label", i18n.t("What comes in")));
@@ -89,7 +91,11 @@
       ? i18n.t("The switches choose what comes in from there. Turned off, a status there leaves the title here as it is, so the two can differ until you turn it back on. Sending your changes has only its own switch.")
       : i18n.t("The switches choose what comes in. Turned off, that part is left as it is here.")));
   }
-  const renderAll = () => Object.keys(SPECS).forEach(render);
+  // Every connection's own screen, then the blocks.
+  function renderAll() {
+    each("renderSettings");
+    ids().forEach(render);
+  }
 
   // New titles, the way you picked: the review, straight in, or not at all.
   // `built` is buildImportItems' result; `onSkips(selected, rows)` remembers
@@ -126,52 +132,19 @@
 
   // ---------- the line under each row ----------
   function status(k) {
-    const st = S();
-    const keys = st.mediaKeys || {};
-    if (k === "hardcover") {
-      const c = st.hardcover || {};
-      if (!String(keys.hardcover || "").trim()) return { text: i18n.t("Needs a token in Media lookups") };
-      if (!c.category) return { text: i18n.t("Not set up") };
-      return { text: c.category + (sends(k) ? "" : ", " + i18n.t("read only")) + (c.username ? " · @" + c.username : "") };
-    }
-    if (k === "anilist") {
-      const c = st.anilist || {};
-      if (!String(c.userName || "").trim()) return { text: i18n.t("Not set up") };
-      return { text: c.userName + (c.token && sends(k) ? "" : " · " + i18n.t("read only")) };
-    }
-    if (k === "stremio") {
-      const c = st.stremio || {};
-      return { text: c.authKey ? (c.email ? i18n.t("Signed in as {email}", { email: c.email }) : i18n.t("Signed in")) : i18n.t("Not signed in") };
-    }
-    if (k === "waypage") {
-      const W = window.LifeLogWaypage;
-      const c = W ? W.cleanConfig(st.waypage) : st.waypage || {};
-      if (!c.repo || !c.token) return { text: i18n.t("Not connected") };
-      const n = Object.keys(c.review || {}).length;
-      if (c.paused) return { text: i18n.t("Turned off"), tone: "warn" };
-      return n ? { text: i18n.t("{n} to check", { n }), tone: "warn" } : { text: i18n.t("Reading log") + " · " + c.repo };
-    }
-    if (k === "steam") {
-      const c = st.steam || {};
-      return { text: c.steamId ? i18n.t("Wishlist, played games, game times") : i18n.t("Not set up") };
-    }
-    if (k === "gcal") {
-      const G = typeof window === "object" && window.LifeLogGcal;
-      return { text: G && G.on ? (G.email || i18n.t("Connected")) : i18n.t("Not connected") };
-    }
-    if (k === "health") return window.LifeLogHealth ? window.LifeLogHealth.rowStatus() : { text: "" };
-    if (k === "trello") return window.LifeLogTrello ? window.LifeLogTrello.status() : { text: "" };
-    if (k === "letterboxd") return { text: i18n.t("Diary and watchlist from an export") };
-    if (k === "payments") {
-      const sel = document.getElementById("paymentsOn");
-      return { text: i18n.t("Payments from notifications") + " · " + (sel && sel.value === "on" ? i18n.t("on") : i18n.t("off")) };
-    }
-    return { text: "" };
+    const def = REG.get(k);
+    return (def && def.status && def.status(S())) || { text: "" };
   }
+  function label(path) {
+    for (const [, def] of REG) if (def.labels && def.labels[path]) return def.labels[path];
+    return "";
+  }
+  const opened = () => each("onOpen");
+  const focused = () => each("onFocus");
 
   function start(c) { ctx = c; }
 
-  const api = { start, render, renderAll, route, status, newMode, takes, sends, SPECS };
+  const api = { start, register, ids, render, renderAll, route, status, label, opened, focused, newMode, takes, sends };
   if (typeof window !== "undefined") window.LifeLogConnections = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

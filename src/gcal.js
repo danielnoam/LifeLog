@@ -412,6 +412,10 @@
   // named after the account's email (Daniel, 2026-11-22).
   const sourceOf = () => "Google Calendar";
 
+  if (window.LifeLogConnections) window.LifeLogConnections.register("gcal", {
+    status: () => ({ text: cfg ? (cfg.email || i18n.t("Connected")) : i18n.t("Not connected") }),
+  });
+
   window.LifeLogGcal = {
     GcalError, SCOPES, readEvents, byDay, whenText, plainText,
     connect, disconnect, sync, ensure, setCalendar, eventsFor, colorOf, calName, sourceOf, getToken,

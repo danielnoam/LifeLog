@@ -87,5 +87,12 @@
     refresh();
   }
 
+  if (window.LifeLogConnections) window.LifeLogConnections.register("payments", {
+    status() {
+      const sel = document.getElementById("paymentsOn");
+      return { text: i18n.t("Payments from notifications") + " · " + (sel && sel.value === "on" ? i18n.t("on") : i18n.t("off")) };
+    },
+  });
+
   window.LifeLogPayments = { start, summary, refresh };
 })();

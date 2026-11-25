@@ -24,6 +24,7 @@
   const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
   const Stremio = window.LifeLogStremio || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
   const Hardcover = window.LifeLogHardcover || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
+  const Connections = window.LifeLogConnections || { start() {}, opened() {}, focused() {} };
   const Trello = window.LifeLogTrello || { init() {}, wire() {}, start() {}, changed() {}, freshen() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
@@ -5370,7 +5371,7 @@
     function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
     window.addEventListener("online", onReconnectOrFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Invest.checkTargets(); Sync.maybeAutoCheckAniList(); Stremio.maybeAutoCheck(); Hardcover.maybeAutoCheck(); return; }
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Invest.checkTargets(); Connections.focused(); return; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       // The computer app keeps running in the tray to ring reminders and
       // heads-ups, so it keeps their lists fresh there too, at a walk: a
@@ -6031,13 +6032,11 @@
     // Then, once a day, what came out today. After the recap's chance: if it
     // took the screen, this waits for tomorrow rather than stacking on it.
     if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Backlog.maybeShowOutToday(); }, 1200);
-    Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
-    Sync.maybeAutoCheckAniList(); // same — the two-way AniList sync, when it's due (0.292.0)
-    Stremio.maybeAutoCheck(); // same — the Stremio library, read only
-    Hardcover.maybeAutoCheck(); // same — the Hardcover library, both ways
-    Waypage.start(); // same — the reading log from Waypage, every few minutes while open (0.313.0)
-    Health.start(); // same — Health Connect's steps, workouts and sleep into linked habits (Android)
-    Trello.start(); // same — Trello lists as task lists, both ways, every few minutes while open
+    // Every connection's own check (connections.js), fire-and-forget so none
+    // blocks startup: Steam's wishlist, AniList, Stremio and Hardcover when
+    // they're due, and Waypage, Health Connect and Trello every few minutes
+    // while open.
+    Connections.opened();
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
     Invest.checkTargets(); // same — the watched tickers with a target
@@ -6634,7 +6633,7 @@
     state, toast, persist, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport, importStraight: IO.importStraight,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },
   });
-  if (window.LifeLogConnections) window.LifeLogConnections.start({ state, el, toast, persist, DEFAULT_SETTINGS, reviewAndImport: IO.reviewAndImport, importStraight: IO.importStraight });
+  Connections.start({ state, el, toast, persist, DEFAULT_SETTINGS, reviewAndImport: IO.reviewAndImport, importStraight: IO.importStraight });
   Hardcover.start({
     state, toast, persist, afterDataChange, render, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
     whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },

@@ -436,22 +436,15 @@
     "mediaKeys.ggdeals": i18n.t("GG.deals API key"), "mediaKeys.steamgriddb": i18n.t("SteamGridDB API key"),
     "mediaKeys.igdb": i18n.t("IGDB client ID"), "mediaKeys.igdbSecret": i18n.t("IGDB client secret"), "mediaKeys.hardcover": i18n.t("Hardcover API token"),
     "mediaKeys.googlePlaces": i18n.t("Google Places API key"), "mediaKeys.nyt": i18n.t("New York Times API key"), "mediaKeys.tiingo": i18n.t("Tiingo API token"),
-    "steam.proxyUrl": i18n.t("Steam proxy URL"), "steam.steamId": i18n.t("Steam ID"), "steam.apiKey": i18n.t("Steam Web API key"),
-    "steam.wishlistCategory": i18n.t("Steam wishlist category"), "steam.autoSyncDays": i18n.t("Steam auto-sync"),
-    "anilist.userName": i18n.t("AniList user name"), "anilist.animeCategory": i18n.t("AniList anime category"),
-    "anilist.mangaCategory": i18n.t("AniList manga category"), "anilist.autoSyncDays": i18n.t("AniList auto-sync"),
-    "anilist.clientId": i18n.t("AniList client ID"), "anilist.token": i18n.t("AniList access token"), "anilist.connectedAt": i18n.t("AniList sign-in time"),
-    "stremio.email": i18n.t("Stremio email"), "stremio.authKey": i18n.t("Stremio sign-in key"), "stremio.movieCategory": i18n.t("Stremio movie category"),
-    "hardcover.category": i18n.t("Hardcover category"), "hardcover.autoSyncDays": i18n.t("Hardcover auto-sync"), "hardcover.connectedAt": i18n.t("Hardcover start time"), "hardcover.username": i18n.t("Hardcover username"),
-    "stremio.showCategory": i18n.t("Stremio show category"), "stremio.autoSyncDays": i18n.t("Stremio auto-check"), "stremio.connectedAt": i18n.t("Stremio sign-in time"),
-    "waypage.repo": i18n.t("Waypage sync repo"), "waypage.token": i18n.t("Waypage token"), "waypage.kinds": i18n.t("Waypage categories"), "waypage.habit": i18n.t("Waypage minutes habit"),
-    "trello.key": i18n.t("Trello API key"), "trello.token": i18n.t("Trello token"), "trello.lists": i18n.t("Trello lists"), "trello.tick": i18n.t("Trello tick action"), "trello.send": i18n.t("Trello send changes"), "trello.mine": i18n.t("Trello only my cards"), "trello.member": i18n.t("Trello account"), "trello.connectedAt": i18n.t("Trello sign-in time"),
     "releases.autoRefreshDays": i18n.t("release-date refresh"),
-    "importSkips.steamWishlist": i18n.t("Steam wishlist skips"), "importSkips.steamOwned": i18n.t("Steam played-games skips"), "importSkips.anilist": i18n.t("AniList skips"), "importSkips.stremio": i18n.t("Stremio skips"), "importSkips.hardcover": i18n.t("Hardcover skips"), "importSkips.bills": i18n.t("Not a bill answers"),
+    "importSkips.bills": i18n.t("Not a bill answers"),
     timelineSort: i18n.t("Timeline sort"), ledgerSort: i18n.t("Ledger sort"), backlogSort: i18n.t("Backlog sort"), currency: i18n.t("Home currency"),
   };
   function settingLabel(path) {
     if (SETTING_LABELS[path]) return SETTING_LABELS[path];
+    // A connection names its own settings (connections.js).
+    const own = window.LifeLogConnections && window.LifeLogConnections.label(path);
+    if (own) return own;
     const m = path.match(/^mediaCategory(Fallback)?Sources\.(.+)$/);
     if (m) return (m[1] ? i18n.t("{category} fallback source", { category: m[2] }) : i18n.t("{category} media source", { category: m[2] }));
     return path;
@@ -1657,13 +1650,9 @@
     renderSteamWishlistCategoryOptions();
     renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
     renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
-    if (window.LifeLogStremio) window.LifeLogStremio.renderSettings();
-    if (window.LifeLogHardcover) window.LifeLogHardcover.renderSettings();
+    // Every connection's own screen and its "What comes in" (connections.js).
     if (window.LifeLogConnections) window.LifeLogConnections.renderAll();
     renderMediaCatRows();
-    if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
-    if (window.LifeLogHealth) window.LifeLogHealth.renderSettings();
-    if (window.LifeLogTrello) window.LifeLogTrello.renderSettings();
   }
 
   // Shown only while this device is behind the data — the storage line in

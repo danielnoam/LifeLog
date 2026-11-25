@@ -119,6 +119,18 @@ changes `proxy/`, so a route only works in a browser once its PR is merged.
   fails on a class no markup or script names, a function nothing calls,
   and a helper a file takes without declaring or using it.
 
+**A connection lives in its own file.** It hands `connections.js` one
+object with `register(id, { comesIn, status, renderSettings, labels,
+onOpen, onFocus })`: its "What comes in" block, the line under its row, its
+screen, its settings' names for Restore settings, and its checks when the
+app opens or comes back to the front. Don't spell a connection out in
+`connections.js` or `settings.js`. Outside its file a new one still needs:
+its markup and script tag in `index.html` (and `sw.js`'s `ASSETS`), its
+settings key in `KNOWN_SETTINGS_KEYS` and `normalize` in `app.js`, any
+token in `SECRET_FIELDS` (`storage.js`), its proxy route, and its bridge
+tools. `test/connections.test.js` and `test/secrets.test.js` fail on the
+two that would otherwise go wrong quietly.
+
 **Speed.** Measure before and after anything that could make it slower.
 
 **Design.** Follow DESIGN.md: colors are tokens, sizes come from the scales,
