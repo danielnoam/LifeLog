@@ -4,10 +4,14 @@
 // (2026-11-25) took out eleven classes, three functions and ten helpers
 // passed to files that never used them.
 //
-// Only names are compared, so this can miss dead code (a name that also
+// The classes and functions go through keel's check (tools/keel-checks.js,
+// RULES.md "Nothing left behind"); the helpers handed between app.js and a
+// file are LifeLog's own way of wiring and stay here. Only names are
+// compared, so this can miss dead code (a name that also
 // appears in a comment counts as used), but what it reports is dead.
 const fs = require("fs");
 const path = require("path");
+const { unused } = require("../tools/keel-checks.js");
 
 const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
@@ -24,7 +28,6 @@ const noComments = (js) => js.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/
 // LifeLog's own code: keel's and the vendored files answer to their own repos.
 const OWN = jsIn("src");
 const APP = [...OWN, ...jsIn("src/keel"), ...jsIn("bridge"), ...jsIn("tools"), "index.html", "sw.js"];
-const appText = APP.map(read).join("\n");
 
 // Classes built from a value, so their full names are never written out:
 // "theme-" + theme (app.js applyTheme), "is-" + a job's or row's state and
@@ -33,10 +36,7 @@ const appText = APP.map(read).join("\n");
 const BUILT = ["theme-", "is-", "key-", "md-al-"];
 
 test("every class in styles.css is used by the app", () => {
-  const css = read("src/styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
-  const classes = new Set([...css.matchAll(/\.(-?[a-zA-Z_][\w-]*)/g)].map((m) => m[1]));
-  const dead = [...classes].filter((c) => !BUILT.some((p) => c.startsWith(p))
-    && !new RegExp("(?<![\\w-])" + c + "(?![\\w-])").test(appText));
+  const dead = unused.classes(read("src/styles.css"), APP.map((f) => path.join(root, f)), { built: BUILT });
   if (dead.length) throw new Error("in styles.css but in no markup or script; remove the rules:\n" + dead.map((c) => "." + c).join("\n"));
 });
 
@@ -45,17 +45,9 @@ test("every class in styles.css is used by the app", () => {
 const RUN_FROM_A_LIST = { "src/recap.js": ["bestRated", "backlogGrew", "habitStreak", "habitsKept", "spentOnWhat", "spentByMonth"] };
 
 test("every function is called from somewhere", () => {
-  const def = /^\s*(?:async\s+)?(?:function\s+([A-Za-z_$][\w$]*)|const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
-  const dead = [];
-  for (const f of [...OWN, ...jsIn("bridge")]) {
-    const src = read(f);
-    for (const m of src.matchAll(def)) {
-      const name = m[1] || m[2];
-      if ((RUN_FROM_A_LIST[f] || []).includes(name)) continue;
-      if (named(appText, name) <= 1) dead.push(f + ":" + src.slice(0, m.index).split("\n").length + " " + name);
-    }
-  }
-  if (dead.length) throw new Error("defined and never used; remove them:\n" + dead.join("\n"));
+  const skip = Object.values(RUN_FROM_A_LIST).flat();
+  const dead = unused.functions([...OWN, ...jsIn("bridge")].map((f) => path.join(root, f)), APP.map((f) => path.join(root, f)), { skip });
+  if (dead.length) throw new Error("defined and never used; remove them:\n" + dead.map((d) => path.relative(root, d.file) + ":" + d.line + " " + d.name).join("\n"));
 });
 
 // app.js hands each file its helpers through init({ ... }); the file takes

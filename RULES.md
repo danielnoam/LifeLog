@@ -48,6 +48,17 @@ ones marked **(checked)**.
 - One mechanism per behaviour (press feedback, sheet swipe, list moves).
   A second copy drifts from the first.
 
+## Nothing left behind
+
+- A style, function or helper that nothing uses any more goes in the
+  same change that stopped using it, not found a year later. **(checked)**
+- One helper, one home: a small helper (pad a number, today's date, add
+  days) is written once and exported, never re-typed in the next file
+  that needs it. The copies drift: one rejects a bad date, another
+  returns "NaN-NaN-NaN". **(checked)**
+- A name used only by what's built from a value (`"theme-" + name`) or
+  run from a list is listed as such in the check, with where it's built.
+
 ## Looks that read as machine-made
 
 From Hallmark's list of the defaults a model falls into

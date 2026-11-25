@@ -27,7 +27,7 @@ builds (`tools/build-www.js`, Capacitor). Playwright isn't a dependency; see
 |---|---|
 | `README.md` | Every feature with pictures, and the setup. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | The project layout (which file does what), how to run the tests, and how the README's screenshots are taken. |
-| [`RULES.md`](RULES.md) | The rules that stop bugs and drift, shared by every app on keel: motion, components, words, saving, state, timers, tests. |
+| [`RULES.md`](RULES.md) | The rules that stop bugs and drift, shared by every app on keel: motion, components, nothing left behind, words, saving, state, timers, tests. |
 | `DESIGN.md` | The design language: tokens, scales, motion, components, voice, accessibility, each rule marked Now or Target. |
 | `bridge/README.md`, `bridge/DATA.md` | How other AIs read and change LifeLog, and every field of the data. |
 | `DONE.md` | What the app does, by area, one line per feature with its version. |
