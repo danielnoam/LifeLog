@@ -108,6 +108,10 @@ changes `proxy/`, so a route only works in a browser once its PR is merged.
 - `test/motion.test.js` and `test/waits.test.js` check what a test can.
   Fixed waits of a second or more may only go down: lower `MAX` there
   when you remove one, never raise it.
+- Nothing is left behind: a change that stops using a style, a function
+  or a helper passed from app.js removes it. `test/deadcode.test.js`
+  fails on a class no markup or script names, a function nothing calls,
+  and a helper a file takes without declaring or using it.
 
 **Speed.** Measure before and after anything that could make it slower.
 

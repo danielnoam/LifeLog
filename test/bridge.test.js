@@ -195,8 +195,11 @@ test("a foreign expense is converted, and needs its rate", async () => {
 test("spotted bills are listed, made recurring with their charges, or dismissed; add_expense remembers a note's category", async () => {
   reset();
   const d0 = data();
-  const ago = (m) => { const x = new Date(today + "T00:00:00"); x.setDate(1); x.setMonth(x.getMonth() - m); x.setDate(10); return Finance.localDateStr(x); };
-  d0.financeEntries.push(...[4, 3, 2, 1].map((m, i) => ({ id: "gym" + m, date: ago(m), amount: i < 2 ? 32 : 35, category: "Food", note: "Gym", createdAt: T, updatedAt: T })));
+  // The latest charge is the last 10th that has come, so the run is never
+  // stale: counted from last month's 10th it was, from the 25th on.
+  const late = +today.slice(8) >= 10 ? 0 : 1;
+  const ago = (m) => { const x = new Date(today + "T00:00:00"); x.setDate(1); x.setMonth(x.getMonth() - m - late); x.setDate(10); return Finance.localDateStr(x); };
+  d0.financeEntries.push(...[3, 2, 1, 0].map((m, i) => ({ id: "gym" + m, date: ago(m), amount: i < 2 ? 32 : 35, category: "Food", note: "Gym", createdAt: T, updatedAt: T })));
   fs.writeFileSync(FILE, JSON.stringify(d0));
   let t = await ok("lifelog_bill_suggestions", {});
   assert.match(t, /- Gym \[Food\]: 4 monthly charges, 32\.00 ILS to 35\.00 ILS/);
@@ -217,7 +220,7 @@ test("spotted bills are listed, made recurring with their charges, or dismissed;
   assert.match(t, /Made Gym a monthly bill of 35\.00 ILS/);
   const d = data();
   const plan = d.recurringExpenses.find((r) => r.note === "Gym");
-  assert.strictEqual(plan.startDate, ago(4));
+  assert.strictEqual(plan.startDate, ago(3));
   assert.ok(!d.financeEntries.some((f) => f.note === "Gym"), "the expenses became its charges");
   assert.strictEqual(Object.values(plan.overrides || {}).filter((o) => o.amount === 32).length, 2, "the old price kept on its charges");
   await refused("lifelog_make_bill_recurring", { key: "Food|gym" }, /No spotted bill/);

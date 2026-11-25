@@ -27,12 +27,12 @@
   // Where a week starts and how a date reads (0.301.0). Under Node (the
   // bridge, the tests) nothing loaded dates.js as a script.
   const Dates = () => window.LifeLogDates || require("./dates.js");
-  let state, $, el, uid, toast, persist, render, emptyState, activatable,
-    backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter;
+  let state, $, el, uid, toast, persist, render, emptyState,
+    backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, persist, render, emptyState, activatable,
-      backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter } = ctx);
+    ({ state, $, el, uid, toast, persist, render, emptyState,
+      backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE } = ctx);
     const CM = window.LifeLogContextMenu;
     if (CM) CM.register("habit", (id, hp) => {
       const h = (state.data.habits || []).find((x) => x.id === id);

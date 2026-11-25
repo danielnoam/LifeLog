@@ -61,7 +61,7 @@
     animatedNumberText, barRow, fillSelect, sortSelect, fillCategorySelect, wireCategorySelect,
     resolvePendingCatSelect, download, csvEsc, parseCsv,
     buildImportItems, reviewAndImport, openImportPicker,
-    backfillUpdatedAt, MONTHS, DEFAULT_SETTINGS;
+    backfillUpdatedAt, MONTHS, DEFAULT_SETTINGS, keepUnknown;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -95,10 +95,6 @@
     return i < 0 ? { category: String(v), subcategory: "" } : { category: v.slice(0, i), subcategory: v.slice(i + 1) };
   }
   const catLabel = (f) => (f.subcategory ? f.category + " › " + f.subcategory : f.category);
-  function subsOf(name) {
-    const c = state.data.financeCategories.find((x) => x.name === name);
-    return (c && c.subs) || [];
-  }
   // Reads a picker into an item: the category, and the sub or none.
   function setCategoryFrom(item, value) {
     const { category, subcategory } = parseSubKey(value);

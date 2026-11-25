@@ -319,7 +319,7 @@
     .sort((a, b) => String(b.editedAt || b.createdAt || "").localeCompare(String(a.editedAt || a.createdAt || "")));
 
   // ---------- the view ----------
-  let state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr;
+  let state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr, coverEl, emptyCoverEl;
   function init(ctx) {
     ({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, isMobileLayout, todayStr, coverEl, emptyCoverEl } = ctx);
     // Google Calendar's events arrive after the Home calendar is drawn.
