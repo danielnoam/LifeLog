@@ -31,19 +31,12 @@
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Dates = () => (typeof window !== "undefined" && window.LifeLogDates) || require("./dates.js");
+  const { pad, isRealDay: isDay, localDay, addDays } = Dates();
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   const Tags = () => (typeof window !== "undefined" && window.LifeLogTags) || require("./tags.js");
 
   // ---------- data ----------
-  const isDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + "T00:00:00").getTime());
   const isTime = (s) => typeof s === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
-  const pad = (n) => String(n).padStart(2, "0");
-  const localDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  function addDays(day, n) {
-    const d = new Date(day + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return localDay(d);
-  }
   const dow = (day) => new Date(day + "T00:00:00").getDay();
   const daysBetween = (a, b) => Math.round((Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10))) / 86400000);
   // A month on, keeping the day: the 31st falls on the 30th in a short

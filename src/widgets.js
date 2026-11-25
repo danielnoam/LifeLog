@@ -20,6 +20,7 @@
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const { pad, localDay, addDays, isDay } = Dates();
 
   // Marks sent per habit: enough for today and a day either side of a
   // midnight the app didn't see. The whole map would be ~1,100 dates for a
@@ -34,14 +35,6 @@
   const NOTE_ITEMS = 8;
   const NOTES_BUDGET = 150000;
 
-  const pad = (n) => String(n).padStart(2, "0");
-  const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const addDays = (dateStr, n) => {
-    const d = new Date(dateStr + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return localDate(d);
-  };
-  const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 
   const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
   const byOrder = (a, b) => (+a.order || 0) - (+b.order || 0) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
@@ -359,7 +352,7 @@
       if (!it || !it.id) continue;
       if (it.kind === "habit") {
         const h = (data.habits || []).find((x) => x.id === it.id);
-        if (!h || !isDate(it.date)) continue;
+        if (!h || !isDay(it.date)) continue;
         const v = Math.max(0, Math.round(+it.value) || 0);
         const marks = { ...(h.marks || {}) };
         if ((+marks[it.date] || 0) === v) continue;
@@ -391,7 +384,7 @@
         // time, if any, unless the quick-add window picked one.
         const entries = data.financeEntries || (data.financeEntries = []);
         const amount = Math.round(parseFloat(String(it.amount).replace(",", ".")) * 100) / 100;
-        if (!(amount > 0) || !isDate(it.date) || entries.some((f) => f.id === it.id)) continue;
+        if (!(amount > 0) || !isDay(it.date) || entries.some((f) => f.id === it.id)) continue;
         const note = String(it.note || "").trim().slice(0, 200);
         const picked = (data.financeCategories || []).find((c) => c.name === it.category);
         const filed = picked ? { category: picked.name, subcategory: (picked.subs || []).some((s) => s.name === it.subcategory) ? it.subcategory : "" } : filingFor(data, note);
@@ -410,7 +403,7 @@
         const notes = String(it.notes || "").trim();
         if (notes) item.notes = notes;
         if (it.kind === "entry") {
-          if (!isDate(it.date)) continue;
+          if (!isDay(it.date)) continue;
           item.year = +it.date.slice(0, 4);
           item.month = +it.date.slice(5, 7);
           item.date = it.date.slice(0, 7);
@@ -504,7 +497,7 @@
     const R = window.LifeLogReminders;
     const H = window.LifeLogHabits;
     const snap = snapshotOf(ctx.state.data, {
-      today: localDate(new Date()),
+      today: localDay(new Date()),
       actions: ctx.quickActions(),
       remindAt: R ? R.remindAt : undefined,
       runBefore: H ? H.runBefore : undefined,

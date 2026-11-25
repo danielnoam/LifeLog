@@ -10,6 +10,7 @@
 // it's browser-only (that copy), seeded from ./lifelog.json.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const CACHE_KEY = "lifelog-cache-v1";
   const GH_KEY = "lifelog-github-v1";        // { owner, repo, path, branch, token, sha }
   const SYNC_BASE_KEY = "lifelog-sync-base-v1";
@@ -293,8 +294,6 @@
     try { localStorage.setItem(PHONE_KEY, JSON.stringify(next)); } catch (e) { /* full */ }
     return next;
   }
-  const localDay = (d = new Date()) =>
-    d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   let phoneQueue = Promise.resolve();
   function backupToPhone(doc, name) {
     const FS = phoneFs();

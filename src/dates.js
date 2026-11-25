@@ -35,9 +35,16 @@
   const weekStart = () => cleanWeekStart(settings().weekStart);
   const dateFormat = () => cleanFormat(settings().dateFormat);
 
+  // The small date helpers every file uses. They live here and nowhere
+  // else: test/dates.test.js fails on a second copy, since the copies had
+  // drifted (one addDays kept a bad date, five returned "NaN-NaN-NaN").
   const pad = (n) => String(n).padStart(2, "0");
+  // Shaped like a day; isRealDay also wants it on the calendar (no 31 February).
   const isDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
-  const localDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const isRealDay = (s) => isDay(s) && !isNaN(Date.parse(s + "T00:00:00Z")) && new Date(s + "T00:00:00Z").toISOString().slice(0, 10) === s;
+  // A Date as this device's day, "YYYY-MM-DD"; today with nothing passed.
+  const localDay = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => localDay();
   function addDays(day, n) {
     const d = new Date(day + "T00:00:00");
     if (isNaN(d.getTime())) return day;
@@ -154,6 +161,7 @@
 
   const api = {
     lengthText,
+    pad, isDay, isRealDay, localDay, today, addDays,
     bind, weekStart, dateFormat, cleanWeekStart, cleanFormat,
     weekOrder, weekPos, startOfWeek, workDays, weekendDays,
     day, dayMonth, range, dateTime, parts,

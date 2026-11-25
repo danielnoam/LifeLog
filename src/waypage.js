@@ -28,6 +28,7 @@
 // is in `seen`.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, isDay, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   let state, $, el, toast, persist, afterDataChange, render, whenSynced;
 
   function init(ctx) {
@@ -45,11 +46,8 @@
   const CACHE_KEY = "lifelog-waypage-v1"; // { etag, text, checkedAt } on this device only
   const EVERY = 5 * 60 * 1000;
 
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const isDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
   const text = (v) => String(v == null ? "" : v).trim();
   const plainObj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
-  const localDay = (d = new Date()) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
 
   // The same key media.js's titleKey makes ("Dune: Part 2" and "Dune Part 2"
   // meet); the bridge doesn't load media.js, so this is the fallback there.
@@ -142,7 +140,7 @@
   function entryFrom(b, it, category, now) {
     const done = it.finishedAt;
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
-    const e = { id: "wp-" + safeId(it.id) + "-" + done, title: b ? b.title : it.title, category: b ? b.category : category, year, month, day: +done.slice(8, 10), date: year + "-" + pad2(month), createdAt: now, waypageId: it.id };
+    const e = { id: "wp-" + safeId(it.id) + "-" + done, title: b ? b.title : it.title, category: b ? b.category : category, year, month, day: +done.slice(8, 10), date: year + "-" + pad(month), createdAt: now, waypageId: it.id };
     if (b) {
       for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "author", "notes", "externalRating", "overrides"]) if (b[k]) e[k] = b[k];
       if (b.createdAt) e.backlogAddedAt = b.createdAt;
@@ -530,7 +528,7 @@
     if (!box) return;
     const c = cfgNow();
     const d = state.data;
-    const dayText = (e) => e.year + "-" + pad2(e.month) + (e.day ? "-" + pad2(e.day) : "");
+    const dayText = (e) => e.year + "-" + pad(e.month) + (e.day ? "-" + pad(e.day) : "");
     const rows = [
       ...(d.backlog || []).filter((b) => b.waypageId).map((b) => ({ list: "backlog", x: b, sort: "9" + (b.startedAt || ""), sub: (b.dropped ? i18n.t("Dropped") : isDay(b.startedAt) ? i18n.t("Reading") : i18n.t("In your backlog")) + (progressLabel(b) ? " · " + progressLabel(b) : "") })),
       ...(d.entries || []).filter((e) => e.waypageId).map((e) => ({ list: "entries", x: e, sort: "1" + dayText(e), sub: i18n.t("Finished {date} · on your Timeline", { date: dayText(e) }) })),

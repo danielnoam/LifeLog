@@ -26,14 +26,13 @@
 // the Settings rows and the flows need a whole app.
 (() => {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const API = "https://api.strem.io/api/";
   const SYNC_KEY = "lifelog-stremio-autosync-v1";
   const TMDB_CACHE_KEY = "lifelog-stremio-tmdb-v1";
   const OPEN_GAP = 10 * 60 * 1000;
   const MISS_RETRY = 30 * 24 * 60 * 60 * 1000;
   const DAY = /^\d{4}-\d{2}-\d{2}$/;
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const localDay = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   const lower = (s) => String(s || "").trim().toLowerCase();
   let ctx = null;
 
@@ -124,7 +123,7 @@
         if (e) continue;
         const when = DAY.test(r.last) ? r.last : opts.today;
         const year = +when.slice(0, 4), month = +when.slice(5, 7);
-        const entry = { title, category, year, month, date: year + "-" + pad2(month), ...media, ...look };
+        const entry = { title, category, year, month, date: year + "-" + pad(month), ...media, ...look };
         if (DAY.test(r.last)) entry.day = +when.slice(8, 10);
         else entry.notes = "Watched: Stremio didn't say when";
         if (b) {

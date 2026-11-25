@@ -14,6 +14,7 @@
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const { pad: pad2, isDay, localDay, addDays } = Dates();
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
 
   // [id, label, icon, half]. Half sections next to each other in your order
@@ -33,12 +34,6 @@
   const DAYS_AHEAD = 14;
 
   // ---------- pure (test/home.test.js, and the bridge's lifelog_home) ----------
-  const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
-  const addDays = (day, n) => {
-    const d = new Date(day + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
 
   // The order a device keeps, cleaned: ids it doesn't know go, and a section
   // added since goes on the end.
@@ -139,7 +134,7 @@
   }
 
   function inProgress(data) {
-    return (data.backlog || []).filter((b) => !b.dropped && isDate(b.startedAt))
+    return (data.backlog || []).filter((b) => !b.dropped && isDay(b.startedAt))
       .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)) || String(a.title).localeCompare(String(b.title)));
   }
 
@@ -170,9 +165,9 @@
     if (Backlog) {
       for (const b of data.backlog || []) {
         if (b.dropped) continue;
-        const episode = isDate(b.nextAt) && b.nextAt >= today;
+        const episode = isDay(b.nextAt) && b.nextAt >= today;
         const day = episode ? b.nextAt
-          : (b.releasePrecision || "day") === "day" && isDate(String(b.releaseDate || "").slice(0, 10)) ? String(b.releaseDate).slice(0, 10) : "";
+          : (b.releasePrecision || "day") === "day" && isDay(String(b.releaseDate || "").slice(0, 10)) ? String(b.releaseDate).slice(0, 10) : "";
         if (!day || day < today || day > until) continue;
         // Out today still counts: it's the day you were waiting for.
         if (!episode && day > today && !Backlog.isAwaitingRelease(b)) continue;
@@ -184,7 +179,7 @@
       const end = new Date(until + "T00:00:00");
       for (const rec of all) {
         for (const o of Finance.planCharges(rec, end)) {
-          if (o.skipped || o.paused || !isDate(o.date) || o.date < today || o.date > until) continue;
+          if (o.skipped || o.paused || !isDay(o.date) || o.date < today || o.date > until) continue;
           rows.push({
             kind: "charge", day: o.date, id: rec.id, amount: +o.amount || 0,
             title: o.note || rec.note || o.subcategory || o.category || rec.category || i18n.t("Recurring expense"),
@@ -241,8 +236,7 @@
   // as on the Ledger; and the best run any habit has had.
   function yearSoFar(data, today, { Finance, Habits } = {}) {
     const y = +today.slice(0, 4), md = today.slice(5), month = +today.slice(5, 7);
-    const pad = (n) => String(n).padStart(2, "0");
-    const byNow = (e) => (+e.day ? `${pad(e.month)}-${pad(e.day)}` <= md : +e.month < month);
+    const byNow = (e) => (+e.day ? `${pad2(e.month)}-${pad2(e.day)}` <= md : +e.month < month);
     const entries = (data.entries || []).filter((e) => +e.year === y);
     const lastByNow = (data.entries || []).filter((e) => +e.year === y - 1 && byNow(e)).length;
     const counts = {};
@@ -250,8 +244,8 @@
     const categories = Object.entries(counts).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
     // A repeating task never stays done: each tick goes into `ticks` and its
     // date moves on, so those count too. Ticks are UTC; the day is this device's.
-    const localDay = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-    const inYear = (iso) => { const d = localDay(iso); return d.startsWith(y + "-") && d <= today; };
+    const stampDay = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : localDay(d); };
+    const inYear = (iso) => { const d = stampDay(iso); return d.startsWith(y + "-") && d <= today; };
     const tickCount = (t) => (t.done && inYear(t.doneAt) ? 1 : 0) + (Array.isArray(t.ticks) ? t.ticks.filter(inYear).length : 0);
     let tasksDone = 0;
     for (const n of (data.notes || []).filter((x) => x.kind === "list" && !x.template)) {
@@ -264,7 +258,7 @@
       const end = new Date(today + "T00:00:00");
       const charged = (data.recurringExpenses || []).flatMap((r) => Finance.planCharges(r, end));
       for (const f of [...(data.financeEntries || []), ...charged]) {
-        if (!f.skipped && !f.paused && isDate(f.date) && f.date.startsWith(y + "-") && f.date <= today) spent += +f.amount || 0;
+        if (!f.skipped && !f.paused && isDay(f.date) && f.date.startsWith(y + "-") && f.date <= today) spent += +f.amount || 0;
       }
     }
     let streak = null;
@@ -293,7 +287,7 @@
     const end = new Date(today + "T00:00:00");
     const charged = (data.recurringExpenses || []).flatMap((r) => Finance.planCharges(r, end));
     const all = [...(data.financeEntries || []), ...charged]
-      .filter((f) => !f.skipped && !f.paused && isDate(f.date) && f.date <= today);
+      .filter((f) => !f.skipped && !f.paused && isDay(f.date) && f.date <= today);
     const month = today.slice(0, 7);
     const [y, m] = month.split("-").map(Number);
     const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
@@ -1202,7 +1196,7 @@
       sub.appendChild(document.createTextNode(b.category));
       text.appendChild(sub);
       text.appendChild(B.pickMeta(b));
-      if (isDate(String(b.createdAt || "").slice(0, 10))) {
+      if (isDay(String(b.createdAt || "").slice(0, 10))) {
         text.appendChild(el("p", "home-pick-since", i18n.t("In your backlog since {date}", { date: Dates().day(String(b.createdAt).slice(0, 10), { year: "auto" }) })));
       }
       const acts = el("div", "home-pick-actions");

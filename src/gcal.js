@@ -22,6 +22,7 @@
 // grant is the same client's as Drive's, and revoking it ends both.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const SCOPES = ["https://www.googleapis.com/auth/calendar.calendarlist.readonly", "https://www.googleapis.com/auth/calendar.events.readonly"];
   const API = "https://www.googleapis.com/calendar/v3";
   const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -38,8 +39,6 @@
 
   // ---- Pure parts (test/gcal.test.js) ----
 
-  const pad = (n) => String(n).padStart(2, "0");
-  const localDay = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   const localTime = (d) => pad(d.getHours()) + ":" + pad(d.getMinutes());
   function addDay(day, n) {
     const [y, m, d] = day.split("-").map(Number);

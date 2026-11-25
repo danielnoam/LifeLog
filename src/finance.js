@@ -13,6 +13,7 @@
   const numLocale = () => (typeof window === "object" && window.i18n && window.i18n.lang !== "en" ? window.i18n.lang : "en-US");
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const { localDay: localDateStr, today: todayStr, addDays: addDaysStr } = Dates();
 
   const CURRENCY_SYMBOLS = {
     ILS: "₪", USD: "$", EUR: "€", GBP: "£",
@@ -327,10 +328,6 @@
   // UTC (e.g. local midnight in a timezone ahead of UTC is still the
   // previous day in UTC). Every date here is a plain calendar date, not a
   // moment in time, so it must stay in local terms end to end.
-  function localDateStr(d) {
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  }
-  function todayStr() { return localDateStr(new Date()); }
 
   // ---------- recurring expenses ----------
   // Recurring expenses are stored as a single template (start date, interval,
@@ -570,13 +567,6 @@
       });
     }
     return out;
-  }
-
-  function addDaysStr(dateStr, n) {
-    const d = new Date(dateStr + "T00:00:00");
-    if (isNaN(d.getTime())) return dateStr;
-    d.setDate(d.getDate() + n);
-    return localDateStr(d);
   }
 
   // The first date the template's own schedule lands on strictly after

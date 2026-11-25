@@ -28,6 +28,7 @@
 // plugin uses with a personal token.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, isDay, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   let ctx = null;
 
   const STATUS_IDS = { want: 1, reading: 2, read: 3, paused: 4, dnf: 5 };
@@ -41,12 +42,9 @@
   const SEARCH_PER_SYNC = 10;
   const SOURCE = "hardcover";
 
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const isDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
   const dayOf = (s) => (typeof s === "string" && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : "");
   const timeOf = (s) => Date.parse(s || "") || 0;
   const text = (v) => String(v == null ? "" : v).trim();
-  const localDay = (d = new Date()) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
 
   function titleKey(t) {
     if (typeof window !== "undefined" && window.LifeLogMedia && window.LifeLogMedia.titleKey) return window.LifeLogMedia.titleKey(t);
@@ -101,7 +99,7 @@
   // the review marks skips (skips.js).
   function plan(remote, data, category, base) {
     const bSlug = new Map(), eSlug = new Map(), bName = new Map(), eName = new Map();
-    const newer = (map, k, x) => { const y = map.get(k); if (!y || String(x.date || "") + pad2(x.day || 0) > String(y.date || "") + pad2(y.day || 0)) map.set(k, x); };
+    const newer = (map, k, x) => { const y = map.get(k); if (!y || String(x.date || "") + pad(x.day || 0) > String(y.date || "") + pad(y.day || 0)) map.set(k, x); };
     for (const b of data.backlog || []) {
       if (isLinked(b)) bSlug.set(b.mediaId, b);
       else if (b.category === category) { const k = titleKey(b.title); if (k && !bName.has(k)) bName.set(k, b); }
@@ -138,7 +136,7 @@
     const dated = isDay(r.finishedAt);
     const done = dated ? r.finishedAt : today;
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
-    const e = { title: b ? b.title : r.title, category: b ? b.category : category, year, month, date: year + "-" + pad2(month), mediaSource: SOURCE, mediaId: r.slug };
+    const e = { title: b ? b.title : r.title, category: b ? b.category : category, year, month, date: year + "-" + pad(month), mediaSource: SOURCE, mediaId: r.slug };
     if (dated) e.day = +done.slice(8, 10);
     if (b) {
       for (const k of ["coverUrl", "length", "genres", "author", "notes", "externalRating", "overrides", "releaseYear"]) if (b[k]) e[k] = b[k];
@@ -319,7 +317,7 @@
   function readJson(key) { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } }
   function writeJson(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* asked again next time */ } }
 
-  const entryDay = (e) => (e && e.year && e.month && e.day ? e.year + "-" + pad2(e.month) + "-" + pad2(e.day) : "");
+  const entryDay = (e) => (e && e.year && e.month && e.day ? e.year + "-" + pad(e.month) + "-" + pad(e.day) : "");
 
   // ---------- the sync ----------
   let running = null, again = false;

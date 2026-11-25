@@ -16,6 +16,7 @@
 // for the bridge.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, localDay, addDays, isDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const KEY = "lifelog-alerts-v1";
   // When they ring. One fixed time: these are a morning's heads-up, not
   // appointments.
@@ -31,14 +32,6 @@
   const CHARGE_DAYS = [["", i18n.t("Off")], ["0", i18n.t("On the day")], ["1", i18n.t("The day before")], ["3", i18n.t("3 days before")], ["7", i18n.t("A week before")]];
   const RELEASE_MODES = [["off", i18n.t("Off")], ["starred", i18n.t("Starred")], ["all", i18n.t("Everything")]];
 
-  const pad = (n) => String(n).padStart(2, "0");
-  const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const addDays = (s, n) => {
-    const d = new Date(s + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return localDate(d);
-  };
-  const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 
   const read = () => {
     try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
@@ -61,7 +54,7 @@
       const before = +days || 0;
       const until = new Date(addDays(today, WINDOW_DAYS + before) + "T00:00:00");
       for (const o of F.planCharges(rec, until)) {
-        if (o.skipped || o.paused || !isDate(o.date) || o.date < today) continue;
+        if (o.skipped || o.paused || !isDay(o.date) || o.date < today) continue;
         const day = addDays(o.date, -before);
         if (day < today) continue;
         const name = o.note || rec.note || o.subcategory || o.category || rec.category || i18n.t("A recurring expense");
@@ -82,8 +75,8 @@
   // The day something is out, when it's known to the day: the next episode,
   // else the release itself.
   function outDay(b) {
-    if (isDate(b.nextAt)) return b.nextAt;
-    return isDate(b.releaseDate) && (!b.releasePrecision || b.releasePrecision === "day") ? b.releaseDate : "";
+    if (isDay(b.nextAt)) return b.nextAt;
+    return isDay(b.releaseDate) && (!b.releasePrecision || b.releasePrecision === "day") ? b.releaseDate : "";
   }
 
   // One a day, however many things land on it.
@@ -124,7 +117,7 @@
     const since = addDays(today, -1);
     for (const b of data.backlog || []) {
       const h = hits[b.id];
-      if (!h || !(b.priceAlert > 0) || b.bought || b.dropped || !isDate(h.day) || h.day < since) continue;
+      if (!h || !(b.priceAlert > 0) || b.bought || b.dropped || !isDay(h.day) || h.day < since) continue;
       out.push({
         id: "price-" + b.id,
         kind: "price",
@@ -144,7 +137,7 @@
     const out = [];
     const since = addDays(today, -1);
     for (const [id, h] of Object.entries(hits || {})) {
-      if (!h || !isDate(h.day) || h.day < since || !h.symbol) continue;
+      if (!h || !isDay(h.day) || h.day < since || !h.symbol) continue;
       out.push({
         id: "target-" + id,
         kind: "target",
@@ -167,7 +160,7 @@
     for (const r of Tasks.dueTasks(data, addDays(last, 7))) {
       const at = Tasks.remindAt(r.item);
       if (!at || at < now) continue;
-      const day = localDate(at);
+      const day = localDay(at);
       if (day > last) continue;
       const short = () => (i18n.lang === "en" ? Tasks.shortDay(r.day, day).toLowerCase() : Tasks.shortDay(r.day, day));
       const when = r.item.time ? (r.day === day ? i18n.t("at {time}", { time: r.item.time }) : i18n.t("{day} at {time}", { day: short(), time: r.item.time }))
@@ -256,7 +249,7 @@
     if (s.prices[item.id]) return false;
     const now = new Date();
     now.setMinutes(now.getMinutes() + 1);
-    s.prices[item.id] = { day: localDate(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price };
+    s.prices[item.id] = { day: localDay(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price };
     write(s);
     if (ctx) ctx.changed();
     if (window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();
@@ -280,7 +273,7 @@
     if (had && had.target === w.target && !!had.above === !!w.targetAbove) return false;
     const now = new Date();
     now.setMinutes(now.getMinutes() + 1);
-    s.targets[w.id] = { day: localDate(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price, target: w.target, symbol: w.symbol };
+    s.targets[w.id] = { day: localDay(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price, target: w.target, symbol: w.symbol };
     if (w.targetAbove) s.targets[w.id].above = true;
     write(s);
     if (ctx) ctx.changed();

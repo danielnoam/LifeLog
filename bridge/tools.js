@@ -38,7 +38,7 @@ const SECRET_SETTINGS = ["mediaKeys", "steam", "anilist", "waypage", "stremio"];
 // ---------- small helpers ----------
 const today = () => Finance.localDateStr(new Date());
 const nowIso = () => new Date().toISOString();
-const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
+const { isDay } = require("../src/dates.js");
 const lower = (s) => String(s == null ? "" : s).trim().toLowerCase();
 const currencyOf = (data) => (data.settings && data.settings.currency) || "ILS";
 const money = (data, n) => (Math.round(n * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currencyOf(data);
@@ -59,7 +59,7 @@ const fail = (msg) => { throw new InputError(msg); };
 
 function requireDate(s, field) {
   if (s == null || s === "") return null;
-  if (!isDate(s)) fail(`${field} must be YYYY-MM-DD, got "${s}".`);
+  if (!isDay(s)) fail(`${field} must be YYYY-MM-DD, got "${s}".`);
   return s;
 }
 
@@ -2526,7 +2526,7 @@ const TOOLS = [
         for (const k of ["hltb", "reviews"]) if (e[k]) item[k] = structuredClone(e[k]);
         if (e.genres && e.genres.length) item.genres = e.genres.slice();
         if (e.overrides && e.overrides.author) item.overrides = { author: true };
-        if (a.in_progress) item.startedAt = isDate(e.startedAt) ? e.startedAt : today();
+        if (a.in_progress) item.startedAt = isDay(e.startedAt) ? e.startedAt : today();
         const b = addItem(d, "backlog", item);
         d.entries = d.entries.filter((x) => x.id !== e.id);
         return { text: `Moved "${e.title}" from the timeline (${e.date}) back to ${a.in_progress ? "In progress" : "the backlog"}. id ${b.id}`, touched: [["backlog", b.id], ["entries", e.id]] };
@@ -2548,7 +2548,7 @@ const TOOLS = [
         const marks = { ...(dst.marks || {}) };
         let days = 0;
         for (const [k, v] of Object.entries(src.marks || {})) { marks[k] = (marks[k] || 0) + (+v || 0); days++; }
-        const startedAt = [src.startedAt, dst.startedAt].filter(isDate).sort()[0] || dst.startedAt;
+        const startedAt = [src.startedAt, dst.startedAt].filter(isDay).sort()[0] || dst.startedAt;
         const next = cleanItem(d, "habits", { ...structuredClone(dst), marks, startedAt });
         replaceItem(d, "habits", next);
         d.habits = d.habits.filter((h) => h.id !== src.id);

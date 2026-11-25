@@ -153,4 +153,40 @@ test("the widget's dates are written in the chosen format", () => {
   });
 });
 
+test("the small helpers: a day's shape, a real day, today, days added", () => {
+  assert.strictEqual(D.pad(3), "03");
+  assert.ok(D.isDay("2026-02-31") && !D.isDay("2026-2-3") && !D.isDay(20260203) && !D.isDay(null));
+  assert.ok(D.isRealDay("2028-02-29") && !D.isRealDay("2026-02-31") && !D.isRealDay("2026-13-01"));
+  assert.strictEqual(D.localDay(new Date(2026, 0, 5, 23, 59)), "2026-01-05");
+  assert.strictEqual(D.today(), D.localDay(new Date()));
+  assert.strictEqual(D.addDays("2026-12-31", 1), "2027-01-01");
+  assert.strictEqual(D.addDays("2026-03-01", -1), "2026-02-28");
+  assert.strictEqual(D.addDays("not a day", 1), "not a day", "a bad date comes back as it was, never NaN-NaN-NaN");
+});
+
+// These were typed out 35 times in 17 files under nine names, and the
+// copies disagreed about bad dates (2026-11-25). They come from dates.js:
+//   const { pad, isDay, localDay, addDays, today } = Dates();
+test("no file but dates.js writes its own date helpers", () => {
+  const fs = require("fs"), path = require("path");
+  const root = path.join(__dirname, "..");
+  const files = ["src", "bridge"].flatMap((d) => fs.readdirSync(path.join(root, d)).filter((f) => f.endsWith(".js")).map((f) => d + "/" + f)).filter((f) => f !== "src/dates.js");
+  const own = /^\s*(?:const|let|function)\s+(pad|pad2|isDay|isDate|isRealDay|localDay|localDate|localDateStr|todayStr|addDays|addDaysStr)\s*(?:=\s*(?:async\s*)?(?:\([^)]*\)|[\w$]+)\s*=>|\()/;
+  const found = [];
+  // Written inline they drift just the same. These may only go down: lower
+  // the number when you replace one with pad(), localDay() or isDay().
+  const INLINE = { 'padStart(2, "0")': 59, "\\d{4}-\\d{2}-\\d{2}$/": 24 };
+  const counts = Object.fromEntries(Object.keys(INLINE).map((k) => [k, 0]));
+  for (const f of files) {
+    const lines = fs.readFileSync(path.join(root, f), "utf8").split("\n");
+    lines.forEach((line, i) => {
+      const m = own.exec(line);
+      if (m) found.push(f + ":" + (i + 1) + " " + m[1]);
+      for (const k of Object.keys(INLINE)) counts[k] += line.split(k).length - 1;
+    });
+  }
+  assert.deepStrictEqual(found, [], "take these from dates.js instead");
+  for (const [k, max] of Object.entries(INLINE)) assert.ok(counts[k] <= max, counts[k] + " of " + k + " written inline outside dates.js (at most " + max + "): use dates.js's helpers");
+});
+
 console.log(`\n${passed} test(s) passed.`);
