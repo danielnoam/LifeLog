@@ -102,11 +102,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node tools/unreleased-update.js fetch unreleased
 
+      # Named for the attempt: a re-run uploads again, and deploy-pages
+      # refuses two artifacts with one name in a run ("Multiple artifacts
+      # named github-pages", 2026-11-25), so a failed deploy could never be
+      # re-run.
       - uses: actions/upload-pages-artifact@v3
         if: steps.at.outputs.sha
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: .
+
+      # deploy-pages looks the artifact up the moment the upload returns, and
+      # GitHub's list is sometimes a beat behind: "No artifacts named
+      # github-pages were found" failed three deploys on 2026-11-25, each a
+      # second after its upload succeeded. Wait until the run lists it.
+      - name: Wait for the artifact to be listed
+        if: steps.at.outputs.sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: github-pages-${{ github.run_attempt }}
+        run: |
+          for i in $(seq 1 30); do
+            n=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=$NAME" --jq .total_count 2>/dev/null || echo 0)
+            if [ "${n:-0}" -ge 1 ]; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::$NAME never showed up in this run's artifacts"
+          exit 1
 
       - uses: actions/deploy-pages@v4
         if: steps.at.outputs.sha
         id: deploy
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
