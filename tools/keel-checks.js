@@ -47,6 +47,22 @@
 // at least `min` ms, the kind that waits for a side effect and flakes.
 //
 //   waits.find(files, 1000) // → [{ file, line, ms }]
+//
+// unused: what nothing uses any more, by name. Only names are compared, so
+// a name that also sits in a comment or a string counts as used: it can
+// miss dead code, but what it reports is dead. `used` is every file the
+// app's code and markup live in, keel's included.
+// unused.classes: a class in the CSS that no file names. `built` are
+// prefixes of classes made from a value ("theme-" + name).
+// unused.functions: a function (`function f`, `const f = (...) =>`) in
+// `files` that its name appears nowhere else in `used`. `skip` are names
+// run from a list, never called by name.
+// unused.twice: a function defined in more than one of `files`, the copy
+// that drifts (RULES.md: one helper, one home). `only` limits it to names.
+//
+//   unused.classes(css, used, { built: ["theme-"] }) // → ["old-row", ...]
+//   unused.functions(ownFiles, used, { skip: ["card1"] }) // → [{ file, line, name }]
+//   unused.twice(ownFiles, { only: ["pad", "addDays"] }) // → [{ name, files }]
 const fs = require("fs");
 const vm = require("vm");
 
@@ -304,10 +320,51 @@ function waitsFind(files, min = 1000) {
   return out;
 }
 
+// ---- unused ----
+
+const DEF = /^\s*(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>))/gm;
+const esc = (s) => s.replace(/[$]/g, "\\$");
+const count = (text, name) => (text.match(new RegExp("(?<![\\w$])" + esc(name) + "(?![\\w$])", "g")) || []).length;
+const readAll = (files) => files.map((f) => fs.readFileSync(f, "utf8")).join("\n");
+
+function defs(file) {
+  const src = fs.readFileSync(file, "utf8");
+  return [...src.matchAll(DEF)].map((m) => ({ name: m[1] || m[2], line: src.slice(0, m.index + m[0].search(/\S/)).split("\n").length }));
+}
+
+function unusedClasses(css, used, { built = [] } = {}) {
+  const text = readAll(used);
+  const names = new Set([...uncomment(css).replace(/"[^"]*"|'[^']*'|url\([^)]*\)/g, "").matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map((m) => m[1]));
+  return [...names].filter((c) => !built.some((p) => c.startsWith(p))
+    && !new RegExp("(?<![\\w-])" + c + "(?![\\w-])").test(text));
+}
+
+function unusedFunctions(files, used, { skip = [] } = {}) {
+  const text = readAll(used);
+  const out = [];
+  for (const file of files) {
+    for (const d of defs(file)) if (!skip.includes(d.name) && count(text, d.name) <= 1) out.push({ file, line: d.line, name: d.name });
+  }
+  return out;
+}
+
+function unusedTwice(files, { only } = {}) {
+  const where = new Map();
+  for (const file of files) {
+    for (const { name } of defs(file)) {
+      if (only && !only.includes(name)) continue;
+      if (!where.has(name)) where.set(name, new Set());
+      where.get(name).add(file);
+    }
+  }
+  return [...where].filter(([, f]) => f.size > 1).map(([name, f]) => ({ name, files: [...f] }));
+}
+
 module.exports = {
   contrast: { themes, block, resolve, parse, ratio, check },
   csp: { policyOf, check: cspCheck },
   i18n: { keys, table, check: i18nCheck, literals },
   motion: { check: motionCheck },
   waits: { find: waitsFind },
+  unused: { classes: unusedClasses, functions: unusedFunctions, twice: unusedTwice },
 };

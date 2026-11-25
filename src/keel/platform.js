@@ -8,6 +8,10 @@
 //   K.native     a phone app (Capacitor)
 //   K.os         "android", "ios" or "web"
 //   K.desktop    the desktop app (Tauri), K.desktopOs "windows" or "linux"
+//   K.device     "android", "ios", "mac", "windows", "linux" or "other":
+//                the app's own os, or a browser's best guess from what it
+//                reports (an iPad may report a Mac); K.phone when it's
+//                android or ios. For offers, never for security
 //   K.bundled    the files are on the device: phone or desktop. No service
 //                worker, a new version is a new install, links leave the app
 //   K.plugin(n)  a Capacitor plugin, or null
@@ -30,6 +34,18 @@
   const desktop = !!tauri;
   const desktopOs = desktop ? (/Windows/i.test(navigator.userAgent) ? "windows" : "linux") : "";
   const bundled = native || desktop;
+  const nav = typeof navigator === "object" && navigator ? navigator : {};
+  const device = native ? os : desktop ? desktopOs : (() => {
+    const ua = String(nav.userAgent || "");
+    const pl = String((nav.userAgentData && nav.userAgentData.platform) || nav.platform || "");
+    if (/android/i.test(ua + " " + pl)) return "android";
+    if (/iphone|ipad|ipod/i.test(ua) || /^ios$/i.test(pl)) return "ios";
+    if (/mac/i.test(pl + " " + ua)) return nav.maxTouchPoints > 1 ? "ios" : "mac";
+    if (/win/i.test(pl + " " + ua)) return "windows";
+    if (/linux|cros|x11/i.test(pl + " " + ua)) return "linux";
+    return "other";
+  })();
+  const phone = device === "android" || device === "ios";
 
   if (native) document.documentElement.classList.add("native");
 
@@ -86,7 +102,7 @@
 
   window.Keel = window.Keel || {};
   window.Keel.platform = {
-    cap, native, os, plugin, tauri, desktop, desktopOs, bundled, ready, isOutside, openOutside, deadline,
+    cap, native, os, plugin, tauri, desktop, desktopOs, device, phone, bundled, ready, isOutside, openOutside, deadline,
     get build() { return build; },
   };
 })();
