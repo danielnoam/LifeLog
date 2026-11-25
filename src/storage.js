@@ -382,6 +382,39 @@
     return "unknown";
   }
 
+  // Every field in settings that is a key to someone's account, as the path
+  // to it; "*" is every field of that object. This one list is what leaves
+  // out of an export and what a restore puts back, so a new connection adds
+  // its line here and nowhere else. test/secrets.test.js fails on a setting
+  // that looks like a key and isn't listed.
+  const SECRET_FIELDS = [
+    ["mediaKeys", "*"],
+    ["steam", "apiKey"],
+    ["anilist", "token"],
+    ["stremio", "authKey"],
+    ["stremio", "upNext", "key"],
+    ["waypage", "token"],
+    ["trello", "token"],
+  ];
+  const isObj = (v) => !!v && typeof v === "object";
+  // settings with one path rewritten by fn(value, key), copying each level
+  // it passes through and leaving `settings` itself alone. Nothing changes
+  // where the path isn't there, except the last object of a two-step path
+  // when `make` is set (a restore brings back a connection the backup lacks).
+  function mapSecret(settings, path, fn, make) {
+    const [head, ...rest] = path;
+    if (!rest.length) {
+      if (head !== "*") return { ...settings, [head]: fn(settings[head], head) };
+      return Object.fromEntries(Object.keys(settings).map((k) => [k, fn(settings[k], k)]));
+    }
+    if (!isObj(settings[head])) {
+      if (!make || rest.length > 1) return settings;
+      return { ...settings, [head]: mapSecret({}, rest, fn, make) };
+    }
+    return { ...settings, [head]: mapSecret(settings[head], rest, fn, false) };
+  }
+  const secretAt = (settings, path) => path.reduce((o, k) => (isObj(o) ? o[k] : undefined), settings);
+
   // The same document with the API keys blanked, for copies that leave the
   // app's own storage: the Export JSON and the phone's Documents folder.
   // Sync and the local-file target keep them; they are live sources, and a
@@ -389,40 +422,25 @@
   // settings, so a blanked export can't clear the keys on the way back in.
   function withoutSecrets(doc) {
     if (!doc || !doc.settings) return doc;
-    const st = doc.settings;
-    const out = { ...doc, settings: { ...st } };
-    if (st.mediaKeys && typeof st.mediaKeys === "object") {
-      out.settings.mediaKeys = Object.fromEntries(Object.keys(st.mediaKeys).map((k) => [k, ""]));
-    }
-    if (st.steam && typeof st.steam === "object") out.settings.steam = { ...st.steam, apiKey: "" };
-    if (st.anilist && typeof st.anilist === "object") out.settings.anilist = { ...st.anilist, token: "" };
-    if (st.stremio && typeof st.stremio === "object") out.settings.stremio = { ...st.stremio, authKey: "", ...(st.stremio.upNext ? { upNext: { ...st.stremio.upNext, key: "" } } : {}) };
-    if (st.waypage && typeof st.waypage === "object") out.settings.waypage = { ...st.waypage, token: "" };
-    if (st.trello && typeof st.trello === "object") out.settings.trello = { ...st.trello, token: "" };
-    return out;
+    let settings = doc.settings;
+    for (const path of SECRET_FIELDS) settings = mapSecret(settings, path, () => "", false);
+    return { ...doc, settings };
   }
 
   // The other way round, for a restore from a backup: the backup's
   // document with this device's keys put back where it has them blank.
   function withSecretsFrom(doc, from) {
     if (!doc || !doc.settings || !from || !from.settings) return doc;
-    const st = from.settings;
-    const out = { ...doc, settings: { ...doc.settings } };
-    const o = out.settings;
-    const fill = (a, b) => (a || b || "");
-    if (st.mediaKeys && typeof st.mediaKeys === "object") {
-      o.mediaKeys = { ...(o.mediaKeys || {}) };
-      for (const k of Object.keys(st.mediaKeys)) o.mediaKeys[k] = fill(o.mediaKeys[k], st.mediaKeys[k]);
+    let settings = doc.settings;
+    for (const path of SECRET_FIELDS) {
+      const group = path.slice(0, -1), last = path[path.length - 1];
+      const theirs = secretAt(from.settings, group);
+      if (!isObj(theirs)) continue;
+      for (const key of last === "*" ? Object.keys(theirs) : [last]) {
+        settings = mapSecret(settings, [...group, key], (mine) => mine || theirs[key] || "", true);
+      }
     }
-    if (st.steam) o.steam = { ...(o.steam || {}), apiKey: fill(o.steam && o.steam.apiKey, st.steam.apiKey) };
-    if (st.anilist) o.anilist = { ...(o.anilist || {}), token: fill(o.anilist && o.anilist.token, st.anilist.token) };
-    if (st.stremio) {
-      o.stremio = { ...(o.stremio || {}), authKey: fill(o.stremio && o.stremio.authKey, st.stremio.authKey) };
-      if (st.stremio.upNext && o.stremio.upNext) o.stremio.upNext = { ...o.stremio.upNext, key: fill(o.stremio.upNext.key, st.stremio.upNext.key) };
-    }
-    if (st.waypage) o.waypage = { ...(o.waypage || {}), token: fill(o.waypage && o.waypage.token, st.waypage.token) };
-    if (st.trello) o.trello = { ...(o.trello || {}), token: fill(o.trello && o.trello.token, st.trello.token) };
-    return out;
+    return { ...doc, settings };
   }
 
   // The login the token belongs to (so the user only has to supply a token).
@@ -954,6 +972,7 @@
     },
     withoutSecrets,
     withSecretsFrom,
+    SECRET_FIELDS,
 
     // Returns one of:
     //   { data, source }   source: 'github' | 'file' | 'cache' | 'seed' | 'empty'

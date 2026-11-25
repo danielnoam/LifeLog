@@ -61,6 +61,9 @@ Don't reopen these without talking to Daniel first.
 sends, to whom, and what a page, file or other site could do with it. Use
 the least access (narrow tokens and scopes). Untrusted content stays
 sandboxed. Any trade-off is stated plainly in the pull request.
+A setting that is a key to someone's account (a token, an API key) goes
+on `SECRET_FIELDS` in `src/storage.js`, the one list an export leaves out
+and a restore puts back; `test/secrets.test.js` fails on one that isn't.
 
 **Every language, every screen.** A change is done when it works in
 English and Hebrew (right to left), at phone width (375px) and wide
