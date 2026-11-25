@@ -23,6 +23,7 @@
 // bridge.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { localDay, addDays, today: todayStr } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const Habits = () => { if (!window.LifeLogHabits) require("./habits.js"); return window.LifeLogHabits; };
 
   // ---------- the model ----------
@@ -50,16 +51,7 @@
   const FIRST_WINDOW = 30;
   const DAY_MS = 86400000;
   const isDateStr = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
-  const pad = (n) => String(n).padStart(2, "0");
-  function dayOf(ms) {
-    const d = new Date(ms);
-    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-  }
-  function addDays(dateStr, n) {
-    const d = new Date(dateStr + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return dayOf(d.getTime());
-  }
+  const dayOf = (ms) => localDay(new Date(ms));
 
   // settings.healthConnect: { filled: { habitId: { date: [added, read] } } }:
   // what Health Connect added to that day's mark, and the count it read.
@@ -244,7 +236,6 @@
     return next;
   }
   const cfgNow = () => cleanConfig(ctx.state.data.settings.healthConnect);
-  const todayStr = () => dayOf(Date.now());
 
   async function refreshStatus() {
     const P = plugin();

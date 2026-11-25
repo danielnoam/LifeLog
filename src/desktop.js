@@ -16,6 +16,7 @@
 //     release carries their signed files; else the release page.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const P = window.LifeLogPlatform;
   const T = () => (P && P.desktop && P.tauri) || null;
   const FIRED_KEY = "lifelog-desktop-rung-v1";
@@ -27,8 +28,6 @@
   let ctx = null;
   let timer = null;
 
-  const pad = (n) => String(n).padStart(2, "0");
-  const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const minutesOf = (hhmm) => { const [h, m] = String(hhmm).split(":").map(Number); return h * 60 + m; };
 
   const readFired = () => {
@@ -115,7 +114,7 @@
     const data = ctx.state.data;
     if (!data) return null;
     const d = new Date();
-    const today = localDate(d);
+    const today = localDay(d);
     const now = pad(d.getHours()) + ":" + pad(d.getMinutes());
     let habits = [];
     if (H && R && R.isOn()) {
@@ -175,7 +174,7 @@
         fired[n.key] = today;
       }
       // Only the last few days are kept: an older key can't come round again.
-      const keep = localDate(new Date(d.getTime() - 3 * 86400000));
+      const keep = localDay(new Date(d.getTime() - 3 * 86400000));
       for (const k of Object.keys(fired)) if (fired[k] < keep) delete fired[k];
       writeFired(fired);
     } finally { ticking = false; }

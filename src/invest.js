@@ -19,6 +19,7 @@
   // there's no page (the bridge, Node tests), as before.
   const numLocale = () => (typeof window === "object" && window.i18n && window.i18n.lang !== "en" ? window.i18n.lang : "en-US");
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const { isRealDay: isDay, today: todayStr } = Dates();
   const ico = (n) => window.LifeLogIcons.svg(n);
   let state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings, openInvest;
 
@@ -37,8 +38,6 @@
     return out;
   }
   const newId = () => (uid ? uid() : "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
-  const isDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s)
-    && !isNaN(Date.parse(s + "T00:00:00Z")) && new Date(s + "T00:00:00Z").toISOString().slice(0, 10) === s;
   const text = (v) => String(v == null ? "" : v).trim();
   // "brk.b" → "BRK.B". Letters, digits, dots and dashes: Tiingo's tickers.
   function cleanSymbol(s) {
@@ -1678,10 +1677,6 @@
     return wrap;
   }
 
-  const todayStr = () => {
-    const d = new Date();
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  };
 
   // ---------- the ticker sheet ----------
   let editingWatch = null, picked = null, searchAsk = 0, searchTimer = null;

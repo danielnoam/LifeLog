@@ -103,6 +103,9 @@ changes `proxy/`, so a route only works in a browser once its PR is merged.
   so it never stays done; count its `ticks`), an entry with no day or
   only a month, a list that is a task itself, a sale, a foreign amount.
   A stat or check gets a test for each that applies.
+- One mechanism per job covers helpers too: `pad`, `isDay`, `isRealDay`,
+  `localDay`, `today` and `addDays` come from `src/dates.js`. `test/dates.test.js`
+  fails on a second copy, and the inline spellings may only go down.
 - The desktop app polls every 30s, so a reminder check looks back at
   least that far (`LATE_ALERT_MIN`).
 - `test/motion.test.js` and `test/waits.test.js` check what a test can.

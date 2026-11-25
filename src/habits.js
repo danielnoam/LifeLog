@@ -27,6 +27,7 @@
   // Where a week starts and how a date reads (0.301.0). Under Node (the
   // bridge, the tests) nothing loaded dates.js as a script.
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const { localDay: localDateStr, today: todayStr, addDays: addDaysStr } = Dates();
   let state, $, el, uid, toast, persist, render, emptyState,
     backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE;
 
@@ -54,16 +55,6 @@
   // Local rather than imported, the same way backlog.js and finance.js each
   // carry their own: three lines of date maths is not worth a dependency
   // between two view modules that otherwise know nothing about each other.
-  function localDateStr(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
-  function todayStr() { return localDateStr(new Date()); }
-  function addDaysStr(dateStr, n) {
-    const d = new Date(dateStr + "T00:00:00");
-    if (isNaN(d.getTime())) return dateStr;
-    d.setDate(d.getDate() + n);
-    return localDateStr(d);
-  }
   function dowOf(dateStr) {
     const d = new Date(dateStr + "T00:00:00");
     return isNaN(d.getTime()) ? -1 : d.getDay(); // 0 = Sunday

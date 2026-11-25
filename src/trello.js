@@ -29,6 +29,7 @@
 // other keys and is left out of exports (storage.js).
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, localDay } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   const Tasks = () => (typeof window !== "undefined" && window.LifeLogTasks) || require("./tasks.js");
   const Tags = () => (typeof window !== "undefined" && window.LifeLogTags) || require("./tags.js");
   let state, $, el, toast, persist, afterDataChange, render, whenSynced;
@@ -57,8 +58,6 @@
 
   const text = (v) => String(v == null ? "" : v).trim();
   const plainObj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const localDay = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   const isId = (s) => typeof s === "string" && /^[0-9a-f]{24}$/i.test(s);
 
   // ---------- pure: settings ----------
@@ -110,7 +109,7 @@
   const sameDue = (a, b) => minute(a) === minute(b);
   function fromDue(iso) {
     const d = new Date(iso);
-    return { date: localDay(d), time: pad2(d.getHours()) + ":" + pad2(d.getMinutes()) };
+    return { date: localDay(d), time: pad(d.getHours()) + ":" + pad(d.getMinutes()) };
   }
   const tagKey = (t) => String(t).toLowerCase();
   const sameSet = (a, b) => {

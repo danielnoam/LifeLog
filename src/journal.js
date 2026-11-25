@@ -193,7 +193,7 @@
   // reopening on today is what a calendar is expected to do.
   let calMonth = null, calDay = null;
   const Dates = () => window.LifeLogDates || require("./dates.js");
-  const pad2 = (n) => String(n).padStart(2, "0");
+  const { pad: pad2 } = Dates();
 
   function calKey(y, m) { return y + "-" + pad2(m); }
   function daysIn(y, m) { return new Date(y, m, 0).getDate(); }

@@ -10,6 +10,7 @@
 // exposed on window.LifeLogSync.
 (function () {
   const i18n = (typeof window === "object" && window.i18n) || require("./language.js");
+  const { pad, isDay, today } = (typeof window === "object" && window.LifeLogDates) || require("./dates.js");
   // Local-only (per-device) — when this device last ran each quiet
   // background check, so the cadence in Settings isn't re-evaluated on
   // every app open. Deliberately not synced: each device paces its own
@@ -176,7 +177,6 @@
   const GAME_TIMES_KEY = "lifelog-gametimes-v1";
   const GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_FAIL_DAYS = 1, GAME_TIMES_PER_RUN = 40;
   const dayMs = 24 * 60 * 60 * 1000;
-  const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
   const daysSince = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day || "") ? (Date.now() - new Date(day + "T00:00:00").getTime()) / dayMs : Infinity);
   // `steam.gameTimes` is "off" or how many days a game's times stay fresh:
   // "1", "3", "7" or "30" (0.282.3). "on", from before there was a choice,
@@ -203,8 +203,8 @@
     : daysSince(v) > GAME_TIMES_MISS_DAYS);
   function noteGameTimesMiss(appId, missed, failed) {
     const all = gameTimesMisses();
-    if (failed) all[appId] = "f:" + todayStr();
-    else if (missed) all[appId] = todayStr();
+    if (failed) all[appId] = "f:" + today();
+    else if (missed) all[appId] = today();
     else delete all[appId];
     for (const k of Object.keys(all)) if (missWaited(all[k])) delete all[k];
     try { localStorage.setItem(GAME_TIMES_KEY, JSON.stringify(all)); } catch (e) {}
@@ -231,7 +231,7 @@
     const shown = () => JSON.stringify([x.hltb && { ...x.hltb, at: "" }, x.reviews, x.length]);
     const before = shown();
     const { hltb, reviews } = info || {};
-    x.hltb = { ...(hltb || {}), at: todayStr() };
+    x.hltb = { ...(hltb || {}), at: today() };
     if (reviews) x.reviews = reviews;
     if (hltb && hltb.story && !isOverridden(x, "length")) x.length = window.LifeLogMedia.gameHours(hltb.story);
     return shown() !== before;
@@ -699,8 +699,6 @@
   // month AniList says you finished it, with your score; one you have
   // nowhere comes in as timeline history. Paused and Dropped come in as
   // dropped backlog items, or drop the one you have.
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
   const ANILIST_SOURCE = { ANIME: "anilist-anime", MANGA: "anilist-manga" };
 
   function anilistPulls(cfg) {
@@ -754,7 +752,7 @@
     const dated = /^\d{4}-\d{2}-\d{2}$/.test(m.completedAt || "");
     const done = dated ? m.completedAt : today();
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
-    const e = { title: b.title, category: b.category, year, month, date: year + "-" + pad2(month), backlogAddedAt: b.createdAt || null };
+    const e = { title: b.title, category: b.category, year, month, date: year + "-" + pad(month), backlogAddedAt: b.createdAt || null };
     if (dated) e.day = +done.slice(8, 10);
     for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "author", "notes", "externalRating"]) if (b[k]) e[k] = b[k];
     const started = /^\d{4}-\d{2}-\d{2}$/.test(b.startedAt || "") ? b.startedAt : (m.startedAt || "");
@@ -776,7 +774,7 @@
     const when = day.test(m.completedAt || "") ? m.completedAt : day.test(m.startedAt || "") ? m.startedAt : "";
     const done = when || today();
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
-    const e = { title: m.title || "", category, year, month, date: year + "-" + pad2(month), mediaSource: m.source, mediaId: m.id };
+    const e = { title: m.title || "", category, year, month, date: year + "-" + pad(month), mediaSource: m.source, mediaId: m.id };
     if (day.test(m.completedAt || "")) e.day = +m.completedAt.slice(8, 10);
     for (const k of ["coverUrl", "length", "genres"]) if (m[k] && (!Array.isArray(m[k]) || m[k].length)) e[k] = m[k];
     if (when && day.test(m.startedAt || "") && m.startedAt < when) {
@@ -1332,7 +1330,6 @@
   const ANILIST_UP = { planning: "PLANNING", current: "CURRENT", completed: "COMPLETED", dropped: "DROPPED" };
   const STATUS_RANK = { planning: 0, current: 1, completed: 2 };
   const isAniListSource = (src) => src === "anilist-anime" || src === "anilist-manga";
-  const isDay = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
   const timeOf = (s) => Date.parse(s || "") || 0;
   // Made from the title's key, so two devices bringing in the same title
   // (or finishing it on the same day) make one item that sync folds, not two.
@@ -1502,7 +1499,7 @@
       f.status = ANILIST_UP[status];
       const started = b ? b.startedAt : e && e.startedAt;
       if (isDay(started)) f.startedAt = started;
-      if (status === "completed" && e && e.year && e.month) f.completedAt = e.year + "-" + pad2(e.month) + (e.day ? "-" + pad2(e.day) : "");
+      if (status === "completed" && e && e.year && e.month) f.completedAt = e.year + "-" + pad(e.month) + (e.day ? "-" + pad(e.day) : "");
       if (status === "completed" && total) f.progress = total;
     }
     if (withProgress && progress != null) f.progress = progress;

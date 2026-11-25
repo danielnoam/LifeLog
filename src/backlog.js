@@ -13,6 +13,7 @@
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
   const Dates = () => window.LifeLogDates || require("./dates.js");
+  const { localDay, today: todayStr } = Dates();
 
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, placeCatChip, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
@@ -257,8 +258,6 @@
   // `startedAt`, so it syncs and merges like any other field and an older
   // copy of the app just sees a backlog item. Done is the backlog's own ✓ Done,
   // which takes the start month from here (journal.js, openEntryModal).
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const localDay = (d = new Date()) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   const isStarted = (b) => /^\d{4}-\d{2}-\d{2}$/.test(String((b && b.startedAt) || ""));
 
   // The card's rows: the Timeline's category chips and the search apply, the
@@ -731,11 +730,6 @@
     return b.releaseYear ? "year" : "";
   }
 
-  function localDateStr(d) {
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
-      "-" + String(d.getDate()).padStart(2, "0");
-  }
-  function todayStr() { return localDateStr(new Date()); }
   // Day 0 of the *next* month is the last day of this one.
   function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
   function isRealDate(s) {
@@ -1885,7 +1879,7 @@
     const raw = (b.releaseDate || "").slice(0, 10);
     if (precisionOf(b) !== "day" || !isRealDate(raw)) return "";
     const from = new Date(); from.setDate(from.getDate() - (days - 1));
-    return raw <= todayStr() && raw >= localDateStr(from) ? raw : "";
+    return raw <= todayStr() && raw >= localDay(from) ? raw : "";
   }
   function dayLabel(raw) {
     return Dates().day(raw, { weekday: true, year: false });
