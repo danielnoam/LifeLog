@@ -45,7 +45,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Folds (Advanced, Insights, a place's hours) grow open and shut (0.284.1)
 - Notices stack as pills (0.267.2)
 - Lucide icons everywhere, no emoji in the UI, and the timeline-pin app icon (0.247.0)
-- Right-click menus on a computer: Timeline, In progress, Backlog, Ledger, notes, boards and habits rows have their own actions, Select starts selecting, and with items selected it acts on all of them (0.305.0)
+- Right-click menus on a computer: Timeline, In progress, Backlog, Ledger, notes, boards and habits rows have their own actions, Select starts selecting, and with items selected it acts on all of them (0.305.0); everywhere else the app's own menu instead of the browser's: the tab's adds, Search, Keyboard shortcuts and Settings, Open/Copy link on links, Copy on selected text, nothing inside sheets; text fields and Shift+right-click keep the system's (unreleased)
 - Dropdowns open the app's own list in every theme: a menu under the field on a computer, a sheet from the bottom on a phone, arrow keys and type-to-jump included (0.307.0)
 - "New version ready" with a Reload button (0.118.0) and a close button (0.316.0)
 - Activity: everything that takes a while in one list, with a ring or pill while it runs (0.244.0)

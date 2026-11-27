@@ -94,6 +94,34 @@ const { check, done } = tally();
   });
   check("a touch's contextmenu opens nothing", (await items()).length === 0);
 
+  // Everywhere else the app's menu, never the browser's (2026-11-27).
+  await go({ view: "timeline", timelineMode: "entries" });
+  const fire = (sel, opts = {}) => page.evaluate(({ sel, opts }) => {
+    const n = document.querySelector(sel);
+    const r = n.getBoundingClientRect();
+    n.dispatchEvent(new PointerEvent("pointerdown", { pointerType: "mouse", bubbles: true }));
+    const ev = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + 4, clientY: r.top + 4, shiftKey: !!opts.shift });
+    n.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  }, { sel, opts });
+  await page.mouse.click(384, 173, { button: "right" });
+  await page.waitForTimeout(200);
+  const pg = await items();
+  check("the page's menu has the tab's adds", ["Add", "Entry", "Achievement", "Search", "Keyboard shortcuts", "Settings"].every((x) => pg.includes(x)), pg);
+  await pick("Search");
+  check("Search goes to the search box", await page.evaluate(() => document.activeElement && document.activeElement.id === "search"));
+  check("Shift+right-click leaves the browser's menu", !(await fire("#viewTabs .tab", { shift: true })));
+  check("a text field keeps the system's menu", !(await fire("#search")));
+  await page.evaluate(() => { const a = document.createElement("a"); a.href = "https://example.com/"; a.id = "ctxLink"; a.textContent = "link"; document.querySelector("#viewTabs").after(a); });
+  await fire("#ctxLink");
+  const ln = await items();
+  check("a link gets Open link and Copy link", ln.join() === "Open link,Copy link", ln);
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => document.querySelector("#addBtn").click());
+  await page.evaluate(() => document.querySelector("#addMenu [data-add='entry']").click());
+  await page.waitForTimeout(300);
+  check("inside a sheet: no menu, and no browser menu", await fire(".modal-overlay:not([hidden]) .modal, .modal-overlay:not([hidden])") && (await items()).length === 0);
+
   check("no page errors", errs.length === 0, errs);
   await b.close();
   done();
