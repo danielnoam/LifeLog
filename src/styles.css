@@ -5044,10 +5044,15 @@ html.note-lines .nv-gutter { display: block; }
 .nv-tpl[hidden] { display: none; }
 .nv-tpl-head { margin: 0 0 var(--space-8); font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); }
 .nv-tpl-row { display: flex; flex-wrap: wrap; gap: var(--space-8); }
-.tpl-chip { display: inline-flex; align-items: center; gap: var(--space-6); min-height: 36px; padding: 0 var(--space-12); border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--bg-elev-2); color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
-.tpl-chip:hover { background: var(--hover-bg); }
+.tpl-item { display: inline-flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--bg-elev-2); overflow: hidden; }
+.tpl-chip { display: inline-flex; align-items: center; gap: var(--space-6); min-height: 36px; padding-block: 0; padding-inline: var(--space-12) var(--space-4); border: 0; background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+.tpl-chip:hover, .tpl-del:hover { background: var(--hover-bg); }
 .tpl-chip .ico { width: 15px; height: 15px; color: var(--text-dim); }
-@media (pointer: coarse) { .tpl-chip { min-height: 44px; } }
+/* Remove (Nov 2026): the x at the chip's end. */
+.tpl-del { display: inline-flex; align-items: center; justify-content: center; width: 32px; padding: 0; border: 0; background: none; color: var(--text-dim); cursor: pointer; }
+.tpl-del:hover { color: var(--danger); }
+.tpl-del .ico { width: 14px; height: 14px; }
+@media (pointer: coarse) { .tpl-chip { min-height: 44px; } .tpl-del { width: 44px; } }
 /* Export as PDF (Nov 2026): the print dialog gets the note on its own, in
    ink on paper whatever the theme. */
 @media print {

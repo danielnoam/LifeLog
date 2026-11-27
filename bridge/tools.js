@@ -1945,7 +1945,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_templates",
-    description: "Note templates: notes and checklists marked as templates, which the app offers when a new note or checklist is made (\"Start from a template\"). {{date}}, {{weekday}} and {{time}} in one are filled in when it's used. Templates are left out of the Notebook, tasks, Home and the recap.",
+    description: "Note templates: notes and checklists marked as templates, which the app offers when a new note or checklist is made (\"Start from a template\"). {{date}}, {{weekday}} and {{time}} in one are filled in when it's used. Templates are left out of the Notebook, tasks, Home and the recap. Remove one with lifelog_delete_item (collection notes); lifelog_set_template with template: false keeps it as an ordinary note instead.",
     readOnly: true,
     input: { full: S.bool("Whole text instead of the first 500 characters") },
     async run(a) {

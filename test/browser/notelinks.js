@@ -1,6 +1,7 @@
 // Notes that link (Nov 2026): [[Title]] in a note opens that note (or a
 // board), the reader lists "Linked from", typing [[ offers names, tables
-// show as tables, a template starts a new note with today filled in, and
+// show as tables, a template starts a new note with today filled in (and
+// can be removed, with Undo), and
 // a note exports as one Markdown file.
 const { chromium, BASE, tally } = require("./harness");
 const { check, done } = tally();
@@ -89,6 +90,37 @@ async function run(b, width) {
     return document.querySelector("#nText").value.startsWith("## " + day);
   }), await page.evaluate(() => document.querySelector("#nText").value));
   await page.evaluate(() => window.LifeLogNotes.closeNoteModal());
+  await page.waitForTimeout(300);
+
+  // A template's x removes it at once, and Undo brings it back.
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal());
+  await page.waitForTimeout(300);
+  const tplCount = () => page.evaluate(() => window.LifeLogNotes.templatesFor("text").length);
+  check("each offered template has a remove button with a label" + at, await page.evaluate(() => /Daily/.test(document.querySelector("#nTemplateChips .tpl-del")?.getAttribute("aria-label") || "")));
+  await page.click("#nTemplateChips .tpl-del");
+  await page.waitForTimeout(300);
+  check("the x removes the template and hides the row" + at, (await tplCount()) === 0 && await page.evaluate(() => document.querySelector("#nTemplates").hidden));
+  await page.click("#toast .toast-action");
+  await page.waitForTimeout(300);
+  check("Undo puts the template back in the row" + at, (await tplCount()) === 1 && await page.evaluate(() => !document.querySelector("#nTemplates").hidden));
+  await page.evaluate(() => window.LifeLogNotes.closeNoteModal());
+  await page.waitForTimeout(300);
+
+  // An open template's menu says Delete template, and deletes without asking.
+  await page.evaluate(() => window.LifeLogNotes.openNoteReader("tpl"));
+  await page.waitForTimeout(200);
+  check("a template's reader menu says Delete template" + at, await page.evaluate(() => document.querySelector("#noteReaderDeleteBtn").textContent.trim() === "Delete template"));
+  await page.click("#noteReaderMoreBtn");
+  await page.click("#noteReaderDeleteBtn");
+  await page.waitForTimeout(400);
+  check("Delete template removes it and closes the reader" + at, (await tplCount()) === 0 && await page.evaluate(() => document.querySelector("#noteReader").hidden));
+  await page.click("#toast .toast-action");
+  await page.waitForTimeout(300);
+  check("Undo brings the deleted template back" + at, (await tplCount()) === 1);
+  await page.evaluate(() => window.LifeLogNotes.openNoteReader("trip"));
+  await page.waitForTimeout(200);
+  check("an ordinary note's menu still says Delete note" + at, await page.evaluate(() => document.querySelector("#noteReaderDeleteBtn").textContent.trim() === "Delete note"));
+  await page.evaluate(() => window.LifeLogNotes.closeNoteReader());
   await page.waitForTimeout(300);
 
   // Export as Markdown downloads the note as written.
