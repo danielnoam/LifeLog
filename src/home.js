@@ -1596,7 +1596,7 @@
     let timer = null, start = null, opened = false;
     const cancel = () => { clearTimeout(timer); timer = null; start = null; };
     sec.addEventListener("contextmenu", (ev) => {
-      if (ev.target.closest(OWN_MENU)) return;
+      if (ev.target.closest(OWN_MENU) || (CM() && CM().onSelection(ev))) return;
       // A touch's own contextmenu (Android's long press) is the timer's.
       if (opened || start) { ev.preventDefault(); return; }
       if (!CM() || drag) return;

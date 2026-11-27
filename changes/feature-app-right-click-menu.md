@@ -1,0 +1,2 @@
+### Changed
+- On a computer, right-click never shows the browser's own menu (Back, Save as, Print, Inspect). Empty page space gets the tab's own adds (the same as the + button) with Search, Keyboard shortcuts and Settings; a link gets Open link and Copy link; selected text gets Copy; inside a sheet or a board nothing opens. Text fields keep the system's menu for paste and spelling, and Shift+right-click still opens the browser's. In English and Hebrew, in the web and Windows apps; phones keep their long press.
