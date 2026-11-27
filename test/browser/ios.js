@@ -117,9 +117,6 @@ const FAKE_IOS = () => {
 
   // ---- opened from a widget ----
   await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
-  // Shutting Settings steps history back past its pages; a reload before
-  // that step lands would be followed by it.
-  await page.waitForFunction(() => !(history.state && history.state.settingsPage));
   await page.addInitScript(() => { window.__launchUrl = "lifelog://action/add-note"; });
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(900);

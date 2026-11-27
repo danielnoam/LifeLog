@@ -1000,23 +1000,32 @@
   // would through a site, and back from the first page shuts it. Shutting it
   // any other way takes its entries off again, so a later back doesn't
   // reopen it. Android's back stays Escape (app.js), which steps back here.
+  // A step back lands a moment later, so the depth is kept here rather than
+  // read off history.state: two quick Escapes would otherwise both count
+  // from the same entry and step back past the app into the page before it.
   const trail = []; // trail[d]: the page at Settings' history depth d
-  const depth = () => { const s = history.state; return s && typeof s.settingsPage === "string" ? s.d : 0; };
+  let at = 0, ownSteps = 0;
+  const depth = () => at;
+  const stateDepth = () => { const s = history.state; return s && typeof s.settingsPage === "string" ? s.d : 0; };
+  function stepBack(n) { ownSteps++; at -= n; history.go(-n); }
   function remember(page) {
-    const d = depth() + 1;
-    trail.length = d;
-    trail[d] = page;
-    history.pushState({ settingsPage: page, d }, "");
+    at++;
+    trail.length = at;
+    trail[at] = page;
+    history.pushState({ settingsPage: page, d: at }, "");
   }
   // Back to the page before this one is a step back in history too, or
   // the browser's back would then go forward to where you just left.
   function stepTo(page) {
     const d = depth();
-    if (d > 1 && trail[d - 1] === page) { showPage(page, true); history.back(); }
+    if (d > 1 && trail[d - 1] === page) { showPage(page, true); stepBack(1); }
     else showPage(page);
   }
   function onHistoryStep() {
-    const d = depth();
+    const d = stateDepth();
+    // Our own steps land with Settings already where they leave it.
+    if (ownSteps) { ownSteps = d === at ? 0 : ownSteps - 1; return; }
+    at = d;
     const open = !$("#settingsModal").hidden;
     if (!d) { if (open) $("#settingsModal").hidden = true; return; }
     const page = history.state.settingsPage;
@@ -1882,8 +1891,7 @@
   }
   function closeSettings() {
     $("#settingsModal").hidden = true;
-    const d = depth();
-    if (d) history.go(-d);
+    if (at) stepBack(at);
   }
 
   // ---------- storage connections ----------
@@ -2069,7 +2077,7 @@
     document.querySelectorAll("#settingsModal .settings-page .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
     document.querySelectorAll("#settingsModal .settings-crumb[data-go]").forEach((b) => b.onclick = () => stepTo(b.dataset.go));
     // A reload lands on whatever entry it was on, with Settings shut.
-    if (depth()) history.replaceState(null, "");
+    if (stateDepth()) history.replaceState(null, "");
     window.addEventListener("popstate", onHistoryStep);
     // A browser steps through history on a mouse's side buttons by itself;
     // the computer app's WebView isn't counted on to, so they're wired here.

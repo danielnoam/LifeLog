@@ -124,6 +124,13 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     await page.waitForTimeout(300);
     w = await where(page);
     check("and from the list shuts Settings, entries and all", same(w, { open: false, page: null, d: 0 }), w);
+    await page.click("#settingsBtn");
+    await page.click('#settingsHome .srow[data-page="appearance"]');
+    await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+    w = await where(page);
+    check("two quick Escapes shut it without stepping back out of the app", same(w, { open: false, page: null, d: 0 }) &&
+      await page.evaluate(() => !!window.LifeLogNotes), w);
     await ctx.close();
   }
 
