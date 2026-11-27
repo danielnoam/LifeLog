@@ -119,6 +119,38 @@ async function run(b, width) {
   check("Undo brings the deleted template back" + at, (await tplCount()) === 1);
   await page.evaluate(() => window.LifeLogNotes.openNoteReader("trip"));
   await page.waitForTimeout(200);
+  if (width >= 600) {
+    // Right-click: a template chip offers Use and Remove; a note card offers Copy text.
+    const ctxItems = () => page.$$eval(".ctx-menu:not([hidden]) button", (n) => n.map((x) => x.textContent.trim()));
+    await page.evaluate(() => window.LifeLogNotes.closeNoteReader());
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.LifeLogNotes.openNoteModal());
+    await page.waitForTimeout(300);
+    await page.click("#nTemplateChips .tpl-chip", { button: "right" });
+    await page.waitForTimeout(200);
+    check("right-clicking a template chip offers Use template and Remove template" + at, JSON.stringify(await ctxItems()) === JSON.stringify(["Use template", "Remove template"]), JSON.stringify(await ctxItems()));
+    check("the menu shows above the sheet" + at, await page.evaluate(() => {
+      const m = document.querySelector(".ctx-menu:not([hidden])"); if (!m) return false;
+      const r = m.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!hit && m.contains(hit);
+    }));
+    await page.click('.ctx-menu:not([hidden]) button:text-is("Remove template")');
+    await page.waitForTimeout(300);
+    check("Remove template from the menu removes it" + at, (await tplCount()) === 0 && await page.evaluate(() => document.querySelector("#nTemplates").hidden));
+    await page.click("#toast .toast-action");
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.LifeLogNotes.closeNoteModal());
+    await page.waitForTimeout(300);
+    await page.click('[data-id="pack"]', { button: "right", position: { x: 40, y: 12 } });
+    await page.waitForTimeout(200);
+    check("right-clicking a note offers Copy text" + at, (await ctxItems()).includes("Copy text"), JSON.stringify(await ctxItems()));
+    await ctx.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.click('.ctx-menu:not([hidden]) button:text-is("Copy text")');
+    await page.waitForTimeout(200);
+    check("Copy text copies the note" + at, /socks/.test(await page.evaluate(() => navigator.clipboard.readText())));
+    await page.evaluate(() => window.LifeLogNotes.openNoteReader("trip"));
+    await page.waitForTimeout(200);
+  }
   check("an ordinary note's menu still says Delete note" + at, await page.evaluate(() => document.querySelector("#noteReaderDeleteBtn").textContent.trim() === "Delete note"));
   await page.evaluate(() => window.LifeLogNotes.closeNoteReader());
   await page.waitForTimeout(300);
