@@ -242,7 +242,6 @@
       if (cf.size && !cf.has(n.category || "") && !(n.items || []).some((i) => i.category && cf.has(i.category))) return false;
       if (kinds.size && !kinds.has(kindOf(n))) return false;
       if (tf.size && !tagged(n, tf)) return false;
-      if (feedOnly() && isCollection(n.category)) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
     });
@@ -278,10 +277,9 @@
   const noteCats = () => state.data.noteCategories || (state.data.noteCategories = []);
   const catColor = (name) => (noteCats().find((c) => c.name === name) || {}).color || "#7a8a99";
   // A category can be a collection (0.204.0): reference notes — recipes,
-  // how-tos, software — kept by name rather than by the day they were
-  // written. Their notes leave the dated feed; the collection's chip opens them.
+  // how-tos, software — that its chip opens as a page of cards by name. They
+  // show in the dated feed too, by their date.
   const isCollection = (name) => !!name && (noteCats().find((c) => c.name === name) || {}).layout === "collection";
-  const collections = () => noteCats().filter((c) => c.layout === "collection");
   // The collections being looked at: every category chip that's on is a
   // collection (0.221.0; it was exactly one until then). Several show as one
   // page of cards. A collection beside a plain category is the feed instead,
@@ -290,9 +288,6 @@
     const cf = [...state.noteActiveCats];
     return cf.length && cf.every(isCollection) ? cf : null;
   }
-  // The feed proper: no category picked, no search, and showing all notes or
-  // plain ones. That's where collections' notes stand aside.
-  const feedOnly = () => !state.noteActiveCats.size && !(state.noteActiveTags && state.noteActiveTags.size) && !state.search.trim() && (!state.noteKinds.size || state.noteKinds.has("text"));
   // Boards on their own are the Boards page; beside anything else, cards.
   const boardsPage = () => state.noteKinds.size === 1 && state.noteKinds.has("board");
   let catSaved = null; // what to do with a category made from the note sheet
@@ -1303,9 +1298,7 @@
     }
     const notes = getFilteredNotes();
     if (!notes.length) {
-      showEmpty(emptyState(feedOnly() && collections().length
-        ? i18n.t("Nothing in the feed yet — everything so far is in a collection (▦ in the categories above).")
-        : i18n.t("No notes match your filters.")));
+      showEmpty(emptyState(i18n.t("No notes match your filters.")));
       return;
     }
     if (notesEmptyEl) { notesEmptyEl.remove(); notesEmptyEl = null; }

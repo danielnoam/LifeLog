@@ -1,6 +1,6 @@
 // Collections (0.204.0): a note category kept by name rather than by date —
-// its notes leave the dated feed (its chip, marked ▦, opens them), open as a page of
-// their own, and read as formatted Markdown. At phone and desktop widths.
+// its chip, marked ▦, opens its notes as a page of their own, read as formatted
+// Markdown. They stay in the dated feed too (they left it until 2026-11-27). At phone and desktop widths.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
@@ -46,7 +46,7 @@ async function run(b, width) {
   check("a collection's chip is marked as one, and there's no second list of them" + at, await page.evaluate(() =>
     [...document.querySelectorAll("#catFilter .cat-chip.is-collection")].map((c) => c.textContent.trim()).join() === "Recipes"
     && !document.querySelector(".notes-shelf")));
-  check("and the feed keeps only what isn't in one" + at, JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]), await feed());
+  check("and the feed keeps every note, collections' too" + at, JSON.stringify(await feed()) === JSON.stringify(["bread", "day", "mtg", "pan"]), await feed());
   await shot("feed");
 
   await collChip("Recipes").click();
@@ -90,7 +90,7 @@ async function run(b, width) {
   await page.click(".coll-head .btn:not(.btn-primary)");
   await page.waitForTimeout(300);
   check("back to all notes brings the feed back" + at,
-    JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]), await feed());
+    JSON.stringify(await feed()) === JSON.stringify(["bread", "day", "mtg", "pan"]), await feed());
   await page.locator("#catFilter .cat-chip", { hasText: "Work" }).click();
   await page.waitForTimeout(200);
   await collChip("Recipes").click();
@@ -116,9 +116,9 @@ async function run(b, width) {
   await page.check("#noteCatCollection");
   await page.click("#noteCatForm button[type=submit]");
   await page.waitForTimeout(400);
-  check("a category's sheet makes it a collection, and its notes leave the feed" + at,
+  check("a category's sheet makes it a collection, and its notes stay in the feed" + at,
     (await page.evaluate(() => document.querySelectorAll("#catFilter .cat-chip.is-collection").length)) === 2
-    && JSON.stringify(await feed()) === JSON.stringify(["day"]), await feed());
+    && JSON.stringify(await feed()) === JSON.stringify(["bread", "day", "mtg", "pan"]), await feed());
   const saved = await page.evaluate(() => window.LifeLogStorage.cachedCopy().noteCategories.find((c) => c.name === "Work"));
   check("and it's saved on the category" + at, saved.layout === "collection", saved);
 
@@ -180,8 +180,8 @@ async function run(b, width) {
   await page.evaluate(() => window.LifeLogBoards.closeBoard());
   await page.waitForTimeout(400);
   const stored = await page.evaluate(() => window.LifeLogBoards.boardsNow()[0].category);
-  check("filed in a collection, it leaves the feed and joins the collection's cards" + at,
-    stored === "Recipes" && !(await page.$(".note-card.is-board")), stored);
+  check("filed in a collection, it stays in the feed and joins the collection's cards" + at,
+    stored === "Recipes" && !!(await page.$(".note-card.is-board")), stored);
   await page.locator("#catFilter .cat-chip.is-collection", { hasText: "Recipes" }).click();
   await page.waitForTimeout(300);
   check("where it's a card like the notes" + at, await page.evaluate(() =>
