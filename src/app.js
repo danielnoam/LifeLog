@@ -4961,14 +4961,16 @@
     setTopbarH();
 
     // A computer's top bar is one row that doesn't wrap, so a narrow or
-    // zoomed-in window pushed the ⚙ past the right edge. When the row
-    // doesn't fit with the search at its 160px floor, the tabs drop to
-    // icons (their names become tooltips) and the wordmark goes.
+    // zoomed-in window pushed the ⚙ past the edge. When the row doesn't fit
+    // with the search at its 160px floor, the tabs drop to icons (their
+    // names become tooltips) and the wordmark goes. Both edges are checked:
+    // in Hebrew the ⚙ is on the left and goes off that side.
     const corner = $(".settings-corner");
     const fitTopbar = () => {
       topbar.classList.remove("is-tight");
-      const edge = topbar.getBoundingClientRect().right - parseFloat(getComputedStyle(topbar).paddingRight);
-      const tight = !isMobileLayout() && corner.getBoundingClientRect().right > edge + 0.5;
+      const bar = topbar.getBoundingClientRect(), cs = getComputedStyle(topbar), c = corner.getBoundingClientRect();
+      const over = c.right > bar.right - parseFloat(cs.paddingRight) + 0.5 || c.left < bar.left + parseFloat(cs.paddingLeft) - 0.5;
+      const tight = !isMobileLayout() && over;
       topbar.classList.toggle("is-tight", tight);
       for (const t of document.querySelectorAll("#viewTabs .tab")) {
         if (tight) t.title = tabText(t);
