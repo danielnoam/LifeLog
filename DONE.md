@@ -277,6 +277,7 @@ Every release that adds a feature adds its line here in the same commit.
 ## Settings
 
 - Settings as a list of pages, with search (0.186.0)
+- Back and forward (the browser's and the mouse's side buttons) step through Settings' pages; back from the first page shuts it; web and Windows app, Android's back unchanged (next release)
 - Themes: Default, Light, Nord, Dracula (0.36.0)
 - Fonts and layout per device (0.4.0, 0.186.0)
 - Cover art size per view (0.45.0)

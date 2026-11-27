@@ -940,7 +940,7 @@
     });
   }
 
-  function showPage(name) {
+  function showPage(name, quiet) {
     if (name === "keyboard" && window.LifeLogKeys) window.LifeLogKeys.renderPage();
     if (name === "sync-space") { spacePictures = null; renderSpacePage(); }
     if (name === "sync") { renderDrive(); loadDriveList(false); }
@@ -991,6 +991,38 @@
     if (pages) pages.scrollTop = 0;
     if (!currentPage) updateStatuses();
     if (currentPage === "imports") renderConnectionRows();
+    if (!quiet && currentPage !== was && !$("#settingsModal").hidden) remember(currentPage);
+  }
+
+  // ---------- back and forward ----------
+  // Each page opened is an entry in the browser's history, so the browser's
+  // and the mouse's back and forward buttons step through Settings as they
+  // would through a site, and back from the first page shuts it. Shutting it
+  // any other way takes its entries off again, so a later back doesn't
+  // reopen it. Android's back stays Escape (app.js), which steps back here.
+  const trail = []; // trail[d]: the page at Settings' history depth d
+  const depth = () => { const s = history.state; return s && typeof s.settingsPage === "string" ? s.d : 0; };
+  function remember(page) {
+    const d = depth() + 1;
+    trail.length = d;
+    trail[d] = page;
+    history.pushState({ settingsPage: page, d }, "");
+  }
+  // Back to the page before this one is a step back in history too, or
+  // the browser's back would then go forward to where you just left.
+  function stepTo(page) {
+    const d = depth();
+    if (d > 1 && trail[d - 1] === page) { showPage(page, true); history.back(); }
+    else showPage(page);
+  }
+  function onHistoryStep() {
+    const d = depth();
+    const open = !$("#settingsModal").hidden;
+    if (!d) { if (open) $("#settingsModal").hidden = true; return; }
+    const page = history.state.settingsPage;
+    trail[d] = page;
+    if (!open) openSettings(page, true);
+    else if (page !== currentPage) showPage(page, true);
   }
 
   // Connections' list: one row per app, with where it stands.
@@ -1012,9 +1044,9 @@
   function settingsBack() {
     if ($("#settingsModal").hidden || !currentPage) return false;
     const parent = parentOf(currentPage);
-    if (parent) { showPage(parent); return true; }
+    if (parent) { stepTo(parent); return true; }
     if (!onePane()) return false;
-    showPage("");
+    stepTo("");
     return true;
   }
 
@@ -1668,7 +1700,7 @@
 
   // page: open straight onto one (the storage line in the header opens Sync).
   // Otherwise a phone starts on the list and a wider screen on the first page.
-  function openSettings(page) {
+  function openSettings(page, fromHistory) {
     $("#settingsSearch").value = "";
     renderSearch();
     ghEditing = false;
@@ -1687,8 +1719,10 @@
     updateMediaSettings();
     updatePrivacySettings();
     if (window.LifeLogNotes) window.LifeLogNotes.updateImagesSetting();
+    const wasOpen = !$("#settingsModal").hidden;
     $("#settingsModal").hidden = false;
-    showPage(typeof page === "string" ? page : onePane() ? "" : "sync");
+    showPage(typeof page === "string" ? page : onePane() ? "" : "sync", true);
+    if (!fromHistory && (!wasOpen || trail[depth()] !== currentPage)) remember(currentPage);
     updateStatuses();
   }
 
@@ -1846,7 +1880,11 @@
     saveVisualSettings(state.visual);
     render();
   }
-  function closeSettings() { $("#settingsModal").hidden = true; }
+  function closeSettings() {
+    $("#settingsModal").hidden = true;
+    const d = depth();
+    if (d) history.go(-d);
+  }
 
   // ---------- storage connections ----------
   async function connectFile() {
@@ -2027,9 +2065,23 @@
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
     $("#closeSettingsPageBtn").onclick = closeSettings;
-    $("#settingsBackBtn").onclick = () => showPage(parentOf(currentPage));
+    $("#settingsBackBtn").onclick = () => stepTo(parentOf(currentPage));
     document.querySelectorAll("#settingsModal .settings-page .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
-    document.querySelectorAll("#settingsModal .settings-crumb[data-go]").forEach((b) => b.onclick = () => showPage(b.dataset.go));
+    document.querySelectorAll("#settingsModal .settings-crumb[data-go]").forEach((b) => b.onclick = () => stepTo(b.dataset.go));
+    // A reload lands on whatever entry it was on, with Settings shut.
+    if (depth()) history.replaceState(null, "");
+    window.addEventListener("popstate", onHistoryStep);
+    // A browser steps through history on a mouse's side buttons by itself;
+    // the computer app's WebView isn't counted on to, so they're wired here.
+    if (window.LifeLogPlatform && window.LifeLogPlatform.desktop) {
+      const side = (e) => e.button === 3 || e.button === 4;
+      document.addEventListener("mousedown", (e) => { if (side(e)) e.preventDefault(); });
+      document.addEventListener("mouseup", (e) => {
+        if (!side(e)) return;
+        e.preventDefault();
+        if (e.button === 3) history.back(); else history.forward();
+      });
+    }
     $("#changelogMoreBtn").onclick = () => renderChangelog(true);
     $("#changelogFold").addEventListener("toggle", (e) => { if (e.target.open) renderChangelog(false); });
     document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
