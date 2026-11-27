@@ -1,0 +1,2 @@
+### Added
+- Templates can be removed right where they're offered: each one under "Start from a template" in a new note has an x, which removes it at once with Undo in the toast. An open template's menu says "Delete template" and works the same way, with Undo instead of a question. Notes already made from it keep what they were filled with. Works in English and Hebrew, on phone and computer, in the web, Windows and Android apps.

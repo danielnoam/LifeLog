@@ -1671,6 +1671,7 @@
     out.querySelectorAll("pre, table").forEach((x) => x.classList.add("no-swipe"));
     $("#noteReaderEntryBtn").hidden = kindOf(n) !== "text";
     $("#noteReaderTemplateBtn").hidden = !!n.template || kindOf(n) === "quote";
+    syncDeleteLabel(n, "#noteReaderDeleteBtn");
     syncPinButton(n, $("#noteReaderPinBtn"));
     syncFavButton(n, $("#noteReaderFavBtn"));
     closeNoteMenu("#noteReaderMenu", "#noteReaderMoreBtn");
@@ -2477,6 +2478,7 @@
     syncSheetTags();
     $("#deleteNoteBtn").hidden = !note;
     $("#noteTemplateBtn").hidden = !note || !!note.template || kindOf(note) === "quote";
+    syncDeleteLabel(note, "#deleteNoteBtn");
     for (const id of ["#noteExportMdBtn", "#noteExportPdfBtn"]) $(id).hidden = !note;
     const stamp = $("#noteStampLine");
     $("#noteFoot").hidden = !note;
@@ -2599,6 +2601,8 @@
 
   async function deleteNote(id = editingNoteId) {
     if (!id) return;
+    const t = state.data.notes.find((n) => n.id === id);
+    if (t && t.template) { closeNoteModal(); closeNoteReader(); return removeTemplate(id); }
     if (!confirm(i18n.t("Delete this note?"))) return;
     state.data.notes = state.data.notes.filter((n) => n.id !== id);
     closeNoteModal();
@@ -3020,13 +3024,43 @@
     const chips = $("#nTemplateChips");
     chips.replaceChildren();
     for (const t of list) {
+      const item = el("span", "tpl-item");
       const b = el("button", "tpl-chip");
       b.type = "button";
       b.appendChild(ico(kindOf(t) === "list" ? "list-checks" : "layers"));
-      b.appendChild(document.createTextNode(linkTitle(t) || i18n.t("Untitled")));
+      const name = linkTitle(t) || i18n.t("Untitled");
+      b.appendChild(document.createTextNode(name));
       b.onclick = () => useTemplate(t);
-      chips.appendChild(b);
+      const x = el("button", "tpl-del");
+      x.type = "button";
+      x.title = i18n.t("Remove template {name}", { name });
+      x.setAttribute("aria-label", x.title);
+      x.appendChild(ico("x"));
+      x.onclick = () => removeTemplate(t.id, () => drawTemplateRow(null));
+      item.append(b, x);
+      chips.appendChild(item);
     }
+  }
+  // Removing a template (Nov 2026) acts at once and offers Undo; the notes
+  // made from it keep what they were filled with.
+  async function removeTemplate(id, after) {
+    const at = state.data.notes.findIndex((n) => n.id === id && n.template);
+    if (at < 0) return;
+    const [gone] = state.data.notes.splice(at, 1);
+    render();
+    if (after) after();
+    await persist();
+    toast(i18n.t("Template removed"), false, { label: i18n.t("Undo"), onClick: async () => {
+      if (state.data.notes.some((n) => n.id === gone.id)) return;
+      state.data.notes.splice(Math.min(at, state.data.notes.length), 0, gone);
+      render();
+      if (after && !$("#noteModal").hidden && !editingNoteId) after();
+      await persist();
+    } });
+  }
+  function syncDeleteLabel(n, sel) {
+    const label = $(sel + " [data-t]");
+    if (label) label.textContent = n && n.template ? i18n.t("Delete template") : i18n.t("Delete note");
   }
   function useTemplate(t) {
     const now = new Date();
@@ -3149,6 +3183,6 @@
     // pure helpers (test/notes.test.js)
     noteDate, noteYear, splitNoteForEntry, splitTitle, plainPreview,
     linkTitle, findLinkTarget, backlinksOf, fillTemplate, noteMarkdown, templatesFor,
-    followLink, saveAsTemplate,
+    followLink, saveAsTemplate, removeTemplate,
   };
 })();
