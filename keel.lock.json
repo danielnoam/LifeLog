@@ -1,9 +1,9 @@
 {
-  "version": "0.18.0",
+  "version": "0.20.0",
   "files": {
     "server.js": "8ee59ae7735c53c34585b6b319b72f1ebf399d32f94a093c9a2d70be19e11c88",
     "src/keel/qr.js": "2295f84ad67c118b0e21f57c4f056d782bb7bf9d894b90663a4a5c3c1f3b0399",
-    "src/keel/github.js": "d4b224ae152a7ec7719a0cb1c4c136137cb8fda689f495e0b527030cf4cae9e2",
+    "src/keel/github.js": "6c30b2547f21bab0c39d13d58832c49cc005fe48f124bc92751e144311a4a5d3",
     "src/keel/drive.js": "3859b1c7ebb5cbba1c18827e6245095bad54691c0bbec53c6ef527223f69357d",
     "src/keel/errlog.js": "d25c1074c3f7163c8c1f66359c8cc4e9f923efeab2907d585d071302da1876e0",
     "src/keel/platform.js": "288486d41c3e9f3c86406f21b513155da44e1bbcd401133aeebb035940c40889",
@@ -11,6 +11,7 @@
     "src/keel/i18n.js": "e8b8b9655942190a1d7700f26680e2a254199334e3c321b609d89b18a5390dc8",
     "src/keel/releases.js": "e81ba07d682e3124e84261f10cc10bacebe348d0e7b1a769920d5ca740a2213a",
     "src/keel/update.js": "620184990b4961a5c56aec4256f6bf384023f787917232fa60a971f8e0ee8d8a",
+    "src/keel/changelog.js": "7478db7eae4177f6a9df0b2f7b90de1b216047a18d8807242d3c5c6204ee04b1",
     "src/keel/sw-preview.js": "3c55e81926300b26d8038c27e3b97f85e9e29d78f195bbd9e1a86823db871c4c",
     "tools/release.js": "96431304ae97964a945076c0776aa4f16ceccf294612838ec14ae47ef133563d",
     "tools/android-version.js": "70f2cb0950e023cb33301f39012f5c9aaa96ad0695a01e0150751bc8a41c5ce1",
