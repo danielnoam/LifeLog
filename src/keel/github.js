@@ -212,12 +212,19 @@
     // { path, sha } entries, asked only then), is started as a commit of
     // root + files with no parent.
     // `beforeTry` runs before each try (to stop a sync someone paused).
-    async function commitFiles(files, message, { branch = c().branch, root, beforeTry, tries = 4 } = {}) {
+    // `parent`: the head sha the files were worked out from (null: the
+    // branch was missing). The commit goes on it or not at all: a branch
+    // that moved since fails with `moved` set, never retried, because
+    // GitHub refuses a ref update that isn't a fast forward. Without it, a
+    // commit landing between a caller's own check and this one is
+    // overwritten by files made from the older tree.
+    async function commitFiles(files, message, { branch = c().branch, root, beforeTry, tries = 4, parent } = {}) {
       const tree = files.map((f) => (f.text != null ? { path: f.path, mode: "100644", type: "blob", content: f.text }
         : { path: f.path, mode: "100644", type: "blob", sha: f.sha }));
       for (let n = 1; ; n++) {
         if (beforeTry) await beforeTry();
-        const head = await json("GET", "git/ref/heads/" + encodeURIComponent(branch));
+        const pinned = parent !== undefined;
+        const head = pinned ? (parent ? { object: { sha: parent } } : null) : await json("GET", "git/ref/heads/" + encodeURIComponent(branch));
         if (!head && !root) throw httpError(404, "no branch " + branch);
         try {
           if (!head) {
@@ -232,6 +239,7 @@
           await json("PATCH", "git/refs/heads/" + encodeURIComponent(branch), { sha: commit.sha, force: false });
           return commit.sha;
         } catch (e) {
+          if (pinned && e.status === 422) { e.moved = true; throw e; }
           if (e.status !== 422 || n >= tries) throw e;
         }
       }
