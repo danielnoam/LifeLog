@@ -40,6 +40,7 @@ because something shipped broken that no unit test could have caught:
 
 | suite | what it pins down |
 |---|---|
+| `focuskeep` | a sync landing while you type keeps the field focused, the caret where it was and the words typed: Home's scratchpad (kept through the redraw) and a list's add line (a new field) |
 | `synctoast` | the offline warning doesn't fire while the status line says "Synced" |
 | `igdbtimes` | IGDB's time-to-beat fills the game-times strip for a Steam game How Long to Beat doesn't know and for an IGDB game; nothing is asked of IGDB without its keys |
 | `pollpeek` | a poll reads lifelog.json only when the folder listing says its sha moved; the error log in Settings → About |

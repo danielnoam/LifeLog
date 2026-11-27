@@ -19,7 +19,7 @@
   ],
   "always": [
     "a11y", "activity", "bootcache", "btnaudit", "bulkselect", "contextmenu",
-    "dropdowns", "everymode", "ghlarge", "hiddenaudit", "home", "modeswipe",
+    "dropdowns", "everymode", "focuskeep", "ghlarge", "hiddenaudit", "home", "modeswipe",
     "pollpeek", "motion", "press", "realloop", "savecoalesce", "search", "selectjump", "synctoast", "tabtoggle", "topbarsize"
   ],
   "areas": {

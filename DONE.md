@@ -263,6 +263,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Google Drive backups in Settings → Sync: Back up now or automatic (daily to monthly), last three kept plus one a week old, restore as a new save, delete; drive.file scope only; browser, Android and Windows app (0.316.0)
 - Privacy and Terms pages on the web app (privacy.html, terms.html), linked from Google's sign-in screen (0.317.0)
 - Settings → Sync → Erase this device, synced or not: the data, its past saves, pictures, connections and keys go from this device only, the look and language stay, and it reopens empty; with no other copy it says so and asks for the word erase; web, Windows and Android (0.325.0)
+- A sync landing while you type keeps you typing: the field keeps focus (and a phone its keyboard), the caret stays put and the words typed stay (next release)
 
 ## Privacy and security
 

@@ -1694,6 +1694,60 @@
   }
 
   // ---------- rendering ----------
+  // render() throws the view away and builds it again, so a field you were
+  // typing in went with it whenever a sync, a price or a widget redrew the
+  // page under you: the caret was gone mid-word, and on a phone the keyboard
+  // with it. The field is found again in the new view (the same node when
+  // the view keeps it, like the scratchpad, or its twin by what it is and
+  // whose it is) and focused with the caret where it was. Words typed into
+  // it that the view didn't keep go back in too, but only once you've typed:
+  // a field you merely sat in takes what the sync brought.
+  let typedIn = null;
+  function wireTypedIn() {
+    document.addEventListener("focusin", (e) => { if (e.target !== typedIn) typedIn = null; }, true);
+    document.addEventListener("input", (e) => { typedIn = e.target; }, true);
+  }
+  function isKeptField(node) {
+    return !!node && (node.tagName === "TEXTAREA" || node.tagName === "INPUT") && isTextField(node);
+  }
+  function fieldKey(node) {
+    const owner = node.closest("[data-id]");
+    const compose = node.closest("[data-compose]");
+    return [node.id, owner && owner.dataset.id, compose && compose.dataset.compose, node.tagName, node.className, node.name, node.type, node.getAttribute("aria-label"), node.placeholder].join("|");
+  }
+  const viewFields = () => [...$("#content").querySelectorAll("input, textarea")].filter(isKeptField);
+  function captureFocus() {
+    const node = document.activeElement;
+    if (!isKeptField(node) || !$("#content").contains(node) || node.closest(".modal-overlay")) return null;
+    const key = fieldKey(node);
+    let start = null, end = null, dir = "none";
+    try { start = node.selectionStart; end = node.selectionEnd; dir = node.selectionDirection || "none"; } catch (e) {}
+    return {
+      node, key, start, end, dir,
+      nth: viewFields().filter((f) => fieldKey(f) === key).indexOf(node),
+      value: node.value,
+      typed: typedIn === node,
+      scrollTop: node.scrollTop,
+    };
+  }
+  function restoreFocus(f) {
+    if (!f) return;
+    // Something in the rebuild put the caret somewhere on purpose (Enter in
+    // an add line moves on to the next one); that wins.
+    const now = document.activeElement;
+    if (now && now !== document.body && now !== f.node) return;
+    let node = f.node.isConnected && $("#content").contains(f.node) ? f.node : null;
+    if (!node) node = viewFields().filter((x) => fieldKey(x) === f.key)[f.nth] || null;
+    if (!node || node.disabled || node.readOnly) return;
+    if (f.typed && node.value !== f.value) {
+      node.value = f.value;
+      node.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    node.focus({ preventScroll: true });
+    if (f.typed) typedIn = node;
+    try { if (f.start != null) node.setSelectionRange(f.start, f.end, f.dir); } catch (e) {}
+    node.scrollTop = f.scrollTop;
+  }
   // `keepSnapshots`: a redraw of the current mode that can't have changed
   // what the others show (Boards arriving from storage), so swiping back
   // still shows those pages rather than their names.
@@ -1720,6 +1774,7 @@
     // An edit, a filter or a sync may have changed what the other modes show.
     if (inPlace && !keepSnapshots) modeSnapshots.clear();
     const prevScrollY = window.scrollY;
+    const focused = captureFocus();
     scrollAnchor = inPlace ? captureScrollAnchor() : null;
     // Starting or ending a selection reshapes every row (a tick column, a
     // list note's items going read-only), so the section header above isn't
@@ -1832,6 +1887,7 @@
         // never scrolled.
         window.scrollTo(0, 0);
       }
+      if (inPlace) restoreFocus(focused);
       updateJumpNav();
       updateSearchMatchBadges();
       Search.refresh();
@@ -5364,6 +5420,7 @@
     });
 
     wireTabKeyHints();
+    wireTypedIn();
 
     // Retry a pending save and check for remote updates as soon as the
     // connection comes back, and again when the tab regains focus. Pause
