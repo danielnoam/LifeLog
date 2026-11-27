@@ -3293,6 +3293,8 @@
       if (lastPointer.type !== "mouse" && Date.now() - lastPointer.at < 1500) return;
       // Text fields and links keep the system's menu (copy, paste, open).
       if (ev.target.closest && ev.target.closest("input, textarea, select, [contenteditable='true'], a[href]")) return;
+      // Over selected text, the page's menu (Copy) comes first.
+      if (onSelection(ev)) return;
       const build = ctxBuilders[kind];
       if (!build || isAnyModalOpen()) return;
       let items;
@@ -3450,7 +3452,61 @@
       document.removeEventListener("scroll", onAway, true);
     };
   }
-  window.LifeLogContextMenu = { register: registerContextMenu, attach: attachContextMenu, open: openContextMenu, close: closeContextMenu, helpers: ctxHelpers };
+  window.LifeLogContextMenu = { register: registerContextMenu, attach: attachContextMenu, open: openContextMenu, close: closeContextMenu, helpers: ctxHelpers, onSelection: (ev) => onSelection(ev) };
+
+  // Everywhere a row or panel has no menu of its own, the browser's (Back,
+  // Save as, Print, Inspect) never shows: a link gets Open and Copy link,
+  // selected text gets Copy, the page gets the view's own adds plus Search
+  // and Settings, and inside a sheet nothing opens at all. Text fields keep
+  // the system's menu for paste and spelling, a touch keeps Android's long
+  // press, and Shift+right-click still reaches the browser's.
+  function onSelection(ev) {
+    const sel = window.getSelection && window.getSelection();
+    return !!(sel && !sel.isCollapsed && String(sel).trim() && sel.containsNode(ev.target, true));
+  }
+  function fallbackMenuItems(ev) {
+    const t = ev.target.closest ? ev.target : ev.target.parentElement;
+    const link = t && t.closest("a[href]");
+    const text = String(window.getSelection ? window.getSelection() : "").trim();
+    const items = [];
+    if (link && !/^javascript:/i.test(link.getAttribute("href"))) {
+      items.push({ icon: "external-link", label: i18n.t("Open link"), run: () => link.click() });
+      items.push({ icon: "link", label: i18n.t("Copy link"), run: () => copyToClipboard(link.href) });
+    }
+    if (text) items.push({ icon: "copy", label: i18n.t("Copy"), run: () => copyToClipboard(text) });
+    if (isAnyModalOpen() || items.length) return items;
+    const Pin = window.LifeLogPin;
+    const pinned = Pin && Pin.isOn();
+    syncAddMenu();
+    const adds = [...document.querySelectorAll(`#addMenu .add-group[data-view="${state.view}"] button`)].filter((b) => !b.hidden);
+    if (adds.length) {
+      items.push({ head: i18n.t("Add") });
+      for (const b of adds) {
+        const icon = b.querySelector("[data-ico]");
+        items.push({ icon: icon ? icon.dataset.ico : "plus", label: b.lastChild.textContent.trim(), run: () => b.click() });
+      }
+      items.push({ divider: true });
+    }
+    if (!pinned) items.push({ icon: "search", label: i18n.t("Search"), run: focusSearch });
+    items.push({ icon: "keyboard", label: i18n.t("Keyboard shortcuts"), run: openShortcutsModal });
+    if (!pinned) items.push({ icon: "settings", label: i18n.t("Settings"), run: () => SettingsUI.openSettings() });
+    return items;
+  }
+  async function copyToClipboard(text) {
+    try { await navigator.clipboard.writeText(text); toast(i18n.t("Copied")); } catch (e) { toast(i18n.t("Couldn't copy, the clipboard was blocked"), true); }
+  }
+  if (typeof document.addEventListener === "function") document.addEventListener("contextmenu", (ev) => {
+    if (ev.defaultPrevented || ev.shiftKey) return;
+    if (lastPointer.type !== "mouse" && Date.now() - lastPointer.at < 1500) return;
+    const t = ev.target.closest ? ev.target : ev.target.parentElement;
+    if (t && t.closest("input, textarea, select, [contenteditable='true'], .ctx-menu")) return;
+    ev.preventDefault();
+    const items = fallbackMenuItems(ev);
+    if (!items.length) return;
+    let x = ev.clientX, y = ev.clientY;
+    if (!x && !y && t) { const r = t.getBoundingClientRect(); x = r.left + 24; y = r.top + Math.min(r.height, 40); }
+    openContextMenu(x, y, items);
+  });
 
   // While a pointer is held down on a bulk checkbox, dragging over other
   // checkboxes paints them to the same selected/unselected state — lets you
