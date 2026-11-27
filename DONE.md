@@ -199,7 +199,7 @@ Every release that adds a feature adds its line here in the same commit.
 - A task list in a collection shows its tasks on its card (open first, ticked struck through, six and "N more"), each tickable there; a tick on every row of a task list's page, and the list's own tick on its page and collection card (next release)
 - Notes in a collection stay in the Notebook's dated feed too; the collection's chip still opens its page of cards (next release)
 - A screen per kind from the + menu (Note, Checklist, Quote, Board), no kind switch in the sheet or ⋯; a new board asks its name and category first and opens on a tap of the blank board; the Favourite star sits beside ⋯ in Read and Edit (0.314.0)
-- [[Links]] between notes and to boards, picked by typing `[[`; "Linked from" in a note's Read view; Markdown tables; note and tasks list templates with {{date}}, {{weekday}}, {{time}} and a Templates chip; export one note as Markdown or PDF; bridge lifelog_note_links, lifelog_templates, lifelog_set_template, lifelog_add_note_from_template (0.323.0); remove a template from its x under "Start from a template" or "Delete template" in its menu, with Undo (next release)
+- [[Links]] between notes and to boards, picked by typing `[[`; "Linked from" in a note's Read view; Markdown tables; note and tasks list templates with {{date}}, {{weekday}}, {{time}} and a Templates chip; export one note as Markdown or PDF; bridge lifelog_note_links, lifelog_templates, lifelog_set_template, lifelog_add_note_from_template (0.323.0); remove a template from its x under "Start from a template" or "Delete template" in its menu, or right-click, with Undo; right-click a note to Copy text (next release)
 
 ## Notebook (Habits)
 
