@@ -1862,6 +1862,7 @@
     const current = (board || n).category || "";
     return [
       { icon: "pencil", label: i18n.t("Open"), run: () => (board ? B.openBoard(board.id) : openNote(n)) },
+      { icon: "copy", label: i18n.t("Copy text"), hidden: !n || kindOf(n) === "board", run: () => copyNote(n) },
       { icon: "star", label: fav ? i18n.t("Unfavourite") : i18n.t("Favourite"), fill: fav, run: () => (board ? B.toggleFav(board.id) : toggleFav(n.id)) },
       { icon: n && n.pinned ? "pin-off" : "pin", label: n && n.pinned ? i18n.t("Unpin from Home") : i18n.t("Pin to Home"), hidden: !n || !homeOn(), run: () => togglePinned(n.id) },
       { icon: "layers", label: i18n.t("Move to…"), hidden: !cats.length, sub: () => cats.filter((c) => c.name !== current)
@@ -1869,9 +1870,12 @@
       h.divider,
       // Home has no bulk bar to act on a selection.
       { ...h.select(id), hidden: state.view === "home" },
-      h.del(id, bulkDeleteNotesSelected),
+      n && n.template ? templateRemoveItem(n.id) : h.del(id, bulkDeleteNotesSelected),
     ];
   }
+  // As the reader's Copy text: a task list's name is its title.
+  const copyNote = (n) => copyText(noteAsText({ ...n, kind: kindOf(n), title: kindOf(n) === "list" ? n.text : n.title, text: n.text }));
+  const templateRemoveItem = (id, after) => ({ icon: "x", label: i18n.t("Remove template"), danger: true, run: () => removeTemplate(id, after) });
 
   async function bulkDeleteNotesSelected() {
     const ids = state.bulk.selected, boardIds = selectedBoards();
@@ -2655,7 +2659,7 @@
     $("#noteReaderEntryBtn").onclick = () => makeEntryFromNote(readingId);
     $("#noteReaderCopyBtn").onclick = () => {
       const n = findList(readingId);
-      if (n) copyText(noteAsText({ ...n, kind: kindOf(n), title: kindOf(n) === "list" ? n.text : n.title, text: n.text }));
+      if (n) copyNote(n);
     };
     $("#noteReaderDeleteBtn").onclick = () => deleteNote(readingId);
     $("#noteReaderFavBtn").onclick = async () => {
@@ -3031,6 +3035,17 @@
       x.appendChild(ico("x"));
       x.onclick = () => removeTemplate(t.id, () => drawTemplateRow(null));
       item.append(b, x);
+      // Right-click (Nov 2026): the sheet has no menu of its own, so the chip opens one.
+      item.addEventListener("contextmenu", (ev) => {
+        const CM = window.LifeLogContextMenu;
+        if (!CM || ev.shiftKey) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        CM.open(ev.clientX, ev.clientY, [
+          { icon: kindOf(t) === "list" ? "list-checks" : "layers", label: i18n.t("Use template"), run: () => useTemplate(t) },
+          templateRemoveItem(t.id, () => drawTemplateRow(null)),
+        ]);
+      });
       chips.appendChild(item);
     }
   }

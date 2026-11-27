@@ -2949,6 +2949,8 @@ Keel.i18n.strings("he", {
   "Remove template {name}": "הסרת התבנית {name}",
   "Template removed": "התבנית הוסרה",
   "Delete template": "מחיקת התבנית",
+  "Remove template": "הסרת התבנית",
+  "Use template": "שימוש בתבנית",
   "Templates": "תבניות",
   "Alignment guides": "קווי יישור",
   "Arrows stick to shapes": "חצים נצמדים לצורות",
