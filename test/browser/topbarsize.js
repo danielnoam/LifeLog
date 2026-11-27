@@ -50,6 +50,34 @@ async function measure(browser, lang, width) {
         VIEWS.every((v) => rows[v].tabH <= 40), rows);
     }
   }
+
+  // The search never grows as the window narrows (2026-11-27): it used to
+  // jump from 160px to 480px the moment the tabs dropped to icons. And the
+  // ⚙ stays in the window: in Hebrew it is on the left, and only the right
+  // edge was checked, so the tabs never went to icons and it fell off.
+  for (const lang of ["en", "he"]) {
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 600 }, serviceWorkers: "block" });
+    await ctx.addInitScript((l) => localStorage.setItem("lifelog.lang", l), lang);
+    const page = await ctx.newPage();
+    page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
+    await page.goto(BASE + "/", { waitUntil: "load" });
+    await page.waitForTimeout(600);
+    const seen = [];
+    for (let w = 1600; w >= 730; w -= 10) {
+      await page.setViewportSize({ width: w, height: 600 });
+      await page.waitForTimeout(60);
+      seen.push(await page.evaluate(() => {
+        const c = document.querySelector(".settings-corner").getBoundingClientRect();
+        return { w: innerWidth, search: Math.round(document.querySelector(".search-wrap").getBoundingClientRect().width), inside: c.left >= 0 && c.right <= innerWidth };
+      }));
+    }
+    const grew = seen.filter((r, i) => i && r.search > seen[i - 1].search);
+    check(`${lang}: search never widens as the window narrows`, grew.length === 0, grew.slice(0, 3));
+    const out = seen.filter((r) => !r.inside);
+    check(`${lang}: the ⚙ stays inside the window`, out.length === 0, out.slice(0, 3));
+    await ctx.close();
+  }
+
   await browser.close();
   done(errs);
 })();
