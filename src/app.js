@@ -4850,7 +4850,7 @@
 
     // A computer's top bar is one row that doesn't wrap, so a narrow or
     // zoomed-in window pushed the ⚙ past the edge. When the row doesn't fit
-    // with the search at its 240px floor, the tabs drop to icons (their
+    // with the search at its 160px floor, the tabs drop to icons (their
     // names become tooltips) and the wordmark goes. Both edges are checked:
     // in Hebrew the ⚙ is on the left and goes off that side.
     const corner = $(".settings-corner");

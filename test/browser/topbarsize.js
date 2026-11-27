@@ -51,10 +51,11 @@ async function measure(browser, lang, width) {
     }
   }
 
-  // The search never grows as the window narrows (2026-11-27): it used to
-  // jump from 160px to 480px the moment the tabs dropped to icons. And the
-  // ⚙ stays in the window: in Hebrew it is on the left, and only the right
-  // edge was checked, so the tabs never went to icons and it fell off.
+  // Tabs keep their labels until the search is down to its 160px floor,
+  // and once they're icons the search fills the row instead of leaving a
+  // gap (2026-11-28). And the ⚙ stays in the window: in Hebrew it is on the
+  // left, and only the right edge was checked, so the tabs never went to
+  // icons and it fell off.
   for (const lang of ["en", "he"]) {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 600 }, serviceWorkers: "block" });
     await ctx.addInitScript((l) => localStorage.setItem("lifelog.lang", l), lang);
@@ -67,12 +68,17 @@ async function measure(browser, lang, width) {
       await page.setViewportSize({ width: w, height: 600 });
       await page.waitForTimeout(60);
       seen.push(await page.evaluate(() => {
-        const c = document.querySelector(".settings-corner").getBoundingClientRect();
-        return { w: innerWidth, search: Math.round(document.querySelector(".search-wrap").getBoundingClientRect().width), inside: c.left >= 0 && c.right <= innerWidth };
+        const box = (s) => document.querySelector(s).getBoundingClientRect();
+        const c = box(".settings-corner"), s = box(".search-wrap"), t = box("#viewTabs");
+        const rtl = document.documentElement.dir === "rtl";
+        return { w: innerWidth, search: Math.round(s.width), tight: document.querySelector(".topbar").classList.contains("is-tight"),
+          gap: Math.round(rtl ? t.left - s.right : s.left - t.right), inside: c.left >= 0 && c.right <= innerWidth };
       }));
     }
-    const grew = seen.filter((r, i) => i && r.search > seen[i - 1].search);
-    check(`${lang}: search never widens as the window narrows`, grew.length === 0, grew.slice(0, 3));
+    const firstTight = seen.findIndex((r) => r.tight);
+    check(`${lang}: labels stay until the search is at its floor`, firstTight > 0 && seen[firstTight - 1].search < 175 && seen.slice(firstTight).every((r) => r.tight), seen.slice(Math.max(0, firstTight - 2), firstTight + 2));
+    const gaps = seen.filter((r) => r.tight && r.gap > 16);
+    check(`${lang}: with icon tabs the search fills the row`, gaps.length === 0, gaps.slice(0, 3));
     const out = seen.filter((r) => !r.inside);
     check(`${lang}: the ⚙ stays inside the window`, out.length === 0, out.slice(0, 3));
     await ctx.close();

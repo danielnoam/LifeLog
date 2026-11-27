@@ -549,15 +549,14 @@ html.show-tab-keys .tab-key {
    flex: as a flex item the input keeps its intrinsic min-width, which stops
    the wrapper shrinking and pushes the ⚙ onto a second row on a phone.
    On a computer it takes the room the row has left, up to 480px, and never
-   drops under 240px: past that the tabs give up their labels (.is-tight,
+   drops under 160px: past that the tabs give up their labels (.is-tight,
    set by fitTopbar in app.js) rather than push the ⚙ off the edge, which is
-   what a zoomed-in window used to do. Once they have, the search stays at
-   that 240px (down to 160px if it must) instead of taking the room the
-   labels gave back: it used to jump from 160px to 480px the moment the
-   labels went, so a narrower window had a wider search. */
-.search-wrap { position: relative; display: block; order: 3; margin-inline-start: auto; flex: 1 1 200px; min-width: 240px; max-width: 480px; }
+   what a zoomed-in window used to do. Labels stay for as long as they fit
+   (Daniel, 2026-11-28); once they've gone, the search takes all the room
+   they gave back rather than leaving a gap beside the icons. */
+.search-wrap { position: relative; display: block; order: 3; margin-inline-start: auto; flex: 1 1 200px; min-width: 160px; max-width: 480px; }
 .topbar.is-tight { gap: 12px; }
-.topbar.is-tight .search-wrap { min-width: 160px; max-width: 240px; }
+.topbar.is-tight .search-wrap { max-width: none; }
 .topbar.is-tight .brand h1 { display: none; }
 .topbar.is-tight .tab { gap: 0; padding-inline-start: 11px; padding-inline-end: 11px; font-size: 0; }
 .search {
